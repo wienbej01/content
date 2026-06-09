@@ -24,7 +24,9 @@ ROOT = Path(__file__).resolve().parent.parent
 RUNTIME_ENV = Path.home() / ".config" / "ytchannel" / "runtime.env"
 
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-DEFAULT_MODEL = "eleven_multilingual_v2"
+DEFAULT_MODEL = "eleven_v3"  # ElevenLabs Eleven v3 — canonical narration source
+# Fallback for legacy scripts that specify eleven_multilingual_v2 explicitly
+SUPPORTED_MODELS = {"eleven_v3", "eleven_multilingual_v2", "eleven_turbo_v2_5"}
 DEFAULT_SPEED = 1.0        # Top-level speed param (1.0 = normal; reference file used 1.05)
 DEFAULT_VOICE_SETTINGS = {
     "stability": 0.50,
