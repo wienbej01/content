@@ -43,19 +43,24 @@ def load_persona_prompt(persona):
 
 def build_review_prompt(persona_prompt, script):
     """Combine persona prompt + script content for review."""
-    # Extract the narration text
     texts = []
+    seg_meta = []
     for seg in script.get("segments", []):
         if seg.get("text"):
             texts.append(f"[{seg['id']}] {seg['text']}")
+        seg_meta.append({k: seg.get(k) for k in
+                         ("id", "audio_mode", "shot_type", "canonical_ref", "visual_brief")})
     script_text = "\n".join(texts)
     word_count = sum(len(seg.get("text", "").split()) for seg in script.get("segments", []))
 
+    import json as _json
     return (f"{persona_prompt}\n\n"
             f"---\n\nSCRIPT TO REVIEW:\n"
             f"Project: {script.get('project_id', 'unknown')}\n"
             f"Word count: {word_count}\n"
-            f"Segments: {len(script.get('segments', []))}\n\n"
+            f"Segments: {len(script.get('segments', []))}\n"
+            f"Narration mode: {script.get('narration_mode', 'segment_tts')}\n"
+            f"Segment metadata: {_json.dumps(seg_meta, indent=2)}\n\n"
             f"{script_text}")
 
 

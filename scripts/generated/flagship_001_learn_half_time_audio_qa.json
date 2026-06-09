@@ -30,111 +30,109 @@
     {
       "segment_id": "001_hook",
       "word_count": 19,
-      "audio_duration_s": 7.471,
-      "wps": 2.543,
-      "ref_wps_delta": -1.72,
+      "audio_duration_s": 6.426,
+      "wps": 2.957,
+      "ref_wps_delta": -1.306,
       "audio_exists": true,
       "warnings": [],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "002_promise",
       "word_count": 44,
-      "audio_duration_s": 17.946,
-      "wps": 2.452,
-      "ref_wps_delta": -1.811,
+      "audio_duration_s": 19.801,
+      "wps": 2.222,
+      "ref_wps_delta": -2.041,
       "audio_exists": true,
       "warnings": [],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "003_biology",
       "word_count": 114,
-      "audio_duration_s": 73.482,
-      "wps": 1.551,
-      "ref_wps_delta": -2.712,
+      "audio_duration_s": 66.116,
+      "wps": 1.724,
+      "ref_wps_delta": -2.539,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 1.55 < 2.0)"
+        "too_slow (WPS 1.72 < 2.0)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "004_wrong_approach",
       "word_count": 160,
-      "audio_duration_s": 91.638,
-      "wps": 1.746,
-      "ref_wps_delta": -2.517,
+      "audio_duration_s": 88.451,
+      "wps": 1.809,
+      "ref_wps_delta": -2.454,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 1.75 < 2.0)"
+        "too_slow (WPS 1.81 < 2.0)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "005_layered_encoding",
-      "word_count": 156,
-      "audio_duration_s": 78.211,
-      "wps": 1.995,
-      "ref_wps_delta": -2.268,
+      "word_count": 155,
+      "audio_duration_s": 80.849,
+      "wps": 1.917,
+      "ref_wps_delta": -2.346,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 2.00 < 2.0)"
+        "too_slow (WPS 1.92 < 2.0)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "006_productive_friction",
       "word_count": 161,
-      "audio_duration_s": 86.518,
-      "wps": 1.861,
-      "ref_wps_delta": -2.402,
+      "audio_duration_s": 87.066,
+      "wps": 1.849,
+      "ref_wps_delta": -2.414,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 1.86 < 2.0)"
+        "too_slow (WPS 1.85 < 2.0)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "007_contextual_bridging",
       "word_count": 148,
-      "audio_duration_s": 78.994,
-      "wps": 1.874,
-      "ref_wps_delta": -2.389,
+      "audio_duration_s": 82.834,
+      "wps": 1.787,
+      "ref_wps_delta": -2.476,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 1.87 < 2.0)"
+        "too_slow (WPS 1.79 < 2.0)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "008_ai_layer",
-      "word_count": 348,
+      "word_count": 474,
       "audio_duration_s": 201.639,
-      "wps": 1.726,
-      "ref_wps_delta": -2.537,
+      "wps": 2.351,
+      "ref_wps_delta": -1.912,
       "audio_exists": true,
-      "warnings": [
-        "too_slow (WPS 1.73 < 2.0)"
-      ],
-      "audio_mode": "generated_tts"
+      "warnings": [],
+      "audio_mode": "baked_in"
     },
     {
       "segment_id": "009_cta",
-      "word_count": 110,
-      "audio_duration_s": 51.801,
-      "wps": 2.124,
-      "ref_wps_delta": -2.139,
+      "word_count": 145,
+      "audio_duration_s": 69.956,
+      "wps": 2.073,
+      "ref_wps_delta": -2.19,
       "audio_exists": true,
       "warnings": [
-        "below_calm_band (WPS 2.12 < 2.2)"
+        "below_calm_band (WPS 2.07 < 2.2)"
       ],
-      "audio_mode": "generated_tts"
+      "audio_mode": "baked_in"
     }
   ],
   "summary": {
     "total_segments": 9,
-    "segments_with_warnings": 7,
-    "total_warnings": 7
+    "segments_with_warnings": 6,
+    "total_warnings": 6
   }
 }
