@@ -1,8 +1,152 @@
 # James Recording Studio/Library — Set Bible
 
-**Version:** 1.0
-**Status:** Active
+**Version:** 2.0 — CANONICAL LOCK (derived from actual reference frames)
+**Status:** Active — LOCKED
+**Last updated:** 2026-06-09
 **See also:** `JAMES_CHARACTER_BIBLE.md`, `REFERENCE_ASSET_MANIFEST.md`
+
+---
+
+## ⚠ KNOWN INCONSISTENCY IN TEASER_02
+
+The James teaser_02 clips contain two incompatible studio environments:
+- **Segments 001, 003, 007, 008** — off-white/cream painted built-in bookshelves, brass adjustable-arm task lamp
+- **Segments 005** — dark walnut wood bookshelves, traditional table lamp with fabric shade, darker ambient
+
+**These are NOT the same room and must not appear in the same production without editorial justification.**
+
+**The canonical environment going forward is defined below.** All new flagship videos must use the canonical spec. When teaser segments are regenerated, they must match this spec.
+
+---
+
+## 1. CANONICAL ROOM IDENTITY
+
+The James recording space is a private study or executive library — his actual working room. It has accumulated over time. Every element is functional, not decorative.
+
+---
+
+## 2. CANONICAL SPATIAL SPEC (PIXEL-EXACT)
+
+### Walls
+- **Colour:** Off-white / warm cream — approximately #F2EDE4. NOT pure white, not grey, not dark.
+- **Material:** Plain painted plaster or subtle eggshell finish. No wallpaper, no panelling.
+- **Visible walls in standard shots:** Left side wall (partially), back wall (behind bookshelf).
+
+### Bookshelves
+- **Style:** Built-in floor-to-ceiling shelves with simple painted-wood framework. Pilasters between shelf bays are visible as vertical dividers.
+- **Colour:** Same off-white/cream as walls — the shelves are BUILT IN and PAINTED to match. NOT dark wood, NOT stained.
+- **Books:** Mixed heights and spines. Predominantly warm tones — tan, ochre, dark red, navy, forest green, with some faded cloth spines. NOT uniform. NOT decorative.
+- **Lower section:** Some bays have closed-panel cabinet doors at the base (dark pulls, simple hardware).
+- **Framed artwork:** ONE small framed print or document, centre-back wall, positioned above and between bookshelf bays. Light/neutral tones, not prominent.
+- **Location:** Bookshelf occupies the ENTIRE BACK WALL as seen from the standard camera position.
+
+### Desk
+- **Style:** Traditional dark-stained hardwood. Rectangular. Solid construction with panel detailing on the front face. NOT glass, NOT light wood, NOT modern.
+- **Colour:** Deep mahogany/walnut — dark reddish-brown (#3B1F0F range).
+- **Surface items (standard):** Open notebook (dark cover, cream pages), pen resting on page, one ceramic mug (plain, matte grey or dark).
+- **Desk mat:** Optional — dark leather rectangle.
+
+### Chair
+- **Style:** Traditional upholstered wingback or barrel-back. NOT ergonomic. NOT mesh.
+- **Colour:** Deep navy or dark leather. Must NOT be brown leather (that is the 005 variant — inconsistent with canonical).
+
+### Lamp — PRIMARY (CANONICAL)
+- **Type:** Adjustable-arm task lamp — classic "banker's lamp" or articulated studio arm style.
+- **Finish:** Aged brass / antique gold. NOT matte black. NOT chrome.
+- **Shade:** Brass dome or shallow brass reflector bowl — open underneath, directional warm light.
+- **Position:** LEFT side of desk, angled to provide side-lighting across the desk surface. Arm extended toward desk centre.
+- **Height:** Lamp head approximately at James's mid-chest level when seated.
+- **Light quality:** Warm amber pool of light on desk surface. Visible glow. NOT diffuse. NOT ring-light fill.
+
+### Second lamp (FORBIDDEN)
+- A second small green-enamel adjustable lamp was visible in some teaser clips. **This is not part of the canonical set.** Only ONE desk lamp is present.
+
+### Window
+- **Position:** RIGHT side of frame, partially visible or implied.
+- **Style:** Traditional multi-pane sash window. Wood frame, warm-toned.
+- **Light:** Soft warm natural light — late morning or late afternoon quality. NOT harsh midday. NOT blue-toned.
+- **Curtains/blinds:** NOT present in standard shots, or implied at the edge of frame.
+
+### Floor
+- NOT visible in standard medium shots.
+
+### Room atmosphere
+- Warm, intimate, slightly dim ambient — the desk lamp provides the key light, the window provides fill.
+- Overall colour temperature: warm (~3200K–3800K feel).
+- No overhead lighting visible.
+- No coloured lights, no neon, no practical monitors glowing.
+
+---
+
+## 3. WARDROBE CANONICAL (LOCKED)
+
+Based on observed clips:
+- **Primary:** Navy cashmere crew-neck sweater over white Oxford shirt (collar open, visible at neck). This is the default for all standard episodes.
+- **Secondary:** Same sweater with a navy blazer added over it. Use for more formal segments or the hook/intro if higher authority register is required.
+- **Forbidden:** Any other wardrobe combination without explicit approval.
+
+---
+
+## 4. APPROVED CAMERA ANGLES
+
+All angles belong to the **same room with the same canonical layout above.**
+
+### STUDIO_LIBRARY_MEDIUM_DESK_001 ← DEFAULT
+**Framing:** Chest-up. James at desk, desk surface partially visible below. Lamp visible in left foreground or left frame edge. Bookshelf fills background, off-white with mixed books. Framed print visible above James's left shoulder.
+**Use:** Default for all speaking segments.
+**9:16 crop:** James centered; bookshelf occupies left and right edges of background.
+
+### STUDIO_LIBRARY_CLOSEUP_001
+**Framing:** Shoulders-up. Bookshelf reduced to soft out-of-focus background. Lamp barely visible or off-frame.
+**Use:** Key insight delivery; emphasis moments.
+**9:16 crop:** Fully center-safe.
+
+### STUDIO_LIBRARY_WIDE_001
+**Framing:** Full establishing. Desk in foreground, James seated, entire back-wall bookshelf visible. Window right.
+**Use:** Episode openings only.
+**9:16 crop:** James must be left-of-center; bookshelf right-of-center must remain.
+
+### STUDIO_LIBRARY_SIDE_PROFILE_001
+**Framing:** Side profile, James looking toward window. Lamp provides rim light on left. Bookshelf background.
+**Use:** Voiceover / thinking transition shots.
+
+### STUDIO_LIBRARY_OVER_SHOULDER_001
+**Framing:** Behind James looking down at desk. Notebook/document in near foreground.
+**Use:** Insert b-roll; reading/working shots.
+
+---
+
+## 5. TIME-OF-DAY LOOKS
+
+| Look | Description | Use |
+|---|---|---|
+| Late morning (DEFAULT) | Warm, balanced natural light from right window. Desk lamp on. | All standard episodes. |
+| Late afternoon | Warmer, slightly lower angle. Desk lamp dominant. More amber cast. | Reflective content. |
+| Evening (rare) | Desk lamp only. Window dark. Intimate. | Use sparingly. |
+
+---
+
+## 6. GENERATION PROMPT FRAGMENT (copy-paste into every lipsync brief)
+
+```
+The room is James Harrington's private study. Off-white/cream painted built-in bookshelves fill the entire back wall, floor to ceiling, with books in mixed warm-toned spines (tan, ochre, navy, dark red). ONE adjustable-arm brass desk lamp with a dome reflector on the LEFT side of the desk provides a warm directional pool of light. A traditional multi-pane sash window is visible on the RIGHT. The desk is dark mahogany. There is one small framed print on the wall above the bookshelf. Walls are off-white painted plaster. Warm ambient, approximately 3400K, no coloured lights, no overhead lighting visible, no second lamp, no screens.
+```
+
+---
+
+## 7. FAILURE CONDITIONS
+
+| Observed failure | Correct |
+|---|---|
+| Dark walnut bookshelves (seen in 005_give_back) | Off-white painted built-ins |
+| Traditional table lamp with fabric shade (seen in 005_give_back) | Brass adjustable-arm task lamp, dome reflector |
+| Two lamps visible (seen in 003_pattern) | One lamp only |
+| Brown leather chair | Navy or dark chair |
+| Futuristic monitor on desk | No monitors in standard shots |
+| Wallpaper or wood panelling | Plain painted plaster |
+| Cold or blue ambient | Warm amber |
+| Corporate office proportions | Private study — intimate scale |
+
 
 ---
 
