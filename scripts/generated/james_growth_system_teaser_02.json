@@ -34,8 +34,10 @@
         {
           "id": "002_background_shot02",
           "duration": 5.5,
-          "visual_brief": "Wide aerial drift over a calm financial-district skyline at dusk, soft haze, distant glass towers, cinematic, no signage, no text, premium and grounded.",
-          "media": "../../assets/media/james_teaser_02/002_background_shot02.mp4"
+          "visual_brief": "Wide aerial cinematic drift over a calm financial district skyline at dusk, soft haze, distant glass towers reflecting warm light, cinematic grade, no signage, no text, premium grounded atmosphere.",
+          "media": "../../assets/media/james_teaser_02/002_background_shot02.mp4",
+          "visual_prompt_override": "Aerial cinematic view of a modern city financial district at dusk, glass towers, warm golden light, soft atmospheric haze, premium cinematic grade.",
+          "negative_prompt": ""
         }
       ]
     },

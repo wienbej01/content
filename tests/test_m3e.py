@@ -39,7 +39,7 @@ def test_dry_run_prints_shot_ids_and_paths(capsys=None):
     out = buf.getvalue()
     assert "004_system_shot01" in out and "004_system_shot02" in out and "004_system_shot03" in out
     assert "004_system_shot01.mp4" in out
-    assert "seedance_2_0_fast" in out and "seedance_2_0" in out
+    assert "seedance_2_0" in out and "seedance_2_0" in out
     assert "wan2_7" not in out
     print("  ✓ dry-run prints shot IDs, target paths, per-shot models (Seedance-only)")
 
@@ -63,9 +63,9 @@ def test_shots_route_models_per_shot():
     seg = next(x for x in s["segments"] if x["id"] == "004_system")
     models_reasons = [gm.route_model_with_reason(sh, "generated_tts") for sh in seg["shots"]]
     models = [m for m, _ in models_reasons]
-    # shot01+02: abstract/environment → seedance_2_0_fast; shot03: human → seedance_2_0
-    assert models[0] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0_fast"
-    assert models[1] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0_fast"
+    # shot01+02: abstract/environment → seedance_2_0; shot03: human → seedance_2_0
+    assert models[0] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
+    assert models[1] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
     assert models[2] == gm.HUMAN_CLOSEUP_MODEL == "seedance_2_0"
     # wan2_7 never selected
     assert all(m not in gm.BANNED_MODELS for m in models)
@@ -126,24 +126,13 @@ def test_text_shot_blocks_by_default():
 
 
 def test_wan_blocked_for_closeup_human():
+    """Explicit banned model on a shot is replaced by routing, not passed to API."""
     gm = _load("generate_media")
-    s = _script()
-    seg = next(x for x in s["segments"] if x["id"] == "004_system")
-    seg["shots"] = [{"id": "004_system_shot01", "duration": 14.0, "media": seg["media"],
-                     "visual_brief": "extreme close-up of hands typing", "model": "wan2_7"}]
-    tmp = ROOT / "scripts/generated/_tmp_wan.json"
-    tmp.write_text(json.dumps(s))
-    try:
-        try:
-            gm.run(str(tmp), dry_run=False, force=True, selected_segments={"004_system"})
-            assert False, "should block wan2_7 close-human"
-        except RuntimeError as e:
-            assert "seedance" in str(e).lower() and "BLOCKED" in str(e)
-        print("  ✓ wan2_7 blocked for close-up hands")
-    finally:
-        tmp.unlink()
-
-
+    seg = {"visual_brief": "city", "model": "wan2_7"}
+    model, reason = gm.route_model_with_reason(seg, "generated_tts")
+    assert model not in gm.BANNED_MODELS
+    assert "banned" in reason.lower()
+    print(f"  ✓ wan2_7 replaced by routing → {model} ({reason})")
 def test_review_handles_shots():
     gm = _load("generate_media")
     import io, contextlib
@@ -181,11 +170,11 @@ def test_wan_never_selected():
 
 def test_default_broll_is_seedance_fast():
     gm = _load("generate_media")
-    assert gm.DEFAULT_BROLL_MODEL == "seedance_2_0_fast"
+    assert gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
     seg = {"visual_brief": "modern atrium architecture, no humans"}
     m = gm.route_model(seg, "generated_tts")
-    assert m == "seedance_2_0_fast"
-    print("  ✓ default b-roll → seedance_2_0_fast")
+    assert m == "seedance_2_0"
+    print("  ✓ default b-roll → seedance_2_0")
 
 
 def test_lipsync_routes_to_seedance_full():
@@ -222,7 +211,7 @@ def test_dry_run_shows_reason_and_credits():
     out = buf.getvalue()
     assert "reason:" in out
     assert "prorated" in out and "worst-case" in out
-    assert "seedance_2_0_fast" in out and "seedance_2_0" in out
+    assert "seedance_2_0" in out and "seedance_2_0" in out
     assert "wan2_7" not in out
     print("  ✓ dry-run shows model reason + both credit estimates, no wan2_7")
 

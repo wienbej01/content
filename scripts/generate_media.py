@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
 DEFAULT_LIPSYNC_MODEL = "seedance_2_0"
-DEFAULT_BROLL_MODEL = "seedance_2_0_fast"   # DECISION: Seedance-only; wan2_7 removed
+DEFAULT_BROLL_MODEL = "seedance_2_0"    # all b-roll: one model, proven quality
 HUMAN_CLOSEUP_MODEL = "seedance_2_0"        # humans/hands/faces get full Seedance
 BANNED_MODELS = {"wan2_7", "kling", "veo"}  # never allowed unless explicitly overridden
 WAIT_TIMEOUT = "15m"
@@ -48,20 +48,20 @@ HUMAN_CLOSEUP_TERMS = {
 
 # Realism constraints injected into every b-roll prompt
 BROLL_REALISM_PREFIX = (
-    "Premium realistic business cinematography, realistic scale and proportions, "
-    "modern office or finance or knowledge-work setting, natural lighting, "
-    "cinematic quality, believable interior architecture, human-scale furniture and rooms. "
+    "Premium business cinematography, realistic scale and proportions, "
+    "modern office or finance setting, natural lighting, "
+    "cinematic quality, believable architecture and interiors. "
     "Construct the scene WITHOUT any text-bearing surfaces: no screens, no laptops, no monitors, "
     "no whiteboards, no documents, no papers, no slides, no signage, no logos. "
-    "Prefer wide shots, shallow depth of field, silhouettes, architecture, city, and motion. "
-    "Any surface that could carry text must be blank, fully blurred, or out of focus. "
+    "Prefer wide shots, architecture, city views, and ambient motion. "
+    "Any surface that could carry text must be blank or out of focus. "
 )
 BROLL_NEGATIVE = (
     "readable text, letters, numbers, symbols, fake writing, gibberish text, AI text, "
     "logos, watermark, UI text, whiteboard text, slide deck text, PowerPoint text, "
     "document text, chart labels, subtitles, captions, screens with text, "
     "portrait laptop screens, miniature or toy-like interiors, warped architecture, "
-    "fisheye distortion, surreal proportions, fake celebrities, deformed hands, extra fingers, "
+    "fisheye distortion, surreal proportions, fake celebrities, "
     "neon, cyberpunk, sci-fi, futuristic holograms"
 )
 
@@ -118,7 +118,7 @@ def route_model_with_reason(seg_or_shot, audio_mode, default_broll=DEFAULT_BROLL
 
 # Credit cost estimates per clip (Higgsfield bills a 10-second minimum)
 _CREDITS = {
-    "seedance_2_0_fast": (1.0, 1.0),   # (prorated, 10s-min worst-case)
+    "seedance_2_0": (2.0, 2.0),
     "seedance_2_0":      (2.0, 2.0),
 }
 
