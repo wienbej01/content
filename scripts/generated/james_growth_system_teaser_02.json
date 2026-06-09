@@ -1,0 +1,74 @@
+{
+  "project_id": "james_growth_system_teaser_02",
+  "title": "The Growth System",
+  "output_dir": "../../Videos/Projects/james_growth_system_teaser_02",
+  "voice": {
+    "model_id": "eleven_multilingual_v2"
+  },
+  "defaults": {
+    "format": "mp3"
+  },
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "baked_in",
+      "text": "Most professionals spend their careers chasing the edge — without realizing the edge isn't one big secret. It's a system.",
+      "visual_brief": "James Harrington seated at dark wood desk in warm private library. Eye-level medium shot. Navy cashmere sweater over white Oxford shirt. Brass lamp warm light from left. Bookshelves soft-focus behind. Direct composed expression. Speaking to camera. Lipsync from narration audio.",
+      "media": "../../assets/media/james_teaser_02/001_hook.mp4",
+      "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"
+    },
+    {
+      "id": "002_background",
+      "audio_mode": "generated_tts",
+      "text": "I've spent my career across consulting, merchant banking, early-stage start-ups, and venture capital — different sectors, the same underlying game.",
+      "visual_brief": "Slow pan across a clean desk with strategy documents, financial models, and a well-worn notebook. Overhead view of a whiteboard covered in decision trees and rough frameworks. Muted warm professional colour palette. No faces clearly shown.",
+      "media": "../../assets/media/james_teaser_02/002_background.mp4"
+    },
+    {
+      "id": "003_pattern",
+      "audio_mode": "baked_in",
+      "text": "In every environment, the people who got ahead weren't always the most talented. They just thought more clearly, decided more deliberately, and learned faster.",
+      "visual_brief": "James Harrington in thoughtful seated pose at dark wood desk. 3/4 angle, looking slightly off-camera as if recalling experience. Navy cashmere sweater. Warm lamp from left. Bookshelves behind. Not speaking directly to camera — reflective voiceover look.",
+      "media": "../../assets/media/james_teaser_02/003_pattern.mp4",
+      "canonical_ref": "JAMES_THREE_QUARTER_STUDY_001"
+    },
+    {
+      "id": "004_system",
+      "audio_mode": "generated_tts",
+      "text": "Over time, I built my own version of that system — how to frame the right problems, communicate with precision, use emerging tools effectively, and compound small advantages over years.",
+      "visual_brief": "Overhead close-up of hands sketching a compound growth curve on paper. Quick cut to a laptop screen showing a structured document (screen abstract, not readable). Rapid cuts: annotated notebook, a decision flowchart, a highlighted document.",
+      "media": "../../assets/media/james_teaser_02/004_system.mp4"
+    },
+    {
+      "id": "005_give_back",
+      "audio_mode": "baked_in",
+      "text": "This channel is where I share it — not as theory, but as a working framework refined over twenty years.",
+      "visual_brief": "James Harrington standing near floor-to-ceiling dark wood bookshelves in private library. Navy blazer over white Oxford shirt. 3/4 angle. Looking at camera with quiet authority. Composed upright posture. Warm lamp light.",
+      "media": "../../assets/media/james_teaser_02/005_give_back.mp4",
+      "canonical_ref": "JAMES_STANDING_LIBRARY_001"
+    },
+    {
+      "id": "006_audience",
+      "audio_mode": "generated_tts",
+      "text": "It's for founders, executives, and ambitious professionals who are done with motivation and ready for something that actually compounds.",
+      "visual_brief": "Montage of professional environments: a founder reviewing a pitch deck at a worn table, an executive in a glass-walled office working across dual monitors. No faces clearly shown. Purposeful, grounded, businesslike.",
+      "media": "../../assets/media/james_teaser_02/006_audience.mp4"
+    },
+    {
+      "id": "007_promise",
+      "audio_mode": "baked_in",
+      "text": "Every video is practical, evidence-grounded, and built around one purpose: to make your thinking sharper and your professional trajectory more deliberate.",
+      "visual_brief": "James Harrington at desk in private library, direct address to camera. Close medium shot. Navy cashmere sweater. Composed, direct expression. Warm lamp. Bookshelves behind. Speaking with quiet confidence.",
+      "media": "../../assets/media/james_teaser_02/007_promise.mp4",
+      "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"
+    },
+    {
+      "id": "008_cta",
+      "audio_mode": "baked_in",
+      "text": "If that resonates, subscribe — and let's get to work.",
+      "visual_brief": "James Harrington, slight lean forward at desk, direct to camera, slight half-smile as the point lands. Navy cashmere. Warm study. End on his composed expression before cut to logo.",
+      "media": "../../assets/media/james_teaser_02/008_cta.mp4",
+      "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"
+    }
+  ]
+}

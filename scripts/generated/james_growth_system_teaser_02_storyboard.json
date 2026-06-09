@@ -1,0 +1,103 @@
+{
+  "project_id": "james_growth_system_teaser_02",
+  "james_presence_pct": 62,
+  "segments": [
+    {
+      "segment_id": "001_hook",
+      "visual_role": "hook",
+      "scene_type": "A_ROLL_JAMES",
+      "audio_mode": "baked_in",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "002_background",
+      "visual_role": "credibility",
+      "scene_type": "B_ROLL_SUPPORTING",
+      "audio_mode": "generated_tts",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "003_pattern",
+      "visual_role": "insight",
+      "scene_type": "A_ROLL_JAMES",
+      "audio_mode": "baked_in",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "004_system",
+      "visual_role": "system",
+      "scene_type": "B_ROLL_SUPPORTING",
+      "audio_mode": "generated_tts",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "005_give_back",
+      "visual_role": "give_back",
+      "scene_type": "A_ROLL_JAMES",
+      "audio_mode": "baked_in",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "006_audience",
+      "visual_role": "audience",
+      "scene_type": "B_ROLL_SUPPORTING",
+      "audio_mode": "generated_tts",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "007_promise",
+      "visual_role": "promise",
+      "scene_type": "A_ROLL_JAMES",
+      "audio_mode": "baked_in",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    },
+    {
+      "segment_id": "008_cta",
+      "visual_role": "cta",
+      "scene_type": "A_ROLL_JAMES",
+      "audio_mode": "baked_in",
+      "forbidden_elements": [
+        "readable_text",
+        "logos",
+        "fake_ui",
+        "miniature_scale"
+      ]
+    }
+  ],
+  "warnings": []
+}

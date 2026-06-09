@@ -1,0 +1,126 @@
+{
+  "project_id": "james_growth_system_teaser_02",
+  "reference": {
+    "file": "ElevenLabs_2026-06-08T03_39_17_James Harrington_gen_sp105_s50_sb75_se12_b_m2.mp3",
+    "duration_s": 11.964,
+    "word_count": 51,
+    "wps": 4.263
+  },
+  "target_settings": {
+    "model": "eleven_multilingual_v2",
+    "speed": 1.0,
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.12,
+    "use_speaker_boost": true
+  },
+  "wps_bands": {
+    "calm": [
+      2.2,
+      2.6
+    ],
+    "teaser": [
+      2.6,
+      3.0
+    ],
+    "flag_below": 2.0,
+    "flag_above": 3.2
+  },
+  "segments": [
+    {
+      "segment_id": "001_hook",
+      "word_count": 20,
+      "audio_duration_s": 9.639,
+      "wps": 2.075,
+      "ref_wps_delta": -2.188,
+      "audio_exists": true,
+      "warnings": [
+        "below_calm_band (WPS 2.08 < 2.2)"
+      ],
+      "audio_mode": "baked_in"
+    },
+    {
+      "segment_id": "002_background",
+      "word_count": 20,
+      "audio_duration_s": 10.527,
+      "wps": 1.9,
+      "ref_wps_delta": -2.363,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.90 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "003_pattern",
+      "word_count": 24,
+      "audio_duration_s": 9.927,
+      "wps": 2.418,
+      "ref_wps_delta": -1.845,
+      "audio_exists": true,
+      "warnings": [],
+      "audio_mode": "baked_in"
+    },
+    {
+      "segment_id": "004_system",
+      "word_count": 30,
+      "audio_duration_s": 13.453,
+      "wps": 2.23,
+      "ref_wps_delta": -2.033,
+      "audio_exists": true,
+      "warnings": [],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "005_give_back",
+      "word_count": 20,
+      "audio_duration_s": 7.34,
+      "wps": 2.725,
+      "ref_wps_delta": -1.538,
+      "audio_exists": true,
+      "warnings": [],
+      "audio_mode": "baked_in"
+    },
+    {
+      "segment_id": "006_audience",
+      "word_count": 19,
+      "audio_duration_s": 9.273,
+      "wps": 2.049,
+      "ref_wps_delta": -2.214,
+      "audio_exists": true,
+      "warnings": [
+        "below_calm_band (WPS 2.05 < 2.2)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "007_promise",
+      "word_count": 21,
+      "audio_duration_s": 11.285,
+      "wps": 1.861,
+      "ref_wps_delta": -2.402,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.86 < 2.0)"
+      ],
+      "audio_mode": "baked_in"
+    },
+    {
+      "segment_id": "008_cta",
+      "word_count": 10,
+      "audio_duration_s": 3.291,
+      "wps": 3.038,
+      "ref_wps_delta": -1.225,
+      "audio_exists": true,
+      "warnings": [
+        "above_teaser_band (WPS 3.04 > 3.0)"
+      ],
+      "audio_mode": "baked_in"
+    }
+  ],
+  "summary": {
+    "total_segments": 8,
+    "segments_with_warnings": 5,
+    "total_warnings": 5
+  }
+}

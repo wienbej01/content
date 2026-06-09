@@ -1,0 +1,283 @@
+{
+  "version": "1.1",
+  "purpose": "Machine-readable production constraints for storyboard validator, prompt compiler, and QA scripts. Companion to TECHNICAL_BIBLE.md and UNIVERSE_BIBLE.md.",
+
+  "host_led_default": true,
+  "non_host_led_condition": "storyboard.allow_all_broll == true",
+
+  "episode_types": ["teaser", "explainer", "trailer", "short"],
+
+  "allowed_palette": {
+    "primary_dark": "#1B2A4A",
+    "primary_warm": "#C8973E",
+    "neutral_base": "#F5F0E8",
+    "text_shadow": "#2D2D2D",
+    "accent": "#6B1D2A",
+    "incidentals": ["dark wood", "aged leather", "brass", "muted sage", "charcoal grey"]
+  },
+
+  "forbidden_palette": [
+    "neon purple",
+    "neon blue",
+    "neon pink",
+    "electric glow without practical source",
+    "cyberpunk contrast split-tone",
+    "oversaturated corporate primaries",
+    "cool-toned teal grade"
+  ],
+
+  "allowed_lighting": [
+    "warm desk lamp (2700-3500K directional)",
+    "soft natural side light from window (morning or late afternoon)",
+    "reflected warm fill from walls or paper",
+    "practical ceiling ambient (background fill only)"
+  ],
+
+  "forbidden_lighting": [
+    "colored ambient glow (blue, purple, teal)",
+    "ring light catchlight in eyes",
+    "overexposed white seamless background",
+    "hard single-source spotlight against black",
+    "neon sign as primary light source",
+    "strobe or flicker effects",
+    "any light without a plausible physical source"
+  ],
+
+  "allowed_camera_movements": [
+    "locked-off medium shot",
+    "slow push-in",
+    "slow dolly in",
+    "subtle parallax",
+    "over-the-shoulder desk shot",
+    "close-up hands writing",
+    "close-up notebook/pen/book",
+    "slow tracking walk",
+    "motivated slow pan (bookshelf or desk only)"
+  ],
+
+  "forbidden_camera_movements": [
+    "spinning camera or 360 orbit",
+    "aggressive zoom or crash zoom",
+    "unmotivated handheld shaking",
+    "indoor drone-style impossible angles",
+    "random gimbal wander",
+    "hyperactive cuts (average A-roll shot duration below 3s)",
+    "unmotivated cinematic swoop"
+  ],
+
+  "approved_studio_angles": [
+    "STUDIO_LIBRARY_WIDE_001",
+    "STUDIO_LIBRARY_MEDIUM_DESK_001",
+    "STUDIO_LIBRARY_CLOSEUP_001",
+    "STUDIO_LIBRARY_OVER_SHOULDER_001",
+    "STUDIO_LIBRARY_SIDE_PROFILE_001",
+    "STUDIO_LIBRARY_STANDING_BOOKSHELF_001",
+    "STUDIO_LIBRARY_CAT_BACKGROUND_001"
+  ],
+
+  "allowed_scene_types": [
+    "A_ROLL_TALKING_HEAD",
+    "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+    "B_ROLL_SUPPORTING_VISUAL",
+    "B_ROLL_SYMBOLIC_VISUAL",
+    "INSERT_HANDS_WRITING",
+    "INSERT_OBJECT_DETAIL",
+    "TEXT_OVERLAY_POST_ONLY",
+    "TRANSITION",
+    "TITLE_CARD"
+  ],
+
+  "scene_type_notes": {
+    "A_ROLL_TALKING_HEAD": "Direct camera address + lipsync from final approved narration. Uses seedance_2_0. audio_policy: keep_lipsync.",
+    "A_ROLL_CHARACTER_PRESENT_VOICEOVER": "James in frame NOT addressing camera. No lipsync. audio_policy: strip. Narration comes from the continuous master file."
+  },
+
+  "excluded_from_presence_count": ["TRANSITION", "TITLE_CARD"],
+
+  "forbidden_visual_patterns": [
+    "futuristic_ai_city",
+    "glowing_hologram_dashboard",
+    "neon_lit_environment",
+    "floating_ui_elements",
+    "ai_neural_network_visualization",
+    "cyberpunk_setting",
+    "all_broll_host_led_video",
+    "no_james_host_led_video",
+    "garbled_text_in_focus",
+    "readable_generated_text",
+    "visible_brand_logos",
+    "generic_stock_photo_posed_professionals",
+    "random_substitute_presenter",
+    "sci_fi_environment",
+    "motivational_stock_footage",
+    "dramatic_trailer_lighting",
+    "random_studio_redesign",
+    "inconsistent_cat_appearance"
+  ],
+
+  "universal_required_prompt_fields": [
+    "beat_id",
+    "scene_type",
+    "a_roll_or_b_roll",
+    "james_presence",
+    "location_id",
+    "camera_movement",
+    "lighting",
+    "palette",
+    "text_policy",
+    "audio_policy",
+    "crop_safety",
+    "duration_target_sec",
+    "output_path",
+    "positive_prompt",
+    "negative_prompt",
+    "model"
+  ],
+
+  "studio_required_prompt_fields": [
+    "camera_angle_id"
+  ],
+
+  "studio_location_ids": [
+    "ENV_STUDIO_LIBRARY",
+    "ENV_PRIVATE_STUDY"
+  ],
+
+  "a_roll_required_prompt_fields": [
+    "reference_assets"
+  ],
+
+  "text_policy_enum": ["none", "soft_focus_only", "post_overlay"],
+
+  "text_policy": {
+    "enum": ["none", "soft_focus_only", "post_overlay"],
+    "default": "none",
+    "generated_in_scene_text": "forbidden",
+    "screens_in_focus": "forbidden",
+    "book_spines_in_focus": "forbidden",
+    "documents_close_up_readable": "forbidden",
+    "post_production_overlay": "allowed",
+    "soft_focus_documents": "allowed"
+  },
+
+  "default_negative_constraints": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance",
+
+  "audio_policy": {
+    "generated_tts": "strip",
+    "baked_in": "keep_lipsync",
+    "silent": "strip",
+    "final_video_narration_mode": "continuous_voiceover",
+    "continuous_voiceover_assembly_support": "M7",
+    "test_narration_mode": "segment_tts",
+    "wps_calm_min": 2.2,
+    "wps_calm_max": 2.6,
+    "wps_teaser_min": 2.6,
+    "wps_teaser_max": 3.0,
+    "wps_flag_below": 2.0,
+    "wps_flag_above": 3.2,
+    "max_pause_before_flag_sec": 3.0,
+    "music_bed_db_loudest": -22,
+    "music_bed_db_target": -28,
+    "music_bed_db_quietest": -32
+  },
+
+  "crop_safety": {
+    "master_format": "16:9",
+    "derived_format": "9:16",
+    "center_safe_horizontal_pct": 56,
+    "james_must_be_center_safe": true,
+    "key_props_center_safe_pct": 60
+  },
+
+  "a_roll_rules": {
+    "requires_reference_assets": true,
+    "requires_approved_studio_angle": true,
+    "lipsync_requires_final_narration": true,
+    "no_substitute_presenters": true,
+    "presence_measured_by": "beat_count",
+    "presence_excludes_scene_types": ["TRANSITION", "TITLE_CARD"],
+    "min_presence_teaser_pct": 60,
+    "min_presence_explainer_pct": 45,
+    "min_presence_trailer_pct": 40,
+    "min_presence_short_pct": 70,
+    "zero_james_host_led_is_hard_fail": true
+  },
+
+  "storyboard_rules": {
+    "min_distinct_angles_or_locations": 3
+  },
+
+  "cat_rules": {
+    "cat_requires_reference": true,
+    "cat_reference_ids": ["CAT_LIBRARY_SLEEPING_001", "CAT_WINDOW_001"],
+    "cat_frequency_is_human_review": true
+  },
+
+  "b_roll_rules": {
+    "may_not_replace_entire_video": true,
+    "audio_must_be_stripped_for_generated_tts": true,
+    "must_be_grounded_and_realistic": true,
+    "no_readable_generated_text": true,
+    "screens_must_be_off_or_out_of_focus": true,
+    "allowed_categories": [
+      "james_present_voiceover",
+      "desk_work_insert",
+      "city_exterior_financial_district",
+      "professional_environment_background",
+      "environmental_abstraction",
+      "archival_documents_soft_focus"
+    ],
+    "forbidden_categories": [
+      "futuristic_ai_cityscape",
+      "holographic_ui",
+      "generic_stock_photo_professionals",
+      "ai_generated_text_close_up",
+      "any_forbidden_environment"
+    ]
+  },
+
+  "quality_markers": {
+    "shallow_dof_aroll": true,
+    "consistent_color_temp": true,
+    "no_clipped_highlights": true,
+    "no_crushed_blacks": true,
+    "light_has_visible_source": true
+  },
+
+  "model_routing_policy": {
+    "a_roll_lipsync": "seedance_2_0",
+    "james_present_voiceover": "seedance_2_0",
+    "grounded_broll": "wan2_7",
+    "abstract_broll": "wan2_7",
+    "llm_creative_tasks": "claude-sonnet-4.5",
+    "llm_utility_tasks": "auto",
+    "llm_auto_utility_may_be_sole_creative_approver": false
+  },
+
+  "qa_scoring_scale": {
+    "5": "Excellent; strongly on-brand; no issues",
+    "4": "Good; on-brand; minor notes only",
+    "3": "Acceptable but weak; improvements recommended",
+    "2": "Poor; major repair needed",
+    "1": "Unusable; automatic fail"
+  },
+
+  "automatic_fail_conditions": [
+    "generated_tts_broll_audio_in_final_output",
+    "james_absent_from_host_led_episode",
+    "all_broll_host_led_video",
+    "prominent_garbled_text_in_focus",
+    "cyberpunk_or_futuristic_hologram_visuals",
+    "wrong_james_appearance",
+    "wrong_studio_layout",
+    "cat_looks_different_from_reference",
+    "visible_logo_or_copyrighted_text",
+    "major_9x16_crop_failure",
+    "audible_break_between_narration_segments_in_final",
+    "scene_contradicts_narration",
+    "random_substitute_presenter_in_aroll",
+    "neon_or_electric_glow_lighting",
+    "credits_spent_before_storyboard_approved",
+    "media_prompt_from_raw_visual_brief_after_m5_m8"
+  ]
+}

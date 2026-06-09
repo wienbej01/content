@@ -1,0 +1,43 @@
+{
+  "id": "trailer_v6",
+  "segments": [
+    {
+      "media": "../Videos/Input_video/20260608_trailer/trailer_1a.mp4",
+      "words": 15,
+      "lower_third": "../brand/assets/lower_third.png"
+    },
+    {
+      "media": "../Videos/Input_video/20260608_trailer/trailer_2a.mp4",
+      "words": 24
+    },
+    {
+      "media": "../Videos/Input_video/20260608_trailer/trailer_3a.mp4",
+      "words": 10,
+      "trim_end": 6.65
+    }
+  ],
+  "pacing": {
+    "reference": 1,
+    "baseline_speed": 0.85
+  },
+  "music": {
+    "mood": "calm",
+    "level_db": -16
+  },
+  "brand": {
+    "endcard_16x9": "../brand/assets/endcard_16x9.png",
+    "endcard_9x16": "../brand/assets/endcard_9x16.png",
+    "endcard_duration": 3.0,
+    "gap_seconds": 0.4,
+    "audio_fade": 0.3
+  },
+  "render": {
+    "fps": 24,
+    "crf": 18,
+    "grade": "eq=contrast=1.04:saturation=1.05:gamma=0.98,colorbalance=rs=0.02:gs=0.0:bs=-0.03:rm=0.02:bm=-0.02"
+  },
+  "output": {
+    "directory": "../Videos/Completed",
+    "prefix": "trailer_leveragemind"
+  }
+}

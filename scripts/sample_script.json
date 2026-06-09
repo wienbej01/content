@@ -1,0 +1,38 @@
+{
+  "project_id": "trailer_demo",
+  "title": "Leverage Mind Channel Trailer",
+  "output_dir": "../Videos/Projects/trailer_demo",
+  "voice": {
+    "model_id": "eleven_multilingual_v2",
+    "settings": {
+      "stability": 0.50,
+      "similarity_boost": 0.75,
+      "style": 0.12
+    }
+  },
+  "defaults": {
+    "format": "mp3"
+  },
+  "segments": [
+    {
+      "id": "001_intro",
+      "audio_mode": "baked_in",
+      "text": "You won't find my face on a stage, or my name in a bestseller list.",
+      "media": "../Videos/Input_video/20260608_trailer/trailer_1a.mp4",
+      "lower_third": "../brand/assets/lower_third.png"
+    },
+    {
+      "id": "002_credentials",
+      "audio_mode": "baked_in",
+      "text": "But over thirty-five years — consulting, the City, two startups, and a decade in venture capital — I've built one thing worth sharing: Systems that compound.",
+      "media": "../Videos/Input_video/20260608_trailer/trailer_2a.mp4"
+    },
+    {
+      "id": "003_cta",
+      "audio_mode": "baked_in",
+      "text": "This is Leverage Mind. The unfair advantage is a system.",
+      "media": "../Videos/Input_video/20260608_trailer/trailer_3a.mp4",
+      "trim_end": 6.65
+    }
+  ]
+}

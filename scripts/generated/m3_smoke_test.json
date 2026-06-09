@@ -1,0 +1,20 @@
+{
+  "project_id": "m3_real_generation_smoke",
+  "title": "M3 Smoke Test — One Segment",
+  "output_dir": "../../Videos/Regression/m3_smoke",
+  "voice": {
+    "model_id": "eleven_multilingual_v2"
+  },
+  "defaults": {
+    "format": "mp3"
+  },
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "text": "Most professionals spend their careers chasing the edge — without realizing the edge isn't one big secret. It's a system.",
+      "visual_brief": "Time-lapse of a busy financial district at dawn. Long-exposure light trails from commuters and vehicles. Professionals crossing an intersection in motion blur. Abstract geometric overlay suggesting forward momentum and directionality.",
+      "media": "../../Videos/Regression/m3_smoke/media/001_hook.mp4"
+    }
+  ]
+}

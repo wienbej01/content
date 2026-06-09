@@ -1,0 +1,25 @@
+# Secrets
+*.env
+runtime.env
+~/.config/ytchannel/
+
+# IDE / tools
+.kiro/settings/
+__pycache__/
+*.pyc
+
+# Dependencies
+node_modules/
+
+# Generated media (large binaries — not tracked in git)
+Videos/
+assets/media/
+assets/reference/
+
+# Database
+db/
+
+# Temp / raw
+content/
+.raw_*
+/tmp/

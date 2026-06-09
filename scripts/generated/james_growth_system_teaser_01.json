@@ -1,0 +1,96 @@
+{
+  "project_id": "james_growth_system_teaser_01",
+  "title": "The Growth System",
+  "output_dir": "Videos/Projects/james_growth_system_teaser_01",
+  "voice": {
+    "provider": "elevenlabs",
+    "voice_id": "IFHMWSyzUUDboBSRynhv",
+    "model_id": "eleven_multilingual_v2"
+  },
+  "defaults": {
+    "format": "mp3",
+    "music": null
+  },
+  "segments": [
+    {
+      "id": "001_hook",
+      "text": "Most professionals spend their careers chasing the edge — without realizing the edge isn't one big secret. It's a system.",
+      "media": "../../assets/media/james_teaser/001_hook.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Time-lapse of a busy financial district at dawn. Long-exposure light trails from commuters and vehicles. Professionals crossing an intersection in motion blur. Abstract geometric overlay suggesting forward momentum and directionality.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "002_background",
+      "text": "I've spent my career across consulting, merchant banking, early-stage start-ups, and venture capital — different sectors, the same underlying game.",
+      "media": "../../assets/media/james_teaser/002_background.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Slow pan across a clean desk with strategy documents, financial models, and a well-worn notebook. Cut to overhead view of a whiteboard covered in decision trees, arrows, and rough frameworks. Muted, professional color palette.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "003_pattern",
+      "text": "In every environment, the people who got ahead weren't always the most talented. They just thought more clearly, decided more deliberately, and learned faster.",
+      "media": "../../assets/media/james_teaser/003_pattern.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "B-roll split: one professional moving with calm purpose through an open office, reviewing structured notes; another looking overwhelmed at a cluttered screen. No faces clearly shown. Subtle abstract grid overlay on the transition.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "004_system",
+      "text": "Over time, I built my own version of that system — how to frame the right problems, communicate with precision, use emerging tools effectively, and compound small advantages over years.",
+      "media": "../../assets/media/james_teaser/004_system.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Overhead close-up of hands sketching a compound growth curve on paper. Quick cut to a glowing AI workflow interface on a laptop. Rapid cuts: dense margin annotations in a book, a decision flowchart, a highlighted strategy document.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "005_give_back",
+      "text": "This channel is where I share it — not as theory, but as a working framework refined over twenty years.",
+      "media": "../../assets/media/james_teaser/005_give_back.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Warm-toned close-up of an open notebook filled with handwritten frameworks, diagrams, and annotations. Soft-focus bookshelves in the background. Slow push-in camera move suggesting invitation and accumulated depth.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "006_audience",
+      "text": "It's for founders, executives, and ambitious professionals who are done with motivation and ready for something that actually compounds.",
+      "media": "../../assets/media/james_teaser/006_audience.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Montage of professional environments: a founder reviewing a pitch deck at a worn table, an executive in a glass-walled office, a professional working across dual monitors showing data and structured notes. No faces clearly shown.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "007_promise",
+      "text": "Every video is practical, evidence-grounded, and built around one purpose: to make your thinking sharper and your professional trajectory more deliberate.",
+      "media": "../../assets/media/james_teaser/007_promise.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Abstract visualization: a branching decision tree slowly assembles itself on a dark background, nodes lighting up in sequence. Warm golden accent tones. Clean, architectural, unhurried pacing. No text overlays.",
+      "audio_mode": "generated_tts"
+    },
+    {
+      "id": "008_cta",
+      "text": "If that resonates, subscribe — and let's get to work.",
+      "media": "../../assets/media/james_teaser/008_cta.mp4",
+      "layout": "cover",
+      "trim_start": 0,
+      "trim_end": null,
+      "visual_brief": "Clean channel logo fades in centered on a minimal dark background. Simple subscribe prompt appears beneath after a short hold. Camera static — uncluttered, confident, no movement once the logo settles.",
+      "audio_mode": "generated_tts"
+    }
+  ]
+}
