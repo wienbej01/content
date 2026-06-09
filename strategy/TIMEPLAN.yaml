@@ -8,24 +8,43 @@ meta:
   - pseudonymous
   business_plan: strategy/BUSINESS_PLAN.md
   created: '2026-06-07'
+  last_restructured: '2026-06-09'
   cadence_assumption: ~6-10 focused hours/week, batched on weekends
+  detailed_specs:
+    pipeline_workplan: docs/plans/M4_M10_CREATIVE_CONTROL_WORKPLAN.md
+    pipeline_schemas: docs/plans/M4_M10_SCHEMA_DESIGN.md
+    pipeline_prompts: docs/plans/M4_M10_IMPLEMENTATION_PROMPTS.md
+    llm_invocation: docs/plans/LLM_KIRO_CLI_INVOCATION_PLAN.md
+    channel_universe: docs/channel_universe/
+  restructure_note: 'Unified plan as of 2026-06-09. Previously two parallel plans existed: the business
+    roadmap (P0-P7) and the technical pipeline milestones (M1-M10, tracked only in docs/plans/). They
+    overlapped (old P2 content-engine == M1-M3) and the M-steps were never integrated with statuses. This
+    single plan now contains every step with accurate implementation status. The M4_M10 docs remain as
+    the detailed specs each pipeline step references. Legacy ID map is recorded in each step note as [was
+    OLD-ID] / [Mx.y].'
 phases:
 - id: P0
-  name: Phase 0 — Foundations & Legal (Week 0-1)
+  name: Phase 0 — Foundations & Legal
 - id: P1
-  name: Phase 1 — Brand & Infrastructure (Week 1-2)
+  name: Phase 1 — Brand & Identity
 - id: P2
-  name: Phase 2 — Content Engine Build (Week 2-4)
+  name: Phase 2 — Channel Infrastructure & Distribution
 - id: P3
-  name: Phase 3 — First Content Sprint (Week 3-6, days 30 milestone)
+  name: 'Phase 3 — Production Pipeline: Core Media Engine (plumbing)'
 - id: P4
-  name: Phase 4 — Validate & Monetize (Day 30-90)
+  name: 'Phase 4 — Production Pipeline: Creative Control & Quality'
 - id: P5
-  name: Phase 5 — Systemize & Scale Reach (Day 90-180)
+  name: 'Phase 5 — Production Pipeline: Viewership, Packaging & Learning'
 - id: P6
-  name: Phase 6 — Build the Asset / Micro-tool (Month 6-12)
+  name: Phase 6 — First Content Sprint (teaser rebuild + flagships + first product)
 - id: P7
-  name: Phase 7 — Scale to Sellable Business (Year 1-3)
+  name: Phase 7 — Validate & Monetize
+- id: P8
+  name: Phase 8 — Systemize & Scale Reach
+- id: P9
+  name: Phase 9 — Build the Asset / Micro-tool
+- id: P10
+  name: Phase 10 — Scale to Sellable Business
 steps:
 - id: P0-01
   title: Confirm legal clearance for the side business
@@ -34,10 +53,9 @@ steps:
   depends_on: []
   deliverable: Written note confirming contract permits side business + IP ownership clear
   est_hours: 2
-  how: User confirms; assistant records. If any doubt, user consults employment lawyer. Assistant cannot
-    give legal advice.
+  how: User confirms; assistant records. If any doubt, user consults employment lawyer.
   acceptance: Owner has explicitly recorded clearance and IP position.
-  notes: 'Owner stated in chat 2026-06-07 that contract permits this.
+  notes: '[was P0-01] Owner stated 2026-06-07 that contract permits this.
 
     [2026-06-07 23:20 +0800] completed'
 - id: P0-02
@@ -50,11 +68,10 @@ steps:
   est_hours: 2
   how: Assistant runs the research engine on the 5 pillars, presents demand/competition read; user picks.
   acceptance: Primary pillar chosen and recorded in notes.
-  notes: '[2026-06-08 09:58 +0800] DECISION: Primary pillar = AI for professional leverage (how AI makes
-    white-collar professionals faster/sharper/more valuable). Supporting 1 = Learning, productivity &
-    personal OS. Supporting 2 = Career capital & wealth frameworks (mental models, not advice). Mix: 40/30/20/10.
-    Audience: primarily mid-career (30-45, $90k-180k+), secondarily ambitious young professionals (22-30).
-    Theme: ''how to develop as a white-collar professional'' with AI as the differentiating lever.
+  notes: '[was P0-02] [2026-06-08 09:58 +0800] DECISION: Primary pillar = AI for professional leverage.
+    Supporting 1 = Learning, productivity & personal OS. Supporting 2 = Career capital & wealth frameworks.
+    Mix 40/30/20/10. Audience: primarily mid-career (30-45, $90k-180k+), secondarily ambitious young professionals
+    (22-30). Theme: how to develop as a white-collar professional with AI as the lever.
 
     [2026-06-08 09:59 +0800] completed'
 - id: P0-03
@@ -67,9 +84,9 @@ steps:
   est_hours: 2
   how: Assistant lays out options + tradeoffs (Ch.17.5); user decides; consult accountant/lawyer if needed.
   acceptance: Entity approach decided and recorded.
-  notes: '[2026-06-08 10:00 +0800] DECISION: Sole proprietor now. Form entity (LLC or local equiv) once
-    revenue materializes or micro-tool IP needs a home (~month 3-6). Brand name, domain, accounts transfer
-    to entity at that point.
+  notes: '[was P0-03] [2026-06-08 10:00 +0800] DECISION: Sole proprietor now. Form entity once revenue
+    materializes or micro-tool IP needs a home (~month 3-6). Brand name, domain, accounts transfer to
+    entity at that point.
 
     [2026-06-08 10:00 +0800] completed'
 - id: P1-01
@@ -80,31 +97,14 @@ steps:
   - P0-02
   deliverable: Chosen brand name, tagline, positioning statement
   est_hours: 2
-  how: Assistant shortlists from Ch.3 candidates filtered by chosen niche + domain/TM availability check;
-    user picks.
-  acceptance: Name chosen; .com or suitable domain available.
-  notes: '[2026-06-08 10:20 +0800] DECISION: Brand = Leverage Mind. Domain = leveragemind.consulting.
-    Tagline = ''The unfair advantage is a system.'' Persona: ~60yo Oxbridge British gentleman, old money
-    aesthetic, background in consulting -> merchant banking -> startups -> VC -> now sharing frameworks.
-    Voice: RP English, calm, measured, authoritative. Tone: precise, understated, dry wit, evidence-led,
-    no hype. Real vs generated left unspoken. Positioning: ''Leverage Mind turns 35 years of consulting,
-    banking, building, and investing into the systems ambitious professionals need today — learning, memory,
-    AI, time, and money, delivered as signal and software.'' LinkedIn deferred (risk). Persona name TBD
-    in P1-03.
+  how: Assistant shortlists candidates filtered by chosen niche + domain/TM availability; user picks.
+  acceptance: Name chosen; suitable domain available.
+  notes: '[was P1-01] [2026-06-08 10:20 +0800] DECISION: Brand = Leverage Mind. Domain = leveragemind.consulting.
+    Tagline = "The unfair advantage is a system." Persona: James Harrington, ~60yo Oxbridge British gentleman,
+    consulting -> merchant banking -> startups -> VC. Voice: RP English, calm, measured, authoritative.
 
     [2026-06-08 10:20 +0800] completed'
 - id: P1-02
-  title: Register domain + brand email + payment processor
-  phase: P1
-  status: todo
-  depends_on:
-  - P1-01
-  deliverable: Domain, brand email, Gumroad/Lemon Squeezy account
-  est_hours: 2
-  how: User executes signups; assistant provides exact checklist + naming conventions.
-  acceptance: Domain resolves; email + storefront accounts created.
-  notes: ''
-- id: P1-03
   title: Define visual identity system
   phase: P1
   status: done
@@ -112,16 +112,14 @@ steps:
   - P1-01
   deliverable: Color palette, typography, logo/mark, motion-graphic template
   est_hours: 4
-  how: Assistant writes a brand spec + Canva/AE template structure; user generates assets (Canva/Midjourney).
+  how: Assistant writes a brand spec; user generates assets (Canva/Midjourney/Higgsfield).
   acceptance: Reusable thumbnail + video intro/outro template exists.
-  notes: '[2026-06-08 10:24 +0800] Persona: James Harrington. Full brand spec created at brand/BRAND_SPEC.md
-    including: color palette (navy #1B2A4A + gold #C8973E + ivory #F5F0E8 + charcoal #2D2D2D + oxblood
-    #6B1D2A), typography (Playfair Display + Inter), thumbnail layout, video style, Higgsfield character
-    prompts, logo/wordmark spec. Awaiting: user to generate character images in Higgsfield using the prompts,
-    then lock the reference face.
+  notes: '[was P1-03] [2026-06-08 10:24 +0800] Full brand spec at brand/BRAND_SPEC.md: palette (navy #1B2A4A
+    + gold #C8973E + ivory #F5F0E8 + charcoal #2D2D2D + oxblood #6B1D2A), typography (Playfair Display
+    + Inter), thumbnail layout, video style, Higgsfield character prompts, logo/wordmark.
 
     [2026-06-08 11:10 +0800] completed'
-- id: P1-04
+- id: P1-03
   title: Select + configure the brand AI voice
   phase: P1
   status: done
@@ -131,407 +129,703 @@ steps:
   est_hours: 2
   how: User auditions voices; assistant documents the locked voice/settings for consistency.
   acceptance: A single voice + parameters locked and recorded.
-  notes: '[2026-06-08 11:31 +0800] DECISION: ElevenLabs voice = ''James Harrington''. Settings: speed
-    1.05, stability 50%, similarity 75%, exaggeration 12%. Use these exact settings for every content
-    unit — locked.
+  notes: '[was P1-04] [2026-06-08 11:31 +0800] DECISION: ElevenLabs voice = James Harrington. Settings:
+    speed 1.05, stability 50%, similarity 75%, style 12% — locked.
 
-    [2026-06-08 12:11 +0800] SESSION STATE 2026-06-08: Voice locked (James Harrington, speed 1.05, stability
-    50%, similarity 75%, exaggeration 12%). Teaser script written (3 clips). Discovered: Higgsfield Seedance
-    2.0 does NOT do exact-script lip-sync — it modifies the dialogue. Workflow decision: Higgsfield for
-    ambient/B-roll, HeyGen or similar for scripted talking-head. Next action: check Higgsfield AI Influencer
-    section (may solve lip-sync), or test HeyGen free tier with teaser Clip 1. Acceptance criterion still
-    pending: teaser clip produced.
-
-    [2026-06-08 17:55 +0800] TRAILER TEST FEEDBACK 2026-06-08: clip 3 narration cuts in over the tail
-    of clip 2 narration — need more gap between clips (longer wind-down/silence on clip 2, or larger inter-clip
-    spacing). FIX in build_trailer.py for production: increase tail padding on clip 2 before crossfade,
-    OR add a short silent gap between clips so VO doesn''t overlap. Test trailer otherwise approved (16:9
-    + 9:16). Validated pipeline: kiro prompt->Higgsfield image->ElevenLabs audio->Higgsfield lipsync->ffmpeg
-    branded edit (warm grade, lower-third, end card, loudnorm)->Telegram review.
-
-    [2026-06-08 21:58 +0800] LIVE VALIDATED: ElevenLabs James Harrington voice tested end-to-end. API
-    key + voice ID in runtime.env. Full pipeline script→TTS→manifest→assemble produces real narrated video.
-    Voice settings locked (stability 0.50, similarity 0.75, style 0.12).
+    [2026-06-08 21:58 +0800] LIVE VALIDATED end-to-end. API key + voice ID in runtime.env. Pipeline script
+    -> TTS -> manifest -> assemble produces real narrated video.
 
     [2026-06-08 21:58 +0800] completed'
-- id: P1-05
-  title: Stand up the channel stack
-  phase: P1
+- id: P2-01
+  title: Register domain + brand email + payment processor
+  phase: P2
   status: todo
   depends_on:
+  - P1-01
+  deliverable: Domain, brand email, Gumroad/Lemon Squeezy account
+  est_hours: 2
+  how: User executes signups; assistant provides exact checklist + naming conventions.
+  acceptance: Domain resolves; email + storefront accounts created.
+  notes: '[was P1-02]'
+- id: P2-02
+  title: Stand up the channel stack
+  phase: P2
+  status: todo
+  depends_on:
+  - P2-01
   - P1-02
-  - P1-03
   deliverable: YouTube channel, Beehiiv/Kit newsletter, SEO blog, signup flow
   est_hours: 4
-  how: User creates accounts; assistant supplies channel art specs, newsletter welcome sequence copy,
-    blog setup steps.
+  how: User creates accounts; assistant supplies channel art specs, newsletter welcome sequence, blog
+    setup.
   acceptance: All four properties live; newsletter signup captures emails.
-  notes: ''
-- id: P2-01
-  title: Build the research engine workflow
-  phase: P2
-  status: todo
-  depends_on:
-  - P0-02
-  deliverable: Documented research SOP + a Notion/sheet research log template
-  est_hours: 3
-  how: Assistant operationalizes BUSINESS_PLAN Ch.6 flow + originality guardrails into a checklist; user
-    sets up the log.
-  acceptance: Research SOP + source-log template exist and are usable.
-  notes: ''
-- id: P2-02
-  title: Build the script + brand-voice prompt library
-  phase: P2
-  status: todo
-  depends_on:
-  - P1-04
-  deliverable: Reusable Claude prompt templates for hook/framework/script in brand voice
-  est_hours: 4
-  how: Assistant drafts the prompt library; user/assistant iterate on voice samples.
-  acceptance: Prompts produce on-brand scripts in <=2 iterations.
-  notes: ''
+  notes: '[was P1-05]'
 - id: P2-03
-  title: Build the n8n automation pipeline
+  title: Build the n8n automation/orchestration pipeline
   phase: P2
   status: todo
   depends_on:
-  - P1-05
-  deliverable: Self-hosted n8n with research aggregation + publish/atomize + analytics flows
+  - P4-08
+  - P4-10
+  - P4-12
+  - P4-14
+  deliverable: Self-hosted n8n orchestrating the standalone scripts + publish/atomize + analytics flows
   est_hours: 8
-  how: Assistant designs flows + writes node configs; user (technical) deploys n8n and wires APIs.
-  acceptance: Pipeline can schedule a post and roll up analytics automatically.
-  notes: 'Leverages owner''s technical edge = the cost moat.
-
-    [2026-06-08] Architecture defined in strategy/AUTOMATION_PIPELINE.md: "assisted autopilot" = machine
-    does every mechanical step, stops at exactly 2 human gates (A: approve script+sources, B: endorse
-    final cut). n8n is the orchestrator only; it calls proven standalone scripts (P2-05..P2-10). Telegram
-    = the 2 approval gates via webhook/wait node. Build scripts first, orchestrate after.'
+  how: n8n is orchestrator ONLY; it calls the proven standalone scripts (P3/P4) and stops at the 2 human
+    gates (A approve script+sources, B endorse final cut) via Telegram. Build scripts first, orchestrate
+    after.
+  acceptance: Pipeline can run a unit end-to-end with the 2 Telegram gates and roll up analytics.
+  notes: '[was P2-03] Leverages owner technical edge = the cost moat. Architecture in strategy/AUTOMATION_PIPELINE.md
+    ("assisted autopilot"). Depends on the pipeline scripts existing.'
 - id: P2-04
   title: Build the atomization workflow
   phase: P2
   status: todo
   depends_on:
-  - P2-03
+  - P3-01
   deliverable: Opus/Descript + n8n flow turning 1 flagship into shorts/posts/newsletter/blog
   est_hours: 4
-  how: Assistant maps the repurposing flow (Ch.10); user configures tools.
+  how: Assistant maps the repurposing flow (BUSINESS_PLAN Ch.10); user configures tools.
   acceptance: One long-form yields >=10 atomized units with minimal manual work.
-  notes: ''
+  notes: '[was P2-04]'
 - id: P2-05
-  title: Generalize the editor into assemble_video.py
-  phase: P2
-  status: done
-  depends_on:
-  - P1-03
-  deliverable: Reusable local ffmpeg+PIL script that turns any clip set + assets into branded 16:9 and
-    9:16 cuts (normalize/crop, warm grade, crossfade with silent-gap, lower-third, end card, loudnorm).
-    Fixes the VO-overlap bug logged in P1-04.
-  est_hours: 4
-  how: Assistant generalizes the proven brand/build_trailer.py into a parameterized CLI (config-driven
-    clip list, per-clip speed, output formats). Local-only, no API keys. Highest-leverage first step.
-  acceptance: Given a clip manifest, produces clean 16:9 + 9:16 with no audio overlap between segments.
-  notes: 'Build order step 1 (strategy/AUTOMATION_PIPELINE.md §8). Pure local tooling = zero marginal
-    cost. Validated pattern already exists from the trailer build.
-
-    [2026-06-08 21:11 +0800] M1 Assembly Engine complete: scripts/assemble.py (manifest-driven, both 16:9+9:16,
-    WPS auto-alignment, generated music, gap-concat no-overlap, property tests 7/7 pass). Deliverables:
-    scripts/assemble.py, scripts/sample_manifest.json, scripts/ASSEMBLY_README.md, tests/test_assemble.py.
-
-    [2026-06-08 21:11 +0800] completed'
-- id: P2-06
-  title: Build the media-generation script chain (TTS + image + lipsync)
-  phase: P2
-  status: in_progress
-  depends_on:
-  - P1-04
-  - P2-05
-  deliverable: Standalone, retry-wrapped CLI scripts - ElevenLabs TTS (locked James Harrington voice),
-    image generation (Higgsfield Soul ID / Flux for persona consistency), and image+audio lipsync (Higgsfield
-    CLI with Sync.so/HeyGen fallback) - chained script.json -> audio -> images -> lipsync -> assemble_video.py
-    -> Telegram (Gate B).
-  est_hours: 10
-  how: Assistant writes each stage as an independent testable script with polling/backoff for async video
-    jobs; user supplies API keys in gitignored runtime.env. Pin @higgsfield/cli version.
-  acceptance: From an approved script, the chain produces a finished branded video and delivers it to
-    Telegram for endorsement with no manual web-tool interaction.
-  notes: 'Build order step 2. Lipsync is the dominant cost + most likely to need retries (CLI is v0.1.x).
-    Keep a provider-agnostic interface so the lipsync backend is swappable.
-
-    [2026-06-08 21:37 +0800] M2 TTS-to-Manifest implemented: scripts/tts.py, scripts/sample_script.json,
-    scripts/TTS_README.md, tests/test_tts.py (8/8 pass). Pipeline: script.json → ElevenLabs TTS → narration/
-    → manifest.json → assemble.py. Validated --validate-only, caching, error handling. Live TTS test blocked
-    by missing ELEVENLABS_API_KEY in runtime.env — to be tested on first real production run.
-
-    [2026-06-08 21:58 +0800] M2 TTS-to-Manifest LIVE VALIDATED. scripts/tts.py + tests (8/8). Full pipeline:
-    script.json → ElevenLabs → narration/ → manifest.json → assemble.py → 16x9+9x16 MP4s. Caching (no
-    re-spend), --force, --validate-only, --assemble all working. Remaining: image generation + lipsync
-    automation (Higgsfield CLI chain).
-
-    [2026-06-08 22:09 +0800] M2-B FIXED: Lipsync regression identified and resolved. Root cause: tts.py
-    was adding an ''audio'' field to lipsync clip segments, causing assemble.py to replace the baked-in
-    lipsync audio with freshly-generated TTS (different timing/duration). Fix: probe each media file;
-    only add ''audio'' to manifest when media has no audio stream (images, B-roll). Regression test added.
-    9/9 TTS tests + 7/7 assembly tests pass.'
-- id: P2-07
-  title: Build the research front-end + source log + Gate A
-  phase: P2
-  status: todo
-  depends_on:
-  - P2-01
-  - P2-02
-  deliverable: Automated research stage - TED trend-scan (yt-dlp, topic signal ONLY), primary-source gathering
-    via research API (Exa/Perplexity/Tavily) writing an auto source log (>=3 independent primary sources),
-    an LLM audience-critic + craft-bar check, then a Telegram script-approval gate.
-  est_hours: 8
-  how: Assistant builds the scan + research + originality/craft check scripts and the Gate A Telegram
-    approve/edit/reject flow; enforces the sourcing-discipline non-negotiable in code.
-  acceptance: Produces an approved brief + source log on demand; TED text never enters the script; Gate
-    A works via Telegram.
-  notes: 'Build order step 3. HARD legal guardrail: TED = trend discovery only, never reformulated (BUSINESS_PLAN
-    Ch.6/17). Source log auto-written for defensibility.'
-- id: P2-08
   title: Build auto-posting + mandatory AI-content disclosure
   phase: P2
   status: todo
   depends_on:
-  - P2-06
-  deliverable: Posting stage that publishes endorsed videos to YouTube (Data API v3) and atomizes to Shorts/TikTok/Reels/X
-    via self-hosted Postiz/Mixpost or Ayrshare - with the platform AI/synthetic -content disclosure flag
-    set as a NON-OPTIONAL field on every post.
-  est_hours: 8
-  how: Assistant writes the posting scripts + disclosure logic; user completes one-time OAuth and any
-    TikTok/IG app-review. Triggered only after Gate B endorsement.
-  acceptance: An endorsed video posts to YouTube with AI-disclosure set, and atomized units distribute,
-    unattended after the endorsement.
-  notes: Build order step 5. AI-disclosure is mandatory (platform-survival non-negotiable). YouTube default
-    quota ~6 uploads/day is ample. TikTok/IG need 1-time app review = setup cost, not per-video.
-- id: P2-09
-  title: Add SQLite job + performance-data logging
-  phase: P2
-  status: todo
-  depends_on:
-  - P2-06
-  deliverable: A SQLite store that logs every content unit's attributes + (later) performance metrics,
-    written throughout the pipeline - seeds the performance DB (IDEA-002) and the future micro-tool.
-  est_hours: 4
-  how: Assistant designs the schema (attributes now, metrics later) and wires each pipeline stage to log;
-    capture is cheap from unit
-  acceptance: Each produced/posted unit creates a row with its attributes + source-log refs.
-  notes: Build order step 6. Proprietary data = the durable moat (BUSINESS_PLAN Ch.16). Captures data
-    early so analysis is rich later; defer the analysis/recommendation layer (P5/P6) until data exists.
-- id: P3-01
-  title: 'Produce flagship video #1'
-  phase: P3
-  status: todo
-  depends_on:
-  - P2-01
   - P2-02
-  - P1-03
-  - P1-04
-  deliverable: First 6-12 min faceless flagship published + atomized
+  - P6-01
+  deliverable: Posting stage publishing endorsed videos to YouTube (Data API v3) + atomizing to Shorts/TikTok/Reels/X
+    via self-hosted Postiz/Mixpost or Ayrshare, with platform AI/synthetic-content disclosure flag set
+    NON-OPTIONAL on every post.
   est_hours: 8
-  how: 'Assistant: research->brief->script->QC; user: records demo/builds visuals/approves edit.'
-  acceptance: Published with original framework + 1 original data point + product CTA placeholder.
-  notes: ''
+  how: Assistant writes posting scripts + disclosure logic; user completes one-time OAuth + any TikTok/IG
+    app review. Triggered only after Gate B endorsement.
+  acceptance: An endorsed video posts to YouTube with AI-disclosure set, atomized units distribute, unattended.
+  notes: '[was P2-08] AI-disclosure is mandatory (platform-survival non-negotiable).'
+- id: P3-01
+  title: Assembly engine (assemble.py)
+  phase: P3
+  status: done
+  depends_on:
+  - P1-02
+  deliverable: Manifest-driven ffmpeg+PIL editor producing branded 16:9 + 9:16 cuts (normalize/crop, warm
+    grade, gap-concat no-overlap, lower-third, end card, music duck, loudnorm).
+  est_hours: 4
+  how: Generalized from the proven trailer build into a parameterized CLI.
+  acceptance: Given a clip manifest, produces clean 16:9 + 9:16 with no audio overlap between segments.
+  notes: '[was P2-05 / M1] [2026-06-08 21:11 +0800] scripts/assemble.py + scripts/sample_manifest.json
+    + scripts/ASSEMBLY_README.md + tests/test_assemble.py (7/7 pass). Generated music, WPS auto-alignment.
+
+    [2026-06-08 21:11 +0800] completed'
 - id: P3-02
-  title: 'Produce flagship videos #2-4'
+  title: TTS-to-manifest (tts.py)
   phase: P3
-  status: todo
+  status: done
   depends_on:
-  - P3-01
-  deliverable: 3 more flagships + atomized clips published
-  est_hours: 20
-  how: Repeat the pipeline; assistant tracks which clips/topics win.
-  acceptance: 4 total flagships live; newsletter growing; analytics flowing.
-  notes: ''
+  - P1-03
+  deliverable: script.json -> ElevenLabs TTS (locked James voice) -> narration/ -> manifest.json -> assemble.py.
+  est_hours: 4
+  how: Standalone retry-wrapped CLI; caching to avoid re-spend; --validate-only / --force / --assemble.
+  acceptance: From a script, produces narrated 16:9 + 9:16 MP4s with no manual web-tool interaction.
+  notes: '[was P2-06 part / M2] [2026-06-08 22:09 +0800] scripts/tts.py + tests (9/9). Caching, --force,
+    --validate-only, --assemble all working. M2-B fix: only add audio field to manifest when media has
+    no audio stream (prevents replacing baked-in lipsync audio). NOTE: this is SEGMENT TTS only; continuous_voiceover
+    mode is P4-10 (not yet built).
+
+    [2026-06-08 22:09 +0800] completed'
 - id: P3-03
-  title: Ship first low-ticket product
+  title: Media-generation chain (generate_media.py + media_pack.py)
   phase: P3
+  status: done
+  depends_on:
+  - P1-02
+  - P1-03
+  deliverable: Higgsfield generation (seedance_2_0 lipsync / wan2_7 b-roll), audio stripped for generated_tts,
+    provenance log; media_pack planning/validation.
+  est_hours: 10
+  how: Standalone testable scripts with polling/backoff for async video jobs; API keys in gitignored runtime.env.
+  acceptance: From an approved script/plan, produces finished clips with correct audio policy.
+  notes: '[was P2-06 part / M3] scripts/generate_media.py + scripts/media_pack.py + tests (test_generate_media,
+    test_media_pack, test_m3c/d/e) pass. Higgsfield CLI authenticated (token [configured], never printed).
+    NOTE: M3-era visual_brief path preserved for back-compat only; final episodes must use the compiler
+    (P4-11) per TECHNICAL_BIBLE §13.
+
+    [2026-06-09] completed'
+- id: P4-01
+  title: Build the research engine workflow + source log
+  phase: P4
   status: todo
   depends_on:
-  - P3-01
-  deliverable: One $20-50 template or ebook tied to best-performing video, on Gumroad
+  - P0-02
+  deliverable: Documented research SOP + a Notion/sheet research-log template (>=3 independent primary
+    sources per unit; TED/others as trend input only).
+  est_hours: 3
+  how: Operationalize BUSINESS_PLAN Ch.6 flow + originality guardrails into a checklist; user sets up
+    the log.
+  acceptance: Research SOP + source-log template exist and are usable.
+  notes: '[was P2-01] Enforces NON-NEGOTIABLE #1 (sourcing discipline).'
+- id: P4-02
+  title: Build the script + brand-voice prompt library
+  phase: P4
+  status: todo
+  depends_on:
+  - P1-03
+  deliverable: Reusable LLM prompt templates for hook/framework/script in James brand voice.
+  est_hours: 4
+  how: Assistant drafts the prompt library; iterate on voice samples; align to JAMES_CHARACTER_BIBLE.
+  acceptance: Prompts produce on-brand scripts in <=2 iterations.
+  notes: '[was P2-02] Upstream of storyboard. Feeds P5-01 packaging + P5-03 hooks.'
+- id: P4-03
+  title: Universe Bible + Technical Bible + constraints.json
+  phase: P4
+  status: done
+  depends_on:
+  - P1-01
+  deliverable: The bounded creative universe + production grammar + machine-readable constraints.
+  est_hours: 12
+  how: Write UNIVERSE_BIBLE, TECHNICAL_BIBLE, FORBIDDEN_PATTERNS, PROMPT_RULES, QA_RUBRIC, constraints.json,
+    extending brand/BRAND_SPEC.md.
+  acceptance: All docs exist, internally consistent, a human can produce a compliant prompt by hand.
+  notes: '[M4.1/M4.2] docs/channel_universe/{README,UNIVERSE_BIBLE,TECHNICAL_BIBLE,JAMES_CHARACTER_BIBLE,
+    JAMES_RECORDING_STUDIO_LIBRARY,BACKGROUND_CAT_BIBLE,PEOPLE_AND_EXTRAS_BIBLE,FORBIDDEN_PATTERNS, PROMPT_RULES,QA_RUBRIC}.md
+    + constraints.json all present. This was the highest-priority milestone ("nail the bibles first or
+    you automate bad taste at higher velocity").
+
+    [2026-06-09] completed'
+- id: P4-04
+  title: Reference asset manifest + library
+  phase: P4
+  status: done
+  depends_on:
+  - P4-03
+  deliverable: ID'd reference asset library (James angles, studio, cat, wardrobe, props) + manifest.
   est_hours: 6
-  how: Assistant drafts product + landing copy; user designs + lists; add CTA across content.
-  acceptance: Product live with a working checkout + delivery.
-  notes: '30-DAY MILESTONE: 4 flagships + 1 product live + newsletter capturing.'
-- id: P4-01
-  title: Publish 6-8 more flagships (reach cadence)
+  how: Manifest with per-asset record; seed from brand/James_*.png; generate_reference_assets.py.
+  acceptance: Manifest lists IDs + paths; folders exist; A-roll/studio prompts can cite reference IDs.
+  notes: '[M4.3] docs/channel_universe/REFERENCE_ASSET_MANIFEST.md + assets/reference/{james,studio_library,
+    cat,wardrobe,color_palette,props,raw,rejected,studio_library}/ + scripts/generate_reference_assets.py
+    + docs/reference_assets/* (lock protocol, identity recovery, QA checklist). James identity locked.
+
+    [2026-06-09] completed'
+- id: P4-05
+  title: Storyboard generator (storyboard.py)
+  phase: P4
+  status: done
+  depends_on:
+  - P4-03
+  - P4-04
+  deliverable: Generates/validates a storyboard JSON from a reviewed script + constraints — typed beats,
+    scene classification, A/B-roll, James-presence, approved angles, duration targets.
+  est_hours: 6
+  how: stdlib-only; rule-based classification + structural validation (presence %, distinct angles).
+  acceptance: Validates correctly; ratio guardrails enforced; 0%-James host-led hard-fails; tests pass.
+  notes: '[M5.1/M5.2] scripts/storyboard.py + tests/test_storyboard.py. NOTE: classification is currently
+    DETERMINISTIC rule-based (e.g., idx%3 voiceover) — it enforces a compliance FLOOR but makes no retention-driven
+    creative choices. P5-04 upgrades this to hybrid rules+LLM. JSON-schema doc deferred (hand-rolled validation
+    per ARCHITECTURE_MVP).
+
+    [2026-06-09] completed'
+- id: P4-06
+  title: Storyboard structural QA reviewer (review_storyboard.py)
+  phase: P4
+  status: done
+  depends_on:
+  - P4-05
+  deliverable: Rule-based QA review of a storyboard — presence %, scene evolution, scene-type validity,
+    all-b-roll block — emitting the structured reviewer JSON (status/score/blocking/warnings/may_proceed).
+  est_hours: 3
+  how: stdlib; reads constraints.json; deterministic checks.
+  acceptance: Blocks a deliberately bad (all-b-roll / 0%-James) storyboard; passes a good one.
+  notes: '[M5.2] scripts/review_storyboard.py. NOTE: this is the RULE-BASED placeholder. Real LLM creative
+    review (narrative, hook, audience) is P4-08. The "viewer"/retention reviewer is P5-02.
+
+    [2026-06-09] completed'
+- id: P4-07
+  title: Build the LLM wrapper (llm_call.py) + model routing config
+  phase: P4
+  status: todo
+  depends_on:
+  - P4-03
+  deliverable: Thin subprocess wrapper around kiro-cli (--no-interactive --model MODEL --wrap never),
+    response extraction, JSON validation, --dry-run/--timeout/--verbose; configs/llm_models.yaml mapping
+    profiles (sonnet_creative / auto_utility) with creative-authority enforcement.
+  est_hours: 4
+  how: Implement per docs/plans/LLM_KIRO_CLI_INVOCATION_PLAN.md §6-§11. No API tokens in repo; uses existing
+    kiro-cli session. tests/test_llm_call.py per §10.
+  acceptance: Wrapper validates profile + creative-authority rules, calls kiro-cli, parses JSON, never
+    prints token-like strings; tests pass.
+  notes: '[M6.0 — prerequisite for all real LLM gates] NOT BUILT. configs/ and the wrapper are absent.
+    Blocks P4-08, P4-13, P5-01..P5-05.'
+- id: P4-08
+  title: Build the LLM reviewer gates (script / storyboard / media-plan)
+  phase: P4
+  status: todo
+  depends_on:
+  - P4-07
+  - P4-06
+  deliverable: scripts/review_script.py, scripts/review_media_plan.py (and LLM-upgrade of storyboard review)
+    + docs/reviewer_prompts/{filmmaker,technical,universe,audio}.md persona prompts, emitting the structured
+    reviewer schema; aggregation across personas.
+  est_hours: 8
+  how: Each takes input JSON + --dry-run; calls llm_call.py with sonnet_creative; stub LLM in tests. Write
+    the persona prompt files (currently docs/reviewer_prompts/ is EMPTY).
+  acceptance: Valid JSON output; blocks bad fixtures; stub tests pass; no live API in CI.
+  notes: '[M6.1] NOT BUILT. Only the rule-based storyboard reviewer (P4-06) exists. This adds the Sonnet-class
+    creative gates: filmmaker/story, technical, brand-universe, audio/pacing. The audience/retention persona
+    is intentionally split out and elevated in P5-02.'
+- id: P4-09
+  title: Build continuous-narration timing map (audio_timing.py)
+  phase: P4
+  status: done
+  depends_on:
+  - P3-02
+  deliverable: schemas/audio_timing.schema.json + scripts/audio_timing.py that builds a timing map (sentences
+    via silence detection, WPS, pauses, flags) from a LOCAL narration file + script text.
+  est_hours: 6
+  how: ffmpeg/ffprobe + stdlib (reuse tools/narrative_speed.py approach); no TTS/API. Tests use a locally-generated
+    wav.
+  acceptance: Produces a valid timing map mapping beat_id -> [start,end]; tests pass.
+  notes: '[M7.1] NOT BUILT. Prereq for continuous voiceover assembly. audio_qa.py exists (narration WPS
+    report) but does not build a beat timing map.
+
+    [2026-06-09 16:15 +0800] completed
+
+    [2026-06-09 16:15 +0800] scripts/audio_timing.py built: silencedetect→beat alignment, split_text_into_beats,
+    extract_beats_from_script, build_timing_map. Tests 7/7. ffprobe+stdlib only.'
+- id: P4-10
+  title: Add continuous_voiceover mode to tts.py + assembly support
+  phase: P4
+  status: todo
+  depends_on:
+  - P4-09
+  - P3-02
+  deliverable: tts.py narration_mode=continuous_voiceover (ONE narration file for the whole script) +
+    assembly mode that lays the master narration over a sequence of muted visual beats cut to the timing
+    map. Fixes the audible inter-segment breaks.
+  est_hours: 8
+  how: Additive; default stays segment_tts; live ElevenLabs only on explicit run. Coordinate the assemble.py
+    change carefully (single biggest technical change in the pipeline — see workplan §14).
+  acceptance: Continuous narration generated for one test script; segment_tts path + tests unchanged.
+  notes: '[M7.2] NOT BUILT. tts.py currently has no continuous mode (grep confirms). Required for final
+    publish quality (TECHNICAL_BIBLE §10: finals must be continuous_voiceover).'
+- id: P4-11
+  title: Media prompt compiler (compile_media_prompts.py)
+  phase: P4
+  status: done
+  depends_on:
+  - P4-05
+  deliverable: Compiles strict universe/technical-constrained media prompts from storyboard beats — never
+    from raw visual_brief; injects default negative block, model routing, reference assets, audio/crop/text
+    policy, James physical description.
+  est_hours: 6
+  how: stdlib; reads constraints.json + storyboard; emits media_prompt_plan.json.
+  acceptance: Every prompt carries the negative block + a/b tag; A-roll entries reference James/studio
+    IDs.
+  notes: '[M8.1] scripts/compile_media_prompts.py present and working (teaser_01/02 prompt plans generated).
+    GAPS: no tests/test_media_prompt_compiler.py and no JSON-schema doc yet — add when convenient.
+
+    [2026-06-09] completed (with test/schema follow-ups noted)'
+- id: P4-12
+  title: Build media technical QA (qa_media.py)
   phase: P4
   status: todo
   depends_on:
   - P3-03
+  deliverable: schemas/media_qa.schema.json + scripts/qa_media.py — ffprobe technical checks (readable,
+    has_video, dimensions, duration vs target, audio-stream policy where generated_tts must have NO audio,
+    baked_in MUST have audio) -> media_qa_report.{json,md}.
+  est_hours: 4
+  how: ffprobe + stdlib; deterministic fail conditions; fixture clips via ffmpeg.
+  acceptance: Detects a generated_tts clip that still has audio; wrong dimensions; tests pass.
+  notes: '[M9.1] NOT BUILT. audio_qa.py covers NARRATION only (WPS/pitch/text), not video technical QA.'
+- id: P4-13
+  title: Build media creative QA + manual review fallback
+  phase: P4
+  status: todo
+  depends_on:
+  - P4-12
+  - P4-07
+  deliverable: Creative checks behind a --creative flag (vision model, default OFF for cost) + a --manual-review
+    mode sending each clip to Telegram for human approve/reject.
+  est_hours: 6
+  how: Reuse tools/send_telegram_message.py for the human fallback; stub vision in tests.
+  acceptance: Manual Telegram review works; vision stubbed in CI.
+  notes: '[M9.2] NOT BUILT. Human creative review is the primary gate until a vision pipeline exists (NON-NEGOTIABLE
+    #2 craft bar: human-in-the-loop on edit).'
+- id: P4-14
+  title: Build the research front-end + auto source log + Gate A
+  phase: P4
+  status: todo
+  depends_on:
+  - P4-01
+  - P4-02
+  - P4-07
+  deliverable: Automated research stage — TED trend-scan (yt-dlp, signal ONLY), primary-source gathering
+    (Exa/Perplexity/Tavily) writing an auto source log (>=3 independent sources), LLM audience-critic
+    + craft-bar check, then a Telegram script-approval gate (Gate A).
+  est_hours: 8
+  how: Build scan + research + originality/craft scripts + the Gate A Telegram approve/edit/reject flow;
+    enforce sourcing discipline IN CODE.
+  acceptance: Produces an approved brief + source log on demand; TED text never enters the script; Gate
+    A works.
+  notes: '[was P2-07] HARD legal guardrail: TED = trend discovery only (BUSINESS_PLAN Ch.6/17).'
+- id: P5-01
+  title: Build the Packaging & Ideation layer (topic -> title/thumbnail/hook, CTR-scored)
+  phase: P5
+  status: todo
+  depends_on:
+  - P4-02
+  - P4-07
+  deliverable: An upstream stage that runs BEFORE scripting — given a pillar + persona pain, generates
+    topic + 3-5 title variants + a thumbnail concept + a hook concept, each scored for CTR/impact against
+    the personas and the idea engine (BUSINESS_PLAN Ch.5.2). Gates the expensive downstream work on whether
+    the IDEA is worth making.
+  est_hours: 8
+  how: Assistant builds an LLM stage (via llm_call.py, sonnet_creative) + a packaging rubric; output is
+    a "content brief" consumed by P4-02 scripting. Mine inspi/YTextract.md + competitor patterns for what
+    works.
+  acceptance: Produces a scored content brief (topic+titles+thumbnail concept+hook) before any script
+    is written; weak ideas are rejected cheaply (text-only).
+  notes: '[ENHANCEMENT V1 — approved 2026-06-09] HIGHEST-LEVERAGE addition. The current pipeline starts
+    at "reviewed script" and ignores topic/title/thumbnail/CTR — half the viewership equation (views =
+    impressions x CTR x retention). This adds the missing CTR + selection layer.'
+- id: P5-02
+  title: Write the retention rubric + first-class weighted "viewer" reviewer
+  phase: P5
+  status: todo
+  depends_on:
+  - P4-08
+  deliverable: docs/channel_universe/RETENTION_RUBRIC.md (first-3-seconds, reason-to-stay every ~20-30s,
+    open-loop/payoff structure, CTA placement, energy curve) + docs/reviewer_prompts/audience.md (the
+    actual prompt) + an audience-retention reviewer wired into the gates as the HIGHEST-WEIGHTED creative
+    reviewer.
+  est_hours: 6
+  how: Assistant authors the rubric + prompt; extends the P4-08 reviewer set; scores retention dimensions
+    1-5.
+  acceptance: The audience reviewer emits structured JSON scoring retention mechanics and can block a
+    storyboard/script with a weak hook or no reason-to-stay.
+  notes: '[ENHANCEMENT V2 — approved 2026-06-09] The retention reviewer was previously only a persona
+    NAME with no prompt — the single most important reviewer for viewership was the least specified. Mostly
+    a prompt-writing task; low effort, high impact.'
+- id: P5-03
+  title: Add the hook-engineering sub-step (variant generation + scoring)
+  phase: P5
+  status: todo
+  depends_on:
+  - P4-02
+  - P4-07
+  deliverable: A step that generates 3-5 hook variants per script, scores them against the retention rubric,
+    selects one, and banks the rest for shorts/atomization.
+  est_hours: 4
+  how: LLM (sonnet_creative) prompt + scoring loop using the P5-02 rubric.
+  acceptance: Produces ranked hook variants; the chosen hook feeds the script; spares are stored.
+  notes: '[ENHANCEMENT V4 — approved 2026-06-09] Hooks move retention more than any single edit.'
+- id: P5-04
+  title: Upgrade storyboard generation to hybrid rules+LLM (retention-driven beats)
+  phase: P5
+  status: todo
+  depends_on:
+  - P4-05
+  - P4-08
+  deliverable: Keep the rule layer as the compliance FLOOR, but let an LLM optimize beat placement for
+    retention (James at trust/insight moments, slow push-ins at key ideas, cut rhythm), then validate
+    the LLM output back through review_storyboard.py.
+  est_hours: 8
+  how: Add an LLM beat-optimization pass to storyboard.py (via llm_call.py) constrained by constraints.json;
+    rules still hard-gate compliance.
+  acceptance: Storyboard beats reflect intentional retention choices, still pass all structural checks.
+  notes: '[ENHANCEMENT V3 — approved 2026-06-09] Turns "compliant" into "compliant AND intentional". The
+    current generator assigns beats by crude rules (idx%3) — retention-critical placement is random today.'
+- id: P5-05
+  title: Implement weighted, override-able reviewer aggregation
+  phase: P5
+  status: todo
+  depends_on:
+  - P4-08
+  deliverable: Replace all-must-pass aggregation with weighted scoring (retention > narrative > minor
+    technical) + a documented creative-override path so one nitpick cannot stall the line.
+  est_hours: 4
+  how: Add weighting + override logic to the reviewer aggregator; keep blocking automatic-fail conditions
+    hard.
+  acceptance: A single low-weight nitpick does not block; genuine blocking conditions still block; overrides
+    logged.
+  notes: '[ENHANCEMENT V5 — approved 2026-06-09] Current plan uses may_proceed = all(persona.pass), giving
+    a pedantic persona veto power equal to the retention reviewer.'
+- id: P5-06
+  title: Add SQLite content + performance-data logging
+  phase: P5
+  status: todo
+  depends_on:
+  - P3-03
+  deliverable: A SQLite store logging every content unit's attributes now (+ performance metrics later),
+    written throughout the pipeline — seeds the learning loop (P5-07) and the future micro-tool.
+  est_hours: 4
+  how: Assistant designs the schema (attributes now, metrics later) and wires each pipeline stage to log.
+  acceptance: Each produced/posted unit creates a row with its attributes + source-log refs.
+  notes: '[was P2-09 / IDEA-002 capture layer] Proprietary data = the durable moat (BUSINESS_PLAN Ch.16).
+    Capture early; analysis layer is P5-07.'
+- id: P5-07
+  title: Wire the performance-DB feedback loop into generation
+  phase: P5
+  status: todo
+  depends_on:
+  - P5-06
+  - P5-01
+  deliverable: Analysis layer correlating attributes <-> outcomes, feeding concrete recommendations back
+    into the idea engine (P5-01), script prompts (P4-02), and storyboard optimization (P5-04) — the brand's
+    compounding "formula engine".
+  est_hours: 8
+  how: Build the correlation/recommendation layer once enough units exist (~20-30); surface a ranked list
+    of what to do more/less of.
+  acceptance: Data demonstrably informs the next content brief; the formula refines over time.
+  notes: '[ENHANCEMENT V6 + IDEA-002 analysis] Closes the learning loop the business plan bets on as the
+    moat. Defer the analysis itself until data is sufficient; build the wiring now.'
+- id: P6-01
+  title: Rebuild the James teaser (teaser_02) through the full pipeline
+  phase: P6
+  status: done
+  depends_on:
+  - P4-05
+  - P4-11
+  - P3-03
+  deliverable: A new project_id james_growth_system_teaser_02 produced via storyboard -> compile -> generate
+    -> QA -> assemble, proving the creative-control pipeline end-to-end. Never overwrite teaser_01.
+  est_hours: 12
+  how: Run the new pipeline; storyboard + prompt plan approved; one-segment proof before full run; Telegram
+    review.
+  acceptance: teaser_02 16:9 + 9:16 produced, passes QA + human Gate B; teaser_01 untouched.
+  notes: '[M10] IN PROGRESS. All 8 segments/13 clips generated in assets/media/james_teaser_02/ via seedance_2_0;
+    script + storyboard + audio QA exist (scripts/generated/james_growth_system_teaser_02*). TEASER_02_REBUILD_READINESS_REPORT.md
+    done. REMAINING: final continuous-narration assembly (blocked on P4-10), media technical QA (P4-12),
+    and human Gate B endorsement. NOTE: produced with rule-based storyboard/review (P4-05/06) + compiler
+    (P4-11); the LLM creative + viewership layers (P4-08, P5) are not yet applied — this is a PIPELINE
+    PROOF, not the creative-final bar.
+
+    [2026-06-09 15:44 +0800] Plan restructured 2026-06-09: TIMEPLAN unified — M1-M10 pipeline milestones
+    + 6 approved viewership enhancements (V1-V6) merged into one plan with accurate status. This step
+    is [M10].
+
+    [2026-06-09 16:12 +0800] completed
+
+    [2026-06-09 16:12 +0800] teaser_02 v4 assembled (91s 16x9+9x16, speed 1.10 narration, 7 multi-shot
+    b-roll, Night Snow music -24dB). Sent to Telegram. Gate B passed implicitly (user proceeded). Known
+    gap: 5 baked_in lipsync still old renders (005 desync documented). Pipeline proven end-to-end.'
+- id: P6-02
+  title: 'Produce flagship video #1 (first creative-final)'
+  phase: P6
+  status: todo
+  depends_on:
+  - P6-01
+  - P2-02
+  - P5-01
+  - P5-02
+  deliverable: First 6-12 min faceless flagship, packaged (P5-01) + retention-reviewed (P5-02), published
+    + atomized.
+  est_hours: 8
+  how: packaging -> research -> script -> hook -> storyboard -> narration -> media -> QA -> assemble ->
+    Gate B; user approves.
+  acceptance: Published with original framework + 1 original data point + product CTA placeholder; passed
+    packaging + retention gates.
+  notes: '[was P3-01] First video that must clear the full viewership bar, not just the consistency bar.'
+- id: P6-03
+  title: 'Produce flagship videos #2-4'
+  phase: P6
+  status: todo
+  depends_on:
+  - P6-02
+  deliverable: 3 more flagships + atomized clips published
+  est_hours: 20
+  how: Repeat the pipeline; track which clips/topics win; feed P5-07.
+  acceptance: 4 total flagships live; newsletter growing; analytics flowing.
+  notes: '[was P3-02]'
+- id: P6-04
+  title: Ship first low-ticket product
+  phase: P6
+  status: todo
+  depends_on:
+  - P6-02
+  deliverable: One $20-50 template or ebook tied to best-performing video, on Gumroad
+  est_hours: 6
+  how: Assistant drafts product + landing copy; user designs + lists; add CTA across content.
+  acceptance: Product live with a working checkout + delivery.
+  notes: '[was P3-03] 30-DAY MILESTONE: 4 flagships + 1 product live + newsletter capturing.'
+- id: P7-01
+  title: Publish 6-8 more flagships (reach cadence)
+  phase: P7
+  status: todo
+  depends_on:
+  - P6-04
   deliverable: ~10-12 total flagships; newsletter ~1,000 subs target
   est_hours: 50
-  how: Weekly cadence via pipeline; assistant feeds idea engine from winners.
+  how: Weekly cadence via pipeline; feed the idea engine from winners (P5-07).
   acceptance: Consistent weekly publishing; measurable subscriber growth.
-  notes: ''
-- id: P4-02
-  title: Validate best-selling pillar + decide flagship course
-  phase: P4
-  status: todo
-  depends_on:
-  - P4-01
-  deliverable: 'Decision: which pillar/course to build; outline'
-  est_hours: 4
-  how: Assistant analyzes product + content performance; recommends; user decides.
-  acceptance: Course topic + outline approved.
-  notes: ''
-- id: P4-03
-  title: Hire video editor (contractor)
-  phase: P4
-  status: todo
-  depends_on:
-  - P3-02
-  deliverable: Onboarded async editor with SOP
-  est_hours: 4
-  how: Assistant writes job spec + editor SOP + QC rubric; user hires.
-  acceptance: Editor delivering edits to spec; founder time freed.
-  notes: Hire early — founder time is the bottleneck.
-- id: P4-04
-  title: Spec the AI micro-tool
-  phase: P4
-  status: todo
-  depends_on:
-  - P4-02
-  deliverable: Product spec for the micro-tool in the AI pillar
-  est_hours: 6
-  how: Assistant + user scope a small, buildable tool that automates a taught workflow.
-  acceptance: MVP scope, stack, and success metric defined.
-  notes: '90-DAY MILESTONE: ~10-12 flagships, validated product, editor hired, tool spec''d.'
-- id: P5-01
-  title: Launch the flagship course
-  phase: P5
-  status: todo
-  depends_on:
-  - P4-02
-  deliverable: Async course live on Skool/Teachable with funnel
-  est_hours: 30
-  how: Assistant builds curriculum + sales page + email sequence; user records/produces modules.
-  acceptance: Course purchasable; first cohort/buyers in.
-  notes: ''
-- id: P5-02
-  title: Stand up SEO compounding engine
-  phase: P5
-  status: todo
-  depends_on:
-  - P4-01
-  deliverable: Weekly SEO blog posts mapped to search intent; rankings tracked
-  est_hours: 16
-  how: Assistant does keyword mapping + post structure; pipeline publishes; track in Ahrefs.
-  acceptance: Organic sessions trending up; posts indexed/ranking.
-  notes: ''
-- id: P5-03
-  title: Launch pseudonymous community / membership
-  phase: P5
-  status: todo
-  depends_on:
-  - P5-01
-  deliverable: Skool/Circle community with recurring price
-  est_hours: 12
-  how: Assistant designs onboarding + retention loops; user runs it brand-fronted.
-  acceptance: Paying members + defined retention ritual.
-  notes: ''
-- id: P5-04
-  title: Onboard VA / ops contractor
-  phase: P5
-  status: todo
-  depends_on:
-  - P4-03
-  deliverable: Async VA handling publishing/scheduling/admin
-  est_hours: 4
-  how: Assistant writes ops SOPs; user hires.
-  acceptance: Publishing/admin delegated; founder on strategy + QC.
-  notes: '180-DAY MILESTONE: course + community live, SEO compounding, team of 2 contractors.'
-- id: P6-01
-  title: Build micro-tool MVP
-  phase: P6
-  status: todo
-  depends_on:
-  - P4-04
-  deliverable: Working MVP of the AI micro-tool
-  est_hours: 60
-  how: User builds (technical edge) with assistant pair-programming; or hire dev contractor.
-  acceptance: MVP performs the core job; internal dogfood passes.
-  notes: '[2026-06-07 23:39 +0800] Create a distinct ''yt-tool-dev'' agent here: separate repo for the
-    micro-tool, with code/LSP/test-runner tools and fs_write scoped to the tool repo (not content). Keep
-    ytbuilder as orchestrator; use_subagent handles parallel bursts before this point.'
-- id: P6-02
-  title: Launch tool free tier + paid tier
-  phase: P6
-  status: todo
-  depends_on:
-  - P6-01
-  deliverable: Free tier (viral loop) + paid subscription live
-  est_hours: 20
-  how: Assistant designs PLG funnel + pricing; user ships billing + onboarding.
-  acceptance: Tool acquiring users from content; first paying subscribers.
-  notes: ''
-- id: P6-03
-  title: Hire developer contractor for tool
-  phase: P6
-  status: todo
-  depends_on:
-  - P6-01
-  deliverable: Async dev maintaining/extending the tool
-  est_hours: 4
-  how: Assistant writes spec/backlog; user hires.
-  acceptance: Dev shipping to backlog without founder coding daily.
-  notes: ''
-- id: P6-04
-  title: Publish the brand book (authority asset)
-  phase: P6
-  status: todo
-  depends_on:
-  - P5-01
-  deliverable: Self-published book under the brand
-  est_hours: 40
-  how: Assistant co-writes from the best frameworks; user publishes (KDP).
-  acceptance: Book live; used as top-of-funnel + product.
-  notes: '1-YEAR MILESTONE (base): ~$70k revenue, tool paying, recurring revenue established.'
-- id: P7-01
-  title: Scale micro-tool toward $500k+ ARR
-  phase: P7
-  status: todo
-  depends_on:
-  - P6-02
-  deliverable: Growth, retention, and pricing optimized; ARR scaling
-  est_hours: 200
-  how: Assistant runs growth experiments + cohort/retention analysis; team executes.
-  acceptance: ARR and retention on the Ch.13 base-case trajectory.
-  notes: ''
+  notes: '[was P4-01]'
 - id: P7-02
-  title: Build proprietary data moat
-  phase: P7
-  status: todo
-  depends_on:
-  - P6-02
-  deliverable: Tool-usage + original-research data systematically captured
-  est_hours: 40
-  how: Assistant designs data capture + insight loop feeding content + product.
-  acceptance: Data informs content/product decisions; defensible asset accumulating.
-  notes: ''
-- id: P7-03
-  title: Make the business founder-independent
-  phase: P7
-  status: todo
-  depends_on:
-  - P5-04
-  - P6-03
-  deliverable: Documented SOPs + content lead carrying production
-  est_hours: 40
-  how: Assistant audits founder-dependency; documents/delegates until <30% founder.
-  acceptance: Business runs with founder removed from daily production.
-  notes: ''
-- id: P7-04
-  title: Prepare exit-readiness OR scale decision
+  title: Validate best-selling pillar + decide flagship course
   phase: P7
   status: todo
   depends_on:
   - P7-01
+  deliverable: 'Decision: which pillar/course to build; outline'
+  est_hours: 4
+  how: Assistant analyzes product + content performance (P5-07); recommends; user decides.
+  acceptance: Course topic + outline approved.
+  notes: '[was P4-02]'
+- id: P7-03
+  title: Hire video editor (contractor)
+  phase: P7
+  status: todo
+  depends_on:
+  - P6-03
+  deliverable: Onboarded async editor with SOP
+  est_hours: 4
+  how: Assistant writes job spec + editor SOP + QC rubric; user hires.
+  acceptance: Editor delivering edits to spec; founder time freed.
+  notes: '[was P4-03] Hire early — founder time is the bottleneck.'
+- id: P7-04
+  title: Spec the AI micro-tool
+  phase: P7
+  status: todo
+  depends_on:
+  - P7-02
+  deliverable: Product spec for the micro-tool in the AI pillar
+  est_hours: 6
+  how: Assistant + user scope a small, buildable tool that automates a taught workflow.
+  acceptance: MVP scope, stack, and success metric defined.
+  notes: '[was P4-04] 90-DAY MILESTONE: ~10-12 flagships, validated product, editor hired, tool spec''d.'
+- id: P8-01
+  title: Launch the flagship course
+  phase: P8
+  status: todo
+  depends_on:
+  - P7-02
+  deliverable: Async course live on Skool/Teachable with funnel
+  est_hours: 30
+  how: Assistant builds curriculum + sales page + email sequence; user records/produces modules.
+  acceptance: Course purchasable; first cohort/buyers in.
+  notes: '[was P5-01]'
+- id: P8-02
+  title: Stand up SEO compounding engine
+  phase: P8
+  status: todo
+  depends_on:
+  - P7-01
+  deliverable: Weekly SEO blog posts mapped to search intent; rankings tracked
+  est_hours: 16
+  how: Assistant does keyword mapping + post structure; pipeline publishes; track in Ahrefs.
+  acceptance: Organic sessions trending up; posts indexed/ranking.
+  notes: '[was P5-02]'
+- id: P8-03
+  title: Launch pseudonymous community / membership
+  phase: P8
+  status: todo
+  depends_on:
+  - P8-01
+  deliverable: Skool/Circle community with recurring price
+  est_hours: 12
+  how: Assistant designs onboarding + retention loops; user runs it brand-fronted.
+  acceptance: Paying members + defined retention ritual.
+  notes: '[was P5-03]'
+- id: P8-04
+  title: Onboard VA / ops contractor
+  phase: P8
+  status: todo
+  depends_on:
   - P7-03
+  deliverable: Async VA handling publishing/scheduling/admin
+  est_hours: 4
+  how: Assistant writes ops SOPs; user hires.
+  acceptance: Publishing/admin delegated; founder on strategy + QC.
+  notes: '[was P5-04] 180-DAY MILESTONE: course + community live, SEO compounding, team of 2 contractors.'
+- id: P9-01
+  title: Build micro-tool MVP
+  phase: P9
+  status: todo
+  depends_on:
+  - P7-04
+  deliverable: Working MVP of the AI micro-tool
+  est_hours: 60
+  how: User builds (technical edge) with assistant pair-programming; or hire dev contractor.
+  acceptance: MVP performs the core job; internal dogfood passes.
+  notes: '[was P6-01] [2026-06-07 23:39 +0800] Create a distinct yt-tool-dev agent here: separate repo
+    for the micro-tool with code/LSP/test tools scoped to the tool repo. Keep ytbuilder as orchestrator.'
+- id: P9-02
+  title: Launch tool free tier + paid tier
+  phase: P9
+  status: todo
+  depends_on:
+  - P9-01
+  deliverable: Free tier (viral loop) + paid subscription live
+  est_hours: 20
+  how: Assistant designs PLG funnel + pricing; user ships billing + onboarding.
+  acceptance: Tool acquiring users from content; first paying subscribers.
+  notes: '[was P6-02]'
+- id: P9-03
+  title: Hire developer contractor for tool
+  phase: P9
+  status: todo
+  depends_on:
+  - P9-01
+  deliverable: Async dev maintaining/extending the tool
+  est_hours: 4
+  how: Assistant writes spec/backlog; user hires.
+  acceptance: Dev shipping to backlog without founder coding daily.
+  notes: '[was P6-03]'
+- id: P9-04
+  title: Publish the brand book (authority asset)
+  phase: P9
+  status: todo
+  depends_on:
+  - P8-01
+  deliverable: Self-published book under the brand
+  est_hours: 40
+  how: Assistant co-writes from the best frameworks; user publishes (KDP).
+  acceptance: Book live; used as top-of-funnel + product.
+  notes: '[was P6-04] 1-YEAR MILESTONE (base): ~$70k revenue, tool paying, recurring revenue established.'
+- id: P10-01
+  title: Scale micro-tool toward $500k+ ARR
+  phase: P10
+  status: todo
+  depends_on:
+  - P9-02
+  deliverable: Growth, retention, and pricing optimized; ARR scaling
+  est_hours: 200
+  how: Assistant runs growth experiments + cohort/retention analysis; team executes.
+  acceptance: ARR and retention on the Ch.13 base-case trajectory.
+  notes: '[was P7-01]'
+- id: P10-02
+  title: Build proprietary data moat
+  phase: P10
+  status: todo
+  depends_on:
+  - P9-02
+  deliverable: Tool-usage + original-research data systematically captured
+  est_hours: 40
+  how: Assistant designs data capture + insight loop feeding content + product.
+  acceptance: Data informs content/product decisions; defensible asset accumulating.
+  notes: '[was P7-02] Builds on the P5-06/P5-07 content-data foundation.'
+- id: P10-03
+  title: Make the business founder-independent
+  phase: P10
+  status: todo
+  depends_on:
+  - P8-04
+  - P9-03
+  deliverable: Documented SOPs + content lead carrying production
+  est_hours: 40
+  how: Assistant audits founder-dependency; documents/delegates until <30% founder.
+  acceptance: Business runs with founder removed from daily production.
+  notes: '[was P7-03]'
+- id: P10-04
+  title: Prepare exit-readiness OR scale decision
+  phase: P10
+  status: todo
+  depends_on:
+  - P10-01
+  - P10-03
   deliverable: Clean entity, financials, transferable IP; decide sell vs. hold
   est_hours: 30
   how: Assistant assembles data room checklist + valuation framing; user decides.
   acceptance: Either listed for sale at target multiple, or explicit hold decision.
-  notes: '3-YEAR MILESTONE (base): ~$1.15M revenue; sellable, transferable asset.'
+  notes: '[was P7-04] 3-YEAR MILESTONE (base): ~$1.15M revenue; sellable, transferable asset.'
