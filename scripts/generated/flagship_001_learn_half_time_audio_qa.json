@@ -1,0 +1,140 @@
+{
+  "project_id": "flagship_001_learn_half_time",
+  "reference": {
+    "file": "ElevenLabs_2026-06-08T03_39_17_James Harrington_gen_sp105_s50_sb75_se12_b_m2.mp3",
+    "duration_s": 11.964,
+    "word_count": 51,
+    "wps": 4.263
+  },
+  "target_settings": {
+    "model": "eleven_multilingual_v2",
+    "speed": 1.0,
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.12,
+    "use_speaker_boost": true
+  },
+  "wps_bands": {
+    "calm": [
+      2.2,
+      2.6
+    ],
+    "teaser": [
+      2.6,
+      3.0
+    ],
+    "flag_below": 2.0,
+    "flag_above": 3.2
+  },
+  "segments": [
+    {
+      "segment_id": "001_hook",
+      "word_count": 19,
+      "audio_duration_s": 7.471,
+      "wps": 2.543,
+      "ref_wps_delta": -1.72,
+      "audio_exists": true,
+      "warnings": [],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "002_promise",
+      "word_count": 44,
+      "audio_duration_s": 17.946,
+      "wps": 2.452,
+      "ref_wps_delta": -1.811,
+      "audio_exists": true,
+      "warnings": [],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "003_biology",
+      "word_count": 114,
+      "audio_duration_s": 73.482,
+      "wps": 1.551,
+      "ref_wps_delta": -2.712,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.55 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "004_wrong_approach",
+      "word_count": 160,
+      "audio_duration_s": 91.638,
+      "wps": 1.746,
+      "ref_wps_delta": -2.517,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.75 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "005_layered_encoding",
+      "word_count": 156,
+      "audio_duration_s": 78.211,
+      "wps": 1.995,
+      "ref_wps_delta": -2.268,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 2.00 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "006_productive_friction",
+      "word_count": 161,
+      "audio_duration_s": 86.518,
+      "wps": 1.861,
+      "ref_wps_delta": -2.402,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.86 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "007_contextual_bridging",
+      "word_count": 148,
+      "audio_duration_s": 78.994,
+      "wps": 1.874,
+      "ref_wps_delta": -2.389,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.87 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "008_ai_layer",
+      "word_count": 348,
+      "audio_duration_s": 201.639,
+      "wps": 1.726,
+      "ref_wps_delta": -2.537,
+      "audio_exists": true,
+      "warnings": [
+        "too_slow (WPS 1.73 < 2.0)"
+      ],
+      "audio_mode": "generated_tts"
+    },
+    {
+      "segment_id": "009_cta",
+      "word_count": 110,
+      "audio_duration_s": 51.801,
+      "wps": 2.124,
+      "ref_wps_delta": -2.139,
+      "audio_exists": true,
+      "warnings": [
+        "below_calm_band (WPS 2.12 < 2.2)"
+      ],
+      "audio_mode": "generated_tts"
+    }
+  ],
+  "summary": {
+    "total_segments": 9,
+    "segments_with_warnings": 7,
+    "total_warnings": 7
+  }
+}

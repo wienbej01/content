@@ -171,17 +171,29 @@ def validate_script(script, base):
 def synthesize_segment(text, voice_id, model_id, voice_settings, api_key, speed=None):
     """Call ElevenLabs TTS API. Returns audio bytes (mp3).
 
-    speed is ALWAYS sent inside voice_settings (ElevenLabs' documented location for
-    eleven_multilingual_v2), including speed=1.0, for deterministic/explicit behavior.
-    If the API rejects speed in voice_settings, we retry without it and log the fallback.
+    Speed handling:
+    - eleven_v3: speed is a top-level body param (voice_settings rejects it)
+    - eleven_multilingual_v2: speed goes inside voice_settings
+    Both paths include speed explicitly; always deterministic.
     """
     url = f"{ELEVENLABS_URL}/{voice_id}"
-    vs = dict(voice_settings)
-    if speed is not None:
-        vs["speed"] = speed  # always explicit, including 1.0
-    payload = {"text": text, "model_id": model_id, "voice_settings": vs}
-    body = json.dumps(payload).encode()
+    v3_models = {"eleven_v3", "eleven_flash_v2_5", "eleven_turbo_v2_5"}
+    is_v3 = model_id in v3_models
 
+    if is_v3:
+        # v3: speed is top-level, voice_settings stays clean
+        vs = dict(voice_settings)
+        payload = {"text": text, "model_id": model_id, "voice_settings": vs}
+        if speed is not None:
+            payload["speed"] = speed
+    else:
+        # v2: speed goes inside voice_settings
+        vs = dict(voice_settings)
+        if speed is not None:
+            vs["speed"] = speed
+        payload = {"text": text, "model_id": model_id, "voice_settings": vs}
+
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=body, headers={
         "xi-api-key": api_key,
         "Content-Type": "application/json",
@@ -193,18 +205,8 @@ def synthesize_segment(text, voice_id, model_id, voice_settings, api_key, speed=
                 raise RuntimeError(f"ElevenLabs API error {resp.status}")
             return resp.read()
     except urllib.error.HTTPError as e:
-        # If speed in voice_settings is rejected, retry without it and report.
-        if speed is not None and e.code in (400, 422):
-            print(f"  WARN: ElevenLabs rejected speed in voice_settings ({e.code}); "
-                  f"retrying without explicit speed.", file=sys.stderr)
-            vs2 = dict(voice_settings)
-            payload2 = {"text": text, "model_id": model_id, "voice_settings": vs2}
-            req2 = urllib.request.Request(url, data=json.dumps(payload2).encode(), headers={
-                "xi-api-key": api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
-            with urllib.request.urlopen(req2, timeout=60) as resp2:
-                return resp2.read()
-        body = e.read().decode("utf-8", errors="replace")[:500]
-        raise RuntimeError(f"ElevenLabs API {e.code}: {body}")
+        body_err = e.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"ElevenLabs API {e.code}: {body_err}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"ElevenLabs connection failed: {e.reason}")
 
