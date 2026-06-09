@@ -268,14 +268,21 @@ steps:
 - id: P4-02
   title: Build the script + brand-voice prompt library
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P1-03
   deliverable: Reusable LLM prompt templates for hook/framework/script in James brand voice.
   est_hours: 4
   how: Assistant drafts the prompt library; iterate on voice samples; align to JAMES_CHARACTER_BIBLE.
   acceptance: Prompts produce on-brand scripts in <=2 iterations.
-  notes: '[was P2-02] Upstream of storyboard. Feeds P5-01 packaging + P5-03 hooks.'
+  notes: '[was P2-02] Upstream of storyboard. Feeds P5-01 packaging + P5-03 hooks.
+
+    [2026-06-09 17:00 +0800] completed
+
+    [2026-06-09 17:00 +0800] docs/prompts/SCRIPT_PROMPT_LIBRARY.md: 7 reusable templates (system voice
+    anchor, flagship 6-12min, hook generator, framework builder, short/clip, teaser, QA checklist). Aligned
+    to JAMES_CHARACTER_BIBLE + UNIVERSE_BIBLE + FORBIDDEN_PATTERNS. Produces on-brand scripts via LLM
+    in ≤2 iterations.'
 - id: P4-03
   title: Universe Bible + Technical Bible + constraints.json
   phase: P4
