@@ -42,27 +42,19 @@
       "shots": [
         {
           "id": "002_background_shot01",
-          "duration": 5.0,
+          "duration": 5.5,
           "model": "seedance_2_0",
           "media": "../../assets/media/james_teaser_02/002_background_shot01.mp4"
         },
         {
           "id": "002_background_shot02",
-          "duration": 5.0,
-          "model": "seedance_2_0",
+          "duration": 5.5,
+          "model": "wan2_7",
           "media": "../../assets/media/james_teaser_02/002_background_shot02.mp4"
-        },
-        {
-          "id": "002_background_shot03",
-          "duration": 0.78,
-          "model": "seedance_2_0",
-          "media": "../../assets/media/james_teaser_02/002_background_shot03.mp4"
         }
       ],
       "model_routed": "seedance_2_0",
-      "risk": [
-        "text_surface_risk"
-      ]
+      "risk": []
     },
     {
       "segment_id": "003_pattern",
@@ -105,26 +97,24 @@
         {
           "id": "004_system_shot01",
           "duration": 5.0,
-          "model": "seedance_2_0",
+          "model": "wan2_7",
           "media": "../../assets/media/james_teaser_02/004_system_shot01.mp4"
         },
         {
           "id": "004_system_shot02",
           "duration": 5.0,
-          "model": "seedance_2_0",
+          "model": "wan2_7",
           "media": "../../assets/media/james_teaser_02/004_system_shot02.mp4"
         },
         {
           "id": "004_system_shot03",
-          "duration": 3.7,
+          "duration": 4.0,
           "model": "seedance_2_0",
           "media": "../../assets/media/james_teaser_02/004_system_shot03.mp4"
         }
       ],
       "model_routed": "seedance_2_0",
-      "risk": [
-        "text_surface_risk"
-      ]
+      "risk": []
     },
     {
       "segment_id": "005_give_back",
@@ -167,20 +157,18 @@
         {
           "id": "006_audience_shot01",
           "duration": 5.0,
-          "model": "seedance_2_0",
+          "model": "wan2_7",
           "media": "../../assets/media/james_teaser_02/006_audience_shot01.mp4"
         },
         {
           "id": "006_audience_shot02",
-          "duration": 4.52,
-          "model": "seedance_2_0",
+          "duration": 4.7,
+          "model": "wan2_7",
           "media": "../../assets/media/james_teaser_02/006_audience_shot02.mp4"
         }
       ],
       "model_routed": "seedance_2_0",
-      "risk": [
-        "text_surface_risk"
-      ]
+      "risk": []
     },
     {
       "segment_id": "007_promise",
@@ -232,7 +220,7 @@
     }
   ],
   "warnings": [
-    "002_background: needs 3 shots to cover 10.8s narration",
+    "002_background: needs 2 shots to cover 10.8s narration",
     "004_system: needs 3 shots to cover 13.7s narration",
     "006_audience: needs 2 shots to cover 9.5s narration"
   ]

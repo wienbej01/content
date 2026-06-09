@@ -12,7 +12,7 @@
     {
       "id": "001_hook",
       "audio_mode": "baked_in",
-      "text": "Most professionals spend their careers chasing the edge — without realizing the edge isn't one big secret. It's a system.",
+      "text": "Most professionals spend their careers chasing the edge \u2014 without realizing the edge isn't one big secret. It's a system.",
       "visual_brief": "James Harrington seated at dark wood desk in warm private library. Eye-level medium shot. Navy cashmere sweater over white Oxford shirt. Brass lamp warm light from left. Bookshelves soft-focus behind. Direct composed expression. Speaking to camera. Lipsync from narration audio.",
       "media": "../../assets/media/james_teaser_02/001_hook.mp4",
       "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"
@@ -20,29 +20,63 @@
     {
       "id": "002_background",
       "audio_mode": "generated_tts",
-      "text": "I've spent my career across consulting, merchant banking, early-stage start-ups, and venture capital — different sectors, the same underlying game.",
+      "text": "I've spent my career across consulting, merchant banking, early-stage start-ups, and venture capital \u2014 different sectors, the same underlying game.",
       "visual_brief": "Slow cinematic pan across a calm modern office at golden hour, shallow depth of field, empty leather chairs and warm wood surfaces, soft light through floor-to-ceiling windows. No screens, no documents, no whiteboards, no writing. Architecture and light only. Muted warm professional palette.",
-      "media": "../../assets/media/james_teaser_02/002_background.mp4"
+      "media": "../../assets/media/james_teaser_02/002_background.mp4",
+      "shots": [
+        {
+          "id": "002_background_shot01",
+          "duration": 5.5,
+          "visual_brief": "Slow cinematic dolly through an empty modern executive office at golden hour, warm light across wood and glass surfaces, shallow depth of field, no screens, no documents, no whiteboards, architecture and light only.",
+          "media": "../../assets/media/james_teaser_02/002_background_shot01.mp4"
+        },
+        {
+          "id": "002_background_shot02",
+          "duration": 5.5,
+          "visual_brief": "Wide aerial drift over a calm financial-district skyline at dusk, soft haze, distant glass towers, cinematic, no signage, no text, premium and grounded.",
+          "media": "../../assets/media/james_teaser_02/002_background_shot02.mp4"
+        }
+      ]
     },
     {
       "id": "003_pattern",
       "audio_mode": "baked_in",
       "text": "In every environment, the people who got ahead weren't always the most talented. They just thought more clearly, decided more deliberately, and learned faster.",
-      "visual_brief": "James Harrington in thoughtful seated pose at dark wood desk. 3/4 angle, looking slightly off-camera as if recalling experience. Navy cashmere sweater. Warm lamp from left. Bookshelves behind. Not speaking directly to camera — reflective voiceover look.",
+      "visual_brief": "James Harrington in thoughtful seated pose at dark wood desk. 3/4 angle, looking slightly off-camera as if recalling experience. Navy cashmere sweater. Warm lamp from left. Bookshelves behind. Not speaking directly to camera \u2014 reflective voiceover look.",
       "media": "../../assets/media/james_teaser_02/003_pattern.mp4",
       "canonical_ref": "JAMES_THREE_QUARTER_STUDY_001"
     },
     {
       "id": "004_system",
       "audio_mode": "generated_tts",
-      "text": "Over time, I built my own version of that system — how to frame the right problems, communicate with precision, use emerging tools effectively, and compound small advantages over years.",
+      "text": "Over time, I built my own version of that system \u2014 how to frame the right problems, communicate with precision, use emerging tools effectively, and compound small advantages over years.",
       "visual_brief": "Abstract premium motion: a slow upward-sweeping curve of light over a dark cinematic background, suggesting compounding growth, geometric particle flow with no letters or numbers. Quick cut to a wide silhouette of a person walking through a glass corridor at dusk, shallow depth of field. No screens, no documents, no whiteboards, no readable surfaces.",
-      "media": "../../assets/media/james_teaser_02/004_system.mp4"
+      "media": "../../assets/media/james_teaser_02/004_system.mp4",
+      "shots": [
+        {
+          "id": "004_system_shot01",
+          "duration": 5.0,
+          "visual_brief": "Premium abstract motion of a single smooth upward curve of light sweeping over a dark cinematic background, suggesting compounding growth, soft particle flow, no letters, no numbers, no charts.",
+          "media": "../../assets/media/james_teaser_02/004_system_shot01.mp4"
+        },
+        {
+          "id": "004_system_shot02",
+          "duration": 5.0,
+          "visual_brief": "Slow camera glide along clean interlocking architectural lines of a modern atrium, structured geometry implying a system, shallow depth of field, no screens, no documents, no signage.",
+          "media": "../../assets/media/james_teaser_02/004_system_shot02.mp4"
+        },
+        {
+          "id": "004_system_shot03",
+          "duration": 4.0,
+          "visual_brief": "Wide silhouette of a single composed executive walking unhurried through a sunlit glass corridor at dusk, no close-up of face or hands, no screens, no documents, calm and deliberate.",
+          "media": "../../assets/media/james_teaser_02/004_system_shot03.mp4"
+        }
+      ]
     },
     {
       "id": "005_give_back",
       "audio_mode": "baked_in",
-      "text": "This channel is where I share it — not as theory, but as a working framework refined over twenty years.",
+      "text": "This channel is where I share it \u2014 not as theory, but as a working framework refined over twenty years.",
       "visual_brief": "James Harrington standing near floor-to-ceiling dark wood bookshelves in private library. Navy blazer over white Oxford shirt. 3/4 angle. Looking at camera with quiet authority. Composed upright posture. Warm lamp light.",
       "media": "../../assets/media/james_teaser_02/005_give_back.mp4",
       "canonical_ref": "JAMES_STANDING_LIBRARY_001"
@@ -52,7 +86,21 @@
       "audio_mode": "generated_tts",
       "text": "It's for founders, executives, and ambitious professionals who are done with motivation and ready for something that actually compounds.",
       "visual_brief": "Cinematic montage of grounded professional environments seen wide: people in silhouette walking across a sunlit modern lobby, a glass-walled office at dusk with blurred figures, a calm city skyline through windows. No close-up faces, no screens, no monitors, no slides, no documents, no readable surfaces. Purposeful, premium, businesslike.",
-      "media": "../../assets/media/james_teaser_02/006_audience.mp4"
+      "media": "../../assets/media/james_teaser_02/006_audience.mp4",
+      "shots": [
+        {
+          "id": "006_audience_shot01",
+          "duration": 5.0,
+          "visual_brief": "Cinematic wide shot of blurred professional figures in silhouette crossing a sunlit modern lobby, shallow depth of field, no close-up faces, no screens, no documents, premium and businesslike.",
+          "media": "../../assets/media/james_teaser_02/006_audience_shot01.mp4"
+        },
+        {
+          "id": "006_audience_shot02",
+          "duration": 4.7,
+          "visual_brief": "Slow push toward a calm city skyline seen through floor-to-ceiling windows of a quiet office at dusk, soft reflections, no signage, no text, grounded and aspirational.",
+          "media": "../../assets/media/james_teaser_02/006_audience_shot02.mp4"
+        }
+      ]
     },
     {
       "id": "007_promise",
@@ -65,7 +113,7 @@
     {
       "id": "008_cta",
       "audio_mode": "baked_in",
-      "text": "If that resonates, subscribe — and let's get to work.",
+      "text": "If that resonates, subscribe \u2014 and let's get to work.",
       "visual_brief": "James Harrington, slight lean forward at desk, direct to camera, slight half-smile as the point lands. Navy cashmere. Warm study. End on his composed expression before cut to logo.",
       "media": "../../assets/media/james_teaser_02/008_cta.mp4",
       "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"

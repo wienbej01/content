@@ -194,42 +194,57 @@ def check_hf_available():
 
 # --- Generation ---
 
-def generate_segment(seg, media_path, model, dry_run=False):
-    """Generate one video clip. Returns job result dict or None for dry_run."""
-    audio_mode = seg.get("audio_mode", "generated_tts")
-
-    # Build effective prompt — override takes priority over visual_brief
-    if seg.get("visual_prompt_override"):
-        positive = seg["visual_prompt_override"]
+def build_prompt(spec, audio_mode):
+    """Build the effective positive+negative prompt for a segment or shot spec."""
+    if spec.get("visual_prompt_override"):
+        positive = spec["visual_prompt_override"]
     elif audio_mode == "generated_tts":
-        positive = BROLL_REALISM_PREFIX + seg.get("visual_brief", "")
+        positive = BROLL_REALISM_PREFIX + spec.get("visual_brief", "")
     else:
-        positive = seg.get("visual_brief", "")
+        positive = spec.get("visual_brief", "")
+    negative = spec.get("negative_prompt") or (BROLL_NEGATIVE if audio_mode == "generated_tts" else "")
+    prompt = positive + (f". Avoid: {negative}" if negative else "")
+    return prompt, negative
 
-    # Negative prompt — segment override or default
-    negative = seg.get("negative_prompt") or (BROLL_NEGATIVE if audio_mode == "generated_tts" else "")
-    if negative:
-        prompt = positive + f". Avoid: {negative}"
-    else:
-        prompt = positive
 
-    seg_id = seg["id"]
-    ref_image = seg.get("reference_image")
+def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spec=None, duration=None):
+    """Generate one video clip (segment OR shot). Returns job result dict or None for dry_run.
+
+    spec defaults to seg; for per-shot generation pass the shot dict as spec.
+    """
+    if audio_mode is None:
+        audio_mode = seg.get("audio_mode", "generated_tts")
+    if spec is None:
+        spec = seg
+    prompt, negative = build_prompt(spec, audio_mode)
+    seg_id = spec.get("id", seg.get("id"))
+    ref_image = spec.get("reference_image") or seg.get("reference_image")
 
     if dry_run:
+        risk = classify_prompt_risk(spec.get("visual_brief", "") or spec.get("visual_prompt_override", ""))
+        flags = []
+        if risk["text_surface_risk"]: flags += [f"text:{','.join(risk['text_flags'])}"]
+        if risk["close_human_risk"]: flags += [f"human:{','.join(risk['human_flags'])}"]
+        credit = "~2cr (seedance)" if model == HUMAN_CLOSEUP_MODEL else "~1cr (wan2_7)"
         print(f"  [{seg_id}] DRY RUN:")
-        print(f"    model:    {model}")
-        print(f"    prompt:   {prompt[:120]}...")
+        print(f"    model:    {model}  ({credit})")
+        print(f"    duration: {duration if duration else 'segment-level'}")
+        print(f"    prompt:   {prompt[:140]}")
         if negative:
             print(f"    negative: {negative[:80]}...")
         if ref_image:
             print(f"    ref img:  {ref_image}")
         print(f"    output:   {media_path}")
+        print(f"    risk:     {', '.join(flags) if flags else 'none ✓'}")
+        action = "reuse" if media_path.exists() else "generate"
+        print(f"    action:   would {action}")
         return None
 
     print(f"  [{seg_id}] generating ({model})...", end=" ", flush=True)
 
     cmd = ["node", str(HF_BIN), "generate", "create", model, "--prompt", prompt]
+    if duration:
+        cmd += ["--duration", str(int(round(duration)))]
 
     # Reference image support (optional per-segment field)
     if ref_image:
@@ -271,7 +286,6 @@ def generate_segment(seg, media_path, model, dry_run=False):
 
     # Strip audio from b-roll (generated_tts segments use ElevenLabs narration,
     # not random Higgsfield ambient audio). Keep video-only at the final target.
-    audio_mode = seg.get("audio_mode", "generated_tts")
     if audio_mode == "generated_tts":
         subprocess.run(
             ["ffmpeg", "-y", "-i", str(raw_path), "-an", "-c:v", "copy", str(media_path)],
@@ -287,6 +301,10 @@ def generate_segment(seg, media_path, model, dry_run=False):
     info = probe_video(media_path)
     if info is None:
         raise RuntimeError(f"[{seg_id}] downloaded file is not a valid video: {media_path}")
+    print(f"done ({info['width']}x{info['height']}, {info['duration']:.1f}s)")
+    return {"segment_id": seg_id, "media_path": str(media_path), "model": model,
+            "duration": round(info["duration"], 2)}
+
 
 def plan_shots(seg, narration_dur, base):
     """PHASE 5: plan shot coverage for a segment's narration duration.
@@ -294,10 +312,14 @@ def plan_shots(seg, narration_dur, base):
     sid = seg["id"]
     tail = 0.25
     needed = narration_dur + tail
+    audio_mode = seg.get("audio_mode", "generated_tts")
     if seg.get("shots"):
+        # Fill in routed model per shot if not explicitly set
+        for s in seg["shots"]:
+            if not s.get("model"):
+                s["_routed_model"] = route_model(s, audio_mode)
         return seg["shots"], needed
     n = max(1, math.ceil(needed / CLIP_MAX_DUR)) if narration_dur else 1
-    audio_mode = seg.get("audio_mode", "generated_tts")
     if audio_mode == "baked_in":
         n = 1  # lipsync is a single continuous take
     shots = []
@@ -339,15 +361,30 @@ def duration_report(script, base):
             if md < nd + tail:
                 freeze = round((nd + tail) - md, 2)
                 shots_needed = max(1, math.ceil((nd + tail) / CLIP_MAX_DUR))
+        # PHASE 1/5: shots[] coverage
+        shots = seg.get("shots")
+        required_visual = round(nd + tail, 2) if (nd and mode != "baked_in") else None
+        total_shot_dur = round(sum(s.get("duration", 0) for s in shots), 2) if shots else None
+        coverage_pass = None
+        if shots and required_visual:
+            coverage_pass = total_shot_dur >= required_visual - 0.05
+        # If shots exist, no freeze/loop expected (they cover narration)
+        if shots:
+            freeze = 0.0
+            shots_needed = len(shots)
         entries.append({
             "segment_id": sid, "audio_mode": mode,
             "narration_duration": round(nd, 2) if nd else None,
             "tail_pad": tail,
+            "required_visual_duration": required_visual,
             "media_duration": round(md, 2) if md else None,
             "effective_segment_duration": round(eff, 2) if eff else None,
+            "has_shots": bool(shots),
+            "total_planned_shot_duration": total_shot_dur,
+            "coverage_pass": coverage_pass,
             "freeze_duration_if_single_clip": freeze,
-            "freeze_risk": freeze > MAX_FREEZE,
-            "loops": loops,
+            "freeze_risk": (freeze > MAX_FREEZE) if not shots else False,
+            "loop_risk": False,
             "shots_needed": shots_needed,
         })
     out = output_dir / "duration_mismatch_report.json"
@@ -356,9 +393,14 @@ def duration_report(script, base):
         json.dump({"project_id": script["project_id"], "max_freeze": MAX_FREEZE,
                    "clip_max_dur": CLIP_MAX_DUR, "segments": entries}, f, indent=2)
     for e in entries:
-        fr = f" FREEZE={e['freeze_duration_if_single_clip']}s" if e["freeze_risk"] else ""
-        sh = f" shots_needed={e['shots_needed']}" if e["shots_needed"] > 1 else ""
-        print(f"  [{e['segment_id']}] nar={e['narration_duration']} media={e['media_duration']}{fr}{sh}")
+        if e["has_shots"]:
+            cov = "✓" if e["coverage_pass"] else "✗ INSUFFICIENT"
+            print(f"  [{e['segment_id']}] nar={e['narration_duration']} need={e['required_visual_duration']} "
+                  f"shots={e['shots_needed']} cover={e['total_planned_shot_duration']}s {cov}")
+        else:
+            fr = f" FREEZE={e['freeze_duration_if_single_clip']}s" if e["freeze_risk"] else ""
+            sh = f" shots_needed={e['shots_needed']}" if e["shots_needed"] > 1 else ""
+            print(f"  [{e['segment_id']}] nar={e['narration_duration']} media={e['media_duration']}{fr}{sh}")
     print(f"  report: {out}")
     return entries
 
@@ -464,6 +506,23 @@ def record_lipsync_provenance(script, base, sid, audio_path, model, media_path):
         json.dump(log, f, indent=2)
 
 
+def record_shot_provenance(script, base, seg_id, shot_id, media_path, model):
+    """PHASE 1: write provenance for a generated b-roll shot."""
+    output_dir = resolve(base, script.get("output_dir", f"Videos/Projects/{script['project_id']}"))
+    log_path = output_dir / "shot_generation_log.json"
+    log = json.load(open(log_path)) if log_path.exists() else {"project_id": script["project_id"], "shots": {}}
+    import datetime
+    info = probe_video(media_path) if Path(media_path).exists() else {}
+    log.setdefault("shots", {})[shot_id] = {
+        "segment_id": seg_id, "shot_id": shot_id, "media_path": str(media_path),
+        "model": model, "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "duration": round(info.get("duration", 0), 2), "has_embedded_audio": info.get("has_audio"),
+    }
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "w") as f:
+        json.dump(log, f, indent=2)
+
+
 def build_storyboard(script, base):
     """Derive a lightweight storyboard plan to check coherence before generation."""
     VISUAL_ROLES = ["hook", "credibility", "insight", "system", "give_back", "audience", "promise", "cta"]
@@ -518,7 +577,8 @@ def build_storyboard(script, base):
         plan[-1].update({
             "narration_duration": round(nd, 2) if nd else None,
             "coverage_needed": round(needed, 2) if needed else None,
-            "shots": [{"id": s["id"], "duration": s["duration"], "model": s["model"],
+            "shots": [{"id": s["id"], "duration": s.get("duration"),
+                       "model": s.get("model") or s.get("_routed_model") or route_model(s, mode),
                        "media": s["media"]} for s in shots],
             "model_routed": route_model(seg, mode),
             "risk": seg_warn,
@@ -543,52 +603,46 @@ def media_review(script, base, selected=None):
         sid = seg["id"]
         if selected and sid not in selected:
             continue
-        media_path = resolve(base, seg["media"])
-        if not media_path.exists():
-            entries.append({"segment_id": sid, "status": "missing"})
-            continue
-        info = probe_video(media_path)
-        frames = []
-        for pct in (0.2, 0.5, 0.8):
-            t = info["duration"] * pct
-            fp = review_dir / f"{sid}_{int(pct*100)}.jpg"
-            subprocess.run(["ffmpeg", "-y", "-ss", f"{t:.1f}", "-i", str(media_path),
-                            "-frames:v", "1", "-q:v", "3", str(fp)], capture_output=True)
-            if fp.exists():
-                frames.append(str(fp))
-        brief = (seg.get("visual_brief", "") + " " + (seg.get("visual_prompt_override") or "")).lower()
-        warnings = []
-        if any(w in brief for w in TEXT_RISK):
-            warnings.append("possible_text_risk")
-            if any(w in brief for w in ["screen", "laptop", "monitor"]):
-                warnings.append("screen_scene")
-            if "whiteboard" in brief:
-                warnings.append("whiteboard_scene")
-            if any(w in brief for w in ["document", "report", "slide", "powerpoint", "deck"]):
-                warnings.append("document_scene")
-        nar = narration_dir / f"{sid}.{fmt}"
-        nar_dur = None
-        if nar.exists():
-            r = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration",
-                                "-of","default=noprint_wrappers=1:nokey=1",str(nar)],capture_output=True,text=True)
-            try: nar_dur = float(r.stdout.strip())
-            except ValueError: pass
-        if nar_dur and info["duration"] < nar_dur:
-            warnings += ["duration_short", "loop_risk"]
-        entries.append({
-            "segment_id": sid, "media_path": str(media_path),
-            "duration": round(info["duration"], 2), "resolution": f"{info['width']}x{info['height']}",
-            "has_audio": info["has_audio"],
-            "expected_narration_duration": round(nar_dur, 2) if nar_dur else None,
-            "duration_pass": (info["duration"] >= nar_dur) if nar_dur else None,
-            "frames": frames, "warnings": warnings,
-        })
-        wstr = f" ⚠ {', '.join(warnings)}" if warnings else " ✓"
-        print(f"  [{sid}] {info['duration']:.1f}s {info['width']}x{info['height']}{wstr}")
+        # PHASE 8: expand into per-shot units if shots[] exists
+        units = seg.get("shots") if seg.get("shots") else [seg]
+        for unit in units:
+            uid = unit.get("id", sid)
+            media_path = resolve(base, unit["media"])
+            ubrief = (unit.get("visual_brief", "") + " " + (unit.get("visual_prompt_override") or ""))
+            risk = classify_prompt_risk(ubrief)
+            if not media_path.exists():
+                entries.append({"segment_id": sid, "shot_id": uid if uid != sid else None,
+                                "media_path": str(media_path), "status": "missing",
+                                "prompt": ubrief.strip()[:200],
+                                "risk": risk["text_flags"] + risk["human_flags"]})
+                continue
+            info = probe_video(media_path)
+            frames = []
+            for pct in (0.2, 0.5, 0.8):
+                t = info["duration"] * pct
+                fp = review_dir / f"{uid}_{int(pct*100)}.jpg"
+                subprocess.run(["ffmpeg", "-y", "-ss", f"{t:.1f}", "-i", str(media_path),
+                                "-frames:v", "1", "-q:v", "3", str(fp)], capture_output=True)
+                if fp.exists():
+                    frames.append(str(fp))
+            warnings = []
+            if risk["text_surface_risk"]:
+                warnings.append("text_surface_risk:" + ",".join(risk["text_flags"]))
+            if risk["close_human_risk"]:
+                warnings.append("close_human:" + ",".join(risk["human_flags"]))
+            entries.append({
+                "segment_id": sid, "shot_id": uid if uid != sid else None,
+                "media_path": str(media_path), "duration": round(info["duration"], 2),
+                "resolution": f"{info['width']}x{info['height']}", "has_audio": info["has_audio"],
+                "prompt": ubrief.strip()[:200], "frames": frames, "warnings": warnings,
+            })
+            wstr = f" ⚠ {', '.join(warnings)}" if warnings else " ✓"
+            print(f"  [{uid}] {info['duration']:.1f}s {info['width']}x{info['height']}{wstr}")
     out = output_dir / "media_review.json"
     with open(out, "w") as f:
-        json.dump({"project_id": script["project_id"], "segments": entries}, f, indent=2)
+        json.dump({"project_id": script["project_id"], "units": entries}, f, indent=2)
     print(f"  review: {out}")
+    return entries
 
 
 def extract_review_frame(media_path, out_dir):
@@ -651,6 +705,69 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
 
         media_path = resolve(base, seg["media"])
         mode = seg.get("audio_mode", "generated_tts")
+
+        # Compute narration duration + coverage requirement for generated_tts
+        output_dir = resolve(base, script.get("output_dir", f"Videos/Projects/{script['project_id']}"))
+        fmt = script.get("defaults", {}).get("format", "mp3")
+        nar = output_dir / "narration" / f"{seg_id}.{fmt}"
+        nar_dur = None
+        if nar.exists():
+            rp = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration",
+                                 "-of","default=noprint_wrappers=1:nokey=1",str(nar)],capture_output=True,text=True)
+            try: nar_dur = float(rp.stdout.strip())
+            except ValueError: pass
+        required_visual = (nar_dur + 0.25) if nar_dur else None
+
+        # --- Per-shot generation path (PHASE 1/3/4) ---
+        shots = seg.get("shots")
+        if shots and mode != "baked_in":
+            # Coverage validation BEFORE spending credits (PHASE 3)
+            total_dur = sum(s.get("duration", 0) for s in shots)
+            if required_visual and total_dur < required_visual - 0.05:
+                raise RuntimeError(
+                    f"{seg_id}: BLOCKED — planned shots cover {total_dur:.1f}s but narration needs "
+                    f"{required_visual:.1f}s. Add shots or increase durations.")
+            print(f"  [{seg_id}] {len(shots)} shots, coverage {total_dur:.1f}s / need "
+                  f"{required_visual:.1f}s" if required_visual else f"  [{seg_id}] {len(shots)} shots")
+            for sh in shots:
+                shot_id = sh["id"]
+                shot_media = resolve(base, sh["media"])
+                shot_model = model or route_model(sh, mode)
+                # PHASE 3: block text-surface shots
+                if not allow_text_surfaces:
+                    srisk = classify_prompt_risk(sh.get("visual_brief", "") or sh.get("visual_prompt_override", ""))
+                    if srisk["text_surface_risk"]:
+                        raise RuntimeError(
+                            f"{shot_id}: BLOCKED — shot brief requests text-bearing surfaces "
+                            f"({', '.join(srisk['text_flags'])}). Rewrite or pass --allow-text-surfaces.")
+                    # PHASE 4: block wan2_7 for close-human shots
+                    if srisk["close_human_risk"] and shot_model == DEFAULT_BROLL_MODEL:
+                        raise RuntimeError(
+                            f"{shot_id}: BLOCKED — close-human shot ({','.join(srisk['human_flags'])}) "
+                            f"routed to {DEFAULT_BROLL_MODEL}; must use {HUMAN_CLOSEUP_MODEL}.")
+                if shot_media.exists() and not force:
+                    info = probe_video(shot_media)
+                    if info:
+                        print(f"    [{shot_id}] reused ({info['duration']:.1f}s)")
+                        skipped += 1
+                        continue
+                try:
+                    result = generate_segment(seg, shot_media, shot_model, dry_run=dry_run,
+                                              audio_mode=mode, spec=sh, duration=sh.get("duration"))
+                    if result:
+                        results.append(result)
+                        generated += 1
+                        review_dir = output_dir / "review_frames"
+                        review_dir.mkdir(parents=True, exist_ok=True)
+                        extract_review_frame(shot_media, review_dir)
+                        # per-shot provenance
+                        record_shot_provenance(script, base, seg_id, shot_id, shot_media, shot_model)
+                except RuntimeError as e:
+                    print(f"  [{shot_id}] FAILED: {e}", file=sys.stderr)
+                    raise
+            continue  # done with this segment's shots
+
+        # --- Segment-level path (backward compatible, no shots[]) ---
         # PHASE 4: route close-human shots to seedance, environment b-roll to wan2_7
         seg_model = model or route_model(seg, mode)
 
@@ -703,7 +820,7 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
             media_path = resolve(base, seg["media"])
             info = probe_video(media_path) if media_path.exists() else None
             # Determine provenance
-            matched = [r for r in results if r["id"] == seg["id"]]
+            matched = [r for r in results if r.get("segment_id") == seg["id"]]
             if matched:
                 action = "generated_higgsfield"
             elif media_path.exists():
