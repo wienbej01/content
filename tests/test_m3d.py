@@ -71,8 +71,8 @@ def test_risk_classifier_negation_aware():
 def test_anti_text_prompt_present():
     gm = _load("generate_media")
     assert "without any text-bearing surfaces" in gm.BROLL_REALISM_PREFIX.lower()
-    assert "deformed hands" in gm.BROLL_NEGATIVE.lower()
-    print("  ✓ anti-text + anti-deformed-hands prompt present")
+    assert "readable text" in gm.BROLL_NEGATIVE.lower()
+    print("  ✓ anti-text prompt present")
 
 
 # --- Human model routing ---
