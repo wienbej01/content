@@ -255,7 +255,7 @@ steps:
 - id: P4-01
   title: Build the research engine workflow + source log
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P0-02
   deliverable: Documented research SOP + a Notion/sheet research-log template (>=3 independent primary
@@ -264,7 +264,14 @@ steps:
   how: Operationalize BUSINESS_PLAN Ch.6 flow + originality guardrails into a checklist; user sets up
     the log.
   acceptance: Research SOP + source-log template exist and are usable.
-  notes: '[was P2-01] Enforces NON-NEGOTIABLE #1 (sourcing discipline).'
+  notes: '[was P2-01] Enforces NON-NEGOTIABLE #1 (sourcing discipline).
+
+    [2026-06-09 18:32 +0800] completed
+
+    [2026-06-09 18:32 +0800] docs/RESEARCH_SOP.md: full workflow (mine→validate→primary sources→synthesize→originality
+    check→approved brief), source log JSON template, hard rules (≥3 sources, TED=trend only, original
+    framework required), directory structure (research/source_logs/, research/briefs/). Example log created
+    for teaser_02.'
 - id: P4-02
   title: Build the script + brand-voice prompt library
   phase: P4

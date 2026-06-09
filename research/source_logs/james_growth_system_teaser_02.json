@@ -1,0 +1,44 @@
+{
+  "project_id": "james_growth_system_teaser_02",
+  "topic": "Channel teaser \u2014 introducing James and the Leverage Mind system",
+  "pillar": "Meta (channel introduction)",
+  "researched_at": "2026-06-08",
+  "themes_scanned": [
+    "Channel positioning research from BUSINESS_PLAN.md"
+  ],
+  "primary_sources": [
+    {
+      "id": 1,
+      "type": "original",
+      "title": "James Harrington persona + career arc",
+      "author": "Original creation",
+      "how_used": "The entire character and backstory is original IP"
+    },
+    {
+      "id": 2,
+      "type": "original",
+      "title": "Leverage Mind positioning + brand system",
+      "author": "Original creation",
+      "how_used": "Brand thesis, audience promise, differentiation"
+    },
+    {
+      "id": 3,
+      "type": "original",
+      "title": "Systems-that-compound framework",
+      "author": "Original creation",
+      "how_used": "Core channel thesis \u2014 original synthesis"
+    }
+  ],
+  "original_framework": {
+    "name": "Systems That Compound",
+    "thesis": "Professional leverage comes from building repeatable systems, not one-off effort."
+  },
+  "originality_check": {
+    "tracks_single_source": false,
+    "framework_is_genuinely_new": true,
+    "original_asset_present": true,
+    "ted_used_only_as_trend": true
+  },
+  "approved": true,
+  "approved_by": "founder"
+}
