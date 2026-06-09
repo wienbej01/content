@@ -170,15 +170,17 @@ def validate_script(script, base):
 # --- TTS ---
 
 def synthesize_segment(text, voice_id, model_id, voice_settings, api_key, speed=None):
-    """Call ElevenLabs TTS API. Returns audio bytes (mp3)."""
+    """Call ElevenLabs TTS API. Returns audio bytes (mp3).
+
+    speed is ALWAYS sent inside voice_settings (ElevenLabs' documented location for
+    eleven_multilingual_v2), including speed=1.0, for deterministic/explicit behavior.
+    If the API rejects speed in voice_settings, we retry without it and log the fallback.
+    """
     url = f"{ELEVENLABS_URL}/{voice_id}"
-    payload = {
-        "text": text,
-        "model_id": model_id,
-        "voice_settings": voice_settings,
-    }
-    if speed is not None and speed != 1.0:
-        payload["speed"] = speed  # top-level param (0.7–1.2; omit to use EL default of 1.0)
+    vs = dict(voice_settings)
+    if speed is not None:
+        vs["speed"] = speed  # always explicit, including 1.0
+    payload = {"text": text, "model_id": model_id, "voice_settings": vs}
     body = json.dumps(payload).encode()
 
     req = urllib.request.Request(url, data=body, headers={
@@ -186,13 +188,22 @@ def synthesize_segment(text, voice_id, model_id, voice_settings, api_key, speed=
         "Content-Type": "application/json",
         "Accept": "audio/mpeg",
     })
-
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             if resp.status >= 300:
                 raise RuntimeError(f"ElevenLabs API error {resp.status}")
             return resp.read()
     except urllib.error.HTTPError as e:
+        # If speed in voice_settings is rejected, retry without it and report.
+        if speed is not None and e.code in (400, 422):
+            print(f"  WARN: ElevenLabs rejected speed in voice_settings ({e.code}); "
+                  f"retrying without explicit speed.", file=sys.stderr)
+            vs2 = dict(voice_settings)
+            payload2 = {"text": text, "model_id": model_id, "voice_settings": vs2}
+            req2 = urllib.request.Request(url, data=json.dumps(payload2).encode(), headers={
+                "xi-api-key": api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
+            with urllib.request.urlopen(req2, timeout=60) as resp2:
+                return resp2.read()
         body = e.read().decode("utf-8", errors="replace")[:500]
         raise RuntimeError(f"ElevenLabs API {e.code}: {body}")
     except urllib.error.URLError as e:
@@ -414,15 +425,136 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False):
     return manifest_path
 
 
+def _find_segment(script, text_contains=None, segment_id=None):
+    for seg in script["segments"]:
+        if segment_id and seg["id"] == segment_id:
+            return seg
+        if text_contains and text_contains.lower() in seg.get("text", "").lower():
+            return seg
+    return None
+
+
+def show_segment_audio(script_path, text_contains=None, segment_id=None):
+    """PHASE 0/8: print inspection info for one segment (no regeneration)."""
+    script = json.load(open(script_path))
+    base = Path(script_path).resolve().parent
+    seg = _find_segment(script, text_contains, segment_id)
+    if not seg:
+        print(f"No segment matching id={segment_id} text_contains={text_contains!r}")
+        return
+    sid = seg["id"]
+    proj = resolve(base, script.get("output_dir", f"Videos/Projects/{script['project_id']}"))
+    nar = proj / "narration" / f"{sid}.mp3"
+    media = resolve(base, seg["media"])
+    txt = seg.get("text", "")
+    wc = word_count(txt)
+    nd = probe_dur(nar) if nar.exists() else None
+    md = probe_dur(media) if media.exists() else None
+    voice = script.get("voice", {})
+    settings = {**DEFAULT_VOICE_SETTINGS, **voice.get("settings", {})}
+    print(f"segment_id:        {sid}")
+    print(f"audio_mode:        {seg.get('audio_mode')}")
+    print(f"narration_path:    {nar}  (exists={nar.exists()})")
+    print(f"media_path:        {media}")
+    print(f"script_text:       {txt}")
+    print(f"word_count:        {wc}")
+    print(f"narration_duration:{nd}")
+    print(f"media_duration:    {md}")
+    if nd:
+        print(f"WPS:               {wc/nd:.2f}")
+    print(f"TTS settings:      model={voice.get('model_id', DEFAULT_MODEL)} "
+          f"stability={settings['stability']} similarity_boost={settings['similarity_boost']} "
+          f"style={settings['style']} use_speaker_boost={settings['use_speaker_boost']} "
+          f"speed={voice.get('speed', DEFAULT_SPEED)}")
+    print(f"is_lipsync:        {seg.get('audio_mode') == 'baked_in'}")
+    print(f"note: narration generated with the speed/payload fix applied as of M3-C (speed sent explicitly).")
+
+
+def make_audio_compare_pack(script_path, segment_id, speeds=(1.0, 1.05, 1.10, 1.15)):
+    """PHASE 1: build a manual-comparison pack + calibration candidates for one segment."""
+    import hashlib
+    script = json.load(open(script_path))
+    base = Path(script_path).resolve().parent
+    seg = _find_segment(script, segment_id=segment_id)
+    if not seg:
+        raise ValueError(f"segment {segment_id} not found")
+    sid = seg["id"]
+    txt = seg["text"]
+    wc = word_count(txt)
+    pid = script["project_id"]
+    out = ROOT / "Videos" / "QA" / "audio_compare" / pid / sid
+    out.mkdir(parents=True, exist_ok=True)
+    voice = script.get("voice", {})
+    settings = {**DEFAULT_VOICE_SETTINGS, **voice.get("settings", {})}
+    model = voice.get("model_id", DEFAULT_MODEL)
+    # script text
+    (out / "script_text.txt").write_text(txt)
+    # redacted payload
+    payload = {"text": txt, "model_id": model, "voice_settings": {**settings, "speed": "<calibrating>"},
+               "voice_id": "<REDACTED>", "api_key": "<REDACTED>"}
+    (out / "tts_payload.json").write_text(json.dumps(payload, indent=2))
+    # reference + instructions
+    (out / "INSTRUCTIONS.txt").write_text(
+        f"Manual ElevenLabs comparison for segment {sid}\n\n"
+        f"Voice: James Harrington\nModel: {model}\n"
+        f"Stability: {settings['stability']} | Similarity: {settings['similarity_boost']} | "
+        f"Style: {settings['style']} | Speaker Boost: {settings['use_speaker_boost']}\n"
+        f"Try Speed values: {', '.join(str(s) for s in speeds)}\n\n"
+        f"Paste this text:\n{txt}\n\n"
+        f"Compare against the cal_spXXX.mp3 files in this folder. Tell me which speed sounds right.\n"
+        f"Reference clip you liked: Videos/Input_audio/20260608_trailer/"
+        f"ElevenLabs_2026-06-08T03_39_17_James Harrington_gen_sp105_s50_sb75_se12_b_m2.mp3\n")
+    # copy current production mp3 if exists
+    proj = resolve(base, script.get("output_dir", f"Videos/Projects/{pid}"))
+    cur = proj / "narration" / f"{sid}.mp3"
+    candidates = []
+    if cur.exists():
+        import shutil
+        shutil.copy(cur, out / "current_production.mp3")
+    # calibration candidates
+    ref_wps = 24 / 11.964
+    api_key = get_api_key()
+    voice_id = get_voice_id(script.get("voice", {}))
+    for sp in speeds:
+        audio = synthesize_segment(txt, voice_id, model, settings, api_key, speed=sp)
+        p = out / f"cal_sp{int(sp*100)}.mp3"
+        p.write_bytes(audio)
+        d = probe_dur(p)
+        candidates.append({"speed": sp, "path": str(p), "duration": round(d, 2),
+                           "word_count": wc, "wps": round(wc/d, 3),
+                           "ref_wps_delta": round(wc/d - ref_wps, 3),
+                           "subjective_review_pending": True})
+        print(f"  speed={sp}: {d:.2f}s, {wc/d:.2f} wps")
+    report = {"segment_id": sid, "script_text": txt, "reference_wps": round(ref_wps, 3),
+              "settings": settings, "model": model, "candidates": candidates,
+              "production_mp3": str(cur) if cur.exists() else None,
+              "compare_dir": str(out)}
+    (out / "audio_calibration_report.json").write_text(json.dumps(report, indent=2))
+    print(f"\n  Comparison pack: {out}")
+    print(f"  Report: {out / 'audio_calibration_report.json'}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generate TTS narration + assembly manifest from script.")
     ap.add_argument("script", help="Path to reviewed script JSON")
     ap.add_argument("--force", action="store_true", help="Regenerate all narration (skip cache)")
     ap.add_argument("--assemble", action="store_true", help="Run assemble.py after manifest creation")
     ap.add_argument("--validate-only", action="store_true", help="Validate script without API calls")
+    ap.add_argument("--show-segment-audio", action="store_true", help="Inspect one segment, no regeneration")
+    ap.add_argument("--segment-text-contains", default=None, help="Find segment by text substring")
+    ap.add_argument("--segment", default=None, help="Segment id (with --show-segment-audio or --compare-pack)")
+    ap.add_argument("--compare-pack", action="store_true", help="Build manual-comparison + calibration pack")
     args = ap.parse_args()
 
     try:
+        if args.show_segment_audio or args.segment_text_contains:
+            show_segment_audio(args.script, text_contains=args.segment_text_contains, segment_id=args.segment)
+            return
+        if args.compare_pack:
+            if not args.segment:
+                ap.error("--compare-pack requires --segment")
+            make_audio_compare_pack(args.script, args.segment)
+            return
         run_tts(args.script, force=args.force, do_assemble=args.assemble, validate_only=args.validate_only)
     except (ValueError, RuntimeError, FileNotFoundError) as e:
         print(f"ERROR: {e}", file=sys.stderr)

@@ -12,7 +12,19 @@
         "logos",
         "fake_ui",
         "miniature_scale"
-      ]
+      ],
+      "narration_duration": 9.64,
+      "coverage_needed": 9.89,
+      "shots": [
+        {
+          "id": "001_hook",
+          "duration": 9.89,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/001_hook.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": []
     },
     {
       "segment_id": "002_background",
@@ -24,6 +36,32 @@
         "logos",
         "fake_ui",
         "miniature_scale"
+      ],
+      "narration_duration": 10.53,
+      "coverage_needed": 10.78,
+      "shots": [
+        {
+          "id": "002_background_shot01",
+          "duration": 5.0,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/002_background_shot01.mp4"
+        },
+        {
+          "id": "002_background_shot02",
+          "duration": 5.0,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/002_background_shot02.mp4"
+        },
+        {
+          "id": "002_background_shot03",
+          "duration": 0.78,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/002_background_shot03.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": [
+        "text_surface_risk"
       ]
     },
     {
@@ -36,7 +74,19 @@
         "logos",
         "fake_ui",
         "miniature_scale"
-      ]
+      ],
+      "narration_duration": 9.93,
+      "coverage_needed": 10.18,
+      "shots": [
+        {
+          "id": "003_pattern",
+          "duration": 10.18,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/003_pattern.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": []
     },
     {
       "segment_id": "004_system",
@@ -48,6 +98,32 @@
         "logos",
         "fake_ui",
         "miniature_scale"
+      ],
+      "narration_duration": 13.45,
+      "coverage_needed": 13.7,
+      "shots": [
+        {
+          "id": "004_system_shot01",
+          "duration": 5.0,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/004_system_shot01.mp4"
+        },
+        {
+          "id": "004_system_shot02",
+          "duration": 5.0,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/004_system_shot02.mp4"
+        },
+        {
+          "id": "004_system_shot03",
+          "duration": 3.7,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/004_system_shot03.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": [
+        "text_surface_risk"
       ]
     },
     {
@@ -60,7 +136,19 @@
         "logos",
         "fake_ui",
         "miniature_scale"
-      ]
+      ],
+      "narration_duration": 7.34,
+      "coverage_needed": 7.59,
+      "shots": [
+        {
+          "id": "005_give_back",
+          "duration": 7.59,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/005_give_back.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": []
     },
     {
       "segment_id": "006_audience",
@@ -72,6 +160,26 @@
         "logos",
         "fake_ui",
         "miniature_scale"
+      ],
+      "narration_duration": 9.27,
+      "coverage_needed": 9.52,
+      "shots": [
+        {
+          "id": "006_audience_shot01",
+          "duration": 5.0,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/006_audience_shot01.mp4"
+        },
+        {
+          "id": "006_audience_shot02",
+          "duration": 4.52,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/006_audience_shot02.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": [
+        "text_surface_risk"
       ]
     },
     {
@@ -84,7 +192,19 @@
         "logos",
         "fake_ui",
         "miniature_scale"
-      ]
+      ],
+      "narration_duration": 11.28,
+      "coverage_needed": 11.53,
+      "shots": [
+        {
+          "id": "007_promise",
+          "duration": 11.53,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/007_promise.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": []
     },
     {
       "segment_id": "008_cta",
@@ -96,8 +216,24 @@
         "logos",
         "fake_ui",
         "miniature_scale"
-      ]
+      ],
+      "narration_duration": 3.29,
+      "coverage_needed": 3.54,
+      "shots": [
+        {
+          "id": "008_cta",
+          "duration": 3.54,
+          "model": "seedance_2_0",
+          "media": "../../assets/media/james_teaser_02/008_cta.mp4"
+        }
+      ],
+      "model_routed": "seedance_2_0",
+      "risk": []
     }
   ],
-  "warnings": []
+  "warnings": [
+    "002_background: needs 3 shots to cover 10.8s narration",
+    "004_system: needs 3 shots to cover 13.7s narration",
+    "006_audience: needs 2 shots to cover 9.5s narration"
+  ]
 }

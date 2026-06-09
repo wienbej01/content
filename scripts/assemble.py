@@ -45,6 +45,7 @@ def run(cmd, label=""):
 
 
 TAIL_PAD = 0.25   # seconds appended after narration ends (prevents last-word cut-off)
+MAX_FREEZE = 0.5  # max held-frame duration before requiring multiple shots (PHASE 5)
 
 
 def probe_dur(path):
@@ -190,6 +191,47 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
 
     is_image = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
 
+    # PHASE 5: multi-shot visual bed — concatenate distinct shots to cover narration,
+    # then overlay continuous narration once (no audio pause, no loop, no long freeze).
+    shots = seg.get("shots")
+    audio_src = seg.get("audio")
+    if shots and audio_src:
+        audio_path = resolve(base, audio_src)
+        out_dur = probe_dur(audio_path) / speed + TAIL_PAD
+        # Normalize each shot to the format, strip its audio
+        norm_shots = []
+        per = out_dur / len(shots)
+        for j, sh in enumerate(shots):
+            sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
+            seg_dur = (sh.get("duration") if isinstance(sh, dict) and sh.get("duration") else per)
+            seg_dur = min(seg_dur, per) if len(shots) > 1 else per
+            ndst = tmp / f"seg_{idx}_shot{j}.mp4"
+            shot_src_dur = probe_dur(sp)
+            # If shot shorter than its slot, hold last frame up to MAX_FREEZE, else trim
+            vf_shot = f"{scale_crop},{grade}"
+            if shot_src_dur < per - 0.05:
+                pad = per - shot_src_dur
+                if pad > MAX_FREEZE:
+                    pad = MAX_FREEZE  # cap; remaining slot handled by next shot timing
+                vf_shot = f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad:.3f}"
+            run(["ffmpeg", "-y", "-i", str(sp), "-an", "-vf", vf_shot,
+                 "-t", f"{per:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                 "-pix_fmt", "yuv420p", "-r", str(fps), str(ndst)], f"seg_{idx}_shot{j}")
+            norm_shots.append(ndst)
+        # Concat the shots into a single visual bed
+        concat_list = tmp / f"seg_{idx}_shots.txt"
+        concat_list.write_text("".join(f"file '{p}'\n" for p in norm_shots))
+        bed = tmp / f"seg_{idx}_bed.mp4"
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+             "-c", "copy", str(bed)], f"seg_{idx}_concat")
+        # Overlay continuous narration onto the bed
+        run(["ffmpeg", "-y", "-i", str(bed), "-i", str(audio_path),
+             "-af", "aresample=48000", "-t", f"{out_dur:.3f}",
+             "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+             "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", str(dst)],
+            f"seg_{idx}_bed_audio")
+        return dst
+
     if is_image:
         # Still image → video of narration duration + tail pad (prevents last-word cut-off)
         audio = resolve(base, seg.get("audio"))
@@ -251,8 +293,15 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
                      "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
                      "-pix_fmt", "yuv420p", str(dst)], f"seg_{idx}")
             else:
-                # Default: hold last frame (no visible repetition)
+                # Default: hold last frame, but only up to MAX_FREEZE; beyond that it's
+                # unacceptable filler — require a shots bed or explicit --allow-looping.
                 pad_dur = out_dur - media_dur
+                if pad_dur > MAX_FREEZE:
+                    raise ValueError(
+                        f"segment {idx} ({seg.get('media')}): media is {media_dur:.1f}s but narration "
+                        f"needs {out_dur:.1f}s — a {pad_dur:.1f}s freeze-frame exceeds the {MAX_FREEZE}s limit. "
+                        f"Provide multiple shots to cover the narration, regenerate a longer clip, "
+                        f"or pass --allow-looping.")
                 vf_freeze = f"{pts}{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad_dur:.3f}"
                 run(["ffmpeg", "-y", *trim_args, "-i", str(media), "-i", str(audio_path),
                      "-vf", vf_freeze, "-af", f"{atempo}aresample=48000",

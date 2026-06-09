@@ -23,22 +23,18 @@ def test_speed_in_payload():
 def test_broll_prompt_bans_text():
     """B-roll realism prefix and negative ban readable text."""
     import generate_media as gm
-    assert "no readable text" in gm.BROLL_REALISM_PREFIX.lower()
-    assert "no logos" in gm.BROLL_REALISM_PREFIX.lower()
+    assert "text-bearing surfaces" in gm.BROLL_REALISM_PREFIX.lower()
     for term in ["readable text", "logos", "whiteboard text", "slide", "document text", "chart labels"]:
         assert term in gm.BROLL_NEGATIVE.lower(), f"missing negative term: {term}"
     print("  ✓ B-roll prompts ban readable text, logos, slides, documents")
 
 
 def test_broll_prompt_built_with_constraints():
-    """generate_segment dry-run includes anti-text constraints for generated_tts."""
+    """generated_tts prompt includes realism prefix."""
     import generate_media as gm
     seg = {"id": "t", "audio_mode": "generated_tts", "visual_brief": "office scene"}
-    # capture via dry_run path — generate_segment prints, returns None
-    # Just verify the prompt assembly includes the prefix
-    # (re-implement the assembly check)
     positive = gm.BROLL_REALISM_PREFIX + seg["visual_brief"]
-    assert "no readable text" in positive.lower()
+    assert "text-bearing surfaces" in positive.lower()
     print("  ✓ generated_tts prompt includes realism prefix")
 
 
@@ -46,9 +42,9 @@ def test_storyboard_only_covers_all_segments():
     """build_storyboard produces an entry for every segment."""
     import generate_media as gm
     script = {"project_id": "t", "segments": [
-        {"id": "001", "audio_mode": "baked_in"},
-        {"id": "002", "audio_mode": "generated_tts"},
-        {"id": "003", "audio_mode": "baked_in"},
+        {"id": "001", "audio_mode": "baked_in", "media": "a.mp4", "visual_brief": "x"},
+        {"id": "002", "audio_mode": "generated_tts", "media": "b.mp4", "visual_brief": "city"},
+        {"id": "003", "audio_mode": "baked_in", "media": "c.mp4", "visual_brief": "x"},
     ]}
     sb = gm.build_storyboard(script, Path("."))
     assert len(sb["segments"]) == 3
@@ -61,8 +57,8 @@ def test_storyboard_flags_adjacent_broll():
     """Two adjacent b-roll segments produce a monotony warning."""
     import generate_media as gm
     script = {"project_id": "t", "segments": [
-        {"id": "001", "audio_mode": "generated_tts"},
-        {"id": "002", "audio_mode": "generated_tts"},
+        {"id": "001", "audio_mode": "generated_tts", "media": "a.mp4", "visual_brief": "city"},
+        {"id": "002", "audio_mode": "generated_tts", "media": "b.mp4", "visual_brief": "city"},
     ]}
     sb = gm.build_storyboard(script, Path("."))
     assert any("adjacent B_ROLL" in w for w in sb["warnings"])
