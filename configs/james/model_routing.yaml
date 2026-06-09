@@ -1,96 +1,64 @@
 # Model Routing Configuration — James Harrington Production Flow
-# Maps logical shot_types to Higgsfield CLI model IDs (job_set_type).
+# Approved allocation: 2026-06-09
 # Resolved from: `node node_modules/@higgsfield/cli/bin/higgsfield.js model list --json`
 
 narration:
   provider: elevenlabs
-  model: eleven_v3  # ElevenLabs Eleven v3 — canonical narration source
+  model: eleven_v3
   voice_env_var: ELEVENLABS_VOICE_ID
   lock_audio: true
   regenerate_after_lipsync: false
 
 higgsfield:
-  require_cost_estimate: false  # set true once CLI exposes cost-estimate command
-  resolve_model_ids_from_cli: true
+  require_cost_estimate: false
 
-# Mapping: logical model names → actual Higgsfield job_set_type IDs
+# Logical name → Higgsfield job_set_type
 model_id_map:
-  lipsync_veo3: veo3
-  lipsync_kling_avatar: kling3_0
-  kling_lipsync: kling3_0
-  infinitetalk: kling3_0  # no dedicated InfiniteTalk; use Kling with split if too long
-  veo_3_1: veo3_1
-  kling_3_0: kling3_0
-  kling_3_0_4k: kling3_0
-  seedance_2_0: seedance_2_0
-  minimax_hailuo: minimax_hailuo
-  wan_2_7: wan2_7
-  wan_2_6: wan2_6
+  lipsync_primary: seedance_2_0
+  hero_face_insert: kling3_0
+  human_body_hands: kling3_0
+  human_background: kling3_0
+  environment_broll: wan2_7
+  narrative_wide_james: seedance_2_0
+  experimental_lipsync: cinematic_studio_3_0
 
+# Shot-type routing (simplified — 5 types)
 shot_type_routes:
   talking_head_hero:
-    primary: lipsync_veo3
-    alternates:
-      - lipsync_kling_avatar
-    premium: true
+    model: lipsync_primary
     requires_audio: true
     preserve_baked_audio: true
     prompt_template: talking_head_hero
 
   talking_head_standard:
-    primary: lipsync_kling_avatar
-    alternates:
-      - seedance_2_0
+    model: lipsync_primary
     requires_audio: true
     preserve_baked_audio: true
-    prompt_template: talking_head_standard
-
-  talking_head_long:
-    primary: lipsync_kling_avatar
-    alternates:
-      - seedance_2_0
-    requires_audio: true
-    preserve_baked_audio: true
-    max_duration: 30
-    split_if_exceeds: true
     prompt_template: talking_head_standard
 
   hero_face_insert:
-    primary: veo_3_1
-    alternates:
-      - kling_3_0
+    model: hero_face_insert
     requires_audio: false
-    premium: true
+    preserve_baked_audio: false
     prompt_template: hero_face_insert
 
-  narrative_wide:
-    primary: seedance_2_0
-    alternates:
-      - kling_3_0
+  broll_human:
+    model: human_background
     requires_audio: false
-    prompt_template: talking_head_standard
+    preserve_baked_audio: false
+    prompt_template: broll_environment
 
   broll_environment:
-    primary: minimax_hailuo
-    alternates:
-      - wan_2_7
-      - wan_2_6
+    model: environment_broll
     requires_audio: false
+    preserve_baked_audio: false
     prompt_template: broll_environment
 
-  abstract_business_broll:
-    primary: minimax_hailuo
-    alternates:
-      - wan_2_7
-    requires_audio: false
-    prompt_template: abstract_business_broll
-
-  action_or_dynamic_motion:
-    primary: kling_3_0
-    alternates:
-      - seedance_2_0
-    requires_audio: false
-    prompt_template: broll_environment
+# Banned models — never used
+banned_models:
+  - minimax_hailuo
+  - seedance_2_0_fast
+  - seedance1_5
 
 prompt_templates:
   talking_head_hero: >
@@ -111,49 +79,36 @@ prompt_templates:
   hero_face_insert: >
     Photorealistic cinematic portrait insert of James, non-speaking, thoughtful expression,
     realistic skin, natural eyes, subtle breathing, minimal motion, soft office background blur,
-    85mm lens, shallow depth of field, high-end documentary look. No speech, no text, no logo.
+    85mm lens, high-end documentary look. No speech, no text, no logo.
 
   broll_environment: >
     Cinematic premium business b-roll: modern office, glass, warm practical lights, city ambience,
     clean architecture, slow controlled camera movement, premium documentary style, no people in
     close-up, no readable text, no fake words, no logos, no UI hallucinations.
 
-  abstract_business_broll: >
-    Abstract cinematic business systems visual: flowing light, structured data-like motion,
-    elegant growth-system metaphor, premium consulting film style, no readable text, no logos,
-    no fake interface words, no charts with labels, no numbers.
-
-# James teaser segment mapping (reference)
+# James segment mapping
 james_segments:
   001_hook:
     shot_type: talking_head_hero
     narration: true
-    premium: true
   002_background:
     shot_type: broll_environment
     narration: false
-    premium: false
   003_pattern:
     shot_type: talking_head_standard
     narration: true
-    premium: false
   004_system:
-    shot_type: abstract_business_broll
+    shot_type: broll_environment
     narration: false
-    premium: false
   005_give_back:
     shot_type: talking_head_standard
     narration: true
-    premium: false
   006_audience:
     shot_type: broll_environment
     narration: false
-    premium: false
   007_promise:
     shot_type: talking_head_standard
     narration: true
-    premium: false
   008_cta:
     shot_type: talking_head_standard
     narration: true
-    premium: false

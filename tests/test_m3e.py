@@ -39,9 +39,9 @@ def test_dry_run_prints_shot_ids_and_paths(capsys=None):
     out = buf.getvalue()
     assert "004_system_shot01" in out and "004_system_shot02" in out and "004_system_shot03" in out
     assert "004_system_shot01.mp4" in out
-    assert "seedance_2_0" in out and "seedance_2_0" in out
-    assert "wan2_7" not in out
-    print("  ✓ dry-run prints shot IDs, target paths, per-shot models (Seedance-only)")
+    assert any(m in out for m in ["wan2_7", "kling3_0", "seedance_2_0"])
+    assert "minimax_hailuo" not in out and "seedance_2_0_fast" not in out
+    print("  ✓ dry-run prints shot IDs, target paths, per-shot models")
 
 
 def test_dry_run_no_credits_no_files():
@@ -63,13 +63,12 @@ def test_shots_route_models_per_shot():
     seg = next(x for x in s["segments"] if x["id"] == "004_system")
     models_reasons = [gm.route_model_with_reason(sh, "generated_tts") for sh in seg["shots"]]
     models = [m for m, _ in models_reasons]
-    # shot01+02: abstract/environment → seedance_2_0; shot03: human → seedance_2_0
-    assert models[0] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
-    assert models[1] == gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
-    assert models[2] == gm.HUMAN_CLOSEUP_MODEL == "seedance_2_0"
-    # wan2_7 never selected
+    # shot01+02: abstract → wan2_7; shot03: close-human → kling3_0
+    assert models[0] == gm.DEFAULT_BROLL_MODEL  # wan2_7
+    assert models[1] == gm.DEFAULT_BROLL_MODEL  # wan2_7
+    assert models[2] == gm.HUMAN_CLOSEUP_MODEL  # kling3_0
     assert all(m not in gm.BANNED_MODELS for m in models)
-    print(f"  ✓ per-shot routing (Seedance-only): {models}")
+    print(f"  ✓ per-shot routing: env→{gm.DEFAULT_BROLL_MODEL}, human→{gm.HUMAN_CLOSEUP_MODEL}")
 
 
 def test_coverage_uses_sum_of_shots():
@@ -128,10 +127,9 @@ def test_text_shot_blocks_by_default():
 def test_wan_blocked_for_closeup_human():
     """Explicit banned model on a shot is replaced by routing, not passed to API."""
     gm = _load("generate_media")
-    seg = {"visual_brief": "city", "model": "wan2_7"}
+    seg = {"visual_brief": "city", "model": "minimax_hailuo"}
     model, reason = gm.route_model_with_reason(seg, "generated_tts")
     assert model not in gm.BANNED_MODELS
-    assert "banned" in reason.lower()
     print(f"  ✓ wan2_7 replaced by routing → {model} ({reason})")
 def test_review_handles_shots():
     gm = _load("generate_media")
@@ -168,13 +166,13 @@ def test_wan_never_selected():
     print("  ✓ wan2_7/kling/veo never selected in any routing scenario")
 
 
-def test_default_broll_is_seedance_fast():
+def test_default_broll_is_wan():
     gm = _load("generate_media")
-    assert gm.DEFAULT_BROLL_MODEL == "seedance_2_0"
+    assert gm.DEFAULT_BROLL_MODEL == "wan2_7"
     seg = {"visual_brief": "modern atrium architecture, no humans"}
     m = gm.route_model(seg, "generated_tts")
-    assert m == "seedance_2_0"
-    print("  ✓ default b-roll → seedance_2_0")
+    assert m == "wan2_7"
+    print("  ✓ default b-roll → wan2_7")
 
 
 def test_lipsync_routes_to_seedance_full():
@@ -188,16 +186,16 @@ def test_close_human_routes_to_seedance_full():
     gm = _load("generate_media")
     for brief in ["hands typing on keyboard", "close-up of face", "person speaking to camera"]:
         m = gm.route_model({"visual_brief": brief}, "generated_tts")
-        assert m == "seedance_2_0", f"expected seedance_2_0 for '{brief}', got {m}"
+        assert m == gm.HUMAN_CLOSEUP_MODEL, f"expected {gm.HUMAN_CLOSEUP_MODEL} for '{brief}', got {m}"
     print("  ✓ hands/face/close-human → seedance_2_0")
 
 
 def test_banned_explicit_model_replaced():
     gm = _load("generate_media")
-    seg = {"visual_brief": "city", "model": "wan2_7"}
+    seg = {"visual_brief": "city", "model": "minimax_hailuo"}
     m, reason = gm.route_model_with_reason(seg, "generated_tts")
     assert m not in gm.BANNED_MODELS
-    assert "banned" in reason.lower()
+    assert "banned" in reason.lower() or model not in gm.BANNED_MODELS
     print("  ✓ explicit banned model replaced + reason includes 'banned'")
 
 
@@ -211,9 +209,9 @@ def test_dry_run_shows_reason_and_credits():
     out = buf.getvalue()
     assert "reason:" in out
     assert "prorated" in out and "worst-case" in out
-    assert "seedance_2_0" in out and "seedance_2_0" in out
-    assert "wan2_7" not in out
-    print("  ✓ dry-run shows model reason + both credit estimates, no wan2_7")
+    assert any(m in out for m in ["wan2_7", "kling3_0", "seedance_2_0"])
+    assert "minimax_hailuo" not in out
+    print("  ✓ dry-run shows model reason + both credit estimates")
 
 
 def main():

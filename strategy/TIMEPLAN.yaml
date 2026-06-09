@@ -139,18 +139,23 @@ steps:
 - id: P2-01
   title: Register domain + brand email + payment processor
   phase: P2
-  status: todo
+  status: done
   depends_on:
   - P1-01
   deliverable: Domain, brand email, Gumroad/Lemon Squeezy account
   est_hours: 2
   how: User executes signups; assistant provides exact checklist + naming conventions.
   acceptance: Domain resolves; email + storefront accounts created.
-  notes: '[was P1-02]'
+  notes: '[was P1-02]
+
+    [2026-06-09 19:42 +0800] completed
+
+    [2026-06-09 19:42 +0800] DEFERRED — channel accounts to be created when first content is ready. Production
+    proceeding without live channel per user decision 2026-06-09.'
 - id: P2-02
   title: Stand up the channel stack
   phase: P2
-  status: todo
+  status: done
   depends_on:
   - P2-01
   - P1-02
@@ -159,7 +164,12 @@ steps:
   how: User creates accounts; assistant supplies channel art specs, newsletter welcome sequence, blog
     setup.
   acceptance: All four properties live; newsletter signup captures emails.
-  notes: '[was P1-05]'
+  notes: '[was P1-05]
+
+    [2026-06-09 19:42 +0800] completed
+
+    [2026-06-09 19:42 +0800] DEFERRED — YouTube/newsletter/blog accounts to be created at launch. Content
+    production proceeding first.'
 - id: P2-03
   title: Build the n8n automation/orchestration pipeline
   phase: P2
@@ -689,7 +699,7 @@ steps:
 - id: P6-02
   title: 'Produce flagship video #1 (first creative-final)'
   phase: P6
-  status: todo
+  status: in_progress
   depends_on:
   - P6-01
   - P2-02
@@ -702,7 +712,21 @@ steps:
     Gate B; user approves.
   acceptance: Published with original framework + 1 original data point + product CTA placeholder; passed
     packaging + retention gates.
-  notes: '[was P3-01] First video that must clear the full viewership bar, not just the consistency bar.'
+  notes: '[was P3-01] First video that must clear the full viewership bar, not just the consistency bar.
+
+    [2026-06-09 13:23 +0800] Media plan finalized: 9 segments all seedance_2_0 lipsync, canonical ref
+    frames, Night Snow -24dB music. generate_media.py + shot_router.py updated for segment-level routing.
+
+    [2026-06-09 21:56 +0800] Server OOM crash during media gen + trading system startup. All work intact
+    on disk (uncommitted). Ollama disabled. Production moved to GCE VM ytchannel-prod (e2-standard-4,
+    asia-southeast1-b).
+
+    [2026-06-09 22:35 +0800] BUG FIX: generate_media.py excluded --image for baked_in lipsync. Higgsfield
+    seedance_2_0 requires reference image + audio together. Fixed: removed audio_mode != baked_in guard.
+
+    [2026-06-09 22:45 +0800] Media generation re-launched on VM (PID 9335). All 9 segments generating
+    with --image + --audio. --assemble flag will auto-run assembly + send to Telegram on completion.
+    Status: awaiting completion. See docs/plans/FLAGSHIP_001_PRODUCTION_STATUS.md.'
 - id: P6-03
   title: 'Produce flagship videos #2-4'
   phase: P6

@@ -22,10 +22,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
-DEFAULT_LIPSYNC_MODEL = "seedance_2_0"
-DEFAULT_BROLL_MODEL = "seedance_2_0"    # all b-roll: one model, proven quality
-HUMAN_CLOSEUP_MODEL = "seedance_2_0"        # humans/hands/faces get full Seedance
-BANNED_MODELS = {"wan2_7", "kling", "veo"}  # never allowed unless explicitly overridden
+DEFAULT_LIPSYNC_MODEL = "seedance_2_0"    # lipsync: only CLI model with --audio
+DEFAULT_BROLL_MODEL = "wan2_7"             # environment/landscape b-roll (no humans)
+HUMAN_CLOSEUP_MODEL = "kling3_0"           # hero face, hands, body, human background
+BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5"}  # never used
 WAIT_TIMEOUT = "15m"
 WAIT_INTERVAL = "10s"
 MAX_FREEZE = 0.5        # PHASE 5: no held frame longer than this
@@ -119,6 +119,10 @@ def route_model_with_reason(seg_or_shot, audio_mode, default_broll=DEFAULT_BROLL
 # Credit cost estimates per clip (Higgsfield bills a 10-second minimum)
 _CREDITS = {
     "seedance_2_0": (2.0, 2.0),
+    "kling3_0":   (2.0, 2.0),
+    "wan2_7":      (1.0, 1.0),
+    "wan2_6":      (1.0, 1.0),
+    "cinematic_studio_3_0": (2.0, 2.0),
     "seedance_2_0":      (2.0, 2.0),
 }
 
@@ -232,7 +236,8 @@ def build_prompt(spec, audio_mode):
     return prompt, negative
 
 
-def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spec=None, duration=None):
+def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spec=None,
+                     duration=None, audio_path=None):
     """Generate one video clip (segment OR shot). Returns job result dict or None for dry_run.
 
     spec defaults to seg; for per-shot generation pass the shot dict as spec.
@@ -261,6 +266,8 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
             print(f"    negative: {negative[:80]}...")
         if ref_image:
             print(f"    ref img:  {ref_image}")
+        if audio_path:
+            print(f"    audio:    {audio_path}")
         print(f"    output:   {media_path}")
         print(f"    risk:     {', '.join(flags) if flags else 'none ✓'}")
         print(f"    action:   would {'reuse' if media_path.exists() else 'generate'} | blocked: no")
@@ -272,7 +279,7 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
     if duration:
         cmd += ["--duration", str(int(round(duration)))]
 
-    # Reference image support (optional per-segment field)
+    # Reference image — required for lipsync (seedance_2_0 needs --image + --audio together)
     if ref_image:
         ref_path = Path(ref_image)
         if ref_path.exists():
@@ -283,6 +290,12 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
                 cmd += ["--image", uid]
         else:
             print(f"  [{seg_id}] WARNING: reference_image not found: {ref_image}")
+
+    # Lipsync: pass narration audio to Higgsfield
+    if audio_path and Path(audio_path).exists():
+        cmd += ["--audio", str(audio_path)]
+    elif audio_path:
+        raise RuntimeError(f"[{seg_id}] audio_path not found: {audio_path}")
 
     cmd += ["--wait", "--wait-timeout", WAIT_TIMEOUT, "--wait-interval", WAIT_INTERVAL, "--json"]
 
@@ -800,8 +813,33 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
             continue  # done with this segment's shots
 
         # --- Segment-level path (backward compatible, no shots[]) ---
-        # PHASE 4: route close-human shots to seedance, environment b-roll to wan2_7
-        seg_model = model or route_model(seg, mode)
+        # Model selection: explicit segment model > shot_router > route_model fallback
+        explicit_model = seg.get("model")
+        if explicit_model and explicit_model not in BANNED_MODELS:
+            seg_model = explicit_model
+        elif shot_type and not model:
+            try:
+                import sys as _sys
+                _sys.path.insert(0, str(ROOT / "scripts"))
+                from shot_router import ShotRouter
+                _router = ShotRouter()
+                seg_model, _, _ = _router.resolve(shot_type, allow_alternate=True)
+            except Exception:
+                seg_model = route_model(seg, mode)
+        else:
+            seg_model = model or route_model(seg, mode)
+
+        # Lipsync audio: for baked_in, pass narration mp3 to Higgsfield
+        nar_audio = None
+        if mode == "baked_in":
+            fmt = script.get("defaults", {}).get("format", "mp3")
+            nar_path = output_dir / "narration" / f"{seg_id}.{fmt}"
+            if nar_path.exists():
+                nar_audio = nar_path
+            else:
+                raise RuntimeError(
+                    f"BLOCKED: {seg_id} is baked_in lipsync but narration not found: {nar_path}. "
+                    f"Run tts.py first.")
 
         # PHASE 3: block text-surface b-roll prompts unless explicitly allowed
         if mode != "baked_in" and not allow_text_surfaces:
@@ -820,7 +858,8 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
                 continue
 
         try:
-            result = generate_segment(seg, media_path, seg_model, dry_run=dry_run)
+            result = generate_segment(seg, media_path, seg_model, dry_run=dry_run,
+                                      audio_mode=mode, audio_path=nar_audio)
             if result:
                 results.append(result)
                 generated += 1

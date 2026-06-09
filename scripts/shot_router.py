@@ -64,6 +64,7 @@ class ShotRouter:
                 f"Available: {sorted(self._available)}")
 
     def resolve(self, shot_type, allow_alternate=False):
+        banned = set(self.config.get('banned_models', []))
         """Resolve shot_type → (model_id, prompt_template, policy_dict).
 
         Fails loudly if primary is unavailable and allow_alternate=False.
@@ -74,8 +75,10 @@ class ShotRouter:
                 f"Available: {sorted(self.routes.keys())}")
 
         policy = self.routes[shot_type]
-        primary_logical = policy["primary"]
+        primary_logical = policy.get('model', policy.get('primary', ''))
         primary_id = self._resolve_id(primary_logical)
+        if primary_id in banned:
+            raise RuntimeError(f'BLOCKED: model {primary_id!r} is banned per configs/james/model_routing.yaml')
 
         # Check availability
         try:
