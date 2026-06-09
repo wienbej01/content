@@ -377,26 +377,39 @@ def gap_concat(parts, gap_s, audio_fade, w, h, fps, crf, tmp):
 
 
 def make_music_bed(duration, music_cfg, tmp, base):
-    """Generate or load music, apply level + fades."""
-    music_file = resolve(base, music_cfg.get("file"))
-    level_db = music_cfg.get("level_db", -16)
+    """Load a music file, loop/trim to video duration, apply level + fades.
 
-    if music_file and music_file.exists():
-        src = music_file
-    else:
-        wav = tmp / "music.wav"
-        mood = music_cfg.get("mood", "calm")
-        stereo = gen_music(duration, mood)
-        write_wav(stereo, wav)
-        src = wav
+    Returns path to the prepared music track, or None if music is disabled.
+    Fails loudly if enabled=True but file is missing/unreadable.
+    """
+    if not music_cfg.get("enabled", False):
+        return None
+
+    rel = music_cfg.get("path") or music_cfg.get("file")  # accept both keys
+    if not rel:
+        raise ValueError("music.enabled=true but no music.path specified")
+    music_file = resolve(base, rel)
+    if not music_file.exists():
+        raise FileNotFoundError(f"music file not found: {music_file}")
+    src_dur = probe_dur(music_file)
+    if src_dur is None or src_dur <= 0:
+        raise RuntimeError(f"music file is unreadable or has zero duration: {music_file}")
+
+    volume_db = music_cfg.get("volume_db", -24)
+    fade_in   = music_cfg.get("fade_in", 1.5)
+    fade_out  = music_cfg.get("fade_out", 2.0)
+    do_loop   = music_cfg.get("loop", True)
+    fo_start  = max(duration - fade_out, 0)
+
+    # Loop input so it covers full video duration (ffmpeg -stream_loop -1)
+    loop_flag = ["-stream_loop", "-1"] if do_loop and src_dur < duration else []
 
     bed = tmp / "music_bed.m4a"
-    fo_start = max(duration - 1.4, 0)
-    run(["ffmpeg", "-y", "-i", str(src),
+    run(["ffmpeg", "-y", *loop_flag, "-i", str(music_file),
          "-t", f"{duration:.3f}",
-         "-af", (f"volume={level_db}dB,"
-                 f"afade=t=in:st=0:d=1.2,"
-                 f"afade=t=out:st={fo_start:.3f}:d=1.4,"
+         "-af", (f"volume={volume_db}dB,"
+                 f"afade=t=in:st=0:d={fade_in:.2f},"
+                 f"afade=t=out:st={fo_start:.3f}:d={fade_out:.2f},"
                  f"aresample=48000"),
          "-ac", "2", "-c:a", "aac", "-b:a", "192k", str(bed)], "music_bed")
     return bed
@@ -459,10 +472,11 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
     audio_fade = brand.get("audio_fade", 0.3)
     joined = gap_concat(norm_clips, gap_s, audio_fade, w, h, fps, crf, fmt_tmp)
 
-    # 4. Music
+    # 4. Music (None if disabled)
+    music_cfg = manifest.get("music", {})
     total_dur = probe_dur(joined)
-    bed = make_music_bed(total_dur, manifest.get("music", {}), fmt_tmp, base)
-    mixed = mix_music(joined, bed, fmt_tmp)
+    bed = make_music_bed(total_dur, music_cfg, fmt_tmp, base)
+    mixed = mix_music(joined, bed, fmt_tmp) if bed else joined
 
     # 5. Loudnorm → final
     out_dir = resolve(base, manifest.get("output", {}).get("directory", "."))
@@ -474,7 +488,8 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
     return final
 
 
-def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False):
+def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
+             music_override=None, music_volume_db=None, no_music=False):
     """Main entry: load manifest, build all formats, return log dict."""
     manifest_path = Path(manifest_path).resolve()
     if not manifest_path.exists():
@@ -491,6 +506,14 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False):
     errors = validate_manifest(manifest, base)
     if errors:
         raise ValueError("Manifest validation failed:\n  " + "\n  ".join(errors))
+
+    # Apply CLI music overrides (after validation, before assembly)
+    if no_music:
+        manifest.setdefault("music", {})["enabled"] = False
+    if music_override:
+        manifest.setdefault("music", {}).update({"enabled": True, "path": music_override})
+    if music_volume_db is not None:
+        manifest.setdefault("music", {})["volume_db"] = music_volume_db
 
     if formats is None:
         formats = ["16x9", "9x16"]
@@ -534,6 +557,28 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False):
 
     log["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
+    # Music provenance in log
+    music_cfg = manifest.get("music", {})
+    if music_cfg.get("enabled"):
+        rel = music_cfg.get("path") or music_cfg.get("file", "")
+        mf = resolve(base, rel) if rel else None
+        src_dur = probe_dur(mf) if mf and mf.exists() else None
+        vid_dur = log["formats"].get(formats[0], {}).get("duration_s") if log["formats"] else None
+        log["music"] = {
+            "enabled": True,
+            "path": str(mf) if mf else rel,
+            "filename": mf.name if mf else rel,
+            "source_duration": round(src_dur, 2) if src_dur else None,
+            "final_video_duration": vid_dur,
+            "volume_db": music_cfg.get("volume_db", -24),
+            "fade_in": music_cfg.get("fade_in", 1.5),
+            "fade_out": music_cfg.get("fade_out", 2.0),
+            "loop": music_cfg.get("loop", True),
+            "looped": (src_dur < vid_dur) if (src_dur and vid_dur) else None,
+        }
+    else:
+        log["music"] = {"enabled": False}
+
     # Write log
     out_dir = resolve(base, manifest.get("output", {}).get("directory", "."))
     prefix = manifest.get("output", {}).get("prefix", manifest.get("id", "output"))
@@ -550,11 +595,16 @@ def main():
     ap.add_argument("--formats", default="16x9,9x16", help="Comma-separated: 16x9,9x16")
     ap.add_argument("--tmp", default=None, help="Temp directory (default: output/_tmp)")
     ap.add_argument("--allow-looping", action="store_true", help="Allow short clips to loop (default: hold last frame)")
+    ap.add_argument("--music", default=None, metavar="FILE", help="Background music file (overrides manifest)")
+    ap.add_argument("--music-volume-db", type=float, default=None, metavar="DB", help="Music volume in dB (default -24)")
+    ap.add_argument("--no-music", action="store_true", help="Disable music even if manifest enables it")
     args = ap.parse_args()
 
     formats = [f.strip() for f in args.formats.split(",")]
     try:
-        log = assemble(args.manifest, formats, args.tmp, allow_looping=args.allow_looping)
+        log = assemble(args.manifest, formats, args.tmp, allow_looping=args.allow_looping,
+                       music_override=args.music, music_volume_db=args.music_volume_db,
+                       no_music=args.no_music)
     except ValueError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)

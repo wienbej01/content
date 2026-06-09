@@ -119,5 +119,13 @@
       "media": "../../assets/media/james_teaser_02/008_cta.mp4",
       "canonical_ref": "JAMES_FRONT_DESK_001_UPSCALED"
     }
-  ]
+  ],
+  "music": {
+    "enabled": true,
+    "path": "assets/music/Night Snow - Asher Fulero.mp3",
+    "volume_db": -24,
+    "fade_in": 1.5,
+    "fade_out": 3.0,
+    "loop": true
+  }
 }
