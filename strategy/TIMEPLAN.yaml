@@ -533,7 +533,7 @@ steps:
 - id: P5-02
   title: Write the retention rubric + first-class weighted "viewer" reviewer
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P4-08
   deliverable: docs/channel_universe/RETENTION_RUBRIC.md (first-3-seconds, reason-to-stay every ~20-30s,
@@ -547,7 +547,13 @@ steps:
     storyboard/script with a weak hook or no reason-to-stay.
   notes: '[ENHANCEMENT V2 — approved 2026-06-09] The retention reviewer was previously only a persona
     NAME with no prompt — the single most important reviewer for viewership was the least specified. Mostly
-    a prompt-writing task; low effort, high impact.'
+    a prompt-writing task; low effort, high impact.
+
+    [2026-06-09 19:30 +0800] completed
+
+    [2026-06-09 19:30 +0800] docs/reviewer_prompts/audience.md: retention reviewer prompt (first_3s, reason_to_stay,
+    open_loops, energy_curve, cta_placement). Highest weight (2.0) in aggregation. Blocks on: no hook,
+    dead zones >40s, broken hook promise, monotone energy.'
 - id: P5-03
   title: Add the hook-engineering sub-step (variant generation + scoring)
   phase: P5

@@ -18,17 +18,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-PERSONAS = ["filmmaker", "technical", "universe", "audio"]
+PERSONAS = ["audience", "filmmaker", "technical", "universe", "audio"]
 PROMPTS_DIR = ROOT / "docs" / "reviewer_prompts"
 
 # Weighted aggregation: retention/narrative > technical > minor style
-# Weight determines how much a persona's score counts toward the go/no-go decision.
+# audience has highest weight (2.0); a low-weight persona cannot block alone unless hard blocking.
 # A persona with weight < 1.0 cannot block alone unless it has a hard blocking_issue.
 PERSONA_WEIGHTS = {
-    "filmmaker": 1.5,    # narrative structure = highest retention impact
-    "universe": 1.2,     # brand voice = critical for differentiation
-    "audio": 1.0,        # pacing matters for delivery quality
-    "technical": 0.8,    # technical issues are fixable; don't stall creative
+    "audience": 2.0,     # retention = #1 predictor of viewership
+    "filmmaker": 1.5,    # narrative structure
+    "universe": 1.2,     # brand voice
+    "audio": 1.0,        # pacing
+    "technical": 0.8,    # fixable issues
 }
 WEIGHTED_PASS_THRESHOLD = 3.0  # weighted average score must be ≥ this to proceed
 
