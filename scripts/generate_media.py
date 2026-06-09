@@ -23,8 +23,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
 DEFAULT_LIPSYNC_MODEL = "seedance_2_0"
-DEFAULT_BROLL_MODEL = "wan2_7"
-HUMAN_CLOSEUP_MODEL = "seedance_2_0"   # PHASE 4: humans/hands/faces use Seedance 2.0 Fast
+DEFAULT_BROLL_MODEL = "seedance_2_0_fast"   # DECISION: Seedance-only; wan2_7 removed
+HUMAN_CLOSEUP_MODEL = "seedance_2_0"        # humans/hands/faces get full Seedance
+BANNED_MODELS = {"wan2_7", "kling", "veo"}  # never allowed unless explicitly overridden
 WAIT_TIMEOUT = "15m"
 WAIT_INTERVAL = "10s"
 MAX_FREEZE = 0.5        # PHASE 5: no held frame longer than this
@@ -95,13 +96,37 @@ def classify_prompt_risk(text):
 
 
 def route_model(seg_or_shot, audio_mode, default_broll=DEFAULT_BROLL_MODEL):
-    """PHASE 4: route close-human shots to seedance, environment b-roll to wan2_7."""
+    """Return model string. Banned models are replaced with the default."""
+    return route_model_with_reason(seg_or_shot, audio_mode, default_broll)[0]
+
+
+def route_model_with_reason(seg_or_shot, audio_mode, default_broll=DEFAULT_BROLL_MODEL):
+    """Return (model, reason) for dry-run reporting."""
     if audio_mode == "baked_in":
-        return DEFAULT_LIPSYNC_MODEL
-    if seg_or_shot.get("model"):
-        return seg_or_shot["model"]
-    risk = classify_prompt_risk(seg_or_shot.get("visual_brief", ""))
-    return HUMAN_CLOSEUP_MODEL if risk["close_human_risk"] else default_broll
+        return DEFAULT_LIPSYNC_MODEL, "lipsync/talking-head"
+    explicit = seg_or_shot.get("model")
+    if explicit:
+        if explicit in BANNED_MODELS:
+            return default_broll, f"banned model {explicit!r} → replaced with {default_broll}"
+        return explicit, "explicit override"
+    risk = classify_prompt_risk(seg_or_shot.get("visual_brief", "")
+                                or seg_or_shot.get("visual_prompt_override", ""))
+    if risk["close_human_risk"]:
+        return HUMAN_CLOSEUP_MODEL, f"close-human ({', '.join(risk['human_flags'])})"
+    return default_broll, "environment/abstract b-roll"
+
+
+# Credit cost estimates per clip (Higgsfield bills a 10-second minimum)
+_CREDITS = {
+    "seedance_2_0_fast": (1.0, 1.0),   # (prorated, 10s-min worst-case)
+    "seedance_2_0":      (2.0, 2.0),
+}
+
+
+def credit_estimate(model, duration=None):
+    """Return (prorated_cr, worst_case_cr) estimate."""
+    p, w = _CREDITS.get(model, (1.0, 1.0))
+    return p, w
 
 
 
@@ -224,10 +249,12 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
         risk = classify_prompt_risk(spec.get("visual_brief", "") or spec.get("visual_prompt_override", ""))
         flags = []
         if risk["text_surface_risk"]: flags += [f"text:{','.join(risk['text_flags'])}"]
-        if risk["close_human_risk"]: flags += [f"human:{','.join(risk['human_flags'])}"]
-        credit = "~2cr (seedance)" if model == HUMAN_CLOSEUP_MODEL else "~1cr (wan2_7)"
+        if risk["close_human_risk"]:  flags += [f"human:{','.join(risk['human_flags'])}"]
+        _, reason = route_model_with_reason(spec, audio_mode)
+        pro, worst = credit_estimate(model, duration)
         print(f"  [{seg_id}] DRY RUN:")
-        print(f"    model:    {model}  ({credit})")
+        print(f"    model:    {model}  (reason: {reason})")
+        print(f"    credits:  ~{pro}cr prorated / ~{worst}cr worst-case (10s min billing)")
         print(f"    duration: {duration if duration else 'segment-level'}")
         print(f"    prompt:   {prompt[:140]}")
         if negative:
@@ -236,8 +263,7 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
             print(f"    ref img:  {ref_image}")
         print(f"    output:   {media_path}")
         print(f"    risk:     {', '.join(flags) if flags else 'none ✓'}")
-        action = "reuse" if media_path.exists() else "generate"
-        print(f"    action:   would {action}")
+        print(f"    action:   would {'reuse' if media_path.exists() else 'generate'} | blocked: no")
         return None
 
     print(f"  [{seg_id}] generating ({model})...", end=" ", flush=True)
@@ -740,11 +766,17 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
                         raise RuntimeError(
                             f"{shot_id}: BLOCKED — shot brief requests text-bearing surfaces "
                             f"({', '.join(srisk['text_flags'])}). Rewrite or pass --allow-text-surfaces.")
-                    # PHASE 4: block wan2_7 for close-human shots
-                    if srisk["close_human_risk"] and shot_model == DEFAULT_BROLL_MODEL:
+                    # Block banned models even if explicitly set on a shot
+                    if shot_model in BANNED_MODELS:
+                        raise RuntimeError(
+                            f"{shot_id}: BLOCKED — model {shot_model!r} is not allowed. "
+                            f"Use seedance_2_0_fast or seedance_2_0.")
+                    # PHASE 4: block close-human shot if model doesn't meet the bar
+                    if srisk["close_human_risk"] and shot_model == DEFAULT_BROLL_MODEL \
+                            and DEFAULT_BROLL_MODEL != HUMAN_CLOSEUP_MODEL:
                         raise RuntimeError(
                             f"{shot_id}: BLOCKED — close-human shot ({','.join(srisk['human_flags'])}) "
-                            f"routed to {DEFAULT_BROLL_MODEL}; must use {HUMAN_CLOSEUP_MODEL}.")
+                            f"requires {HUMAN_CLOSEUP_MODEL}.")
                 if shot_media.exists() and not force:
                     info = probe_video(shot_media)
                     if info:

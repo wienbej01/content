@@ -42,12 +42,12 @@
     {
       "segment_id": "002_background",
       "word_count": 20,
-      "audio_duration_s": 10.527,
-      "wps": 1.9,
-      "ref_wps_delta": -2.363,
+      "audio_duration_s": 9.874,
+      "wps": 2.025,
+      "ref_wps_delta": -2.238,
       "audio_exists": true,
       "warnings": [
-        "too_slow (WPS 1.90 < 2.0)"
+        "below_calm_band (WPS 2.02 < 2.2)"
       ],
       "audio_mode": "generated_tts"
     },
@@ -64,9 +64,9 @@
     {
       "segment_id": "004_system",
       "word_count": 30,
-      "audio_duration_s": 13.453,
-      "wps": 2.23,
-      "ref_wps_delta": -2.033,
+      "audio_duration_s": 12.774,
+      "wps": 2.349,
+      "ref_wps_delta": -1.914,
       "audio_exists": true,
       "warnings": [],
       "audio_mode": "generated_tts"
@@ -84,12 +84,12 @@
     {
       "segment_id": "006_audience",
       "word_count": 19,
-      "audio_duration_s": 9.273,
-      "wps": 2.049,
-      "ref_wps_delta": -2.214,
+      "audio_duration_s": 9.979,
+      "wps": 1.904,
+      "ref_wps_delta": -2.359,
       "audio_exists": true,
       "warnings": [
-        "below_calm_band (WPS 2.05 < 2.2)"
+        "too_slow (WPS 1.90 < 2.0)"
       ],
       "audio_mode": "generated_tts"
     },
