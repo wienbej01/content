@@ -69,7 +69,7 @@ def test_review_script_stub_fail_blocks():
         report = rs.run_review(str(script_path), personas=["universe"])
     assert report["all_pass"] is False
     assert report["may_proceed"] is False
-    assert "game-changer" in report["all_blocking_issues"][0]
+    assert "game-changer" in report["hard_blocking_issues"][0]
     print("  ✓ review_script: stubbed fail → blocks with issue reported")
 
 
@@ -102,9 +102,49 @@ def test_aggregation_across_personas():
     with patch("llm_call.llm_call", side_effect=lambda **kwargs: next(responses)):
         report = rs.run_review(str(script_path), personas=["filmmaker", "universe"])
     assert report["all_pass"] is False
-    assert len(report["all_blocking_issues"]) >= 1
+    assert len(report["hard_blocking_issues"]) >= 1
     print("  ✓ aggregation: one persona fails → whole review blocks")
 
+
+
+
+def test_low_weight_persona_does_not_block_alone():
+    """A low-weight persona with a low score (but no blocking_issues) doesn't stall."""
+    rs = _load("review_script")
+    script_path = ROOT / "scripts/generated/james_growth_system_teaser_02.json"
+    # filmmaker (weight 1.5) passes with score 4; technical (weight 0.8) passes with score 2
+    # Weighted avg = (4*1.5 + 2*0.8) / (1.5+0.8) = 7.6/2.3 = 3.3 → above threshold 3.0
+    pass_high = {**STUB_PASS, "persona": "filmmaker", "overall_score": 4, "blocking_issues": []}
+    low_tech = {"task": "script_review", "persona": "technical", "status": "pass",
+                "scores": {}, "overall_score": 2, "blocking_issues": [], "warnings": ["minor nit"], "may_proceed": True}
+    responses = iter([
+        (pass_high, "", "sonnet_creative", "claude-sonnet-4.5"),
+        (low_tech, "", "sonnet_creative", "claude-sonnet-4.5"),
+    ])
+    with patch("llm_call.llm_call", side_effect=lambda **kwargs: next(responses)):
+        report = rs.run_review(str(script_path), personas=["filmmaker", "technical"])
+    assert report["may_proceed"] is True, f"should pass: weighted avg {report.get('weighted_average_score')}"
+    print(f"  ✓ low-weight technical (score 2) doesn't block when filmmaker (score 4) passes "
+          f"(weighted avg: {report['weighted_average_score']})")
+
+
+def test_hard_block_overrides_weighted_score():
+    """A hard blocking_issue blocks even if weighted average is high."""
+    rs = _load("review_script")
+    script_path = ROOT / "scripts/generated/james_growth_system_teaser_02.json"
+    pass_high = {**STUB_PASS, "persona": "filmmaker", "overall_score": 5, "blocking_issues": []}
+    block_tech = {"task": "script_review", "persona": "technical", "status": "fail",
+                  "scores": {}, "overall_score": 4, "blocking_issues": ["word count outside band"],
+                  "warnings": [], "may_proceed": False}
+    responses = iter([
+        (pass_high, "", "sonnet_creative", "claude-sonnet-4.5"),
+        (block_tech, "", "sonnet_creative", "claude-sonnet-4.5"),
+    ])
+    with patch("llm_call.llm_call", side_effect=lambda **kwargs: next(responses)):
+        report = rs.run_review(str(script_path), personas=["filmmaker", "technical"])
+    assert report["may_proceed"] is False
+    assert "word count" in report["hard_blocking_issues"][0]
+    print("  ✓ hard blocking issue overrides high weighted score")
 
 def main():
     print("Reviewer Gate Tests (P4-08)")

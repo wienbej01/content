@@ -21,6 +21,17 @@ sys.path.insert(0, str(ROOT / "scripts"))
 PERSONAS = ["filmmaker", "technical", "universe", "audio"]
 PROMPTS_DIR = ROOT / "docs" / "reviewer_prompts"
 
+# Weighted aggregation: retention/narrative > technical > minor style
+# Weight determines how much a persona's score counts toward the go/no-go decision.
+# A persona with weight < 1.0 cannot block alone unless it has a hard blocking_issue.
+PERSONA_WEIGHTS = {
+    "filmmaker": 1.5,    # narrative structure = highest retention impact
+    "universe": 1.2,     # brand voice = critical for differentiation
+    "audio": 1.0,        # pacing matters for delivery quality
+    "technical": 0.8,    # technical issues are fixable; don't stall creative
+}
+WEIGHTED_PASS_THRESHOLD = 3.0  # weighted average score must be ≥ this to proceed
+
 
 def load_persona_prompt(persona):
     p = PROMPTS_DIR / f"{persona}.md"
@@ -90,22 +101,51 @@ def run_review(script_path, personas=None, dry_run=False, output_path=None):
         if status != "pass":
             all_pass = False
 
-    # Aggregate
+    # Aggregate with weighted scoring
     report = {
         "project_id": script.get("project_id"),
         "script_path": str(script_path),
         "personas_run": personas,
         "reviews": reviews,
-        "all_pass": all_pass,
-        "may_proceed": all_pass,
     }
 
     if not dry_run:
-        avg = [r.get("overall_score", 0) for r in reviews if isinstance(r.get("overall_score"), (int, float))]
-        report["average_score"] = round(sum(avg) / len(avg), 1) if avg else None
+        # Hard blocking: any persona with blocking_issues = auto-fail regardless of weight
+        hard_blocked = [r for r in reviews if r.get("blocking_issues")]
         blocking = [b for r in reviews for b in r.get("blocking_issues", [])]
-        report["all_blocking_issues"] = blocking
-        print(f"\n  {'APPROVED' if all_pass else 'BLOCKED'} — avg score {report['average_score']}/5")
+
+        # Weighted average score
+        weighted_sum = 0
+        weight_total = 0
+        for r in reviews:
+            score = r.get("overall_score")
+            if isinstance(score, (int, float)):
+                w = PERSONA_WEIGHTS.get(r.get("persona", ""), 1.0)
+                weighted_sum += score * w
+                weight_total += w
+        weighted_avg = round(weighted_sum / weight_total, 2) if weight_total > 0 else 0
+
+        # Decision: blocked if hard blocking issues OR weighted avg below threshold
+        all_pass = (not hard_blocked) and (weighted_avg >= WEIGHTED_PASS_THRESHOLD)
+
+        report["all_pass"] = all_pass
+        report["may_proceed"] = all_pass
+        report["weighted_average_score"] = weighted_avg
+        report["pass_threshold"] = WEIGHTED_PASS_THRESHOLD
+        report["hard_blocking_issues"] = blocking
+        report["persona_weights"] = {r.get("persona"): PERSONA_WEIGHTS.get(r.get("persona"), 1.0)
+                                     for r in reviews if r.get("persona")}
+
+        if hard_blocked:
+            print(f"\n  BLOCKED — hard blocking issue(s) from: "
+                  f"{[r['persona'] for r in hard_blocked]}")
+        elif not all_pass:
+            print(f"\n  BLOCKED — weighted avg {weighted_avg}/5 < threshold {WEIGHTED_PASS_THRESHOLD}")
+        else:
+            print(f"\n  APPROVED — weighted avg {weighted_avg}/5 ≥ {WEIGHTED_PASS_THRESHOLD}")
+    else:
+        report["all_pass"] = None
+        report["may_proceed"] = None
 
     # Write output
     if output_path:

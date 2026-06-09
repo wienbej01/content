@@ -551,7 +551,7 @@ steps:
 - id: P5-03
   title: Add the hook-engineering sub-step (variant generation + scoring)
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P4-02
   - P4-07
@@ -560,7 +560,13 @@ steps:
   est_hours: 4
   how: LLM (sonnet_creative) prompt + scoring loop using the P5-02 rubric.
   acceptance: Produces ranked hook variants; the chosen hook feeds the script; spares are stored.
-  notes: '[ENHANCEMENT V4 — approved 2026-06-09] Hooks move retention more than any single edit.'
+  notes: '[ENHANCEMENT V4 — approved 2026-06-09] Hooks move retention more than any single edit.
+
+    [2026-06-09 19:26 +0800] completed
+
+    [2026-06-09 19:26 +0800] scripts/generate_hooks.py: generates 5 hook variants via LLM (sonnet_creative),
+    scores open_loop/speakability/voice, ranks by total, selects best, banks spares for shorts. Tests
+    5/5.'
 - id: P5-04
   title: Upgrade storyboard generation to hybrid rules+LLM (retention-driven beats)
   phase: P5
@@ -580,7 +586,7 @@ steps:
 - id: P5-05
   title: Implement weighted, override-able reviewer aggregation
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P4-08
   deliverable: Replace all-must-pass aggregation with weighted scoring (retention > narrative > minor
@@ -591,7 +597,12 @@ steps:
   acceptance: A single low-weight nitpick does not block; genuine blocking conditions still block; overrides
     logged.
   notes: '[ENHANCEMENT V5 — approved 2026-06-09] Current plan uses may_proceed = all(persona.pass), giving
-    a pedantic persona veto power equal to the retention reviewer.'
+    a pedantic persona veto power equal to the retention reviewer.
+
+    [2026-06-09 19:28 +0800] completed
+
+    [2026-06-09 19:28 +0800] review_script.py: weighted aggregation (filmmaker 1.5, universe 1.2, audio
+    1.0, technical 0.8); threshold 3.0; hard blocking issues override regardless of weight. Tests 9/9.'
 - id: P5-06
   title: Add SQLite content + performance-data logging
   phase: P5
