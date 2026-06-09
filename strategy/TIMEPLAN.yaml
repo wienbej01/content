@@ -576,7 +576,7 @@ steps:
 - id: P5-04
   title: Upgrade storyboard generation to hybrid rules+LLM (retention-driven beats)
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P4-05
   - P4-08
@@ -588,7 +588,13 @@ steps:
     rules still hard-gate compliance.
   acceptance: Storyboard beats reflect intentional retention choices, still pass all structural checks.
   notes: '[ENHANCEMENT V3 — approved 2026-06-09] Turns "compliant" into "compliant AND intentional". The
-    current generator assigns beats by crude rules (idx%3) — retention-critical placement is random today.'
+    current generator assigns beats by crude rules (idx%3) — retention-critical placement is random today.
+
+    [2026-06-09 19:31 +0800] completed
+
+    [2026-06-09 19:31 +0800] storyboard.py: --optimize flag adds LLM beat-optimization pass (via llm_call.py
+    sonnet_creative). Rules remain as compliance floor; LLM optimizes scene_type + james_presence for
+    retention. Re-validates after; reverts if LLM breaks compliance. Tests 9/9 unchanged.'
 - id: P5-05
   title: Implement weighted, override-able reviewer aggregation
   phase: P5

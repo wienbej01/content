@@ -116,12 +116,13 @@ def classify_beat(seg, idx, total, constraints):
     }
 
 
-def generate_storyboard(script, constraints):
+def generate_storyboard(script, constraints, optimize=False):
+    """Generate storyboard. If optimize=True, runs LLM beat-optimization pass."""
     segs = script["segments"]
     beats = [classify_beat(seg, i, len(segs), constraints) for i, seg in enumerate(segs)]
     total_dur = sum(b["duration_target_sec"] for b in beats)
 
-    return {
+    storyboard = {
         "project_id": script["project_id"],
         "episode_title": script.get("title", "Untitled"),
         "target_audience": "mid-career professionals, founders, executives (30-50)",
@@ -129,9 +130,76 @@ def generate_storyboard(script, constraints):
         "total_target_duration": round(total_dur, 1),
         "narration_mode": "continuous_voiceover",
         "allow_all_broll": False,
-        "draft": True,
+        "draft": not optimize,
         "beats": beats,
     }
+
+    if optimize:
+        storyboard = _llm_optimize_beats(storyboard, script, constraints)
+        storyboard["draft"] = False
+
+    return storyboard
+
+
+def _llm_optimize_beats(storyboard, script, constraints):
+    """LLM pass: optimize beat placement for retention while keeping compliance."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from llm_call import llm_call
+
+    prompt = f"""You are optimizing a video storyboard for audience retention.
+
+The rule-based generator produced a compliant storyboard, but beat placement is mechanical.
+Your job: rearrange scene_types and james_presence values to maximize retention.
+
+RETENTION PRINCIPLES:
+- James should appear (present_speaking) at trust moments: hook, key insight reveals, CTA
+- B-roll should follow high-energy James moments as a "visual rest" before the next build
+- Use scene-type variation: never 3+ identical scene_types in a row
+- The first beat MUST be James present_speaking (hook must be personal/direct)
+- The final beat SHOULD be James present_speaking (CTA is personal)
+- Slow push-in (camera: medium_close) at the most important idea
+
+CONSTRAINTS (hard, cannot violate):
+- James presence must be ≥{constraints.get('a_roll_rules', {}).get('min_presence_teaser_pct', 40)}% of content beats
+- First beat must have james_presence = present_speaking
+- scene_type must be one of: JAMES_SPEAKING, JAMES_PRESENT_VOICEOVER, B_ROLL_SUPPORTING, TRANSITION, TITLE_CARD
+
+Current storyboard beats:
+{json.dumps([{{'beat_id': b['beat_id'], 'scene_type': b['scene_type'], 'james_presence': b['james_presence'], 'narration_text': b.get('narration_text','')[:60]}} for b in storyboard['beats']], indent=2)}
+
+Return the SAME beats with optimized scene_type and james_presence values.
+Respond ONLY with valid JSON — an array of objects with beat_id, scene_type, james_presence, and a brief "retention_note" explaining why.
+"""
+    data, raw, profile, model = llm_call(
+        task="storyboard_generation", prompt=prompt, expect_json=True)
+
+    if data is None:
+        return storyboard  # fallback to rule-based if LLM fails
+
+    # Apply LLM suggestions back to beats (only scene_type + james_presence)
+    optimized = data if isinstance(data, list) else data.get("beats", [])
+    opt_map = {b["beat_id"]: b for b in optimized if isinstance(b, dict) and "beat_id" in b}
+
+    for beat in storyboard["beats"]:
+        if beat["beat_id"] in opt_map:
+            opt = opt_map[beat["beat_id"]]
+            if opt.get("scene_type") in VALID_SCENE_TYPES:
+                beat["scene_type"] = opt["scene_type"]
+            if opt.get("james_presence"):
+                beat["james_presence"] = opt["james_presence"]
+            if opt.get("retention_note"):
+                beat["retention_note"] = opt["retention_note"]
+
+    # Re-validate after LLM changes
+    errors, warnings = validate_storyboard(storyboard, constraints)
+    if errors:
+        # LLM broke compliance — revert to original rule-based
+        storyboard["draft"] = True
+        storyboard["_llm_reverted"] = True
+        storyboard["_revert_reason"] = errors
+
+    return storyboard
 
 
 def validate_storyboard(storyboard, constraints):
@@ -183,6 +251,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Print plan, write nothing")
     ap.add_argument("--validate-only", action="store_true", help="Validate script for storyboard readiness")
     ap.add_argument("--output", default=None, help="Output path for storyboard JSON")
+    ap.add_argument("--optimize", action="store_true", help="Run LLM retention-optimization pass")
     args = ap.parse_args()
 
     script_path = Path(args.script).resolve()
@@ -204,7 +273,7 @@ def main():
         print(f"VALID: {len(script['segments'])} segments, ready for storyboard generation")
         return
 
-    storyboard = generate_storyboard(script, constraints)
+    storyboard = generate_storyboard(script, constraints, optimize=args.optimize)
 
     # Validate the generated storyboard
     sb_errors, sb_warnings = validate_storyboard(storyboard, constraints)
