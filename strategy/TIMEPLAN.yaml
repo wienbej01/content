@@ -381,7 +381,7 @@ steps:
 - id: P4-08
   title: Build the LLM reviewer gates (script / storyboard / media-plan)
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P4-07
   - P4-06
@@ -394,7 +394,13 @@ steps:
   acceptance: Valid JSON output; blocks bad fixtures; stub tests pass; no live API in CI.
   notes: '[M6.1] NOT BUILT. Only the rule-based storyboard reviewer (P4-06) exists. This adds the Sonnet-class
     creative gates: filmmaker/story, technical, brand-universe, audio/pacing. The audience/retention persona
-    is intentionally split out and elevated in P5-02.'
+    is intentionally split out and elevated in P5-02.
+
+    [2026-06-09 18:42 +0800] completed
+
+    [2026-06-09 18:42 +0800] scripts/review_script.py + review_media_plan.py built. 4 persona prompts
+    (filmmaker, technical, universe, audio) in docs/reviewer_prompts/. Multi-persona aggregation: one
+    fail blocks. Calls llm_call.py with sonnet_creative. Tests 7/7 (stubbed, no live API).'
 - id: P4-09
   title: Build continuous-narration timing map (audio_timing.py)
   phase: P4
