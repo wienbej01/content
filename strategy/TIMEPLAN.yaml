@@ -589,7 +589,7 @@ steps:
 - id: P5-06
   title: Add SQLite content + performance-data logging
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P3-03
   deliverable: A SQLite store logging every content unit's attributes now (+ performance metrics later),
@@ -598,7 +598,13 @@ steps:
   how: Assistant designs the schema (attributes now, metrics later) and wires each pipeline stage to log.
   acceptance: Each produced/posted unit creates a row with its attributes + source-log refs.
   notes: '[was P2-09 / IDEA-002 capture layer] Proprietary data = the durable moat (BUSINESS_PLAN Ch.16).
-    Capture early; analysis layer is P5-07.'
+    Capture early; analysis layer is P5-07.
+
+    [2026-06-09 18:34 +0800] completed
+
+    [2026-06-09 18:34 +0800] scripts/content_db.py: SQLite schema (content_units + unit_segments), CLI
+    (init/log-unit/list/show/stats), performance metrics columns ready for future. teaser_02 logged. db/leverage_mind.db
+    created.'
 - id: P5-07
   title: Wire the performance-DB feedback loop into generation
   phase: P5
