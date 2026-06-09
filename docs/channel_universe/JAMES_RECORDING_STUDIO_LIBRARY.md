@@ -17,6 +17,17 @@ The James teaser_02 clips contain two incompatible studio environments:
 
 **The canonical environment going forward is defined below.** All new flagship videos must use the canonical spec. When teaser segments are regenerated, they must match this spec.
 
+## ✅ APPROVED CANONICAL REFERENCE FRAMES (2026-06-09)
+
+Both frames below were reviewed and approved by the founder as canonical:
+
+| ID | File | Source | Use |
+|---|---|---|---|
+| STUDIO_CANONICAL_001_HOOK_FRAME | `assets/reference/studio_library/canonical/STUDIO_CANONICAL_001_HOOK_FRAME.jpg` | teaser_02 segment 001 | Hero shots, 001_hook angle |
+| STUDIO_CANONICAL_003_PATTERN_FRAME | `assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg` | teaser_02 segment 003 | All standard talking-head shots |
+
+**These are the reference images to pass to Higgsfield (`--image` flag) for all future lipsync generation.**
+
 ---
 
 ## 1. CANONICAL ROOM IDENTITY
