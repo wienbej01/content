@@ -3,7 +3,8 @@
   "title": "The Growth System",
   "output_dir": "../../Videos/Projects/james_growth_system_teaser_02",
   "voice": {
-    "model_id": "eleven_multilingual_v2"
+    "model_id": "eleven_multilingual_v2",
+    "speed": 1.1
   },
   "defaults": {
     "format": "mp3"
