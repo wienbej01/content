@@ -450,7 +450,7 @@ steps:
 - id: P4-12
   title: Build media technical QA (qa_media.py)
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P3-03
   deliverable: schemas/media_qa.schema.json + scripts/qa_media.py — ffprobe technical checks (readable,
@@ -459,7 +459,13 @@ steps:
   est_hours: 4
   how: ffprobe + stdlib; deterministic fail conditions; fixture clips via ffmpeg.
   acceptance: Detects a generated_tts clip that still has audio; wrong dimensions; tests pass.
-  notes: '[M9.1] NOT BUILT. audio_qa.py covers NARRATION only (WPS/pitch/text), not video technical QA.'
+  notes: '[M9.1] NOT BUILT. audio_qa.py covers NARRATION only (WPS/pitch/text), not video technical QA.
+
+    [2026-06-09 17:22 +0800] completed
+
+    [2026-06-09 17:22 +0800] scripts/qa_media.py built. ffprobe checks: readable, has_video, dimensions
+    (1280x720), duration, audio-stream policy (generated_tts=no audio, baked_in=must have audio). Tests
+    6/6. Teaser_02: 12/12 pass.'
 - id: P4-13
   title: Build media creative QA + manual review fallback
   phase: P4

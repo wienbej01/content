@@ -1,0 +1,152 @@
+{
+  "script": "scripts/generated/james_growth_system_teaser_02.json",
+  "all_pass": true,
+  "passed": 12,
+  "failed": 0,
+  "results": [
+    {
+      "id": "001_hook",
+      "segment_id": "001_hook",
+      "audio_mode": "baked_in",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/001_hook.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 10.1,
+      "has_audio": true,
+      "status": "pass"
+    },
+    {
+      "id": "002_background_shot01",
+      "segment_id": "002_background",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/002_background_shot01.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 6.041667,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "002_background_shot02",
+      "segment_id": "002_background",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/002_background_shot02.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 6.041667,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "003_pattern",
+      "segment_id": "003_pattern",
+      "audio_mode": "baked_in",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/003_pattern.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 10.1,
+      "has_audio": true,
+      "status": "pass"
+    },
+    {
+      "id": "004_system_shot01",
+      "segment_id": "004_system",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/004_system_shot01.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 5.0,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "004_system_shot02",
+      "segment_id": "004_system",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/004_system_shot02.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 5.0,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "004_system_shot03",
+      "segment_id": "004_system",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/004_system_shot03.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 4.041667,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "005_give_back",
+      "segment_id": "005_give_back",
+      "audio_mode": "baked_in",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/005_give_back.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 8.057007,
+      "has_audio": true,
+      "status": "pass"
+    },
+    {
+      "id": "006_audience_shot01",
+      "segment_id": "006_audience",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/006_audience_shot01.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 5.041667,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "006_audience_shot02",
+      "segment_id": "006_audience",
+      "audio_mode": "generated_tts",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/006_audience_shot02.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 5.041667,
+      "has_audio": false,
+      "status": "pass"
+    },
+    {
+      "id": "007_promise",
+      "segment_id": "007_promise",
+      "audio_mode": "baked_in",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/007_promise.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 12.097007,
+      "has_audio": true,
+      "status": "pass"
+    },
+    {
+      "id": "008_cta",
+      "segment_id": "008_cta",
+      "audio_mode": "baked_in",
+      "media_path": "/home/jacobw/YTchannel/scripts/generated/../../assets/media/james_teaser_02/008_cta.mp4",
+      "issues": [],
+      "width": 1280,
+      "height": 720,
+      "duration": 4.086009,
+      "has_audio": true,
+      "status": "pass"
+    }
+  ]
+}
