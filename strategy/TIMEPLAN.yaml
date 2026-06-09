@@ -513,7 +513,7 @@ steps:
 - id: P5-01
   title: Build the Packaging & Ideation layer (topic -> title/thumbnail/hook, CTR-scored)
   phase: P5
-  status: todo
+  status: done
   depends_on:
   - P4-02
   - P4-07
@@ -529,7 +529,13 @@ steps:
     is written; weak ideas are rejected cheaply (text-only).
   notes: '[ENHANCEMENT V1 — approved 2026-06-09] HIGHEST-LEVERAGE addition. The current pipeline starts
     at "reviewed script" and ignores topic/title/thumbnail/CTR — half the viewership equation (views =
-    impressions x CTR x retention). This adds the missing CTR + selection layer.'
+    impressions x CTR x retention). This adds the missing CTR + selection layer.
+
+    [2026-06-09 19:33 +0800] completed
+
+    [2026-06-09 19:33 +0800] scripts/generate_content_brief.py: packaging stage before scripting. Generates
+    viability assessment (5 dims), 5 CTR-scored title variants, thumbnail concept, hook direction, format
+    recommendation. Rejects weak ideas cheaply (text-only). Uses sonnet_creative.'
 - id: P5-02
   title: Write the retention rubric + first-class weighted "viewer" reviewer
   phase: P5
