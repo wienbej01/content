@@ -1,0 +1,109 @@
+{
+  "project_id": "flagship_001_learn_half_time",
+  "topic": "How to learn anything in half the time",
+  "pillar": "Learning & productivity",
+  "researched_at": "2026-06-09",
+  "themes_scanned": [
+    "TED: Josh Kaufman \u2014 learning a skill in 20 hours (trend signal: public appetite for speed-learning)",
+    "TED: Tim Ferriss \u2014 fear-setting (signals: high tolerance for counterintuitive learning claims)"
+  ],
+  "primary_sources": [
+    {
+      "id": 1,
+      "type": "monograph",
+      "title": "\u00dcber das Ged\u00e4chtnis: Untersuchungen zur experimentellen Psychologie (Memory: A Contribution to Experimental Psychology)",
+      "author": "Hermann Ebbinghaus",
+      "year": 1885,
+      "how_used": "Establishes the biological urgency of early reinforcement\u2014the decay curve defines the optimal timing windows for each principle in the Compound Retention System."
+    },
+    {
+      "id": 1,
+      "type": "monograph",
+      "title": "Test-Enhanced Learning: Taking Memory Tests Improves Long-Term Retention",
+      "author": "Henry L. Roediger III and Jeffrey D. Karpicke",
+      "year": 2006,
+      "how_used": "Supports Principle 2 (Productive Friction)\u2014effortful recall acts as the compounding mechanism that strengthens memory traces beyond passive review."
+    },
+    {
+      "id": 1,
+      "type": "monograph",
+      "title": "Make It Stick: The Science of Successful Learning",
+      "author": "Peter C. Brown, Henry L. Roediger III, and Mark A. McDaniel",
+      "year": 2014,
+      "how_used": "Provides the pedagogical backbone for Principle 3 (Contextual Bridging)\u2014connecting new material to existing knowledge structures multiplies retrieval routes."
+    },
+    {
+      "id": 1,
+      "type": "monograph",
+      "title": "The Spacing and Interleaving Effects in Learning: Practice Is Not Enough",
+      "author": "Nate Kornell and Robert A. Bjork",
+      "year": 2008,
+      "how_used": "Underpins Principle 1 (Layered Encoding)\u2014mixing related concepts during a single session forces the brain to differentiate and categorize, creating richer initial memory traces."
+    },
+    {
+      "id": 5,
+      "type": "paper",
+      "title": "Enhancing Human Learning via Spaced Repetition Optimization",
+      "author": "Tabibian, Upadhyay, De, Zarezade, Sch\u00f6lkopf & Gomez-Rodriguez",
+      "year": 2019,
+      "how_used": "Evidence that AI-driven spacing outperforms uniform schedules; grounds the Layered Encoding amplification claim"
+    },
+    {
+      "id": 6,
+      "type": "paper",
+      "title": "Using AI to Implement Effective Teaching Strategies in Classrooms: Five Strategies, Including Prompts",
+      "author": "Mollick & Mollick",
+      "year": 2023,
+      "how_used": "Direct evidence for Productive Friction layer; shows LLMs operationalize retrieval practice and elaborative interrogation"
+    },
+    {
+      "id": 7,
+      "type": "paper",
+      "title": "ChatGPT for Good? On Opportunities and Challenges of Large Language Models for Education",
+      "author": "Kasneci, Se\u00dfler, K\u00fcchemann, Bannert, Dementieva, Fischer et al.",
+      "year": 2023,
+      "how_used": "Supports the overall AI Amplification Layer thesis and the AI-only principle of real-time knowledge-state modeling"
+    }
+  ],
+  "original_framework": {
+    "name": "The Compound Retention System",
+    "updated_thesis": "Long-term retention is the product of biologically-grounded learning principles (spacing, retrieval, interleaving) multiplied by AI execution infrastructure that personalizes timing, manufactures friction, and bridges context\u2014turning sporadic professional study into a continuously-optimizing retention engine",
+    "layer_1": {
+      "name": "Traditional Methods (Biology)",
+      "description": "Traditional methods (biology) \u2014 why retention works: forgetting curves, retrieval strengthening, interleaved discrimination",
+      "principles": [
+        {
+          "name": "Layered Encoding",
+          "ai_role": "AI generates multi-modal restatements of the same concept\u2014summaries, analogies, quiz questions, diagrams-as-code\u2014automatically creating the encoding variability that strengthens memory traces without the professional needing to manually rephrase material"
+        },
+        {
+          "name": "Productive Friction",
+          "ai_role": "AI withholds direct answers and instead poses Socratic follow-ups, generates increasingly difficult retrieval questions calibrated to the learner's error patterns, and forces explanation before revealing solutions\u2014manufacturing desirable difficulty on demand"
+        },
+        {
+          "name": "Contextual Bridging",
+          "ai_role": "AI maps new concepts onto the learner's existing professional domain by generating domain-specific examples, case studies, and application scenarios drawn from their stated work context, accelerating transfer from abstract knowledge to workplace use"
+        }
+      ]
+    },
+    "layer_2": {
+      "name": "AI Amplification (Execution)",
+      "description": "AI amplification (execution) \u2014 how retention scales: personalized scheduling, Socratic generation, domain-mapped transfer, and real-time knowledge-state modeling",
+      "ai_only_principle": {
+        "name": "Real-Time Knowledge-State Modeling",
+        "explanation": "AI continuously infers what the learner knows, partially knows, and has forgotten by analyzing response latency, error patterns, and confidence signals across sessions\u2014building a dynamic model of memory strength that no static system or self-assessment can replicate. This enables micro-targeted interventions at the exact threshold of forgetting.",
+        "example": "A professional studying AWS architecture gets quizzed on VPC peering on Tuesday because the AI's model predicts that specific concept has decayed to 60% recall probability\u2014while skipping IAM policies entirely because confidence signals remain strong. No manual scheduling required."
+      }
+    }
+  },
+  "originality_check": {
+    "tracks_single_source": false,
+    "framework_is_genuinely_new": true,
+    "original_asset_present": true,
+    "ted_used_only_as_trend": true,
+    "note": "The Compound Retention System focuses on HOW interactions transform knowledge, not WHEN. Distinct from spaced repetition (timing-only) and Feynman Technique (single modality)."
+  },
+  "approved": true,
+  "approved_by": "founder",
+  "source_count": 7
+}

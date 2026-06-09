@@ -1,0 +1,67 @@
+{
+  "topic": "How to learn anything in half the time \u2014 the science of retention, plus the AI layer that makes it executable",
+  "hooks": [
+    {
+      "rank": 1,
+      "type": "counterintuitive",
+      "text": "Most of what you're learning, you'll forget within forty-eight hours. That's not a failure\u2014it's how memory works.",
+      "word_count": 20,
+      "scores": {
+        "open_loop_strength": 5,
+        "speakability": 5,
+        "james_voice": 5
+      },
+      "total_score": 15
+    },
+    {
+      "rank": 2,
+      "type": "open_loop",
+      "text": "There's a retrieval pattern that halves learning time. Almost no one uses it correctly.",
+      "word_count": 15,
+      "scores": {
+        "open_loop_strength": 5,
+        "speakability": 5,
+        "james_voice": 4
+      },
+      "total_score": 14
+    },
+    {
+      "rank": 3,
+      "type": "pattern_interrupt",
+      "text": "Learning isn't about more reps. It's about timing the forgetting curve.",
+      "word_count": 13,
+      "scores": {
+        "open_loop_strength": 4,
+        "speakability": 5,
+        "james_voice": 5
+      },
+      "total_score": 14
+    },
+    {
+      "rank": 4,
+      "type": "credibility",
+      "text": "I've watched hundreds of professionals waste years re-learning what they already knew. The fix takes ten minutes.",
+      "word_count": 18,
+      "scores": {
+        "open_loop_strength": 4,
+        "speakability": 4,
+        "james_voice": 5
+      },
+      "total_score": 13
+    },
+    {
+      "rank": 5,
+      "type": "relatable_pain",
+      "text": "You spend hours learning something, feel confident, then can't recall it a week later. That's fixable.",
+      "word_count": 17,
+      "scores": {
+        "open_loop_strength": 3,
+        "speakability": 4,
+        "james_voice": 4
+      },
+      "total_score": 11
+    }
+  ],
+  "selected": 0,
+  "selection_reason": "Hook 1 combines counterintuitive framing with immediate credibility\u2014it reframes failure as system design. The two-sentence structure creates natural breathing room and the '48 hours' specificity signals research depth without claiming it. Pure James: calm, precise, no wasted words."
+}

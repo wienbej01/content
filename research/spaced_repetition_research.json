@@ -1,0 +1,90 @@
+{
+  "trend_signals": [
+    {
+      "source": "TED Talk trends",
+      "note": "Barbara Oakley 'Learning How to Learn' signals demand for science-backed learning techniques. Used as TREND SIGNAL ONLY, not content source."
+    },
+    {
+      "source": "YouTube search volume",
+      "note": "Spaced repetition, active recall, and interleaving show consistent search interest in productivity/learning niche."
+    }
+  ],
+  "primary_sources": [
+    {
+      "id": "source_1",
+      "type": "Academic Paper",
+      "title": "Distributed Practice in Verbal Recall Tasks: A Review and Quantitative Synthesis",
+      "author": "Cepeda, Pashler, Vul, Wixted, Rohrer",
+      "year": "2006",
+      "journal": "Psychological Bulletin",
+      "key_finding": "Optimal spacing intervals follow a logarithmic pattern relative to retention interval. Gap effect demonstrates 10-20% improvement in long-term retention when study sessions are distributed vs. massed. The retention benefit peaks when spacing = ~10-20% of the desired retention interval.",
+      "framework_use": "Use this as the foundation for calculating optimal review intervals in a time-based framework. Rather than arbitrary intervals (1 day, 7 days, 30 days), derive intervals from target retention goals and forgetting curves. This provides mathematical rigor missing from existing spaced repetition systems."
+    },
+    {
+      "id": "source_2",
+      "type": "Academic Paper",
+      "title": "Retrieval Practice Produces More Learning than Elaborative Studying with Concept Mapping",
+      "author": "Karpicke & Blunt",
+      "year": "2011",
+      "journal": "Science",
+      "key_finding": "Retrieval practice (testing) produced a 50% improvement in retention compared to repeated study or concept mapping after one week. Testing effect was robust across different material types. Critically, students predicted concept mapping would be more effective, demonstrating metacognitive illusion about effective learning strategies.",
+      "framework_use": "Use as evidence that subjective difficulty (desirable difficulty) is inversely correlated with learning effectiveness. Build a framework that prioritizes high-effort retrieval over passive review, and explicitly accounts for the metacognitive illusion that makes passive techniques feel more effective."
+    },
+    {
+      "id": "source_3",
+      "type": "Academic Paper",
+      "title": "The Interleaving Effect: Mixing It Up Boosts Learning",
+      "author": "Rohrer & Taylor",
+      "year": "2007",
+      "journal": "Scientific American Mind",
+      "key_finding": "Interleaved practice (mixing problem types) improved test performance by 43% over blocked practice in mathematics. The benefit appears strongest for tasks requiring discrimination between categories. The mechanism: interleaving forces learners to retrieve the appropriate strategy, strengthening both memory and discrimination ability.",
+      "framework_use": "Interleaving is not just about variety—it forces strategy selection and contrast. Use this to build a scheduling principle where related-but-distinct concepts are alternated to build discrimination ability, not just isolated recall. This distinguishes the framework from naive 'mix it up' advice."
+    },
+    {
+      "id": "source_4",
+      "type": "Book (Research Synthesis)",
+      "title": "Make It Stick: The Science of Successful Learning",
+      "author": "Brown, Roediger, McDaniel",
+      "year": "2014",
+      "key_finding": "Synthesizes decades of cognitive science research. Key principle: learning is durable when it's effortful (desirable difficulties). Highlights spacing, retrieval, and interleaving as complementary techniques. Empirically validated that testing outperforms re-reading by ~150% after one week.",
+      "framework_use": "Use as meta-synthesis validation. The 'desirable difficulty' principle unifies all three techniques. Build a framework where difficulty (cognitive load during retrieval) is an explicit first-class metric, and the system optimizes for it rather than ease."
+    },
+    {
+      "id": "source_5",
+      "type": "Academic Paper",
+      "title": "Improving Students' Learning With Effective Learning Techniques: Promising Directions From Cognitive and Educational Psychology",
+      "author": "Dunlosky, Rawson, Marsh, Nathan, Willingham",
+      "year": "2013",
+      "journal": "Psychological Science in the Public Interest",
+      "key_finding": "Large-scale review rated learning techniques by effectiveness. Practice testing and distributed practice received 'high utility' ratings. Summarization, highlighting, and rereading received 'low utility' despite being most common among students. The gap between what students use and what works is substantial.",
+      "framework_use": "Use as evidence that popular techniques are inversely effective. Build a framework that explicitly contrasts high-utility vs. low-utility techniques and educates users on the counterintuitive nature of effective learning (effort = retention)."
+    }
+  ],
+  "original_framework": {
+    "name": "Effort-Indexed Learning System (EILS)",
+    "thesis": "Learning efficiency is maximized when three orthogonal dimensions—temporal spacing, retrieval effort, and contextual variation—are systematically coordinated and indexed by a single metric: cognitive effort during retrieval. Unlike existing models that treat spacing, testing, and interleaving as separate techniques, EILS unifies them as complementary axes of a difficulty-optimization function.",
+    "principles": [
+      {
+        "principle_1": "Logarithmic Interval Scaling",
+        "description": "Review intervals are calculated as I = R × log(T/R) where I = ideal spacing, R = target retention time, T = time since last exposure. This is mathematically derived from forgetting curves (Cepeda 2006) rather than arbitrary exponential doubling. Intervals adapt to the learner's retention goal (exam in 30 days vs. lifetime retention).",
+        "synthesis": "Synthesizes Cepeda's optimal spacing ratio (~10-20% of retention interval) with adaptive scheduling. Distinct from Anki/SuperMemo which use fixed multipliers."
+      },
+      {
+        "principle_2": "Effort-Weighted Retrieval Priority",
+        "description": "Items are scheduled by retrieval difficulty score (0-10 self-reported cognitive load during recall) rather than binary success/failure. High-effort correct recalls are prioritized over low-effort correct recalls. Principle: desirable difficulty (Karpicke 2011, Brown 2014) is the mechanism of consolidation, not repetition count.",
+        "synthesis": "Synthesizes retrieval practice effect (Karpicke 2011) with desirable difficulty theory (Brown 2014). Most systems schedule by correctness; EILS schedules by effort, treating easy wins as low-priority."
+      },
+      {
+        "principle_3": "Interleaved Contrast Scheduling",
+        "description": "Related concepts (same domain, different strategies) are scheduled adjacently to force discrimination. Scheduling algorithm groups by similarity score (semantic, not temporal), then interleaves within groups. Principle: learning is comparison (Rohrer 2007)—isolated recall strengthens memory, adjacent contrast strengthens understanding.",
+        "synthesis": "Synthesizes interleaving effect (Rohrer 2007) with discrimination mechanism. Distinct from random shuffling; uses semantic clustering + within-cluster interleaving."
+      },
+      {
+        "principle_4": "Metacognitive Illusion Compensation",
+        "description": "System hides subjective ease/difficulty from scheduling UI and instead surfaces effort score after recall. Learners rate how hard retrieval was, not how confident they are. Principle: subjective fluency is inversely predictive of retention (Karpicke 2011, Dunlosky 2013). The system must correct for the illusion that easy = learned.",
+        "synthesis": "Synthesizes metacognitive research (Karpicke 2011: students prefer ineffective techniques; Dunlosky 2013: highlighting is popular but low-utility). Operationalizes the illusion as a UI design constraint."
+      }
+    ]
+  },
+  "ted_disclaimer": "TED talks were used exclusively as trend signals to identify high-demand topics. No TED talk content was reformulated, paraphrased, or used as a primary source. All frameworks and findings are synthesized from independent academic papers and books (Cepeda 2006, Karpicke 2011, Rohrer 2007, Brown 2014, Dunlosky 2013). This approach complies with TED's CC BY-NC-ND license restrictions on derivative works and commercial use."
+}

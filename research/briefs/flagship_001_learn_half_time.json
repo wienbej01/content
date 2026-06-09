@@ -1,0 +1,59 @@
+{
+  "topic": "How to learn anything in half the time \u2014 spaced repetition, retrieval practice, and the science of accelerated learning",
+  "pillar": "Learning & productivity",
+  "viability": {
+    "search_demand": 4,
+    "differentiation": 3,
+    "framework_potential": 4,
+    "ctr_potential": 4,
+    "overall": 4,
+    "verdict": "proceed",
+    "reason": "Strong search intent, solid framework potential, competitive but differentiable through precision and system focus"
+  },
+  "titles": [
+    {
+      "text": "Why Everything You Read Disappears (And How To Fix It)",
+      "char_count": 54,
+      "curiosity": 5,
+      "clarity": 4,
+      "ctr_prediction": 5,
+      "total": 14
+    },
+    {
+      "text": "The Retention Gap: Why Smart People Forget What They Learn",
+      "char_count": 59,
+      "curiosity": 4,
+      "clarity": 5,
+      "ctr_prediction": 4,
+      "total": 13
+    },
+    {
+      "text": "I Cut My Learning Time in Half Using These 3 Principles",
+      "char_count": 55,
+      "curiosity": 4,
+      "clarity": 4,
+      "ctr_prediction": 4,
+      "total": 12
+    },
+    {
+      "text": "You're Learning Wrong: The Science of Retention",
+      "char_count": 48,
+      "curiosity": 4,
+      "clarity": 4,
+      "ctr_prediction": 4,
+      "total": 12
+    },
+    {
+      "text": "The 20-Minute Learning System That Actually Sticks",
+      "char_count": 51,
+      "curiosity": 3,
+      "clarity": 5,
+      "ctr_prediction": 4,
+      "total": 12
+    }
+  ],
+  "thumbnail_concept": "James with skeptical expression, text overlay: 'WHY NOTHING STICKS' with a visual metaphor of information slipping through a sieve or leaking bucket",
+  "hook_direction": "Open with the paradox: reading more than ever but retaining less than ever, quantified with a specific data point about forgetting curves",
+  "format_archetype": "System-reveal",
+  "proceed": true
+}
