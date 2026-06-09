@@ -301,6 +301,21 @@ def build_manifest(script, narration_dir, base):
         music_abs = resolve(base, music_file)
         manifest["music"]["file"] = _rel_to(music_abs, output_dir)
 
+    # Pass through top-level music block from script (M3-E music support)
+    if script.get("music"):
+        m = script["music"].copy()
+        if m.get("path"):
+            m["path"] = _rel_to(resolve(base, m["path"]), output_dir)
+        manifest["music"] = m
+
+    # Continuous voiceover mode: add narration_mode + continuous_audio + timing_map
+    narration_mode = script.get("narration_mode", "segment_tts")
+    if narration_mode == "continuous_voiceover":
+        manifest["narration_mode"] = "continuous_voiceover"
+        manifest["continuous_audio"] = _rel_to(narration_dir / f"continuous.{defaults.get('format', 'mp3')}",
+                                               output_dir)
+        manifest["timing_map"] = _rel_to(narration_dir / "timing_map.json", output_dir)
+
     return manifest
 
 
@@ -349,12 +364,17 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False):
     narration_dir.mkdir(exist_ok=True)
     fmt = script.get("defaults", {}).get("format", "mp3")
 
-    # Require API key only if there are generated_tts segments that need work
-    needs_tts = any(
-        seg.get("audio_mode") == "generated_tts"
-        and (force or not (narration_dir / f"{seg['id']}.{fmt}").exists())
-        for seg in script["segments"]
-    )
+    # Require API key only if TTS work is needed
+    narration_mode = script.get("narration_mode", "segment_tts")
+    if narration_mode == "continuous_voiceover":
+        continuous_path = narration_dir / f"continuous.{fmt}"
+        needs_tts = force or not continuous_path.exists()
+    else:
+        needs_tts = any(
+            seg.get("audio_mode") == "generated_tts"
+            and (force or not (narration_dir / f"{seg['id']}.{fmt}").exists())
+            for seg in script["segments"]
+        )
     api_key = get_api_key()
     if needs_tts and not api_key:
         raise RuntimeError(
@@ -372,31 +392,61 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False):
     import os as _os2
     speed = float(_os2.environ.get("ELEVENLABS_SPEED", voice.get("speed", DEFAULT_SPEED)))
     segments = script["segments"]
+    narration_mode = script.get("narration_mode", "segment_tts")
     log_entries = []
 
-    for seg in segments:
-        seg_id = seg["id"]
-        mode = seg.get("audio_mode", "generated_tts")
+    if narration_mode == "continuous_voiceover":
+        # --- Continuous mode: one TTS call for the entire script ---
+        full_text = " ".join(seg.get("text", "") for seg in segments if seg.get("text"))
+        if not full_text.strip():
+            raise ValueError("continuous_voiceover requires text in segments")
+        continuous_path = narration_dir / f"continuous.{fmt}"
+        if continuous_path.exists() and not force:
+            dur = probe_dur(continuous_path)
+            print(f"  [continuous] reused existing ({dur:.2f}s)")
+        else:
+            print(f"  [continuous] generating TTS ({len(full_text.split())} words)...", end=" ", flush=True)
+            audio_bytes = synthesize_segment(full_text, voice_id, model_id, voice_settings, api_key, speed=speed)
+            continuous_path.write_bytes(audio_bytes)
+            dur = probe_dur(continuous_path)
+            print(f"done ({dur:.2f}s, {len(audio_bytes)//1024}KB)")
+        log_entries.append({"id": "continuous", "action": "generated", "duration": dur})
 
-        if mode != "generated_tts":
-            print(f"  [{seg_id}] {mode} (skipped TTS)")
-            log_entries.append({"id": seg_id, "action": mode, "duration": None})
-            continue
+        # Build timing map using audio_timing
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from audio_timing import extract_beats_from_script, build_timing_map
+        beats = extract_beats_from_script(str(script_path))
+        timing = build_timing_map(continuous_path, beats)
+        timing_path = narration_dir / "timing_map.json"
+        with open(timing_path, "w") as f:
+            json.dump(timing, f, indent=2)
+        print(f"  timing map: {timing_path} ({timing['audio_segments_detected']} audio segments, "
+              f"{len(timing['flags'])} flags)")
+    else:
+        # --- Segment mode (default): per-segment TTS ---
+        for seg in segments:
+            seg_id = seg["id"]
+            mode = seg.get("audio_mode", "generated_tts")
 
-        audio_path = narration_dir / f"{seg_id}.{fmt}"
+            if mode != "generated_tts":
+                print(f"  [{seg_id}] {mode} (skipped TTS)")
+                log_entries.append({"id": seg_id, "action": mode, "duration": None})
+                continue
 
-        if audio_path.exists() and not force:
+            audio_path = narration_dir / f"{seg_id}.{fmt}"
+
+            if audio_path.exists() and not force:
+                duration = probe_dur(audio_path)
+                print(f"  [{seg_id}] reused existing ({duration:.2f}s)")
+                log_entries.append({"id": seg_id, "action": "reused", "duration": duration})
+                continue
+
+            print(f"  [{seg_id}] generating TTS...", end=" ", flush=True)
+            audio_bytes = synthesize_segment(seg["text"], voice_id, model_id, voice_settings, api_key, speed=speed)
+            audio_path.write_bytes(audio_bytes)
             duration = probe_dur(audio_path)
-            print(f"  [{seg_id}] reused existing ({duration:.2f}s)")
-            log_entries.append({"id": seg_id, "action": "reused", "duration": duration})
-            continue
-
-        print(f"  [{seg_id}] generating TTS...", end=" ", flush=True)
-        audio_bytes = synthesize_segment(seg["text"], voice_id, model_id, voice_settings, api_key, speed=speed)
-        audio_path.write_bytes(audio_bytes)
-        duration = probe_dur(audio_path)
-        print(f"done ({duration:.2f}s, {len(audio_bytes)//1024}KB)")
-        log_entries.append({"id": seg_id, "action": "generated", "duration": duration})
+            print(f"done ({duration:.2f}s, {len(audio_bytes)//1024}KB)")
+            log_entries.append({"id": seg_id, "action": "generated", "duration": duration})
 
     # Build manifest
     manifest = build_manifest(script, narration_dir, base)

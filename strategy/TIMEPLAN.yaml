@@ -396,7 +396,7 @@ steps:
 - id: P4-10
   title: Add continuous_voiceover mode to tts.py + assembly support
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P4-09
   - P3-02
@@ -408,7 +408,14 @@ steps:
     change carefully (single biggest technical change in the pipeline — see workplan §14).
   acceptance: Continuous narration generated for one test script; segment_tts path + tests unchanged.
   notes: '[M7.2] NOT BUILT. tts.py currently has no continuous mode (grep confirms). Required for final
-    publish quality (TECHNICAL_BIBLE §10: finals must be continuous_voiceover).'
+    publish quality (TECHNICAL_BIBLE §10: finals must be continuous_voiceover).
+
+    [2026-06-09 16:57 +0800] completed
+
+    [2026-06-09 16:57 +0800] tts.py narration_mode=continuous_voiceover: one TTS call for full script,
+    builds timing map via audio_timing. assemble.py continuous path: muted visual segments cut to timing-map
+    durations + single narration overlay. Default remains segment_tts. Tests 5/5. No live ElevenLabs used
+    (fixture test only).'
 - id: P4-11
   title: Media prompt compiler (compile_media_prompts.py)
   phase: P4

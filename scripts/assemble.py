@@ -454,23 +454,89 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
     fmt_tmp = tmp / fmt
     fmt_tmp.mkdir(exist_ok=True)
 
-    # 1. Process segments
-    norm_clips = []
-    for i, seg in enumerate(segments):
-        clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
-        norm_clips.append(clip)
+    # --- Continuous voiceover path ---
+    if manifest.get("narration_mode") == "continuous_voiceover":
+        continuous_audio = resolve(base, manifest["continuous_audio"])
+        timing_map_path = resolve(base, manifest["timing_map"])
+        if not continuous_audio.exists():
+            raise FileNotFoundError(f"Continuous narration not found: {continuous_audio}")
+        timing = json.load(open(timing_map_path)) if timing_map_path.exists() else None
+        total_nar_dur = probe_dur(continuous_audio)
 
-    # 2. Endcard
-    endcard_path = resolve(base, brand.get(spec["endcard_key"]))
-    endcard_dur = brand.get("endcard_duration", 3.0)
-    if endcard_path and endcard_path.exists():
-        ec = make_endcard(endcard_path, endcard_dur, w, h, fps, crf, fmt_tmp)
-        norm_clips.append(ec)
+        # Build muted visual bed: each segment runs for its share of narration time
+        # Simple division: split narration evenly across visual segments
+        # (timing map refinement is used if available for per-segment durations)
+        n_segs = len(segments)
+        if timing and timing.get("beats"):
+            # Group beats by segment_id to get per-segment duration
+            from collections import OrderedDict
+            seg_durs = OrderedDict()
+            for beat in timing["beats"]:
+                sid = beat.get("segment_id", "unknown")
+                if sid not in seg_durs:
+                    seg_durs[sid] = {"start": beat["start"], "end": beat["end"]}
+                else:
+                    if beat["start"] is not None:
+                        seg_durs[sid]["start"] = min(seg_durs[sid]["start"], beat["start"])
+                    if beat["end"] is not None:
+                        seg_durs[sid]["end"] = max(seg_durs[sid]["end"], beat["end"])
+            seg_durations = [seg_durs[s["segment_id"]]["end"] - seg_durs[s["segment_id"]]["start"]
+                            if s.get("segment_id") and s["segment_id"] in seg_durs else total_nar_dur / n_segs
+                            for s in timing["beats"][:n_segs]]
+            # Fallback if mismatch
+            if len(seg_durations) != n_segs:
+                seg_durations = [total_nar_dur / n_segs] * n_segs
+        else:
+            seg_durations = [total_nar_dur / n_segs] * n_segs
 
-    # 3. Gap-concat
-    gap_s = brand.get("gap_seconds", 0.4)
-    audio_fade = brand.get("audio_fade", 0.3)
-    joined = gap_concat(norm_clips, gap_s, audio_fade, w, h, fps, crf, fmt_tmp)
+        # Normalize each visual segment to its narration duration (muted)
+        norm_clips = []
+        for i, seg in enumerate(segments):
+            media = resolve(base, seg["media"])
+            target_dur = seg_durations[i] if i < len(seg_durations) else total_nar_dur / n_segs
+            dst = fmt_tmp / f"cont_seg_{i}.mp4"
+            scale_crop = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps={fps}"
+            # Trim/pad visual to match narration segment duration
+            run(["ffmpeg", "-y", "-i", str(media), "-an",
+                 "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration=1",
+                 "-t", f"{target_dur:.3f}",
+                 "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                 "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
+            norm_clips.append(dst)
+
+        # Concat all visual segments
+        concat_list = fmt_tmp / "cont_concat.txt"
+        concat_list.write_text("".join(f"file '{p}'\n" for p in norm_clips))
+        visual_bed = fmt_tmp / "cont_visual.mp4"
+        run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+             "-c", "copy", str(visual_bed)], "cont_concat")
+
+        # Overlay continuous narration onto visual bed
+        joined = fmt_tmp / "cont_joined.mp4"
+        run(["ffmpeg", "-y", "-i", str(visual_bed), "-i", str(continuous_audio),
+             "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+             "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+             "-t", f"{total_nar_dur:.3f}", str(joined)], "cont_overlay")
+
+    else:
+        # --- Segment-by-segment path (default) ---
+        # 1. Process segments
+        norm_clips = []
+        for i, seg in enumerate(segments):
+            clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
+            norm_clips.append(clip)
+
+        # 2. Endcard
+        endcard_path = resolve(base, brand.get(spec["endcard_key"]))
+        endcard_dur = brand.get("endcard_duration", 3.0)
+        if endcard_path and endcard_path.exists():
+            ec = make_endcard(endcard_path, endcard_dur, w, h, fps, crf, fmt_tmp)
+            norm_clips.append(ec)
+
+        # 3. Gap-concat
+        gap_s = brand.get("gap_seconds", 0.4)
+        audio_fade = brand.get("audio_fade", 0.3)
+        joined = gap_concat(norm_clips, gap_s, audio_fade, w, h, fps, crf, fmt_tmp)
 
     # 4. Music (None if disabled)
     music_cfg = manifest.get("music", {})
