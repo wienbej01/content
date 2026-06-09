@@ -1,0 +1,105 @@
+{
+  "project_id": "flagship_001_learn_half_time",
+  "title": "Why Everything You Read Disappears (And How To Fix It)",
+  "pillar": "Learning & productivity",
+  "narration_mode": "segment_tts",
+  "voice": {
+    "model_id": "eleven_multilingual_v2",
+    "speed": 1.1,
+    "settings": {
+      "stability": 0.5,
+      "similarity_boost": 0.75,
+      "style": 0.12,
+      "use_speaker_boost": true
+    }
+  },
+  "music": {
+    "enabled": true,
+    "path": "assets/music/Night Snow - Asher Fulero.mp3",
+    "volume_db": -24,
+    "fade_in": 2.0,
+    "fade_out": 3.0,
+    "loop": true
+  },
+  "output_dir": "../../Videos/Projects/flagship_001_learn_half_time",
+  "defaults": {
+    "format": "mp3"
+  },
+  "source_log": "research/source_logs/flagship_001_learn_half_time.json",
+  "word_count": 1260,
+  "created_at": "2026-06-09T20:23:11",
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_hero",
+      "text": "Most of what you're learning, you'll forget within forty-eight hours. That's not a failure \u2014 it's how memory works.",
+      "visual_brief": "James at dark wood desk, warm lamp light, direct eye contact, composed and certain. Medium close-up. The opening tension should read on his face \u2014 not dramatic, just present.",
+      "media": "../../assets/media/flagship_001/001_hook.mp4"
+    },
+    {
+      "id": "002_promise",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "By the end of this, you'll understand why your current learning habits produce shallow retention, and you'll have a repeatable system \u2014 grounded in cognitive science and amplified by AI \u2014 that cuts retention time in half while producing knowledge you can actually deploy.",
+      "visual_brief": "James, same setup. Slight lean forward as he makes the promise. Minimal movement. Eyes steady.",
+      "media": "../../assets/media/flagship_001/002_promise.mp4"
+    },
+    {
+      "id": "003_biology",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "In 1885, a German psychologist named Hermann Ebbinghaus spent months memorizing meaningless syllables \u2014 \"WID,\" \"ZOF,\" \"QAX\" \u2014 and then testing how much he retained over time. What he discovered was the forgetting curve: memory decays exponentially. Within twenty-four hours, sixty-seven percent of what you've learned is gone. Within a week, you're operating on fragments.\nThis isn't a personal failing. It's the default state of human memory. Your brain is optimized for survival, not for remembering framework diagrams from business books. Unless you deliberately intervene, everything you read tonight will be functionally invisible by Thursday.\nAnd yet most professionals \u2014 especially time-poor ones \u2014 keep reading as if accumulation alone produces retention. It doesn't.",
+      "visual_brief": "James speaking. Intercut B-roll: abstract graph of exponential decay curve (no text/labels), warm amber light. Return to James for key line 'This isn't a personal failing.'",
+      "media": "../../assets/media/flagship_001/003_biology.mp4"
+    },
+    {
+      "id": "004_wrong_approach",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "Re-reading feels productive. You recognize the material. You nod along. You tell yourself you're reinforcing it. But recognition is not retrieval, and retrieval is what matters.\nRoediger and Karpicke demonstrated this in 2006. They gave students a passage to learn, then split them into two groups. One group re-read the passage multiple times. The other group read it once, then practiced retrieving it from memory. A week later, the retrieval group outperformed the re-reading group by forty percent.\nThe reason is simple: retrieval is effort. Effort creates stronger memory traces. Re-reading is passive. Passive learning produces shallow encoding. Brown, Roediger, and McDaniel documented this in Make It Stick \u2014 learning that feels easy is often ineffective. They call it \"desirable difficulty.\" The harder your brain has to work to reconstruct knowledge, the more durable that knowledge becomes.\nMost professionals avoid this. They highlight. They annotate. They re-read their notes. All of it generates the illusion of mastery without the substance.",
+      "visual_brief": "James. Can intercut B-roll: slow pan across a closed book on a desk, soft focus, warm light. Returns to James for the 40% data point.",
+      "media": "../../assets/media/flagship_001/004_wrong_approach.mp4"
+    },
+    {
+      "id": "005_layered_encoding",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "The first principle is Layered Encoding: engage the same material through three different modalities in a single session.\nRead it. Sketch it. Explain it aloud.\nEach modality creates a distinct memory trace. When you read, you encode linguistically. When you sketch, you encode spatially. When you explain aloud, you encode verbally and procedurally \u2014 you're forced to construct a coherent narrative from fragments. The result is a richer, more interconnected representation in long-term memory.\nHere's what this looks like in practice. Let's say you're learning portfolio theory \u2014 specifically, the efficient frontier. apter slowly. Then you close the book and sketch the efficient frontier on a blank page \u2014 the axes, the curve, the trade-off between risk and return. Then you explain it aloud to yourself, as if briefing a junior colleague who has never seen it. By the third pass, you're not recognising the concept \u2014 you're reconstructing it. That difference is the entire mechanism.",
+      "visual_brief": "James. Intercut B-roll: a hand sketching on blank paper \u2014 no readable text, abstract diagram motion only. Wide enough that hand isn't the focus. Returns to James.",
+      "media": "../../assets/media/flagship_001/005_layered_encoding.mp4"
+    },
+    {
+      "id": "006_productive_friction",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "The second principle is Productive Friction.\n\nBefore you review anything \u2014 before you open your notes, before you re-read the summary \u2014 take three minutes and write down everything you can recall from yesterday's session. Not what you think you know. What you actually know, from memory, on a blank page.\n\nThis is uncomfortable. That discomfort is not a sign that it isn't working. It is the mechanism.\n\nWhen your brain struggles to retrieve information, it strengthens the neural pathway it uses to find it. Roediger and Karpicke documented this specifically: unsuccessful retrieval attempts produce stronger long-term retention than successful re-reading. The act of reaching for something \u2014 even imperfectly \u2014 is more valuable than finding it easily.\n\nMost professionals skip this. They feel uncertain, they check their notes, and they move on reassured. The reassurance is false. The knowledge hasn't deepened \u2014 it's just been temporarily surfaced.\n\nThree minutes. Blank page. Before every review session. That is the entire habit.",
+      "visual_brief": "James. The blank-page exercise should be shown physically \u2014 close-up of an empty white page, pen nearby, no text. James returns for the key mechanism explanation.",
+      "media": "../../assets/media/flagship_001/006_productive_friction.mp4"
+    },
+    {
+      "id": "007_contextual_bridging",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "The third principle is Contextual Bridging.\n\nAt the end of every learning session, complete this sentence: \"This changes how I think about [current problem] because...\"\n\nThe reason this matters is structural. Memory is associative. New information that sits in isolation decays fast. New information that connects to a problem you are already actively solving \u2014 one you think about every week \u2014 inherits the retrieval frequency of that existing mental model.\n\nKornell and Bjork showed in 2008 that interleaving different but related concepts during practice improves long-term transfer to new contexts. The underlying mechanism is the same: the brain learns to discriminate, categorise, and connect \u2014 not just recognise.\n\nContextual Bridging manufactures that connection deliberately. You're not just learning portfolio theory. You're learning how it reframes the resourcing decision you're making this quarter. That professional anchor is what makes the knowledge retrievable six months later, without a prompt.",
+      "visual_brief": "James. B-roll: clean modern desk, laptop closed, notebook open but blank, soft light through window. Professional and quiet. Returns to James for the one-sentence prompt.",
+      "media": "../../assets/media/flagship_001/007_contextual_bridging.mp4"
+    },
+    {
+      "id": "008_ai_layer",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "These three principles are not new. The cognitive science behind them has been available for decades. What is new is that AI can now execute all three automatically \u2014 removing the planning and friction that most professionals never get past.\n\nOn Layered Encoding: a modern language model, given a concept, will generate a written summary, a visual analogy, three Socratic questions, and a worked example from your specific domain \u2014 in under ten seconds. The encoding variability that previously required deliberate effort and time now happens on demand.\n\nOn Productive Friction: Mollick and Mollick demonstrated in 2023 that language models used as Socratic tutors \u2014 specifically prompted to withhold direct answers, pose follow-up questions, and force explanation before revealing solutions \u2014 replicate the retrieval-practice gains documented in laboratory studies. Twenty to forty percent improvement in retention. The AI does not give you the answer. It makes you earn it.\n\nOn Contextual Bridging: if you tell a language model your current role and the problem you are working on, it will map every new concept to that context before you've thought to ask. The professional translation happens automatically.\n\nBut there is a fourth principle that traditional study cannot produce, and that only AI enables: Real-Time Knowledge-State Modelling.\n\nTabibian and colleagues demonstrated in 2019 that machine learning models can predict, from response patterns and timing data, the precise moment a specific piece of knowledge is about to decay below usable recall \u2014 and intervene with exactly the right question at exactly the right time. Their personalised scheduling outperformed fixed-interval review algorithms by twenty-two percent.\n\nWhat this means in practice: the system knows that you need to be asked about VPC peering today, and that you do not need to revisit IAM policies until next week, because your recall of the latter remains strong. No manual scheduling. No decision fatigue. The intervention happens at the threshold of forgetting.\n\nCompound the biology with the AI execution layer, and you have a retention system that is both grounded and scalable. The three principles do the cognitive work. The AI does the operational work.",
+      "visual_brief": "James for the opening. B-roll: abstract light flow / data motion (no text, no UI, no fake dashboards) for the AI scheduling description. James returns for the 22% data point and CRS summary.",
+      "media": "../../assets/media/flagship_001/008_ai_layer.mp4"
+    },
+    {
+      "id": "009_cta",
+      "audio_mode": "generated_tts",
+      "shot_type": "talking_head_standard",
+      "text": "Most professionals assume that retention is a matter of effort \u2014 that reading more, or more carefully, will eventually produce knowledge that sticks. It won't. Retention is a matter of system design: the right kind of effort, at the right time, attached to the right context.\n\nThe Compound Retention System is not a new set of habits to maintain. It is a structure that converts the time you already spend learning into knowledge that compounds \u2014 the kind you can actually use, when it matters.\n\nIf that framing is useful to you, subscribe. The next video applies the same approach to a different category of professional leverage. See you there.",
+      "visual_brief": "James, medium close-up, slightly warmer framing than earlier. Direct but not heavy. The final line should feel like a quiet invitation.",
+      "media": "../../assets/media/flagship_001/009_cta.mp4"
+    }
+  ]
+}

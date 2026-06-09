@@ -159,12 +159,9 @@ def validate_script(script, base):
                     errors.append(f"{prefix}: audio_mode=baked_in but media has no audio stream")
 
         media = seg.get("media")
-        if media:
-            media_path = resolve(base, media)
-            if not media_path.exists():
-                errors.append(f"{prefix}.media: file not found: {media_path}")
-        else:
+        if not media:
             errors.append(f"{prefix}: missing 'media' (required for assembly)")
+        # Note: media existence is checked at assembly time, not TTS time
 
     return errors
 
