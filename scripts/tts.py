@@ -252,6 +252,12 @@ def build_manifest(script, narration_dir, base):
         if seg.get("lower_third"):
             lt_abs = resolve(base, seg["lower_third"])
             entry["lower_third"] = _rel_to(lt_abs, output_dir)
+        # Pass through shots[] so assemble.py can build the multi-shot visual bed
+        if seg.get("shots"):
+            entry["shots"] = [
+                {**sh, "media": _rel_to(resolve(base, sh["media"]), output_dir)}
+                for sh in seg["shots"]
+            ]
 
         manifest_segments.append(entry)
 
