@@ -1,0 +1,27 @@
+profiles:
+  sonnet_creative:
+    model: claude-sonnet-4.5
+    purpose: creative/reasoning-heavy tasks
+    is_final_creative_authority: true
+    default_for: creative
+
+  auto_utility:
+    model: auto
+    purpose: mechanical/low-risk tasks
+    is_final_creative_authority: false
+    default_for: utility
+
+default_creative: sonnet_creative
+default_utility: auto_utility
+
+# Tasks that require creative authority (cannot use auto_utility)
+creative_authority_tasks:
+  - script_review
+  - storyboard_generation
+  - storyboard_review
+  - media_prompt_compilation
+  - brand_universe_review
+  - audience_retention_review
+  - hook_generation
+  - framework_building
+  - script_writing

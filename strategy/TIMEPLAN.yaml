@@ -351,7 +351,7 @@ steps:
 - id: P4-07
   title: Build the LLM wrapper (llm_call.py) + model routing config
   phase: P4
-  status: todo
+  status: done
   depends_on:
   - P4-03
   deliverable: Thin subprocess wrapper around kiro-cli (--no-interactive --model MODEL --wrap never),
@@ -363,7 +363,14 @@ steps:
   acceptance: Wrapper validates profile + creative-authority rules, calls kiro-cli, parses JSON, never
     prints token-like strings; tests pass.
   notes: '[M6.0 — prerequisite for all real LLM gates] NOT BUILT. configs/ and the wrapper are absent.
-    Blocks P4-08, P4-13, P5-01..P5-05.'
+    Blocks P4-08, P4-13, P5-01..P5-05.
+
+    [2026-06-09 17:12 +0800] completed
+
+    [2026-06-09 17:12 +0800] scripts/llm_call.py + configs/llm_models.yaml built. Subprocess wrapper around
+    kiro-cli --no-interactive, response extraction (ANSI strip + > line), JSON parse + fence strip, creative-authority
+    enforcement (sonnet for creative, auto for utility; blocks auto on creative tasks), --dry-run/--timeout/--verbose.
+    Tests 13/13. No secrets, no live API in tests.'
 - id: P4-08
   title: Build the LLM reviewer gates (script / storyboard / media-plan)
   phase: P4
