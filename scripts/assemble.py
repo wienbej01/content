@@ -524,6 +524,22 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         norm_clips = []
         for i, seg in enumerate(segments):
             clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
+            # ENG-04: assert assembled segment audio aligns with narration (within 0.3s)
+            audio_src = seg.get("audio")
+            if audio_src:
+                narr_dur = probe_dur(resolve(base, audio_src))
+                seg_dur  = probe_dur(clip)
+                seg_audio = probe_dur(clip)  # audio stream duration ≈ container duration for trimmed segs
+                # container duration of clip should be narration + TAIL_PAD ± tolerance
+                expected = narr_dur / speeds[i] + TAIL_PAD  # plain branch is speed-adjusted
+                if seg.get("shots"):
+                    expected = narr_dur + TAIL_PAD  # shots branch: no speed applied (ENG-01 fix)
+                if abs(seg_dur - expected) > 0.5:
+                    raise ValueError(
+                        f"ENG-04 QA gate: segment {seg.get('id','?')} duration={seg_dur:.2f}s "
+                        f"expected≈{expected:.2f}s (narration={narr_dur:.2f}s). "
+                        f"Audio/video mis-alignment detected."
+                    )
             norm_clips.append(clip)
 
         # 2. Endcard

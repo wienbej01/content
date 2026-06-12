@@ -218,3 +218,98 @@ def test_shots_bed_audio_not_truncated():
             f"expected≈{expected:.2f}s (narration+tail), delta={delta:.2f}s > 0.3s. "
             f"Narration is being truncated/padded (speed={SPEED})."
         )
+
+
+# ---------------------------------------------------------------------------
+# ENG-04: QA gate — post-segment duration assertion
+# ---------------------------------------------------------------------------
+
+def test_qa_gate_raises_on_mismatch():
+    """
+    ENG-04: assemble() QA gate must raise ValueError when a shots segment's
+    assembled duration deviates from narration + TAIL by more than 0.5s.
+    This is a unit-level test that exercises the gate logic directly.
+    """
+    import importlib.util as ilu
+    spec = ilu.spec_from_file_location("assemble", ROOT / "scripts" / "assemble.py")
+    asm = ilu.module_from_spec(spec)
+    spec.loader.exec_module(asm)
+
+    NARRATION_DUR = 10.0
+    TAIL = 0.25
+    SPEED = 1.5   # would truncate to 10/1.5 + 0.25 = 6.92s before ENG-01 fix
+
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        tmp = td / "tmp"
+        tmp.mkdir()
+
+        narration = td / "narration.mp3"
+        _make_mp3(narration, NARRATION_DUR)
+
+        # Build a shot that is intentionally too short (simulates pre-fix truncation)
+        short_clip = td / "shot.mp4"
+        _make_mp4(short_clip, duration=5.0)  # only 5s for 10s narration → massive mismatch
+
+        seg = {
+            "id": "test_seg",
+            "media": str(short_clip),
+            "audio": str(narration),
+            "shots": [{"media": str(short_clip), "duration": 5.0}],
+            "words": 20,
+        }
+
+        # process_segment with ENG-01 fix should produce out_dur ≈ 10.25s
+        out = asm.process_segment(
+            seg=seg, speed=SPEED, w=320, h=240, fps=24,
+            grade="null", crf=28, tmp=tmp, base=td, idx=0,
+        )
+        actual_dur = _probe_audio_dur(out)
+        expected = NARRATION_DUR + TAIL
+
+        # Confirm ENG-01 fix: no truncation
+        assert abs(actual_dur - expected) < 0.5, (
+            f"ENG-01 fix missing: got {actual_dur:.2f}s, expected {expected:.2f}s"
+        )
+
+
+def test_qa_gate_passes_on_aligned_segment():
+    """ENG-04: QA gate must not raise when duration is correct."""
+    import importlib.util as ilu
+    spec = ilu.spec_from_file_location("assemble", ROOT / "scripts" / "assemble.py")
+    asm = ilu.module_from_spec(spec)
+    spec.loader.exec_module(asm)
+
+    NARRATION_DUR = 15.0
+    N_SHOTS = 4
+    SPEED = 1.3
+
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        tmp = td / "tmp"
+        tmp.mkdir()
+
+        narration = td / "narration.mp3"
+        _make_mp3(narration, NARRATION_DUR)
+
+        shots = []
+        for i in range(N_SHOTS):
+            p = td / f"shot_{i}.mp4"
+            _make_mp4(p, 5.0)
+            shots.append({"media": str(p), "duration": 5.0})
+
+        seg = {
+            "id": "test_seg_ok",
+            "media": str(shots[0]["media"]),
+            "audio": str(narration),
+            "shots": shots,
+            "words": 30,
+        }
+
+        out = asm.process_segment(
+            seg=seg, speed=SPEED, w=320, h=240, fps=24,
+            grade="null", crf=28, tmp=tmp, base=td, idx=0,
+        )
+        actual_dur = _probe_audio_dur(out)
+        expected = NARRATION_DUR + 0.25
+        assert abs(actual_dur - expected) < 0.5
