@@ -112,12 +112,27 @@ def validate_output(data):
 
 
 def call_kiro(model, prompt, timeout=120, verbose=False):
-    """Run kiro-cli subprocess and return raw stdout."""
-    cmd = [KIRO_CLI, "chat", "--no-interactive", "--model", model, "--wrap", "never", prompt]
+    """Run kiro-cli subprocess and return raw stdout.
+
+    Hardening (2026-06-12): the default agent (ytbuilder) runs spawn/stop hooks on
+    every chat invocation, which adds latency and can stall a non-interactive call.
+    We trust NO tools (--trust-tools=) so the model cannot trigger tool/hook
+    execution, and we close stdin (DEVNULL) so the subprocess can never block
+    waiting for interactive input. A timeout raises a clear error instead of hanging.
+    """
+    cmd = [KIRO_CLI, "chat", "--no-interactive", "--model", model,
+           "--wrap", "never", "--trust-tools=", prompt]
     if verbose:
-        print(f"  cmd: {KIRO_CLI} chat --no-interactive --model {model} ...", file=sys.stderr)
+        print(f"  cmd: {KIRO_CLI} chat --no-interactive --model {model} --trust-tools= ...",
+              file=sys.stderr)
     t0 = time.time()
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"kiro-cli did not respond within {timeout}s (model {model}). "
+            "Check `kiro-cli chat --list-models` and that your session is authenticated.")
     elapsed = time.time() - t0
     if verbose:
         print(f"  elapsed: {elapsed:.1f}s, exit: {r.returncode}", file=sys.stderr)

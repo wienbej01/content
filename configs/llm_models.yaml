@@ -1,6 +1,6 @@
 profiles:
   sonnet_creative:
-    model: claude-sonnet-4.5
+    model: claude-sonnet-4.6
     purpose: creative/reasoning-heavy tasks
     is_final_creative_authority: true
     default_for: creative
