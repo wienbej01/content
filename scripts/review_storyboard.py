@@ -1,78 +1,200 @@
 #!/usr/bin/env python3
-"""review_storyboard.py — Rule-based QA review of a storyboard JSON. No LLM calls.
+"""review_storyboard.py — Storyboard v2 validator + G2 gate (no LLM calls).
+
+Per PRODUCTION_V2_BLUEPRINT §3.14 (anti-patterns), §6 (G2), §7 (acceptance
+metrics). Validates a schema-v2 storyboard, then records the storyboard_review
+gate in the project ledger (unless --no-gate).
+
+A storyboard shaped like flagship 001 (all hero, no archival/graphic beats)
+must FAIL here with named violations.
 
 Usage:
-  python3 scripts/review_storyboard.py storyboard.json
   python3 scripts/review_storyboard.py storyboard.json --output-json review.json
+  python3 scripts/review_storyboard.py storyboard.json --record-gate
+  python3 scripts/review_storyboard.py storyboard.json --warn-only
 """
+from __future__ import annotations
+
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CONSTRAINTS_PATH = ROOT / "docs" / "channel_universe" / "constraints.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+HERO_SHOT_TYPES = {"hero_lipsync", "hero_cutaway"}
+BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5", "wan2_7", "wan2_6"}
+VALID_SHOT_TYPES = {
+    "hero_lipsync", "hero_cutaway", "broll_archival", "broll_metaphorical",
+    "broll_environment", "broll_tactical", "graphic_progressive",
+    "graphic_title_card", "kinetic_text", "ui_insert", "still_kenburns",
+}
+
+# Front-facing close-up phrasing that, on a hero_cutaway, recreates the
+# flagship-001 mouth-flapping failure (§3.8/§3.14 #1).
+RE_FRONT_CLOSEUP = re.compile(
+    r"(front[- ]facing|direct(?:ly)? to camera|direct eye contact|medium close-up,?\s*direct)",
+    re.I)
+
+# Trigger regexes (mirror storyboard.py) for coverage checking (§3.5).
+RE_YEAR = re.compile(r"\b1[5-9]\d{2}\b|\b20[0-2]\d\b")
+RE_STUDY_VERB = re.compile(
+    r"\b([A-Z][a-z]+(?:\s+and\s+[A-Z][a-z]+)?)\s+"
+    r"(demonstrated|showed|documented|found|discovered|reported|proved|established)\b")
+RE_ORDINAL = re.compile(
+    r"\b(the\s+(first|second|third|fourth|fifth)\s+(principle|step|rule|law|pillar))\b", re.I)
 
 
 def load_constraints():
     return json.loads(CONSTRAINTS_PATH.read_text()) if CONSTRAINTS_PATH.exists() else {}
 
 
+def _bands_check(m, blocking, warnings):
+    """§7 shot-mix acceptance bands."""
+    hero_total = m.get("hero_lipsync_pct", 0) + m.get("hero_cutaway_pct", 0)
+    if not (25 <= hero_total <= 40):
+        blocking.append(f"hero total {hero_total:.1f}% outside 25-40% band")
+    if m.get("hero_lipsync_pct", 0) > 25:
+        blocking.append(f"hero_lipsync {m.get('hero_lipsync_pct')}% exceeds 25% cap")
+    if m.get("broll_specific_pct", 0) < 25:
+        blocking.append(f"specific/archival b-roll {m.get('broll_specific_pct')}% below 25%")
+    if m.get("graphics_ui_pct", 0) < 10:
+        blocking.append(f"graphics+UI {m.get('graphics_ui_pct')}% below 10%")
+    meta = m.get("broll_metaphorical_pct", 0)
+    if not (5 <= meta <= 15):
+        warnings.append(f"metaphorical b-roll {meta}% outside 5-15% band")
+    kin = m.get("kinetic_text_pct", 0)
+    if not (2 <= kin <= 8):
+        warnings.append(f"kinetic text {kin}% outside 2-8% band")
+    if m.get("max_hero_block_sec", 0) > 15.05:
+        blocking.append(f"max hero block {m.get('max_hero_block_sec')}s exceeds 15s")
+    if m.get("distinct_visual_setups", 0) < 12:
+        blocking.append(f"only {m.get('distinct_visual_setups')} distinct visual setups (<12)")
+
+
+def _anti_patterns(beats, blocking, warnings):
+    """§3.14 anti-patterns the router must never emit; validator double-checks."""
+    prev = None
+    for i, b in enumerate(beats):
+        st = b.get("shot_type")
+        bid = b.get("beat_id", f"#{i}")
+
+        if st not in VALID_SHOT_TYPES:
+            blocking.append(f"{bid}: invalid shot_type {st!r}")
+
+        # #9 banned models
+        if b.get("model") in BANNED_MODELS:
+            blocking.append(f"{bid}: banned model {b.get('model')!r}")
+
+        # #2 hero block > 15s (except justified Act-6 close)
+        if st == "hero_lipsync" and b.get("est_duration_sec", 0) > 15.05:
+            if not (b.get("act") == 6 and b.get("justification")):
+                blocking.append(f"{bid}: hero_lipsync {b.get('est_duration_sec')}s > 15s without justified Act-6 close")
+
+        # #1 front-facing close-up under voiceover without lipsync
+        if st == "hero_cutaway" and RE_FRONT_CLOSEUP.search(b.get("visual_brief", "")):
+            blocking.append(f"{bid}: hero_cutaway brief is front-facing close-up under voiceout (flagship-001 failure)")
+
+        # #3 two consecutive identical shot_type
+        if prev is not None and st == prev:
+            warnings.append(f"{bid}: consecutive identical shot_type {st!r}")
+
+        # #6 segment-brief copy / empty brief
+        if not b.get("visual_brief"):
+            blocking.append(f"{bid}: empty visual_brief")
+
+        # #7 generated-in-scene readable text on generated shots (negation-aware:
+        # "no readable text" / "no readable generated text" is the CORRECT posture).
+        if b.get("asset_type") in ("generated_video", "generated_still"):
+            brief = b.get("visual_brief", "")
+            for m_txt in re.finditer(r"readable (?:generated )?text|on-screen text|caption|subtitle",
+                                     brief, re.I):
+                pre = brief[max(0, m_txt.start() - 12):m_txt.start()].lower()
+                if not any(neg in pre for neg in ("no ", "without ", "not ", "free of")):
+                    blocking.append(f"{bid}: generated shot requests readable in-scene text")
+                    break
+
+        # b-roll must carry a specific narrative_function (§3.9)
+        if st and st.startswith("broll"):
+            nf = (b.get("narrative_function") or "").strip().lower()
+            if not nf or nf in ("supporting visual", "b-roll", "supporting"):
+                blocking.append(f"{bid}: b-roll has empty/generic narrative_function")
+
+        prev = st
+
+
+def _trigger_coverage(beats, blocking, warnings):
+    """§3.5: every detected trigger must be satisfied by its beat or an adjacent one."""
+    shot_by_order = [(b.get("shot_type"), b.get("narration_text", "")) for b in beats]
+    for i, b in enumerate(beats):
+        text = b.get("narration_text", "")
+        bid = b.get("beat_id", f"#{i}")
+        window = {shot_by_order[j][0] for j in (i - 1, i, i + 1) if 0 <= j < len(beats)}
+
+        if (RE_YEAR.search(text) or RE_STUDY_VERB.search(text)):
+            if "broll_archival" not in window and "kinetic_text" not in window:
+                warnings.append(f"{bid}: named/dated study not anchored by an archival beat")
+        if RE_ORDINAL.search(text):
+            if "graphic_title_card" not in window and "graphic_progressive" not in window:
+                warnings.append(f"{bid}: numbered principle not marked by a title-card/graphic beat")
+
+
+def _coverage_min(beats, blocking, warnings):
+    """Framework/study coverage and Act-5 master graphic (§7)."""
+    types = [b.get("shot_type") for b in beats]
+    if "broll_archival" not in types:
+        blocking.append("no archival beat: named studies/dates are not anchored")
+    if not any(t in ("graphic_progressive", "graphic_title_card") for t in types):
+        blocking.append("no graphic beat: frameworks/lists are not rendered")
+    # Act-5 master graphic
+    act5 = [b for b in beats if b.get("act") == 5]
+    if act5 and not any(b.get("shot_type") in ("graphic_progressive",) for b in act5):
+        warnings.append("Act 5 has no master recap graphic beat")
+
+
 def review(storyboard, constraints):
     blocking, warnings, fixes = [], [], []
+
+    if storyboard.get("schema_version") != "2.0":
+        blocking.append(f"schema_version must be '2.0', got {storyboard.get('schema_version')!r}")
     beats = storyboard.get("beats", [])
     if not beats:
-        blocking.append("No beats in storyboard")
+        blocking.append("no beats in storyboard")
         return blocking, warnings, fixes
 
-    excluded = set(constraints.get("excluded_from_presence_count", ["TRANSITION", "TITLE_CARD"]))
-    content_beats = [b for b in beats if b.get("scene_type") not in excluded]
-    present = [b for b in content_beats if b.get("james_presence") in ("present_speaking", "present_silent")]
+    # All-hero (flagship-001) shape → hard fail with explicit naming.
+    hero = [b for b in beats if b.get("shot_type") in HERO_SHOT_TYPES]
+    if len(hero) >= len(beats) * 0.6:
+        blocking.append(
+            f"all-hero storyboard shape: {len(hero)}/{len(beats)} beats are hero "
+            "(this is the flagship-001 failure mode — needs b-roll/graphics/archival)")
 
-    # Host-led presence check
-    if not storyboard.get("allow_all_broll", False):
-        if content_beats and len(present) == 0:
-            blocking.append("0% James presence in host-led episode")
-        elif content_beats:
-            pct = round(100 * len(present) / len(content_beats))
-            rules = constraints.get("a_roll_rules", {})
-            min_pct = rules.get("min_presence_teaser_pct", 40)
-            if pct < min_pct:
-                warnings.append(f"James presence {pct}% below minimum {min_pct}%")
+    m = storyboard.get("shot_mix_summary", {})
+    if not m:
+        blocking.append("missing shot_mix_summary")
+    else:
+        _bands_check(m, blocking, warnings)
 
-    # Scene evolution
-    min_angles = constraints.get("storyboard_rules", {}).get("min_distinct_angles_or_locations", 3)
-    locs = set()
-    for b in content_beats:
-        locs.add(b.get("location_id") or b.get("camera") or "unknown")
-    if len(locs) < min_angles:
-        warnings.append(f"Only {len(locs)} distinct locations/angles (min {min_angles})")
+    _anti_patterns(beats, blocking, warnings)
+    _trigger_coverage(beats, blocking, warnings)
+    _coverage_min(beats, blocking, warnings)
 
-    # Per-beat checks
-    valid_types = set(constraints.get("allowed_scene_types", []))
-    for i, b in enumerate(beats):
-        if b.get("scene_type") and valid_types and b["scene_type"] not in valid_types:
-            blocking.append(f"beats[{i}]: invalid scene_type '{b['scene_type']}'")
-        if not b.get("crop_safety"):
-            warnings.append(f"beats[{i}]: missing crop_safety")
-        if not b.get("audio_continuity_group") and b.get("scene_type") not in excluded:
-            warnings.append(f"beats[{i}]: missing audio_continuity_group")
-        if b.get("text_policy") == "post_overlay" and b.get("scene_type") == "B_ROLL_SUPPORTING_VISUAL":
-            warnings.append(f"beats[{i}]: text_policy=post_overlay on b-roll — verify intent")
-
-    # All-b-roll check
-    a_roll = [b for b in content_beats if b.get("a_roll_or_b_roll") == "a_roll"]
-    if not storyboard.get("allow_all_broll") and content_beats and len(a_roll) == 0:
-        blocking.append("All-b-roll host-led video — no A-roll beats")
-
+    if blocking:
+        fixes.append("Re-route via storyboard.py; ensure archival/graphic/kinetic beats and shot-mix bands.")
     return blocking, warnings, fixes
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Rule-based storyboard QA review.")
-    ap.add_argument("storyboard", help="Path to storyboard JSON")
+    ap = argparse.ArgumentParser(description="Storyboard v2 validator + G2 gate.")
+    ap.add_argument("storyboard", help="Path to storyboard.json (schema v2)")
     ap.add_argument("--output-json", default=None)
     ap.add_argument("--warn-only", action="store_true", help="Exit 0 even on blocking issues")
+    ap.add_argument("--record-gate", action="store_true",
+                    help="Record the storyboard_review gate in the project ledger")
+    ap.add_argument("--project-id", default=None, help="Override project id for the gate ledger")
     args = ap.parse_args()
 
     path = Path(args.storyboard).resolve()
@@ -80,14 +202,16 @@ def main():
         print(f"ERROR: {path} not found", file=sys.stderr)
         sys.exit(1)
 
-    sb = json.load(open(path))
+    sb = json.loads(path.read_text())
     constraints = load_constraints()
     blocking, warnings, fixes = review(sb, constraints)
 
+    status = "fail" if blocking else "pass"
     result = {
         "task": "storyboard_review",
         "model_profile": "rule_based",
-        "status": "fail" if blocking else "pass",
+        "schema_version_checked": "2.0",
+        "status": status,
         "score": 1 if blocking else (3 if warnings else 5),
         "blocking_issues": blocking,
         "warnings": warnings,
@@ -97,8 +221,17 @@ def main():
 
     if args.output_json:
         Path(args.output_json).parent.mkdir(parents=True, exist_ok=True)
-        with open(args.output_json, "w") as f:
-            json.dump(result, f, indent=2)
+        Path(args.output_json).write_text(json.dumps(result, indent=2))
+
+    if args.record_gate:
+        from gates import record_gate
+        pid = args.project_id or sb.get("project_id")
+        if not pid:
+            print("ERROR: --record-gate needs a project id", file=sys.stderr)
+            sys.exit(1)
+        record_gate(pid, "storyboard_review", status, artifact_path=str(path),
+                    extra={"blocking": len(blocking), "warnings": len(warnings)})
+        print(f"  gate storyboard_review={status} recorded for {pid}")
 
     for w in warnings:
         print(f"  ⚠ {w}")
