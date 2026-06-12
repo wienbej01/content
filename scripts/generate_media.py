@@ -23,9 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
 DEFAULT_LIPSYNC_MODEL = "seedance_2_0"    # lipsync: only CLI model with --audio
-DEFAULT_BROLL_MODEL = "wan2_7"             # environment/landscape b-roll (no humans)
+DEFAULT_BROLL_MODEL = "kling3_0"           # b-roll: kling (wan NOT authorized)
 HUMAN_CLOSEUP_MODEL = "kling3_0"           # hero face, hands, body, human background
-BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5"}  # never used
+BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5",
+                 "wan2_7", "wan2_6"}        # wan models NOT authorized
+LIPSYNC_MAX_DUR = 10    # seedance_2_0 max duration per clip (seconds)
 WAIT_TIMEOUT = "15m"
 WAIT_INTERVAL = "10s"
 MAX_FREEZE = 0.5        # PHASE 5: no held frame longer than this
@@ -119,10 +121,10 @@ def route_model_with_reason(seg_or_shot, audio_mode, default_broll=DEFAULT_BROLL
 # Credit cost estimates per clip (Higgsfield bills a 10-second minimum)
 _CREDITS = {
     "seedance_2_0": (2.0, 2.0),
-    "kling3_0":   (2.0, 2.0),
+    "kling3_0":   (10.0, 10.0),
     "wan2_7":      (1.0, 1.0),
     "wan2_6":      (1.0, 1.0),
-    "cinematic_studio_3_0": (2.0, 2.0),
+    "cinematic_studio_3_0": (25.0, 25.0),
     "seedance_2_0":      (2.0, 2.0),
 }
 
@@ -183,6 +185,44 @@ def probe_video(path):
             info["has_audio"] = True
     info["duration"] = float(data.get("format", {}).get("duration", 0))
     return info
+
+
+def audio_duration(path: Path) -> float:
+    """Return duration of an audio file in seconds (0.0 on error)."""
+    r = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def split_audio(audio_path: Path, chunk_dur: float, tmp_dir: Path) -> list[Path]:
+    """Split audio into ≤chunk_dur second segments using ffmpeg segment muxer.
+    Returns list of chunk paths in order. Cleans up existing chunks first."""
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    pattern = str(tmp_dir / "chunk_%03d.mp3")
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(audio_path),
+         "-f", "segment", "-segment_time", str(int(chunk_dur)),
+         "-c", "copy", pattern],
+        check=True, capture_output=True)
+    return sorted(tmp_dir.glob("chunk_*.mp3"))
+
+
+def concat_videos(clips: list[Path], out: Path) -> None:
+    """Concatenate MP4 clips with ffmpeg, then remove the source clips."""
+    lst = out.with_suffix(".concat.txt")
+    lst.write_text("\n".join(f"file '{c.resolve()}'" for c in clips))
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+         "-c", "copy", str(out)],
+        check=True, capture_output=True)
+    lst.unlink(missing_ok=True)
+    for c in clips:
+        c.unlink(missing_ok=True)
 
 
 # --- Validation ---
@@ -528,6 +568,9 @@ def record_lipsync_provenance(script, base, sid, audio_path, model, media_path):
     output_dir = resolve(base, script.get("output_dir", f"Videos/Projects/{script['project_id']}"))
     log_path = output_dir / "media_generation_log.json"
     log = json.load(open(log_path)) if log_path.exists() else {"project_id": script["project_id"], "segments": {}}
+    # normalise: older runs wrote segments as a list; convert to dict keyed by segment_id
+    if isinstance(log.get("segments"), list):
+        log["segments"] = {r["segment_id"]: r for r in log["segments"] if isinstance(r, dict)}
     import datetime
     info = probe_video(media_path) if Path(media_path).exists() else {}
     log["segments"][sid] = {
@@ -858,8 +901,71 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
                 continue
 
         try:
-            result = generate_segment(seg, media_path, seg_model, dry_run=dry_run,
-                                      audio_mode=mode, audio_path=nar_audio)
+            # --- Baked_in lipsync: chunk long narration into ≤LIPSYNC_MAX_DUR clips ---
+            if mode == "baked_in" and nar_audio:
+                nar_dur = audio_duration(nar_audio)
+                if nar_dur > LIPSYNC_MAX_DUR:
+                    tmp_dir = media_path.parent / f"_chunks_{seg_id}"
+                    print(f"  [{seg_id}] narration {nar_dur:.1f}s > {LIPSYNC_MAX_DUR}s — splitting into chunks")
+                    chunks = split_audio(nar_audio, LIPSYNC_MAX_DUR, tmp_dir)
+                    print(f"  [{seg_id}] {len(chunks)} chunk(s)")
+                    chunk_videos: list[Path] = []
+                    for ci, chunk_path in enumerate(chunks):
+                        chunk_video = tmp_dir / f"video_{ci:03d}.mp4"
+                        chunk_dur = audio_duration(chunk_path)
+                        clip_dur = 10 if chunk_dur > 5 else 5
+                        print(f"    chunk {ci+1}/{len(chunks)} ({chunk_dur:.1f}s) → duration={clip_dur}s")
+                        for attempt in range(3):
+                            try:
+                                result = generate_segment(seg, chunk_video, seg_model,
+                                                          dry_run=dry_run, audio_mode=mode,
+                                                          audio_path=chunk_path, duration=clip_dur)
+                                break
+                            except RuntimeError as e:
+                                if attempt < 2 and "no result_url" in str(e):
+                                    print(f"    chunk {ci+1} retry {attempt+1}/2 in 60s…")
+                                    time.sleep(60)
+                                else:
+                                    raise
+                        if not dry_run:
+                            chunk_videos.append(chunk_video)
+                    if not dry_run and chunk_videos:
+                        print(f"  [{seg_id}] concatenating {len(chunk_videos)} clips…")
+                        concat_videos(chunk_videos, media_path)
+                        # clean tmp dir
+                        for f in tmp_dir.iterdir(): f.unlink(missing_ok=True)
+                        tmp_dir.rmdir()
+                        result = {"segment_id": seg_id}
+                else:
+                    clip_dur = 10 if nar_dur > 5 else 5
+                    for attempt in range(3):
+                        try:
+                            result = generate_segment(seg, media_path, seg_model, dry_run=dry_run,
+                                                      audio_mode=mode, audio_path=nar_audio,
+                                                      duration=clip_dur)
+                            break
+                        except RuntimeError as e:
+                            if attempt < 2 and "no result_url" in str(e):
+                                print(f"  [{seg_id}] retry {attempt+1}/2 in 60s…")
+                                time.sleep(60)
+                            else:
+                                raise
+            else:
+                # Non-lipsync segment: original retry logic
+                max_retries = 3
+                result = None
+                for attempt in range(max_retries):
+                    try:
+                        result = generate_segment(seg, media_path, seg_model, dry_run=dry_run,
+                                                  audio_mode=mode, audio_path=nar_audio)
+                        break
+                    except RuntimeError as e:
+                        if attempt < max_retries - 1 and ("no result_url" in str(e) or "nsfw" in str(e).lower()):
+                            wait = 60 * (attempt + 1)
+                            print(f"  [{seg_id}] retry {attempt+1}/{max_retries-1} in {wait}s (rate-limit suspected)...")
+                            time.sleep(wait)
+                        else:
+                            raise
             if result:
                 results.append(result)
                 generated += 1
@@ -876,6 +982,9 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
                     if nar.exists():
                         record_lipsync_provenance(script, base, seg_id, nar, seg_model, media_path)
                         print(f"    provenance recorded (audio hash)")
+            # Throttle between segments to avoid rate-limit triggers (seedance_2_0 needs ~60s)
+            if not dry_run and generated > 0:
+                time.sleep(60)
         except RuntimeError as e:
             print(f"  [{seg_id}] FAILED: {e}", file=sys.stderr)
             raise
