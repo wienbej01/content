@@ -457,6 +457,29 @@ def _narrative_function(shot_type: str, triggers: dict, text: str) -> str:
     return f"Supports the narration ({snippet}...)."
 
 
+def _metaphor_for(text: str) -> str:
+    """Map an abstract cognitive concept in the narration to a concrete physical metaphor (§3.9)."""
+    low = text.lower()
+    table = [
+        (("decay", "forget", "fade", "fragments", "invisible"),
+         "Chalk writing slowly eroding off a slate / a sandcastle washing away at the desk's edge"),
+        (("retriev", "reaching", "effort", "struggle", "friction"),
+         "A hand pulling a heavy rope up a slope, straining against resistance"),
+        (("layer", "encoding", "modalities", "interconnect", "richer"),
+         "Layers of wood veneer being laminated together into a single solid board"),
+        (("connect", "associat", "bridge", "anchor", "context"),
+         "A bridge cable being fastened between two stone piers across the desk"),
+        (("compound", "durable", "stronger", "long-term"),
+         "Coins stacking and growing into a taller column over time"),
+        (("attention", "focus", "distract"),
+         "A single brass lamp beam narrowing onto one open page in a dim study"),
+    ]
+    for keys, metaphor in table:
+        if any(k in low for k in keys):
+            return metaphor
+    return "An hourglass on the mahogany desk, sand running between chambers in warm lamplight"
+
+
 def _seed_visual_brief(shot_type: str, text: str, triggers: dict) -> str:
     """A specific (non-generic) seed brief; the LLM/compiler refine further.
 
@@ -473,8 +496,9 @@ def _seed_visual_brief(shot_type: str, text: str, triggers: dict) -> str:
         return ("Period-accurate academic scene, grounded documentary style, soft-focus "
                 "handwritten papers (no readable text), warm daylight, shallow depth of field.")
     if shot_type == "broll_metaphorical":
-        return ("Physical metaphor mirroring the cognitive concept, within the warm "
-                "navy/gold/ivory palette, motivated practical lighting, no text, no people in close-up.")
+        return (f"{_metaphor_for(text)} — a concrete physical metaphor for the idea, "
+                "within the warm navy/gold/ivory palette, motivated practical lighting, "
+                "shallow depth of field, no text, no people in close-up.")
     if shot_type == "broll_environment":
         return ("Grounded environment — study, desk objects, or a quiet city exterior, "
                 "warm practical light, slow controlled move, no readable text, no logos.")
