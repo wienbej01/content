@@ -130,3 +130,91 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# ENG-01 regression: shots-bed audio/video alignment
+# Verifies that assemble.py does NOT truncate narration when speed != 1.0
+# ---------------------------------------------------------------------------
+
+def _make_mp4(path, duration=5.0, width=320, height=240, fps=24):
+    """Create a minimal silent MP4 video for testing."""
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"color=c=black:s={width}x{height}:r={fps}:d={duration}",
+        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+        "-t", str(duration), "-c:v", "libx264", "-c:a", "aac", str(path)
+    ], capture_output=True, check=True)
+
+
+def _make_mp3(path, duration=7.3):
+    """Create a minimal silent MP3 of given duration."""
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"anullsrc=r=48000:cl=stereo:d={duration}",
+        "-t", str(duration), "-c:a", "libmp3lame", "-b:a", "128k", str(path)
+    ], capture_output=True, check=True)
+
+
+def _probe_audio_dur(path):
+    r = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0",
+         "-show_entries", "stream=duration", "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True)
+    return float(r.stdout.strip())
+
+
+def test_shots_bed_audio_not_truncated():
+    """
+    ENG-01 regression: when assemble processes a shots[]+audio segment with WPS speed > 1,
+    the final segment audio duration must be within 0.3s of the narration duration.
+    Before the fix, out_dur = narration/speed truncated audio by (1-1/speed)*narration.
+    """
+    import importlib.util as ilu
+    spec = ilu.spec_from_file_location("assemble", ROOT / "scripts" / "assemble.py")
+    asm = ilu.module_from_spec(spec)
+    spec.loader.exec_module(asm)
+
+    NARRATION_DUR = 20.0   # seconds
+    SHOT_DUR = 5.0
+    N_SHOTS = 5            # 5 × 5s = 25s visual coverage > 20s narration
+    SPEED = 1.4            # typical WPS speed > 1 — this was the truncation scenario
+    TAIL = 0.25
+
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        tmp = td / "tmp"
+        tmp.mkdir()
+
+        # Create narration audio (20s)
+        narration = td / "narration.mp3"
+        _make_mp3(narration, NARRATION_DUR)
+
+        # Create N shot clips (5s each)
+        shots = []
+        for i in range(N_SHOTS):
+            p = td / f"shot_{i}.mp4"
+            _make_mp4(p, SHOT_DUR)
+            shots.append({"media": str(p), "duration": SHOT_DUR})
+
+        seg = {
+            "media": str(shots[0]["media"]),
+            "audio": str(narration),
+            "shots": shots,
+            "words": 40,
+        }
+
+        out = asm.process_segment(
+            seg=seg, speed=SPEED, w=320, h=240, fps=24,
+            grade="null", crf=28, tmp=tmp, base=td, idx=0,
+        )
+
+        assert out.exists(), "segment output not produced"
+        audio_dur = _probe_audio_dur(out)
+        expected = NARRATION_DUR + TAIL
+        delta = abs(audio_dur - expected)
+        assert delta < 0.3, (
+            f"ENG-01 alignment regression: audio_dur={audio_dur:.2f}s, "
+            f"expected≈{expected:.2f}s (narration+tail), delta={delta:.2f}s > 0.3s. "
+            f"Narration is being truncated/padded (speed={SPEED})."
+        )

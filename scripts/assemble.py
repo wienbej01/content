@@ -197,7 +197,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     audio_src = seg.get("audio")
     if shots and audio_src:
         audio_path = resolve(base, audio_src)
-        out_dur = probe_dur(audio_path) / speed + TAIL_PAD
+        out_dur = probe_dur(audio_path) + TAIL_PAD  # do not apply WPS speed here: voice integrity preserved; shots already cover exact target length
         # Normalize each shot to the format, strip its audio
         norm_shots = []
         per = out_dur / len(shots)
