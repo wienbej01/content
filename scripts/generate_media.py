@@ -747,6 +747,290 @@ def extract_review_frame(media_path, out_dir):
     return frame_path if frame_path.exists() else None
 
 
+LIBRARY_INDEX = ROOT / "assets" / "media" / "library_index.json"
+
+
+def _load_library_index():
+    if LIBRARY_INDEX.exists():
+        try:
+            return json.loads(LIBRARY_INDEX.read_text())
+        except json.JSONDecodeError:
+            return {"assets": {}}
+    return {"assets": {}}
+
+
+def _library_lookup(beat, index):
+    """Reuse a QA-passed asset keyed by prompt_class if available (≤2× per video,
+    enforced by caller). Returns a path string or None (§5.2 #3)."""
+    if not beat.get("reuse", {}).get("allowed"):
+        return None
+    assets = index.get("assets", {})
+    pc = beat.get("prompt_class")
+    for aid, rec in assets.items():
+        if rec.get("prompt_class") == pc and rec.get("qa_status") == "pass":
+            p = rec.get("path")
+            if p and (ROOT / p).exists():
+                return p
+    return None
+
+
+def _still_kenburns(beat, out_path, dry_run=False):
+    """Generate a still + slow ffmpeg pan-zoom for a still_kenburns beat.
+
+    Uses an existing reference still if provided; otherwise falls back to a
+    solid brand-palette frame so the pipeline never blocks on a missing still.
+    Zero Higgsfield cost."""
+    dur = max(2.0, float(beat.get("duration_target_sec", 5)))
+    refs = beat.get("reference_images") or []
+    src = None
+    for r in refs:
+        if (ROOT / r).exists():
+            src = ROOT / r
+            break
+    if dry_run:
+        return {"beat_id": beat["beat_id"], "asset_type": "generated_still",
+                "model": "still_kenburns", "cost_usd": 0.0, "action": "kenburns(dry)"}
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if src:
+        # zoompan over the still
+        subprocess.run(
+            ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{dur}",
+             "-vf", f"scale=1280:720,zoompan=z='min(zoom+0.0008,1.12)':d={int(dur*25)}:s=1280x720,format=yuv420p",
+             "-r", "25", "-an", str(out_path)], capture_output=True)
+    else:
+        # solid ivory frame (placeholder still; real still comes from reference lib)
+        subprocess.run(
+            ["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=0xF5F0E8:s=1280x720:d={dur}",
+             "-r", "25", "-an", str(out_path)], capture_output=True)
+    info = probe_video(out_path)
+    return {"beat_id": beat["beat_id"], "media_path": str(out_path),
+            "model": "still_kenburns", "duration": round(info["duration"], 2) if info else dur,
+            "cost_usd": 0.0}
+
+
+def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
+    """Generate one beat's clip via Higgsfield from the MEDIA PLAN fields only.
+
+    hero_lipsync → seedance --image --audio (narration slice); other generated
+    beats → model from the plan with the plan's prompt. Retry once then fallback."""
+    model = beat["model"]
+    if model in BANNED_MODELS:
+        raise RuntimeError(f"{beat['beat_id']}: banned model {model!r} in media plan")
+    prompt = beat["positive_prompt"]
+    negative = beat.get("negative_prompt", "")
+    duration = max(1, int(round(beat.get("duration_target_sec", 5))))
+    refs = beat.get("reference_images") or []
+    ref_image = refs[0] if refs else None
+    lipsync = beat.get("lipsync_required") and beat.get("shot_type") == "hero_lipsync"
+
+    if dry_run:
+        return {"beat_id": beat["beat_id"], "model": model,
+                "cost_usd": beat.get("cost", {}).get("est_usd", 0.0),
+                "duration": duration, "ref": ref_image, "lipsync": bool(lipsync),
+                "action": "generate"}
+
+    cmd = ["node", str(HF_BIN), "generate", "create", model, "--prompt", prompt]
+    if negative:
+        cmd += ["--negative-prompt", negative]
+    cmd += ["--duration", str(duration)]
+
+    if ref_image and (ROOT / ref_image).exists():
+        r = subprocess.run(["node", str(HF_BIN), "upload", "create", str(ROOT / ref_image), "--json"],
+                           capture_output=True, text=True)
+        try:
+            uid = json.loads(r.stdout).get("id")
+            if uid:
+                cmd += ["--image", uid]
+        except json.JSONDecodeError:
+            pass
+    elif lipsync:
+        raise RuntimeError(f"{beat['beat_id']}: hero_lipsync requires a reference image")
+
+    if lipsync:
+        if not audio_path or not Path(audio_path).exists():
+            raise RuntimeError(f"{beat['beat_id']}: hero_lipsync requires a narration audio slice")
+        cmd += ["--audio", str(audio_path)]
+
+    cmd += ["--wait", "--wait-timeout", WAIT_TIMEOUT, "--wait-interval", WAIT_INTERVAL, "--json"]
+    result = hf_cmd(cmd[2:])
+    if isinstance(result, list):
+        result = result[0] if result else {}
+    url = (result.get("result_url") or result.get("output_url")
+           or next(iter(result.get("outputs") or result.get("output_urls") or []), None))
+    if not url:
+        raise RuntimeError(f"{beat['beat_id']}: no result_url: {json.dumps(result)[:200]}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    import urllib.request
+    raw = out_path.parent / f".raw_{out_path.name}"
+    urllib.request.urlretrieve(url, str(raw))
+    # Strip audio unless this is a lipsync beat (keep_lipsync).
+    if not lipsync:
+        subprocess.run(["ffmpeg", "-y", "-i", str(raw), "-an", "-c:v", "copy", str(out_path)],
+                       capture_output=True)
+        raw.unlink(missing_ok=True)
+    else:
+        import shutil
+        shutil.move(str(raw), str(out_path))
+    info = probe_video(out_path)
+    return {"beat_id": beat["beat_id"], "media_path": str(out_path), "model": model,
+            "duration": round(info["duration"], 2) if info else duration,
+            "cost_usd": beat.get("cost", {}).get("est_usd", 0.0),
+            "lipsync": bool(lipsync)}
+
+
+def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=False):
+    """PRIMARY generation path (blueprint §10 #2): media_plan.json is the ONLY
+    prompt source. Generates per-beat, with hero lipsync, still_kenburns, reuse
+    lookup, provenance, and a dry-run report. Local-graphic beats are skipped
+    here (rendered by graphics.py / T10)."""
+    plan_path = Path(plan_path).resolve()
+    plan = json.loads(plan_path.read_text())
+    project_id = plan["project_id"]
+    project_dir = ROOT / "Videos" / "Projects" / project_id
+    out_base = ROOT / "assets" / "media" / project_id / "shots"
+
+    # HARD SPEND GATE before any Higgsfield call (§10 #1).
+    if not dry_run and not force_unsafe:
+        require_gates(project_id, SPEND_GATES)
+    elif not dry_run and force_unsafe:
+        sys.stderr.write(f"\033[31m⚠ FORCE-UNSAFE: bypassing spend gates for {project_id}.\033[0m\n")
+
+    if not dry_run:
+        available, msg = check_hf_available()
+        if not available:
+            raise RuntimeError(f"BLOCKED: {msg}")
+
+    index = _load_library_index()
+    reuse_counts = {}
+    report_beats = []
+    total_cost = 0.0
+    generated = reused = local_skipped = 0
+
+    LOCAL = {"graphic_progressive", "graphic_title_card", "kinetic_text", "ui_insert"}
+
+    for beat in plan["beats"]:
+        bid = beat["beat_id"]
+        shot_type = beat["shot_type"]
+        out_path = out_base / f"{bid}.mp4"
+
+        # Local graphics are not Higgsfield work — handled by graphics.py (T10).
+        if shot_type in LOCAL or beat["model"] == "local_graphic":
+            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": "local_graphic",
+                                 "clips": 0, "cost_usd": 0.0, "reuse": False, "action": "local_graphic"})
+            local_skipped += 1
+            continue
+
+        # Reuse lookup (≤2× per video).
+        reused_path = _library_lookup(beat, index)
+        if reused_path and reuse_counts.get(reused_path, 0) < 2:
+            reuse_counts[reused_path] = reuse_counts.get(reused_path, 0) + 1
+            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                                 "clips": 0, "cost_usd": 0.0, "reuse": True,
+                                 "reused_asset": reused_path, "action": "reuse"})
+            reused += 1
+            continue
+
+        # Existing on-disk clip (skip unless --force).
+        if out_path.exists() and not force and not dry_run:
+            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                                 "clips": 1, "cost_usd": 0.0, "reuse": True, "action": "exists"})
+            reused += 1
+            continue
+
+        cost = beat.get("cost", {}).get("est_usd", 0.0)
+        total_cost += cost
+        report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                             "clips": beat.get("cost", {}).get("est_clips", 1),
+                             "cost_usd": cost, "reuse": False,
+                             "ref": (beat.get("reference_images") or [None])[0],
+                             "lipsync": bool(beat.get("lipsync_required")),
+                             "action": "generate"})
+
+        if dry_run:
+            generated += 1
+            continue
+
+        # Resolve narration audio slice for lipsync beats.
+        audio_path = None
+        if beat.get("lipsync_required") and beat.get("audio_slice"):
+            sl = beat["audio_slice"]
+            src = project_dir / sl.get("file", "")
+            if src.exists():
+                audio_path = project_dir / "narration" / f"_slice_{bid}.mp3"
+                audio_path.parent.mkdir(parents=True, exist_ok=True)
+                subprocess.run(["ffmpeg", "-y", "-i", str(src), "-ss", str(sl["start_sec"]),
+                                "-to", str(sl["end_sec"]), "-c", "copy", str(audio_path)],
+                               capture_output=True)
+
+        # Generate with retry-once-then-fallback (§2 S6 / G8).
+        try:
+            if shot_type == "still_kenburns":
+                res = _still_kenburns(beat, out_path)
+            else:
+                try:
+                    res = _generate_beat_clip(beat, out_path, audio_path=audio_path)
+                except RuntimeError as e:
+                    print(f"  [{bid}] generation failed ({e}); retrying once…", file=sys.stderr)
+                    time.sleep(30)
+                    try:
+                        res = _generate_beat_clip(beat, out_path, audio_path=audio_path)
+                    except RuntimeError:
+                        fb = beat.get("fallback", {}).get("on_generation_fail", "still_kenburns")
+                        print(f"  [{bid}] retry failed; falling back to {fb}", file=sys.stderr)
+                        res = _still_kenburns(beat, out_path)
+            _record_beat_provenance(project_dir, beat, res, audio_path)
+            generated += 1
+            print(f"  [{bid}] {shot_type} → {res.get('model')} (${cost:.2f})")
+        except RuntimeError as e:
+            print(f"  [{bid}] FATAL: {e}", file=sys.stderr)
+            raise
+
+    summary = {
+        "project_id": project_id, "media_plan": str(plan_path),
+        "generated_at": datetime_now(),
+        "beats_total": len(plan["beats"]),
+        "beats_generated": generated, "beats_reused": reused,
+        "beats_local_graphic": local_skipped,
+        "est_spend_usd": round(total_cost, 2),
+        "beats": report_beats,
+    }
+
+    if dry_run:
+        report_path = project_dir / "dryrun_report.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(summary, indent=2))
+        print(f"DRY RUN: {generated} beats to generate, {reused} reused, "
+              f"{local_skipped} local — est ${round(total_cost,2)} (ZERO API calls)")
+        print(f"  report: {report_path}")
+    else:
+        print(f"\n  generated {generated}, reused {reused}, local {local_skipped} — "
+              f"spent ~${round(total_cost,2)}")
+    return summary
+
+
+def datetime_now():
+    import datetime as _dt
+    return _dt.datetime.now().isoformat(timespec="seconds")
+
+
+def _record_beat_provenance(project_dir, beat, res, audio_path):
+    log_path = project_dir / "media_generation_log.json"
+    log = json.loads(log_path.read_text()) if log_path.exists() else {"beats": {}}
+    log.setdefault("beats", {})
+    entry = {
+        "beat_id": beat["beat_id"], "shot_type": beat["shot_type"],
+        "model": res.get("model"), "media_path": res.get("media_path"),
+        "duration": res.get("duration"), "generated_at": datetime_now(),
+        "lipsync": bool(beat.get("lipsync_required")),
+    }
+    if audio_path and Path(audio_path).exists():
+        entry["audio_source_sha256"] = file_sha256(audio_path)
+        entry["audio_source_path"] = str(audio_path)
+    log["beats"][beat["beat_id"]] = entry
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(json.dumps(log, indent=2))
+
+
 def run(script_path, dry_run=False, force=False, validate_only=False,
         do_assemble=False, selected_segments=None, allow_text_surfaces=False,
         force_unsafe=False):
@@ -875,16 +1159,17 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
 
         # --- Segment-level path (backward compatible, no shots[]) ---
         # Model selection: explicit segment model > shot_router > route_model fallback
+        seg_shot_type = seg.get("shot_type")
         explicit_model = seg.get("model")
         if explicit_model and explicit_model not in BANNED_MODELS:
             seg_model = explicit_model
-        elif shot_type and not model:
+        elif seg_shot_type and not model:
             try:
                 import sys as _sys
                 _sys.path.insert(0, str(ROOT / "scripts"))
                 from shot_router import ShotRouter
                 _router = ShotRouter()
-                seg_model, _, _ = _router.resolve(shot_type, allow_alternate=True)
+                seg_model, _, _ = _router.resolve(seg_shot_type, allow_alternate=True)
             except Exception:
                 seg_model = route_model(seg, mode)
         else:
@@ -1053,8 +1338,8 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Generate video clips from visual briefs via Higgsfield.")
-    ap.add_argument("script", help="Path to script JSON with visual_brief per segment")
+    ap = argparse.ArgumentParser(description="Generate video clips from a media plan (or legacy script) via Higgsfield.")
+    ap.add_argument("input", help="Path to media_plan.json (preferred) or legacy script JSON")
     ap.add_argument("--validate-only", action="store_true", help="Check schema and existing media")
     ap.add_argument("--dry-run", action="store_true", help="Print prompts/paths, no API calls")
     ap.add_argument("--force", action="store_true", help="Regenerate all media (overwrite existing)")
@@ -1080,11 +1365,27 @@ def main():
         selected |= {s.strip() for s in args.segments_csv.split(",")}
     selected = selected or None
 
-    script_path = Path(args.script).resolve()
-    if not script_path.exists():
-        print(f"ERROR: script not found: {script_path}", file=sys.stderr)
+    input_path = Path(args.input).resolve()
+    if not input_path.exists():
+        print(f"ERROR: input not found: {input_path}", file=sys.stderr)
         sys.exit(1)
-    script = json.load(open(script_path))
+    doc = json.load(open(input_path))
+
+    # PRIMARY PATH (blueprint §10 #2): media_plan.json is the sole prompt source.
+    is_media_plan = isinstance(doc, dict) and "beats" in doc and \
+        str(doc.get("schema_version", "")).startswith("media_plan")
+    if is_media_plan:
+        try:
+            run_from_media_plan(input_path, dry_run=args.dry_run, force=args.force,
+                                force_unsafe=args.force_unsafe)
+        except (ValueError, RuntimeError) as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    # LEGACY script path (visual_brief). Hard-deprecated as a generation source.
+    script = doc
+    script_path = input_path
     base = script_path.parent
 
     try:
@@ -1112,7 +1413,20 @@ def main():
             media_review(script, base, selected)
             return
 
-        run(args.script, dry_run=args.dry_run, force=args.force,
+        # Reporting / validation on the legacy script is allowed (no spend).
+        # Actual generation from a raw script visual_brief is FORBIDDEN
+        # (constraints.json automatic_fail: media_prompt_from_raw_visual_brief_after_m5_m8).
+        if not (args.validate_only or args.dry_run) and not args.force_unsafe:
+            print("ERROR: generating from a raw script visual_brief is deprecated and forbidden.\n"
+                  "  Route it first:  storyboard.py → review_storyboard.py → compile_media_prompts.py\n"
+                  "  then run generate_media.py on the resulting media_plan.json.\n"
+                  "  (Emergency override: --force-unsafe, logged.)", file=sys.stderr)
+            sys.exit(1)
+        if args.force_unsafe and not (args.validate_only or args.dry_run):
+            sys.stderr.write("\033[31m⚠ FORCE-UNSAFE: generating from raw script visual_brief "
+                             "(deprecated path).\033[0m\n")
+
+        run(args.input, dry_run=args.dry_run, force=args.force,
             validate_only=args.validate_only, do_assemble=args.assemble,
             selected_segments=selected, allow_text_surfaces=args.allow_text_surfaces,
             force_unsafe=args.force_unsafe)

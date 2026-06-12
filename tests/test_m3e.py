@@ -115,7 +115,10 @@ def test_text_shot_blocks_by_default():
     tmp.write_text(json.dumps(s))
     try:
         try:
-            gm.run(str(tmp), dry_run=False, force=True, selected_segments={"004_system"})
+            # force_unsafe bypasses the spend-gate guard so this test exercises the
+            # text-surface block specifically (the gate guard is tested in test_gates.py).
+            gm.run(str(tmp), dry_run=False, force=True, selected_segments={"004_system"},
+                   force_unsafe=True)
             assert False, "should block text-surface shot"
         except RuntimeError as e:
             assert "text-bearing" in str(e) or "BLOCKED" in str(e)
