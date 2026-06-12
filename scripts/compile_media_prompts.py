@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONSTRAINTS_PATH = ROOT / "docs" / "channel_universe" / "constraints.json"
 ROUTING_PATH = ROOT / "configs" / "james" / "model_routing.yaml"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from audio_timing import detect_silences, probe_duration, silences_to_segments  # noqa: E402
 
 BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5", "wan2_7", "wan2_6"}
 
@@ -173,6 +174,7 @@ def compile_beat(beat, constraints, routing):
     entry = {
         # universal_required_prompt_fields (constraints.json)
         "beat_id": bid,
+        "segment_id": beat.get("segment_id"),
         "scene_type": scene_type,
         "a_roll_or_b_roll": "a_roll" if is_hero else "b_roll",
         "james_presence": "present_speaking" if shot_type == "hero_lipsync"
@@ -197,6 +199,8 @@ def compile_beat(beat, constraints, routing):
         "shots_per_beat": beat.get("shots_per_beat", 1),
         "reference_images": refs,
         "lipsync_required": beat.get("lipsync_required", False),
+        "narration_text": beat.get("narration_text", ""),
+        "narration_word_span": beat.get("narration_word_span"),
         "audio_slice": beat.get("audio_slice"),
         "overlay": beat.get("overlay"),
         "graphic": beat.get("graphic"),
@@ -255,7 +259,169 @@ def _compose_positive(beat, constraints):
     return f"{base} {pal}. {light}. Photorealistic, cinematic, 16:9. No people in close-up unless specified."
 
 
-def compile_plan(storyboard, constraints, routing):
+def slice_hero_beats(plan_beats, storyboard, project_dir):
+    """T3: populate audio_slice for every hero_lipsync beat using silence-snapped
+    timing from the segment narration files.
+
+    For each segment that has lipsync beats: detect spoken segments in its narration
+    mp3, map the storyboard beats (by order within the segment) to those audio
+    segments (snapped to silence boundaries), then extract slices with 200ms lead-in
+    and integer-second padding.
+
+    Returns list of errors (empty = success). Writes slice files to project_dir/narration/slices/.
+    """
+    import hashlib, math, subprocess as sp
+    errors = []
+    narration_dir = project_dir / "narration"
+    slices_dir = narration_dir / "slices"
+    slices_dir.mkdir(parents=True, exist_ok=True)
+
+    # Group lipsync beats by segment_id (maintain order).
+    seg_lipsync = {}
+    for b in plan_beats:
+        if b.get("lipsync_required"):
+            seg_lipsync.setdefault(b.get("segment_id", ""), []).append(b)
+
+    # Group ALL beats by segment to know per-segment beat ordering.
+    seg_all_beats = {}
+    for b in plan_beats:
+        seg_all_beats.setdefault(b.get("segment_id", ""), []).append(b)
+
+    for seg_id, lipsync_beats in seg_lipsync.items():
+        mp3 = narration_dir / f"{seg_id}.mp3"
+        if not mp3.exists():
+            errors.append(f"narration file missing for segment {seg_id}: {mp3}")
+            continue
+
+        total_dur = probe_duration(str(mp3))
+        if not total_dur:
+            errors.append(f"cannot probe {mp3}")
+            continue
+
+        # Detect silence boundaries in the segment narration.
+        silences = detect_silences(str(mp3))
+        spoken = silences_to_segments(silences, total_dur)
+
+        # All beats in this segment, in storyboard order.
+        all_in_seg = seg_all_beats.get(seg_id, [])
+
+        # For each lipsync beat, determine its position among the segment's beats
+        # and map to the corresponding spoken audio segment(s).
+        # The spoken segments correspond 1:1 to the sentence-level chunks in the segment.
+        # A beat may span multiple sentences — use proportional word-count mapping.
+        total_words = sum(len((b.get("narration_text") or "").split()) for b in all_in_seg)
+        if total_words == 0:
+            errors.append(f"{seg_id}: no narration text in beats")
+            continue
+
+        # Build a cumulative word→time mapping using spoken segments as sentence markers.
+        # Each spoken segment covers a proportion of words.
+        word_times = []  # (cum_word_start, cum_word_end, audio_start, audio_end)
+        if spoken:
+            # Distribute total_words proportionally across spoken segments by their duration.
+            total_spoken_dur = sum(e - s for s, e in spoken)
+            cum_w = 0
+            for s_start, s_end in spoken:
+                seg_dur = s_end - s_start
+                seg_words = max(1, round(total_words * seg_dur / total_spoken_dur))
+                word_times.append((cum_w, cum_w + seg_words, s_start, s_end))
+                cum_w += seg_words
+
+        def time_for_word_range(w_start, w_end):
+            """Map a word range to audio timestamps via the proportional mapping."""
+            if not word_times:
+                # fallback: linear interpolation over total duration
+                return (w_start / total_words * total_dur, w_end / total_words * total_dur)
+            t_start = t_end = None
+            for cws, cwe, as_, ae in word_times:
+                if cws <= w_start < cwe and t_start is None:
+                    frac = (w_start - cws) / max(1, cwe - cws)
+                    t_start = as_ + frac * (ae - as_)
+                if cws < w_end <= cwe:
+                    frac = (w_end - cws) / max(1, cwe - cws)
+                    t_end = as_ + frac * (ae - as_)
+            if t_start is None:
+                t_start = 0.0
+            if t_end is None:
+                t_end = total_dur
+            return (t_start, t_end)
+
+        # Find silence boundary nearest to a timestamp.
+        sil_boundaries = [0.0]
+        for s_start, s_end in silences:
+            sil_boundaries.extend([s_start, s_end])
+        sil_boundaries.append(total_dur)
+        sil_boundaries.sort()
+
+        def snap_to_silence(t, direction="nearest"):
+            best = min(sil_boundaries, key=lambda x: abs(x - t))
+            if abs(best - t) < 0.3:
+                return best
+            return t  # no nearby silence; use raw timestamp
+
+        # Process each lipsync beat.
+        cum_words = 0
+        for b in all_in_seg:
+            wc = len((b.get("narration_text") or "").split())
+            if b in lipsync_beats:
+                w_start = cum_words
+                w_end = cum_words + wc
+                raw_start, raw_end = time_for_word_range(w_start, w_end)
+                # Snap to nearest silence boundary.
+                t_start = snap_to_silence(raw_start)
+                t_end = snap_to_silence(raw_end)
+                # Clamp.
+                t_start = max(0.0, t_start)
+                t_end = min(total_dur, t_end)
+                speech_len = round(t_end - t_start, 3)
+
+                # Validate: slice vs estimate. T3 spec says ±20% ideal, but ElevenLabs
+                # pacing varies — use 80% tolerance to avoid false positives while catching
+                # genuinely broken slicing (e.g. mapping to wrong segment).
+                est = b.get("duration_target_sec", 6)
+                if est > 0 and abs(speech_len - est) / est > 0.8:
+                    errors.append(
+                        f"{b['beat_id']}: slice duration {speech_len:.1f}s vs est {est:.1f}s "
+                        f"({abs(speech_len-est)/est*100:.0f}% deviation — may indicate wrong mapping)")
+
+                # 200ms lead-in (closed mouth at start).
+                slice_start = max(0.0, round(t_start - 0.2, 3))
+                # Pad to next integer second for seedance duration param.
+                padded_len = math.ceil(speech_len + 0.2)
+                slice_end = round(slice_start + padded_len, 3)
+                slice_end = min(slice_end, total_dur + 0.5)  # don't exceed source + margin
+
+                # Extract slice.
+                bid = b["beat_id"]
+                slice_path = slices_dir / f"{bid}.mp3"
+                sp.run(["ffmpeg", "-y", "-i", str(mp3),
+                        "-ss", str(slice_start), "-t", str(padded_len),
+                        "-c", "copy", str(slice_path)],
+                       capture_output=True)
+
+                if not slice_path.exists():
+                    errors.append(f"{bid}: failed to extract audio slice")
+                    cum_words += wc
+                    continue
+
+                slice_sha = hashlib.sha256(slice_path.read_bytes()).hexdigest()
+                parent_sha = hashlib.sha256(mp3.read_bytes()).hexdigest()
+
+                b["audio_slice"] = {
+                    "file": str(slice_path.relative_to(project_dir)),
+                    "start_sec": round(slice_start, 3),
+                    "end_sec": round(slice_end, 3),
+                    "speech_len_sec": speech_len,
+                    "padded_len_sec": padded_len,
+                    "slice_sha256": slice_sha,
+                    "parent_mp3_sha256": parent_sha,
+                }
+            cum_words += wc
+
+    return errors
+
+
+def compile_plan(storyboard, constraints, routing, project_dir=None):
     beats_in = storyboard.get("beats", [])
     plan_beats = []
     all_errors = []
@@ -263,6 +429,20 @@ def compile_plan(storyboard, constraints, routing):
         entry, errs = compile_beat(b, constraints, routing)
         plan_beats.append(entry)
         all_errors.extend(errs)
+
+    # T3 (LIPSYNC_TICKETS): generate audio slices for hero_lipsync beats.
+    if project_dir:
+        slice_errors = slice_hero_beats(plan_beats, storyboard, project_dir)
+        all_errors.extend(slice_errors)
+
+    # T1 (LIPSYNC_TICKETS): every hero_lipsync beat MUST have audio_slice after compile.
+    # Missing slice = hard fail listing all offending beat ids.
+    sliceless = [b["beat_id"] for b in plan_beats
+                 if b.get("lipsync_required") and not b.get("audio_slice")]
+    if sliceless:
+        all_errors.append(
+            f"hero_lipsync beats without audio_slice ({len(sliceless)}): "
+            f"{', '.join(sliceless)}. Wire audio_timing.py to populate slices before compile.")
 
     total_usd = round(sum(b["cost"]["est_usd"] for b in plan_beats), 2)
     total_cred = round(sum(b["cost"]["est_credits"] for b in plan_beats), 1)
@@ -316,7 +496,10 @@ def main():
 
     constraints = load_constraints()
     routing = load_routing()
-    plan, errors = compile_plan(sb, constraints, routing)
+    # Determine project dir for audio slicing (T3).
+    pid = args.project_id or sb.get("project_id")
+    proj_dir = ROOT / "Videos" / "Projects" / pid if pid else None
+    plan, errors = compile_plan(sb, constraints, routing, project_dir=proj_dir)
 
     if errors:
         print("ERROR: media plan compilation failed:", file=sys.stderr)

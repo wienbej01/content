@@ -818,6 +818,11 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
         raise RuntimeError(f"{beat['beat_id']}: banned model {model!r} in media plan")
     prompt = beat["positive_prompt"]
     negative = beat.get("negative_prompt", "")
+    # The Higgsfield CLI has NO --negative-prompt param (kling3_0/seedance_2_0 accept
+    # only prompt/duration/medias/mode/aspect_ratio/sound). Fold the negative
+    # constraints into the positive prompt as an "Avoid:" clause, like the legacy path.
+    if negative:
+        prompt = f"{prompt} Avoid: {negative}"
     duration = max(1, int(round(beat.get("duration_target_sec", 5))))
     refs = beat.get("reference_images") or []
     ref_image = refs[0] if refs else None
@@ -830,8 +835,6 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
                 "action": "generate"}
 
     cmd = ["node", str(HF_BIN), "generate", "create", model, "--prompt", prompt]
-    if negative:
-        cmd += ["--negative-prompt", negative]
     cmd += ["--duration", str(duration)]
 
     if ref_image and (ROOT / ref_image).exists():
@@ -846,9 +849,12 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
     elif lipsync:
         raise RuntimeError(f"{beat['beat_id']}: hero_lipsync requires a reference image")
 
+    # T1 (LIPSYNC_TICKETS): hero_lipsync MUST have audio_path — no degradation.
     if lipsync:
         if not audio_path or not Path(audio_path).exists():
-            raise RuntimeError(f"{beat['beat_id']}: hero_lipsync requires a narration audio slice")
+            raise RuntimeError(
+                f"{beat['beat_id']}: hero_lipsync requires a narration audio slice "
+                f"(audio_path={audio_path!r}). Compile with audio_timing wired (T3).")
         cmd += ["--audio", str(audio_path)]
 
     cmd += ["--wait", "--wait-timeout", WAIT_TIMEOUT, "--wait-interval", WAIT_INTERVAL, "--json"]
@@ -863,7 +869,7 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
     import urllib.request
     raw = out_path.parent / f".raw_{out_path.name}"
     urllib.request.urlretrieve(url, str(raw))
-    # Strip audio unless this is a lipsync beat (keep_lipsync).
+    # Keep embedded audio only for a TRUE lipsync render; otherwise strip.
     if not lipsync:
         subprocess.run(["ffmpeg", "-y", "-i", str(raw), "-an", "-c:v", "copy", str(out_path)],
                        capture_output=True)
@@ -952,15 +958,25 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
 
         # Resolve narration audio slice for lipsync beats.
         audio_path = None
-        if beat.get("lipsync_required") and beat.get("audio_slice"):
-            sl = beat["audio_slice"]
-            src = project_dir / sl.get("file", "")
-            if src.exists():
-                audio_path = project_dir / "narration" / f"_slice_{bid}.mp3"
-                audio_path.parent.mkdir(parents=True, exist_ok=True)
-                subprocess.run(["ffmpeg", "-y", "-i", str(src), "-ss", str(sl["start_sec"]),
-                                "-to", str(sl["end_sec"]), "-c", "copy", str(audio_path)],
-                               capture_output=True)
+        if beat.get("lipsync_required"):
+            sl = beat.get("audio_slice")
+            if sl:
+                src = project_dir / sl.get("file", "")
+                if src.exists():
+                    audio_path = project_dir / "narration" / "slices" / f"{bid}.mp3"
+                    audio_path.parent.mkdir(parents=True, exist_ok=True)
+                    subprocess.run(["ffmpeg", "-y", "-i", str(src), "-ss", str(sl["start_sec"]),
+                                    "-to", str(sl["end_sec"]), "-c", "copy", str(audio_path)],
+                                   capture_output=True)
+                else:
+                    raise RuntimeError(
+                        f"{bid}: audio_slice references {sl.get('file')} but file missing. "
+                        "Re-compile the media plan with audio_timing wired (T3).")
+            else:
+                # T1: hard-fail, no degradation. Compile must populate audio_slice.
+                raise RuntimeError(
+                    f"{bid}: hero_lipsync beat has no audio_slice in the media plan. "
+                    "Re-compile with scripts/compile_media_prompts.py (T3 wires audio_timing).")
 
         # Generate with retry-once-then-fallback (§2 S6 / G8).
         try:

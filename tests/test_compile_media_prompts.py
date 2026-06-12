@@ -35,23 +35,28 @@ def sb():
     return S.route(json.loads(FLAGSHIP.read_text()), S.load_constraints())
 
 
-def test_compiles_clean(C, sb):
-    plan, errors = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+@pytest.fixture(scope="module")
+def project_dir():
+    return ROOT / "Videos" / "Projects" / "flagship_001_learn_half_time"
+
+
+def test_compiles_clean(C, sb, project_dir):
+    plan, errors = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     assert errors == [], f"expected clean compile; got {errors[:5]}"
     assert len(plan["beats"]) == len(sb["beats"])
     print(f"  ✓ flagship 001 storyboard compiles cleanly ({len(plan['beats'])} beats)")
 
 
-def test_all_universal_fields_present(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_all_universal_fields_present(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         for f in UNIVERSAL_FIELDS:
             assert f in b, f"{b.get('beat_id')} missing universal field {f}"
     print("  ✓ every beat has all universal_required_prompt_fields")
 
 
-def test_per_beat_cost_present(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_per_beat_cost_present(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         assert "cost" in b and "est_usd" in b["cost"]
     assert plan["totals"]["est_usd"] > 0
@@ -77,16 +82,16 @@ def test_vague_prompt_fails(C, sb):
     print("  ✓ vague/generic prompt fails the lint")
 
 
-def test_hero_shot_gets_reference(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_hero_shot_gets_reference(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         if b["shot_type"] in ("hero_lipsync", "hero_cutaway"):
             assert b["reference_images"], f"{b['beat_id']} hero shot missing reference"
     print("  ✓ hero shots carry a reference image")
 
 
-def test_local_graphics_zero_cost(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_local_graphics_zero_cost(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         if b["shot_type"] in ("graphic_progressive", "graphic_title_card", "kinetic_text", "ui_insert"):
             assert b["cost"]["est_usd"] == 0.0
@@ -94,8 +99,8 @@ def test_local_graphics_zero_cost(C, sb):
     print("  ✓ local graphics route to local_graphic at $0")
 
 
-def test_lipsync_audio_policy(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_lipsync_audio_policy(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         if b["shot_type"] == "hero_lipsync":
             assert b["audio_policy"] == "keep_lipsync"
@@ -104,17 +109,17 @@ def test_lipsync_audio_policy(C, sb):
     print("  ✓ audio policy correct (lipsync keeps, generated strips)")
 
 
-def test_min_zero_cost_share(C, sb):
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+def test_min_zero_cost_share(C, sb, project_dir):
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     assert plan["totals"]["pct_zero_cost_beats"] >= 15, plan["totals"]["pct_zero_cost_beats"]
     print(f"  ✓ {plan['totals']['pct_zero_cost_beats']}% of beats on $0 paths (≥15%)")
 
 
-def test_no_segment_visual_brief_as_prompt(C, sb):
+def test_no_segment_visual_brief_as_prompt(C, sb, project_dir):
     """media_plan positive prompts must not be raw segment briefs (§10 #2)."""
     script = json.loads(FLAGSHIP.read_text())
     seg_briefs = {s.get("visual_brief", "")[:50] for s in script["segments"]}
-    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing())
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         assert b["positive_prompt"][:50] not in seg_briefs
     print("  ✓ no positive_prompt is a raw segment visual_brief")
