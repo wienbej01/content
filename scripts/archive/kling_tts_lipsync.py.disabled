@@ -1,0 +1,262 @@
+# ARCHIVED by ENG-03 (2026-06-12). Wrong-voice path — bakes Kling-native TTS, not ElevenLabs.
+"""
+kling_tts_lipsync.py — Generate all flagship segments via Kling API direct, using
+James' locked custom voice (no ElevenLabs, no Higgsfield CLI).
+
+Pipeline:
+  script JSON  →  Kling /v1/videos/image-to-video (audio.voice_id + audio.text)
+               →  MP4 files in assets/media/<video_id>/
+               →  feeds existing assemble.py manifest unchanged
+
+Auth: add to ~/.config/ytchannel/runtime.env:
+  KLING_API_KEY=<your Kling developer API key>
+
+Get the key:
+  1. Log in at https://kling.ai (or https://home.kling.ai/document-api)
+  2. Go to API / Developer settings → Create API Key
+  3. Copy the JWT key and paste above
+
+Usage:
+  python3.13 scripts/kling_tts_lipsync.py scripts/generated/flagship_001_learn_half_time.json
+  python3.13 scripts/kling_tts_lipsync.py scripts/generated/flagship_001_learn_half_time.json --dry-run
+  python3.13 scripts/kling_tts_lipsync.py scripts/generated/flagship_001_learn_half_time.json --segment 001_hook
+  python3.13 scripts/kling_tts_lipsync.py scripts/generated/flagship_001_learn_half_time.json --voice-check
+"""
+from __future__ import annotations
+import argparse, json, os, sys, time, urllib.request, urllib.error
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+RUNTIME_ENV = Path.home() / ".config" / "ytchannel" / "runtime.env"
+
+KLING_BASE = "https://api-singapore.klingai.com/v1"
+JAMES_IMAGE_URL = (
+    "https://d2ol7oe51mr4n9.cloudfront.net/"
+    "user_3EpqIaVkgD52eRLksZZtucV3fYq/"
+    "b259a664-2eaf-4f6c-a388-767bb3a08b7f.png"
+)
+TARGET_VOICE_NAME = "James"
+CHUNK_WORDS = 22          # ~10s at 130 WPM; Kling max duration is 10s
+POLL_INTERVAL = 15        # seconds between status checks
+MAX_POLLS = 60            # 15m timeout per clip
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def load_env() -> None:
+    if not RUNTIME_ENV.exists():
+        return
+    for line in RUNTIME_ENV.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k, v = k.strip(), v.strip().strip('"').strip("'")
+        if k and k not in os.environ:
+            os.environ[k] = v
+
+
+def api_key() -> str:
+    load_env()
+    key = os.environ.get("KLING_API_KEY", "")
+    if not key:
+        sys.exit(
+            "Error: KLING_API_KEY not set.\n"
+            "Add it to ~/.config/ytchannel/runtime.env:\n"
+            "  KLING_API_KEY=<your Kling developer JWT>\n"
+            "Get it at: https://kling.ai → API / Developer settings → Create API Key"
+        )
+    return key
+
+
+def _request(method: str, path: str, body: dict | None = None) -> dict:
+    url = f"{KLING_BASE}{path}"
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(
+        url, data=data, method=method,
+        headers={
+            "Authorization": f"Bearer {api_key()}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Kling API {method} {path} → {e.code}: {e.read().decode()}")
+
+
+def get_voice_id(name: str = TARGET_VOICE_NAME) -> str:
+    data = _request("GET", "/general/custom-voices").get("data", [])
+    for v in data:
+        if v.get("voice_name") == name:
+            return v["id"]
+    available = [v.get("voice_name") for v in data]
+    raise RuntimeError(
+        f"Voice '{name}' not found. Available: {available}\n"
+        f"Create it at: Higgsfield Audio Studio → Voice Preset → Create Your Custom Voice"
+    )
+
+
+def chunk_text(text: str, max_words: int = CHUNK_WORDS) -> list[str]:
+    """Split text into ≤max_words chunks at sentence boundaries where possible."""
+    words = text.split()
+    if len(words) <= max_words:
+        return [text]
+    # try to split at sentence endings
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks, current, count = [], [], 0
+    for s in sentences:
+        sw = len(s.split())
+        if count + sw > max_words and current:
+            chunks.append(" ".join(current))
+            current, count = [], 0
+        current.append(s)
+        count += sw
+    if current:
+        chunks.append(" ".join(current))
+    return chunks
+
+
+def submit_job(voice_id: str, text: str, duration: int = 10) -> str:
+    payload = {
+        "model": "kling-v3.0",
+        "image_url": JAMES_IMAGE_URL,
+        "prompt": (
+            "James Harrington, composed British man in his early sixties, silver-grey hair, "
+            "navy sweater, warm book-lined study. Looking directly at camera, natural subtle "
+            "lip movement synced to speech. Cinematic, shallow depth of field."
+        ),
+        "audio": {
+            "enabled": True,
+            "text": text,
+            "voice_id": voice_id,
+            "prompt_creativity": 0.3,
+        },
+        "duration": duration,
+        "aspect_ratio": "16:9",
+    }
+    resp = _request("POST", "/videos/image-to-video", payload)
+    task_id = resp.get("data", {}).get("task_id")
+    if not task_id:
+        raise RuntimeError(f"No task_id in response: {resp}")
+    return task_id
+
+
+def poll_job(task_id: str) -> str:
+    """Poll until complete. Returns the video URL."""
+    for i in range(MAX_POLLS):
+        time.sleep(POLL_INTERVAL)
+        data = _request("GET", f"/videos/tasks/{task_id}").get("data", {})
+        status = data.get("task_status")
+        if status == "succeed":
+            url = data.get("task_result", {}).get("videos", [{}])[0].get("url") or \
+                  data.get("video_result_url", "")
+            if not url:
+                raise RuntimeError(f"Task succeeded but no video URL: {data}")
+            return url
+        if status == "failed":
+            raise RuntimeError(f"Task failed: {data.get('task_status_msg')}")
+        print(f"    [{i+1}/{MAX_POLLS}] status={status}…")
+    raise RuntimeError(f"Timeout polling task {task_id}")
+
+
+def download(url: str, dest: Path) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(url, headers={"User-Agent": "ytchannel/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        dest.write_bytes(r.read())
+
+
+def concat_clips(clips: list[Path], out: Path) -> None:
+    """Concatenate MP4 chunks with ffmpeg."""
+    import subprocess
+    lst = out.with_suffix(".concat.txt")
+    lst.write_text("\n".join(f"file '{c.resolve()}'" for c in clips))
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+         "-c", "copy", str(out)],
+        check=True, capture_output=True,
+    )
+    lst.unlink()
+    for c in clips:
+        c.unlink()
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+def run(script_path: str, segment_filter: str | None = None, dry_run: bool = False,
+        voice_check: bool = False) -> None:
+    script = json.loads(Path(script_path).read_text())
+    video_id = script.get("id") or script.get("project_id") or Path(script_path).stem
+    segments = script["segments"]
+    media_dir = ROOT / "assets" / "media" / video_id
+
+    if voice_check or dry_run:
+        print(f"Fetching James voice ID from Kling API…")
+        voice_id = get_voice_id()
+        print(f"✓ James voice_id = {voice_id}")
+        if voice_check:
+            return
+
+    print(f"Loading voice…")
+    voice_id = get_voice_id()
+    print(f"✓ James = {voice_id}")
+
+    for seg in segments:
+        seg_id = seg["id"]
+        if segment_filter and seg_id != segment_filter:
+            continue
+
+        text = seg.get("text", "").strip()
+        if not text:
+            print(f"  [{seg_id}] SKIP: no text")
+            continue
+
+        out_path = media_dir / f"{seg_id}.mp4"
+        if out_path.exists():
+            print(f"  [{seg_id}] already exists — skip (delete to regenerate)")
+            continue
+
+        chunks = chunk_text(text)
+        duration = 10 if len(text.split()) > 11 else 5
+        print(f"  [{seg_id}] {len(chunks)} chunk(s), ~{len(text.split())} words, duration={duration}s each")
+
+        if dry_run:
+            for i, c in enumerate(chunks):
+                print(f"    chunk {i}: {c[:80]}…" if len(c) > 80 else f"    chunk {i}: {c}")
+            continue
+
+        chunk_paths: list[Path] = []
+        for i, chunk in enumerate(chunks):
+            print(f"    submitting chunk {i+1}/{len(chunks)}: {chunk[:60]}…")
+            task_id = submit_job(voice_id, chunk, duration=duration)
+            print(f"    task_id={task_id} — polling…")
+            video_url = poll_job(task_id)
+            chunk_path = media_dir / f"{seg_id}_chunk{i}.mp4"
+            download(video_url, chunk_path)
+            print(f"    ✓ chunk {i+1} downloaded")
+            chunk_paths.append(chunk_path)
+
+        if len(chunk_paths) == 1:
+            chunk_paths[0].rename(out_path)
+        else:
+            print(f"    concatenating {len(chunk_paths)} chunks…")
+            concat_clips(chunk_paths, out_path)
+
+        print(f"  [{seg_id}] ✓ saved → {out_path.relative_to(ROOT)}")
+
+    if not dry_run:
+        done = list(media_dir.glob("*.mp4"))
+        print(f"\nDone. {len(done)}/{len(segments)} segments in {media_dir.relative_to(ROOT)}")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description="Generate flagship segments via Kling API + James voice")
+    ap.add_argument("script", help="Path to script JSON")
+    ap.add_argument("--segment", help="Generate only this segment ID")
+    ap.add_argument("--dry-run", action="store_true", help="Preview chunks without generating")
+    ap.add_argument("--voice-check", action="store_true", help="Just verify James voice ID is accessible")
+    args = ap.parse_args()
+    run(args.script, segment_filter=args.segment, dry_run=args.dry_run, voice_check=args.voice_check)
