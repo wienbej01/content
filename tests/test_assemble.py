@@ -13,7 +13,19 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(scope="module")
+def log():
+    """Load the most recent assembly log. Skip all tests if none exists."""
+    completed = ROOT / "Videos" / "Completed"
+    logs = sorted(completed.glob("*_log.json"), key=lambda p: p.stat().st_mtime) if completed.exists() else []
+    if not logs:
+        pytest.skip("No assembly log found — run assemble.py first to generate test fixtures")
+    return json.loads(logs[-1].read_text())
 
 
 def probe(path, entry):

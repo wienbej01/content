@@ -96,7 +96,10 @@ def test_insufficient_coverage_blocks():
     tmp.write_text(json.dumps(s))
     try:
         try:
-            gm.run(str(tmp), dry_run=False, force=True, selected_segments={"004_system"})
+            # force_unsafe bypasses the spend gate so this test exercises the
+            # coverage-check block specifically.
+            gm.run(str(tmp), dry_run=False, force=True, selected_segments={"004_system"},
+                   force_unsafe=True)
             assert False, "should have raised on insufficient coverage"
         except RuntimeError as e:
             assert "BLOCKED" in str(e) and "cover" in str(e)
@@ -171,11 +174,11 @@ def test_wan_never_selected():
 
 def test_default_broll_is_wan():
     gm = _load("generate_media")
-    assert gm.DEFAULT_BROLL_MODEL == "wan2_7"
+    assert gm.DEFAULT_BROLL_MODEL == "kling3_0"
     seg = {"visual_brief": "modern atrium architecture, no humans"}
     m = gm.route_model(seg, "generated_tts")
-    assert m == "wan2_7"
-    print("  ✓ default b-roll → wan2_7")
+    assert m == "kling3_0"
+    print("  ✓ default b-roll → kling3_0")
 
 
 def test_lipsync_routes_to_seedance_full():

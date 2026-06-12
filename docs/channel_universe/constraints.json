@@ -247,8 +247,8 @@
   "model_routing_policy": {
     "a_roll_lipsync": "seedance_2_0",
     "james_present_voiceover": "seedance_2_0",
-    "grounded_broll": "wan2_7",
-    "abstract_broll": "wan2_7",
+    "grounded_broll": "kling3_0",
+    "abstract_broll": "kling3_0",
     "llm_creative_tasks": "claude-sonnet-4.5",
     "llm_utility_tasks": "auto",
     "llm_auto_utility_may_be_sole_creative_approver": false

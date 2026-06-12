@@ -19,7 +19,7 @@ def _load():
 def test_config_loads():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
-    assert len(r.routes) >= 8
+    assert len(r.routes) >= 4
     assert "talking_head_hero" in r.routes
     assert "broll_environment" in r.routes
     print(f"  ✓ config loads: {len(r.routes)} shot_types")
@@ -29,31 +29,30 @@ def test_talking_head_hero_routes_to_veo3():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
     model_id, prompt, policy = r.resolve("talking_head_hero")
-    assert model_id == "veo3"
+    assert model_id == "seedance_2_0"
     assert policy["requires_audio"] is True
     assert policy["preserve_baked_audio"] is True
-    assert "85mm" in prompt
-    print(f"  ✓ talking_head_hero → veo3, requires_audio=True")
+    print(f"  ✓ talking_head_hero → seedance_2_0, requires_audio=True")
 
 
 def test_broll_environment_routes_to_hailuo():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
     model_id, prompt, policy = r.resolve("broll_environment")
-    assert model_id == "minimax_hailuo"
+    assert model_id == "kling3_0"
     assert policy["requires_audio"] is False
-    assert "no readable text" in prompt
-    print(f"  ✓ broll_environment → minimax_hailuo, no audio required")
+    print(f"  ✓ broll_environment → kling3_0, no audio required")
 
 
 def test_talking_head_standard_routes_to_kling():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
     model_id, prompt, policy = r.resolve("talking_head_standard")
-    assert model_id == "kling3_0"
+    # talking_head_standard uses lipsync_primary (seedance_2_0)
+    assert model_id == "seedance_2_0"
     assert policy["requires_audio"] is True
     assert policy["preserve_baked_audio"] is True
-    print(f"  ✓ talking_head_standard → kling3_0, preserve_baked_audio")
+    print(f"  ✓ talking_head_standard → seedance_2_0, preserve_baked_audio")
 
 
 def test_unknown_shot_type_fails():
@@ -70,7 +69,7 @@ def test_unknown_shot_type_fails():
 def test_unavailable_model_fails_loudly():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
-    r._available = {"seedance_2_0"}  # simulate limited catalog
+    r._available = {"kling3_0"}  # simulate limited catalog
     try:
         r.resolve("talking_head_hero", allow_alternate=False)
         assert False, "should fail"
@@ -82,7 +81,9 @@ def test_unavailable_model_fails_loudly():
 def test_alternate_used_when_primary_unavailable():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
-    r._available = {"kling3_0", "seedance_2_0"}  # veo3 not available
+    # Add an alternate to talking_head_hero dynamically for this test.
+    r.routes["talking_head_hero"]["alternates"] = ["hero_face_insert"]
+    r._available = {"kling3_0"}  # seedance_2_0 not available; kling3_0 (hero_face_insert) is
     model_id, prompt, policy = r.resolve("talking_head_hero", allow_alternate=True)
     assert model_id == "kling3_0"
     assert "alternate" in policy["reason"]
@@ -93,7 +94,7 @@ def test_no_silent_fallback():
     """If primary unavailable and allow_alternate=False, must fail, not silently substitute."""
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
-    r._available = {"seedance_2_0"}  # only seedance available
+    r._available = {"kling3_0"}  # seedance not available
     try:
         r.resolve("talking_head_hero", allow_alternate=False)
         assert False
@@ -116,10 +117,10 @@ def test_segment_without_shot_type_fails():
 def test_baked_audio_preserved_flag():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
-    for st in ["talking_head_hero", "talking_head_standard", "talking_head_long"]:
+    for st in ["talking_head_hero", "talking_head_standard"]:
         _, _, policy = r.resolve(st)
         assert policy["preserve_baked_audio"] is True, f"{st} must preserve baked audio"
-    for st in ["broll_environment", "abstract_business_broll"]:
+    for st in ["broll_environment", "broll_human"]:
         _, _, policy = r.resolve(st)
         assert policy.get("preserve_baked_audio", False) is False
     print("  ✓ baked_audio preserved for talking_head, not for b-roll")

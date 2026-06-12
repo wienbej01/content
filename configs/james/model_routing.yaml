@@ -10,7 +10,28 @@ narration:
   regenerate_after_lipsync: false
 
 higgsfield:
-  require_cost_estimate: false
+  require_cost_estimate: true
+
+budget_caps:
+  explainer: 60
+  short: 25
+
+costs:
+  seedance_2_0:
+    cost_per_clip_usd: 1.10
+    credits_per_clip: 22.5
+  kling3_0:
+    cost_per_clip_usd: 0.49
+    credits_per_clip: 10.0
+  cinematic_studio_3_0:
+    cost_per_clip_usd: 1.225
+    credits_per_clip: 25.0
+  still_kenburns:
+    cost_per_clip_usd: 0
+    credits_per_clip: 0
+  local_graphic:
+    cost_per_clip_usd: 0
+    credits_per_clip: 0
 
 # Logical name → Higgsfield job_set_type
 model_id_map:
@@ -18,7 +39,7 @@ model_id_map:
   hero_face_insert: kling3_0
   human_body_hands: kling3_0
   human_background: kling3_0
-  environment_broll: wan2_7
+  environment_broll: kling3_0        # wan NOT authorized — kling3_0 for all b-roll
   narrative_wide_james: seedance_2_0
   experimental_lipsync: cinematic_studio_3_0
 
@@ -59,6 +80,19 @@ banned_models:
   - minimax_hailuo
   - seedance_2_0_fast
   - seedance1_5
+  - wan2_7
+  - wan2_6
+
+# Shot-type cost guide (at $0.049/credit, 2026-06-11)
+# Seedance 2.0 lipsync: 22.5cr/5s = $1.10/clip — for short hero lipsync only (≤15s narration)
+# Kling 3.0 voiceover:  10cr/5s  = $0.49/clip — for all voiceover/b-roll shots
+# Realistic flagship cost: $70-80 total (151 voiceover shots + existing lipsync hook)
+
+# PRODUCTION ARCHITECTURE (updated 2026-06-11):
+# Rule: any segment with narration > 15s → use voiceover shots[] + audio field
+# Rule: hook and CTA (≤15s) → baked_in lipsync with seedance_2_0
+# Rule: never route to wan2_7 or wan2_6
+# assemble.py handles: shots[] + audio field → concat visuals, overlay ElevenLabs narration
 
 prompt_templates:
   talking_head_hero: >

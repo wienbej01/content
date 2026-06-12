@@ -1,0 +1,54 @@
+# DEPRECATED — DO NOT USE FOR PRODUCTION
+# Production voice: ElevenLabs eleven_v3 via scripts/tts.py.
+# This file documents a superseded Kling CLI-only fallback approach that
+# cannot achieve consistent voice locking (no seed, no voice-clone input).
+# It is kept for reference only. See configs/james/model_routing.yaml for
+# the active narration config (provider: elevenlabs, model: eleven_v3).
+#
+# James Harrington — Canonical Voice Spec (Kling native-audio TTV)
+#
+# CONTEXT
+# Goal: drop the per-clip ElevenLabs dub and use Kling 3.0's own generated voice,
+# kept consistent as "James" across every clip.
+#
+# WHAT THE HIGGSFIELD CLI ACTUALLY EXPOSES (verified 2026-06-10 via `model get`):
+#   kling3_0 params: aspect_ratio, duration, medias(IMAGE roles only), mode, prompt, sound
+#   - NO voice_id, NO voice-clone input, NO seed.
+#   - `soul-id` command is IMAGE-only (no audio).
+#   => The CLI CANNOT register or reference a locked/cloned voice.
+#
+# The robust voice-lock features (Audio Studio "custom voice", Kling Elements
+# multi-image+audio binding, Lipsync Studio) are HIGGSFIELD WEB-UI features.
+# They are NOT reachable from @higgsfield/cli. See VOICE_LOCKING.md for the
+# two-tier strategy.
+#
+# THIS FILE = the CLI-only fallback: the "text-prompt voice signature" method.
+# Consistency is engineered (same image + same signature + same mode) and
+# VALIDATED empirically (no seed => stochastic). Validation clips:
+#   assets/media/_voicetest/vlock_v1_lineA.mp4  (line A)
+#   assets/media/_voicetest/vlock_v2_lineA.mp4  (line A repeat — run-to-run variance)
+#   assets/media/_voicetest/vlock_v3_lineB.mp4  (line B — cross-content consistency)
+
+model: kling3_0
+mode: std          # keep identical across all clips
+sound: on
+reference_image: assets/reference/studio_library/canonical/STUDIO_CANONICAL_001_HOOK_FRAME.jpg
+
+# Prepend `voice_spec` to EVERY Kling prompt, verbatim. Do not paraphrase.
+# Format follows the documented Kling "voice signature" pattern:
+#   "<name> says in the voice of a <AGE> <GENDER>, <TIMBRE>, <TONE>, <PACING>: '...'"
+voice_spec: >-
+  VOICE (fixed identity): a calm, warm, authoritative British man in his early
+  sixties; educated southern-English Received Pronunciation accent; medium-low
+  baritone; measured unhurried pace; steady even register with no excitement
+  spikes; dry, controlled, quietly intense delivery; speaks from lived
+  experience. Not American, not youthful, not an announcer.
+
+# Visual scene anchor (keep stable; vary only the spoken line per segment).
+scene_anchor: >-
+  James Harrington, a composed British man in his early sixties with silver-grey
+  hair and a navy sweater, in a warm book-lined study, looking directly at camera
+  and speaking calmly to the viewer. Natural subtle lip movement synced to his
+  speech. Cinematic, shallow depth of field.
+
+# Prompt assembly: "{scene_anchor} {voice_spec} He says: \"{line}\""

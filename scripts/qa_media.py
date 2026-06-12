@@ -20,6 +20,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Default dimensions by scope (--scope flag).
+DIMS_BY_SCOPE = {
+    "source":    (1280, 720),
+    "assembled_16x9": (1920, 1080),
+    "assembled_9x16": (1080, 1920),
+}
 EXPECTED_WIDTH = 1280
 EXPECTED_HEIGHT = 720
 MIN_DURATION = 2.0
@@ -62,7 +68,7 @@ def resolve(base, p):
     return p if p.is_absolute() else base / p
 
 
-def run_qa(script_path, selected_segment=None):
+def run_qa(script_path, selected_segment=None, scope="source", record_gate=False, project_id=None):
     """Run media QA. Returns (results_list, pass_bool)."""
     script = json.load(open(script_path))
     base = Path(script_path).resolve().parent
@@ -70,6 +76,7 @@ def run_qa(script_path, selected_segment=None):
     fmt = script.get("defaults", {}).get("format", "mp3")
     results = []
     all_pass = True
+    exp_w, exp_h = DIMS_BY_SCOPE.get(scope, (EXPECTED_WIDTH, EXPECTED_HEIGHT))
 
     for seg in script["segments"]:
         sid = seg["id"]
@@ -123,9 +130,9 @@ def run_qa(script_path, selected_segment=None):
             entry.update(info)
 
             # Dimension check
-            if info["width"] != EXPECTED_WIDTH or info["height"] != EXPECTED_HEIGHT:
+            if info["width"] != exp_w or info["height"] != exp_h:
                 entry["issues"].append(
-                    f"DIMENSIONS: {info['width']}x{info['height']} (expected {EXPECTED_WIDTH}x{EXPECTED_HEIGHT})")
+                    f"DIMENSIONS: {info['width']}x{info['height']} (expected {exp_w}x{exp_h})")
 
             # Duration check
             if info["duration"] < MIN_DURATION:
@@ -150,9 +157,15 @@ def main():
     ap.add_argument("script", help="Path to script JSON")
     ap.add_argument("--segment", default=None, help="QA only this segment")
     ap.add_argument("--output", "-o", default=None, help="Write JSON report to file")
+    ap.add_argument("--scope", default="source",
+                    choices=["source", "assembled_16x9", "assembled_9x16"],
+                    help="Expected dimensions: source clips (1280x720) or assembled output")
+    ap.add_argument("--record-gate", action="store_true",
+                    help="Record the media_qa gate (G8) in the project ledger on pass")
+    ap.add_argument("--project-id", default=None, help="Project id for gate (overrides script)")
     args = ap.parse_args()
 
-    results, all_pass = run_qa(args.script, args.segment)
+    results, all_pass = run_qa(args.script, args.segment, scope=args.scope)
 
     # Print summary
     passed = sum(1 for r in results if r["status"] == "pass")
@@ -173,10 +186,21 @@ def main():
         Path(args.output).write_text(json.dumps(report, indent=2))
         print(f"  report: {args.output}")
     else:
-        # Default: write alongside script
         out = Path(args.script).with_name(Path(args.script).stem + "_media_qa.json")
         out.write_text(json.dumps(report, indent=2))
         print(f"  report: {out}")
+
+    if args.record_gate:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from gates import record_gate as _record
+        script_data = json.loads(Path(args.script).read_text())
+        pid = args.project_id or script_data.get("project_id")
+        if pid:
+            _record(pid, "media_qa", "pass" if all_pass else "fail",
+                    artifact_path=args.output or str(Path(args.script).with_name(
+                        Path(args.script).stem + "_media_qa.json")))
+            print(f"  gate media_qa={'pass' if all_pass else 'fail'} recorded for {pid}")
 
     sys.exit(0 if all_pass else 1)
 
