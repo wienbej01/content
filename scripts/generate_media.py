@@ -21,6 +21,12 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gates import require_gates  # noqa: E402
+
+# Gates that must pass before ANY Higgsfield spend (blueprint §2/§6/§10).
+SPEND_GATES = ["storyboard_review", "media_plan_review", "budget", "render_approval"]
+
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
 DEFAULT_LIPSYNC_MODEL = "seedance_2_0"    # lipsync: only CLI model with --audio
 DEFAULT_BROLL_MODEL = "kling3_0"           # b-roll: kling (wan NOT authorized)
@@ -742,7 +748,8 @@ def extract_review_frame(media_path, out_dir):
 
 
 def run(script_path, dry_run=False, force=False, validate_only=False,
-        do_assemble=False, selected_segments=None, allow_text_surfaces=False):
+        do_assemble=False, selected_segments=None, allow_text_surfaces=False,
+        force_unsafe=False):
     script_path = Path(script_path).resolve()
     if not script_path.exists():
         raise ValueError(f"Script not found: {script_path}")
@@ -768,6 +775,17 @@ def run(script_path, dry_run=False, force=False, validate_only=False,
     available, msg = check_hf_available()
     if not available and not dry_run:
         raise RuntimeError(f"BLOCKED: {msg}")
+
+    # HARD SPEND GATE (blueprint §10 rule 1): no Higgsfield call without the full
+    # gate chain. Skipped for dry-run / validate-only (no spend) and for an
+    # explicit, logged --force-unsafe emergency override.
+    if not dry_run and not force_unsafe:
+        require_gates(script["project_id"], SPEND_GATES)
+    elif not dry_run and force_unsafe:
+        sys.stderr.write(
+            "\033[31m⚠ FORCE-UNSAFE: bypassing spend gates "
+            f"({', '.join(SPEND_GATES)}) for {script['project_id']}. "
+            "This spends real credits without approval.\033[0m\n")
 
     model = script.get("defaults", {}).get("video_model", None)
     results = []
@@ -1052,6 +1070,8 @@ def main():
                     help="Route/flag close-human shots (default on)")
     ap.add_argument("--review", action="store_true", help="Generate review frames + media_review.json")
     ap.add_argument("--assemble", action="store_true", help="Run tts.py --assemble after generation")
+    ap.add_argument("--force-unsafe", action="store_true",
+                    help="EMERGENCY: bypass the spend gate chain (logged, spends real credits)")
     ap.add_argument("--model", default=None, help="Override video model")
     args = ap.parse_args()
 
@@ -1094,7 +1114,8 @@ def main():
 
         run(args.script, dry_run=args.dry_run, force=args.force,
             validate_only=args.validate_only, do_assemble=args.assemble,
-            selected_segments=selected, allow_text_surfaces=args.allow_text_surfaces)
+            selected_segments=selected, allow_text_surfaces=args.allow_text_surfaces,
+            force_unsafe=args.force_unsafe)
     except (ValueError, RuntimeError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)

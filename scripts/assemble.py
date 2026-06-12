@@ -32,8 +32,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from narrative_speed import measure as measure_pace
 from generate_music import generate as gen_music, write_wav
+from gates import require_gates  # noqa: E402
 
 
 def run(cmd, label=""):
@@ -680,7 +682,29 @@ def main():
     ap.add_argument("--music", default=None, metavar="FILE", help="Background music file (overrides manifest)")
     ap.add_argument("--music-volume-db", type=float, default=None, metavar="DB", help="Music volume in dB (default -24)")
     ap.add_argument("--no-music", action="store_true", help="Disable music even if manifest enables it")
+    ap.add_argument("--require-gates", action="store_true",
+                    help="Enforce the G8 media_qa gate before assembling")
+    ap.add_argument("--project-id", default=None,
+                    help="Project id for gate lookup (defaults to manifest 'id')")
+    ap.add_argument("--force-unsafe", action="store_true",
+                    help="EMERGENCY: bypass the media_qa gate (logged)")
     args = ap.parse_args()
+
+    # G8 media QA gate (blueprint §6): assembly refuses to run on un-QA'd clips.
+    if args.require_gates and not args.force_unsafe:
+        pid = args.project_id
+        if not pid:
+            try:
+                pid = json.loads(Path(args.manifest).read_text()).get("id")
+            except (OSError, json.JSONDecodeError):
+                pid = None
+        if not pid:
+            print("ERROR: --require-gates needs a project id (manifest 'id' or --project-id)",
+                  file=sys.stderr)
+            sys.exit(1)
+        require_gates(pid, ["media_qa"])
+    elif args.require_gates and args.force_unsafe:
+        sys.stderr.write("\033[31m⚠ FORCE-UNSAFE: bypassing media_qa gate before assembly.\033[0m\n")
 
     formats = [f.strip() for f in args.formats.split(",")]
     try:

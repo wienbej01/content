@@ -21,6 +21,9 @@ import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gates import require_gates  # noqa: E402
+
 RUNTIME_ENV = Path.home() / ".config" / "ytchannel" / "runtime.env"
 
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
@@ -322,7 +325,8 @@ def build_manifest(script, narration_dir, base):
 
 # --- Main workflow ---
 
-def run_tts(script_path, force=False, do_assemble=False, validate_only=False):
+def run_tts(script_path, force=False, do_assemble=False, validate_only=False,
+            require_gate=False, force_unsafe=False):
     script_path = Path(script_path).resolve()
     if not script_path.exists():
         raise ValueError(f"Script file not found: {script_path}")
@@ -338,6 +342,16 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False):
     errors = validate_script(script, base)
     if errors:
         raise ValueError("Script validation failed:\n  " + "\n  ".join(errors))
+
+    # G1 script gate (blueprint §6): TTS may run only after the script review
+    # gate passes. Enforced only when --require-gates is set (cheap ElevenLabs
+    # spend; opt-in to avoid breaking existing test/dev flows).
+    if require_gate and not validate_only and not force_unsafe:
+        require_gates(script["project_id"], ["script_review"])
+    elif require_gate and force_unsafe:
+        sys.stderr.write(
+            f"\033[31m⚠ FORCE-UNSAFE: bypassing script_review gate for "
+            f"{script['project_id']}.\033[0m\n")
 
     if validate_only:
         import os as _os
@@ -601,6 +615,10 @@ def main():
     ap.add_argument("--segment-text-contains", default=None, help="Find segment by text substring")
     ap.add_argument("--segment", default=None, help="Segment id (with --show-segment-audio or --compare-pack)")
     ap.add_argument("--compare-pack", action="store_true", help="Build manual-comparison + calibration pack")
+    ap.add_argument("--require-gates", action="store_true",
+                    help="Enforce the G1 script_review gate before generating narration")
+    ap.add_argument("--force-unsafe", action="store_true",
+                    help="EMERGENCY: bypass the script_review gate (logged)")
     args = ap.parse_args()
 
     try:
@@ -612,7 +630,9 @@ def main():
                 ap.error("--compare-pack requires --segment")
             make_audio_compare_pack(args.script, args.segment)
             return
-        run_tts(args.script, force=args.force, do_assemble=args.assemble, validate_only=args.validate_only)
+        run_tts(args.script, force=args.force, do_assemble=args.assemble,
+                validate_only=args.validate_only, require_gate=args.require_gates,
+                force_unsafe=args.force_unsafe)
     except (ValueError, RuntimeError, FileNotFoundError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
