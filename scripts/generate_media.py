@@ -823,7 +823,12 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
     # constraints into the positive prompt as an "Avoid:" clause, like the legacy path.
     if negative:
         prompt = f"{prompt} Avoid: {negative}"
-    duration = max(1, int(round(beat.get("duration_target_sec", 5))))
+    # For lipsync beats, duration comes from the padded audio slice (integer seconds).
+    sl = beat.get("audio_slice") or {}
+    if beat.get("lipsync_required") and sl.get("padded_len_sec"):
+        duration = int(sl["padded_len_sec"])
+    else:
+        duration = max(1, int(round(beat.get("duration_target_sec", 5))))
     refs = beat.get("reference_images") or []
     ref_image = refs[0] if refs else None
     lipsync = beat.get("lipsync_required") and beat.get("shot_type") == "hero_lipsync"
@@ -926,6 +931,14 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
             local_skipped += 1
             continue
 
+        # T4: merged follower beats — rendered as part of the group leader's clip.
+        if beat.get("render_group") and beat.get("render_group_index", 0) > 0:
+            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                                 "clips": 0, "cost_usd": 0.0, "reuse": False,
+                                 "render_group": beat["render_group"],
+                                 "action": "merged_follower"})
+            continue
+
         # Reuse lookup (≤2× per video).
         reused_path = _library_lookup(beat, index)
         if reused_path and reuse_counts.get(reused_path, 0) < 2:
@@ -960,18 +973,15 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
         audio_path = None
         if beat.get("lipsync_required"):
             sl = beat.get("audio_slice")
-            if sl:
-                src = project_dir / sl.get("file", "")
+            if sl and sl.get("file"):
+                # Slice path is relative to project_dir.
+                src = project_dir / sl["file"]
                 if src.exists():
-                    audio_path = project_dir / "narration" / "slices" / f"{bid}.mp3"
-                    audio_path.parent.mkdir(parents=True, exist_ok=True)
-                    subprocess.run(["ffmpeg", "-y", "-i", str(src), "-ss", str(sl["start_sec"]),
-                                    "-to", str(sl["end_sec"]), "-c", "copy", str(audio_path)],
-                                   capture_output=True)
+                    audio_path = src
                 else:
                     raise RuntimeError(
-                        f"{bid}: audio_slice references {sl.get('file')} but file missing. "
-                        "Re-compile the media plan with audio_timing wired (T3).")
+                        f"{bid}: audio_slice references {sl['file']} but file missing at {src}. "
+                        "Re-compile the media plan.")
             else:
                 # T1: hard-fail, no degradation. Compile must populate audio_slice.
                 raise RuntimeError(

@@ -421,6 +421,63 @@ def slice_hero_beats(plan_beats, storyboard, project_dir):
     return errors
 
 
+def _merge_lipsync_chains(plan_beats, project_dir):
+    """T4: consecutive hero_lipsync beats with combined speech ≤15s are rendered as
+    one clip. Annotates each beat in a merged chain with render_group (shared ID)
+    and creates a combined slice file for the group leader."""
+    import math, hashlib, subprocess as sp
+    chains = []
+    chain = []
+    for b in plan_beats:
+        if b.get("lipsync_required"):
+            chain.append(b)
+        else:
+            if len(chain) > 1:
+                chains.append(chain)
+            chain = []
+    if len(chain) > 1:
+        chains.append(chain)
+
+    for chain in chains:
+        total_speech = sum(b.get("audio_slice", {}).get("speech_len_sec", 0) for b in chain)
+        if total_speech > 15.0 or total_speech == 0:
+            continue  # don't merge chains >15s or those with no slices yet
+        group_id = f"RG_{chain[0]['beat_id']}_{chain[-1]['beat_id']}"
+        # Concatenate the individual slice files into one combined slice.
+        if project_dir:
+            slices_dir = project_dir / "narration" / "slices"
+            slice_files = [slices_dir / f"{b['beat_id']}.mp3" for b in chain]
+            if all(f.exists() for f in slice_files):
+                combined = slices_dir / f"{group_id}.mp3"
+                # ffmpeg concat demuxer
+                concat_list = combined.with_suffix(".concat.txt")
+                concat_list.write_text("\n".join(f"file '{f.resolve()}'" for f in slice_files))
+                sp.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                        "-i", str(concat_list), "-c", "copy", str(combined)],
+                       capture_output=True)
+                concat_list.unlink(missing_ok=True)
+                padded_len = math.ceil(total_speech + 0.2)
+                combined_sha = hashlib.sha256(combined.read_bytes()).hexdigest() if combined.exists() else None
+                # Annotate every beat in the chain.
+                for i, b in enumerate(chain):
+                    b["render_group"] = group_id
+                    b["render_group_index"] = i
+                    b["render_group_size"] = len(chain)
+                # Group leader (first beat) carries the combined slice; others are "merged_follower".
+                chain[0]["audio_slice"] = {
+                    "file": f"narration/slices/{group_id}.mp3",
+                    "start_sec": 0.0,
+                    "end_sec": round(padded_len, 3),
+                    "speech_len_sec": round(total_speech, 3),
+                    "padded_len_sec": padded_len,
+                    "slice_sha256": combined_sha,
+                    "parent_mp3_sha256": chain[0].get("audio_slice", {}).get("parent_mp3_sha256"),
+                    "merged_beats": [b["beat_id"] for b in chain],
+                }
+                for b in chain[1:]:
+                    b["audio_slice"]["merged_into"] = group_id
+
+
 def compile_plan(storyboard, constraints, routing, project_dir=None):
     beats_in = storyboard.get("beats", [])
     plan_beats = []
@@ -434,6 +491,9 @@ def compile_plan(storyboard, constraints, routing, project_dir=None):
     if project_dir:
         slice_errors = slice_hero_beats(plan_beats, storyboard, project_dir)
         all_errors.extend(slice_errors)
+
+    # T4: merge consecutive hero_lipsync chains ≤15s into render groups.
+    _merge_lipsync_chains(plan_beats, project_dir)
 
     # T1 (LIPSYNC_TICKETS): every hero_lipsync beat MUST have audio_slice after compile.
     # Missing slice = hard fail listing all offending beat ids.
