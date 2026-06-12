@@ -27,6 +27,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gates import record_gate, project_dir, gate_status, artifact_sha256, _now  # noqa: E402
 
 
+def _storyboard_content_hash(sb: dict) -> str:
+    """SHA-256 of the storyboard's MEANINGFUL content (approval block excluded).
+
+    Stamping approval into the file must not change this hash — so approval is
+    idempotent and 'what was approved' == 'what will render' is verifiable."""
+    import copy, hashlib
+    body = copy.deepcopy(sb)
+    body.pop("approval", None)
+    return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+
+
 def approve_storyboard(project_id: str, storyboard_path: str | None, approved_by: str) -> None:
     """Human approval of a storyboard (blueprint §4): move approval.status
     draft → approved and stamp approved_by / approved_at / sha256_at_approval.
@@ -41,7 +52,7 @@ def approve_storyboard(project_id: str, storyboard_path: str | None, approved_by
         sys.stderr.write(f"ERROR: storyboard not found: {storyboard_path}\n")
         sys.exit(1)
 
-    # G2 must have passed against the CURRENT storyboard hash.
+    # G2 must have passed against the CURRENT storyboard file hash.
     cur_hash = artifact_sha256(str(sp))
     entry = gate_status(project_id, "storyboard_review")
     if entry is None or entry.get("status") != "pass":
@@ -57,19 +68,23 @@ def approve_storyboard(project_id: str, storyboard_path: str | None, approved_by
         sys.exit(1)
 
     sb = json.loads(sp.read_text())
+    # Record the CONTENT hash (approval-excluded) so the stamp is idempotent.
+    content_hash = _storyboard_content_hash(sb)
     sb["approval"] = {
         "status": "approved",
         "approved_by": approved_by,
         "approved_at": _now(),
-        "sha256_at_approval": cur_hash,
+        "sha256_at_approval": content_hash,
     }
     sp.write_text(json.dumps(sb, indent=2))
-    # Re-record the gate so its bound hash matches the file we just rewrote.
+    # Re-record the G2 gate bound to the new FILE hash so require_gates stays fresh.
     record_gate(project_id, "storyboard_review", "pass",
                 artifact_path=str(sp), approved_by=approved_by,
-                extra={"note": "storyboard human-approved"})
+                extra={"note": "storyboard human-approved",
+                       "content_sha256": content_hash})
     print(f"✓ storyboard approved for {project_id} (approved_by={approved_by})")
-    print(f"  approval.status = approved, sha256_at_approval = {cur_hash[:12]}")
+    print(f"  approval.status = approved")
+    print(f"  content sha256 (approval-excluded) = {content_hash[:12]}")
 
 
 def approve_render(project_id: str, dryrun_path: str | None, approved_by: str) -> None:
