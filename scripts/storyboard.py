@@ -790,6 +790,28 @@ def _shot_mix(beats) -> dict:
         return round(100 * sum(b["est_duration_sec"] for b in beats
                                if b["shot_type"] in types) / total, 1)
 
+    def pct_pred(predicate):
+        return round(100 * sum(b["est_duration_sec"] for b in beats
+                               if predicate(b)) / total, 1)
+
+    # still_kenburns counts as SPECIFIC b-roll when it serves an archival/anchor
+    # role (§3.9), and as METAPHORICAL otherwise (§3.6).
+    def is_specific(b):
+        st = b["shot_type"]
+        if st in ("broll_archival", "broll_tactical", "broll_environment"):
+            return True
+        if st == "still_kenburns" and b.get("visual_function") == "anchor_story":
+            return True
+        return False
+
+    def is_metaphorical(b):
+        st = b["shot_type"]
+        if st == "broll_metaphorical":
+            return True
+        if st == "still_kenburns" and b.get("visual_function") != "anchor_story":
+            return True
+        return False
+
     # max consecutive hero run, EXCLUDING the Act-6 close (which may run ≤25s, §3.2/§7).
     max_hero = 0.0
     run = 0.0
@@ -804,8 +826,8 @@ def _shot_mix(beats) -> dict:
     return {
         "hero_lipsync_pct": pct({"hero_lipsync"}),
         "hero_cutaway_pct": pct({"hero_cutaway"}),
-        "broll_specific_pct": pct({"broll_archival", "broll_tactical", "broll_environment"}),
-        "broll_metaphorical_pct": pct({"broll_metaphorical", "still_kenburns"}),
+        "broll_specific_pct": pct_pred(is_specific),
+        "broll_metaphorical_pct": pct_pred(is_metaphorical),
         "graphics_ui_pct": pct({"graphic_progressive", "graphic_title_card", "ui_insert"}),
         "kinetic_text_pct": pct({"kinetic_text"}),
         "max_hero_block_sec": round(max_hero, 1),
