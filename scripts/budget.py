@@ -76,6 +76,10 @@ def main(argv=None) -> int:
     ap.add_argument("--record-gate", action="store_true",
                     help="Write the budget gate result to the project ledger")
     ap.add_argument("--project-id", default=None)
+    ap.add_argument("--report", default=None, metavar="FILE",
+                    help="Write budget report JSON to FILE")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="Print results without recording the gate")
     args = ap.parse_args(argv)
 
     path = Path(args.media_plan).resolve()
@@ -101,7 +105,12 @@ def main(argv=None) -> int:
     else:
         print(f"  ✓ budget OK: ${plan.get('totals',{}).get('est_usd',0):.2f}")
 
-    if args.record_gate:
+    if args.report:
+        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.report).write_text(json.dumps(report, indent=2))
+        print(f"  report: {args.report}")
+
+    if args.record_gate and not args.dry_run:
         from gates import record_gate
         pid = args.project_id or plan.get("project_id")
         if not pid:
