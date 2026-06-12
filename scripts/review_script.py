@@ -162,16 +162,37 @@ def run_review(script_path, personas=None, dry_run=False, output_path=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="LLM reviewer gates for scripts.")
+    ap = argparse.ArgumentParser(description="LLM reviewer gates for scripts (G1).")
     ap.add_argument("script", help="Path to script JSON")
     ap.add_argument("--personas", default=None, help="Comma-separated personas (default: all)")
     ap.add_argument("--output", "-o", default=None, help="Output JSON report path")
     ap.add_argument("--dry-run", action="store_true", help="Print plan without calling LLM")
+    ap.add_argument("--record-gate", action="store_true",
+                    help="Record the script_review gate (G1) in the project ledger")
+    ap.add_argument("--project-id", default=None, help="Override project id for the gate ledger")
     args = ap.parse_args()
 
     personas = [p.strip() for p in args.personas.split(",")] if args.personas else None
     report = run_review(args.script, personas=personas, dry_run=args.dry_run, output_path=args.output)
-    sys.exit(0 if report.get("may_proceed", False) or args.dry_run else 1)
+    passed = bool(report.get("may_proceed", False))
+
+    if args.record_gate and not args.dry_run:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from gates import record_gate
+        import json as _json
+        pid = args.project_id or report.get("project_id") \
+            or _json.loads(Path(args.script).read_text()).get("project_id")
+        if not pid:
+            print("ERROR: --record-gate needs a project id", file=sys.stderr)
+            sys.exit(1)
+        # Bind the gate to the SCRIPT being reviewed (the artifact downstream cares about).
+        record_gate(pid, "script_review", "pass" if passed else "fail",
+                    artifact_path=str(args.script),
+                    extra={"weighted_score": report.get("weighted_average_score"),
+                           "report": args.output})
+        print(f"  gate script_review={'pass' if passed else 'fail'} recorded for {pid}")
+
+    sys.exit(0 if passed or args.dry_run else 1)
 
 
 if __name__ == "__main__":
