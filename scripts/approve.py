@@ -19,11 +19,57 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gates import record_gate, project_dir  # noqa: E402
+from gates import record_gate, project_dir, gate_status, artifact_sha256, _now  # noqa: E402
+
+
+def approve_storyboard(project_id: str, storyboard_path: str | None, approved_by: str) -> None:
+    """Human approval of a storyboard (blueprint §4): move approval.status
+    draft → approved and stamp approved_by / approved_at / sha256_at_approval.
+
+    Guard: refuses unless the G2 `storyboard_review` gate has passed AND its
+    recorded hash still matches the current file (no approving a failed or
+    edited-since storyboard)."""
+    if storyboard_path is None:
+        storyboard_path = str(project_dir(project_id) / "storyboard.json")
+    sp = Path(storyboard_path)
+    if not sp.exists():
+        sys.stderr.write(f"ERROR: storyboard not found: {storyboard_path}\n")
+        sys.exit(1)
+
+    # G2 must have passed against the CURRENT storyboard hash.
+    cur_hash = artifact_sha256(str(sp))
+    entry = gate_status(project_id, "storyboard_review")
+    if entry is None or entry.get("status") != "pass":
+        sys.stderr.write(
+            "ERROR: storyboard_review (G2) has not passed. Run:\n"
+            f"  python3 scripts/review_storyboard.py {storyboard_path} --record-gate\n")
+        sys.exit(1)
+    if entry.get("artifact_sha256") != cur_hash:
+        sys.stderr.write(
+            "ERROR: storyboard has changed since G2 review (stale gate). Re-run:\n"
+            f"  python3 scripts/review_storyboard.py {storyboard_path} --record-gate\n"
+            "  then approve again.\n")
+        sys.exit(1)
+
+    sb = json.loads(sp.read_text())
+    sb["approval"] = {
+        "status": "approved",
+        "approved_by": approved_by,
+        "approved_at": _now(),
+        "sha256_at_approval": cur_hash,
+    }
+    sp.write_text(json.dumps(sb, indent=2))
+    # Re-record the gate so its bound hash matches the file we just rewrote.
+    record_gate(project_id, "storyboard_review", "pass",
+                artifact_path=str(sp), approved_by=approved_by,
+                extra={"note": "storyboard human-approved"})
+    print(f"✓ storyboard approved for {project_id} (approved_by={approved_by})")
+    print(f"  approval.status = approved, sha256_at_approval = {cur_hash[:12]}")
 
 
 def approve_render(project_id: str, dryrun_path: str | None, approved_by: str) -> None:
@@ -68,14 +114,17 @@ def override_budget(project_id: str, media_plan_path: str, cap_override: float,
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Human approval CLI for pipeline gates.")
     ap.add_argument("project_id")
-    ap.add_argument("--gate", required=True, choices=["render", "budget"])
+    ap.add_argument("--gate", required=True, choices=["storyboard", "render", "budget"])
     ap.add_argument("--by", default="human", help="Approver name (recorded in ledger)")
+    ap.add_argument("--storyboard", default=None, help="Path to storyboard.json (storyboard gate)")
     ap.add_argument("--dryrun", default=None, help="Path to dry-run report (render gate)")
     ap.add_argument("--media-plan", default=None, help="Path to media_plan.json (budget gate)")
     ap.add_argument("--cap-override", type=float, default=None, help="New USD cap (budget gate)")
     args = ap.parse_args(argv)
 
-    if args.gate == "render":
+    if args.gate == "storyboard":
+        approve_storyboard(args.project_id, args.storyboard, args.by)
+    elif args.gate == "render":
         approve_render(args.project_id, args.dryrun, args.by)
     elif args.gate == "budget":
         if args.media_plan is None or args.cap_override is None:
