@@ -50,23 +50,32 @@ Respond ONLY with valid JSON:
 def run_review(script_path, dry_run=False, output_path=None):
     from llm_call import llm_call
 
-    script = json.load(open(script_path))
+    doc = json.load(open(script_path))
 
-    # Build media plan summary for review
+    # Build the plan summary. Supports BOTH the v2 media_plan.json (beats[]) and
+    # the legacy script JSON (segments[]/shots[]).
     lines = []
-    for seg in script.get("segments", []):
-        sid = seg["id"]
-        mode = seg.get("audio_mode", "generated_tts")
-        brief = seg.get("visual_brief", "")
-        shots = seg.get("shots", [])
-        if shots:
-            for sh in shots:
-                lines.append(f"  [{sh['id']}] ({mode}) {sh.get('visual_brief', brief)}")
-        else:
-            lines.append(f"  [{sid}] ({mode}) {brief}")
+    if "beats" in doc:
+        # v2 media_plan.json — one line per beat with shot_type + compiled prompt.
+        for b in doc["beats"]:
+            st = b.get("shot_type", "?")
+            pol = b.get("audio_policy", "")
+            brief = b.get("positive_prompt") or b.get("visual_brief", "")
+            lines.append(f"  [{b['beat_id']}] {st} ({pol}) {brief[:160]}")
+    else:
+        for seg in doc.get("segments", []):
+            sid = seg["id"]
+            mode = seg.get("audio_mode", "generated_tts")
+            brief = seg.get("visual_brief", "")
+            shots = seg.get("shots", [])
+            if shots:
+                for sh in shots:
+                    lines.append(f"  [{sh['id']}] ({mode}) {sh.get('visual_brief', brief)}")
+            else:
+                lines.append(f"  [{sid}] ({mode}) {brief}")
 
     plan_text = "\n".join(lines)
-    full_prompt = f"{MEDIA_REVIEW_PROMPT}\n\n---\n\nMEDIA PLAN:\nProject: {script.get('project_id')}\n\n{plan_text}"
+    full_prompt = f"{MEDIA_REVIEW_PROMPT}\n\n---\n\nMEDIA PLAN:\nProject: {doc.get('project_id')}\n\n{plan_text}"
 
     data, raw, profile, model = llm_call(
         task="media_prompt_compilation",
@@ -97,14 +106,32 @@ def run_review(script_path, dry_run=False, output_path=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="LLM reviewer gate for media plans.")
-    ap.add_argument("script", help="Path to script JSON")
+    ap = argparse.ArgumentParser(description="LLM reviewer gate (G3) for media plans.")
+    ap.add_argument("media_plan", help="Path to media_plan.json (v2) or legacy script JSON")
     ap.add_argument("--output", "-o", default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--record-gate", action="store_true",
+                    help="Record the media_plan_review gate (G3) on pass")
+    ap.add_argument("--project-id", default=None)
     args = ap.parse_args()
 
-    report = run_review(args.script, dry_run=args.dry_run, output_path=args.output)
-    sys.exit(0 if report.get("may_proceed", False) or args.dry_run else 1)
+    report = run_review(args.media_plan, dry_run=args.dry_run, output_path=args.output)
+    passed = bool(report.get("may_proceed", False))
+
+    if args.record_gate and not args.dry_run:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from gates import record_gate
+        doc = json.load(open(args.media_plan))
+        pid = args.project_id or doc.get("project_id")
+        if not pid:
+            print("ERROR: --record-gate needs a project id", file=sys.stderr)
+            sys.exit(1)
+        record_gate(pid, "media_plan_review", "pass" if passed else "fail",
+                    artifact_path=str(args.media_plan),
+                    extra={"score": report.get("overall_score")})
+        print(f"  gate media_plan_review={'pass' if passed else 'fail'} recorded for {pid}")
+
+    sys.exit(0 if passed or args.dry_run else 1)
 
 
 if __name__ == "__main__":
