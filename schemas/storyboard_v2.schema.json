@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://leveragemind/schemas/storyboard_v2.schema.json",
+  "title": "Storyboard v2 (directorial layer)",
+  "description": "Per PRODUCTION_V2_BLUEPRINT.md §4. The directorial artifact between script and media plan.",
+  "type": "object",
+  "required": ["schema_version", "project_id", "video_type", "target_runtime_sec",
+               "acts", "beats", "shot_mix_summary", "totals", "approval"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "project_id": {"type": "string"},
+    "video_type": {"type": "string", "enum": ["explainer", "teaser", "trailer", "short"]},
+    "source_script": {"type": "string"},
+    "source_script_sha256": {"type": ["string", "null"]},
+    "target_runtime_sec": {"type": "number", "minimum": 0},
+    "created_at": {"type": "string"},
+    "router_version": {"type": "string"},
+
+    "acts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["act", "name", "beat_ids"],
+        "properties": {
+          "act": {"type": "integer", "minimum": 1, "maximum": 6},
+          "name": {"type": "string"},
+          "beat_ids": {"type": "array", "items": {"type": "string"}},
+          "runtime_pct": {"type": "number"}
+        }
+      }
+    },
+
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/beat"}
+    },
+
+    "shot_mix_summary": {
+      "type": "object",
+      "required": ["hero_lipsync_pct", "hero_cutaway_pct", "broll_specific_pct",
+                   "broll_metaphorical_pct", "graphics_ui_pct", "kinetic_text_pct",
+                   "max_hero_block_sec", "distinct_visual_setups"],
+      "properties": {
+        "hero_lipsync_pct": {"type": "number"},
+        "hero_cutaway_pct": {"type": "number"},
+        "broll_specific_pct": {"type": "number"},
+        "broll_metaphorical_pct": {"type": "number"},
+        "graphics_ui_pct": {"type": "number"},
+        "kinetic_text_pct": {"type": "number"},
+        "max_hero_block_sec": {"type": "number"},
+        "distinct_visual_setups": {"type": "integer"},
+        "total_cuts_estimate": {"type": "integer"}
+      }
+    },
+
+    "totals": {
+      "type": "object",
+      "required": ["est_higgsfield_credits", "est_usd", "budget_cap_usd"],
+      "properties": {
+        "est_higgsfield_credits": {"type": "number"},
+        "est_usd": {"type": "number"},
+        "budget_cap_usd": {"type": "number"},
+        "beats_requiring_generation": {"type": "integer"},
+        "beats_local_or_reused": {"type": "integer"}
+      }
+    },
+
+    "approval": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["draft", "pending", "approved", "rejected"]},
+        "approved_by": {"type": ["string", "null"]},
+        "approved_at": {"type": ["string", "null"]},
+        "sha256_at_approval": {"type": ["string", "null"]}
+      }
+    }
+  },
+
+  "definitions": {
+    "beat": {
+      "type": "object",
+      "required": ["beat_id", "segment_id", "act", "order", "narration_text",
+                   "est_duration_sec", "visual_function", "narrative_function",
+                   "shot_type", "asset_type", "model_tier", "model", "prompt_class",
+                   "visual_brief", "audio_mode", "lipsync_required", "crop_safety",
+                   "cost", "fallback", "approval", "qa"],
+      "properties": {
+        "beat_id": {"type": "string"},
+        "segment_id": {"type": "string"},
+        "act": {"type": "integer", "minimum": 1, "maximum": 6},
+        "order": {"type": "integer"},
+        "narration_text": {"type": "string"},
+        "narration_word_span": {"type": "array", "items": {"type": "integer"}},
+        "est_duration_sec": {"type": "number"},
+        "actual_duration_sec": {"type": ["number", "null"]},
+
+        "visual_function": {"type": "string"},
+        "narrative_function": {"type": "string"},
+        "shot_type": {
+          "type": "string",
+          "enum": ["hero_lipsync", "hero_cutaway", "broll_archival",
+                   "broll_metaphorical", "broll_environment", "broll_tactical",
+                   "graphic_progressive", "graphic_title_card", "kinetic_text",
+                   "ui_insert", "still_kenburns"]
+        },
+        "asset_type": {"type": "string",
+          "enum": ["generated_video", "generated_still", "local_graphic", "reused"]},
+        "model_tier": {"type": "string", "enum": ["premium", "standard", "cheap", "local"]},
+        "model": {"type": "string"},
+        "prompt_class": {"type": "string"},
+        "shots_per_beat": {"type": "integer", "minimum": 1},
+
+        "visual_brief": {"type": "string"},
+        "reference_images": {"type": "array", "items": {"type": "string"}},
+        "reference_required": {"type": "boolean"},
+
+        "audio_mode": {"type": "string", "enum": ["lipsync", "voiceover", "silent"]},
+        "lipsync_required": {"type": "boolean"},
+        "music_duck": {"type": "boolean"},
+        "audio_slice": {
+          "type": "object",
+          "properties": {
+            "file": {"type": "string"},
+            "start_sec": {"type": "number"},
+            "end_sec": {"type": "number"}
+          }
+        },
+
+        "overlay": {
+          "type": "object",
+          "properties": {
+            "required": {"type": "boolean"},
+            "type": {"type": ["string", "null"]},
+            "text": {"type": ["string", "null"]},
+            "timing": {"type": ["string", "null"]}
+          }
+        },
+        "graphic": {
+          "type": "object",
+          "properties": {
+            "required": {"type": "boolean"},
+            "kind": {"type": ["string", "null"]},
+            "build_step": {"type": ["integer", "null"]},
+            "total_steps": {"type": ["integer", "null"]},
+            "payload": {"type": ["object", "null"]}
+          }
+        },
+
+        "crop_safety": {"type": "string"},
+
+        "cost": {
+          "type": "object",
+          "required": ["est_clips", "est_credits", "est_usd"],
+          "properties": {
+            "est_clips": {"type": "number"},
+            "est_credits": {"type": "number"},
+            "est_usd": {"type": "number"}
+          }
+        },
+        "reuse": {
+          "type": "object",
+          "properties": {
+            "allowed": {"type": "boolean"},
+            "reused_asset_id": {"type": ["string", "null"]}
+          }
+        },
+        "fallback": {
+          "type": "object",
+          "properties": {
+            "on_generation_fail": {"type": "string"},
+            "on_qa_fail": {"type": "string"}
+          }
+        },
+        "justification": {"type": "string"},
+
+        "approval": {
+          "type": "object",
+          "properties": {
+            "status": {"type": "string", "enum": ["pending", "approved", "rejected"]},
+            "approved_by": {"type": ["string", "null"]},
+            "approved_at": {"type": ["string", "null"]}
+          }
+        },
+        "qa": {
+          "type": "object",
+          "properties": {
+            "status": {"type": "string"},
+            "report_path": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  }
+}

@@ -66,13 +66,14 @@ def test_output_has_required_fields():
         assert code == 0, f"FAIL: {err}"
         sb = json.load(open(out_path))
         assert "project_id" in sb
+        assert sb.get("schema_version") == "2.0"
         assert "beats" in sb and len(sb["beats"]) > 0
         b = sb["beats"][0]
-        for key in ("beat_id", "scene_type", "a_roll_or_b_roll", "james_presence",
-                    "narration_text", "location_id", "audio_source", "crop_safety",
-                    "text_policy", "camera", "lighting"):
+        for key in ("beat_id", "segment_id", "shot_type", "narration_text",
+                    "est_duration_sec", "model", "model_tier", "visual_brief",
+                    "crop_safety", "cost"):
             assert key in b, f"missing field: {key}"
-        print("  ✓ Output has all required fields")
+        print("  ✓ Output has all required v2 fields")
 
 
 def test_includes_james_presence():
@@ -80,9 +81,9 @@ def test_includes_james_presence():
         out_path = Path(td) / "sb.json"
         run_sb(script_path=SAMPLE, args=["--output", str(out_path)])
         sb = json.load(open(out_path))
-        present = [b for b in sb["beats"] if b["james_presence"] != "absent"]
-        assert len(present) > 0, "FAIL: no James-present beats"
-        print("  ✓ Includes James-present beats")
+        hero = [b for b in sb["beats"] if b["shot_type"] in ("hero_lipsync", "hero_cutaway")]
+        assert len(hero) > 0, "FAIL: no James-present (hero) beats"
+        print("  ✓ Includes James-present (hero) beats")
 
 
 def test_not_all_broll():
@@ -90,9 +91,9 @@ def test_not_all_broll():
         out_path = Path(td) / "sb.json"
         run_sb(script_path=SAMPLE, args=["--output", str(out_path)])
         sb = json.load(open(out_path))
-        a_roll = [b for b in sb["beats"] if b["a_roll_or_b_roll"] == "a_roll"]
-        assert len(a_roll) > 0, "FAIL: all-b-roll storyboard"
-        print("  ✓ Not all-b-roll (has A-roll beats)")
+        hero = [b for b in sb["beats"] if b["shot_type"] in ("hero_lipsync", "hero_cutaway")]
+        assert len(hero) > 0, "FAIL: all-b-roll storyboard (no hero beats)"
+        print("  ✓ Not all-b-roll (has hero beats)")
 
 
 def test_json_valid():
