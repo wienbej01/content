@@ -49,6 +49,7 @@ GATE_COMMANDS = {
     "media_plan_review": "python3 scripts/review_media_plan.py <media_plan.json> --record-gate",
     "budget": "python3 scripts/budget.py <media_plan.json> --record-gate",
     "render_approval": "python3 scripts/approve.py <project_id> --gate render",
+    "canary": "python3 scripts/approve.py <project_id> --gate canary  (after human review of the single canary clip)",
     "media_qa": "python3 scripts/qa_media.py <media_plan.json> --record-gate",
 }
 

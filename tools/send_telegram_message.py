@@ -153,6 +153,58 @@ def send_telegram_video(path: str, caption: str = "") -> str:
         if resp.status >= 300:
             raise RuntimeError(f"sendVideo status {resp.status}: {out}")
     return f"sent {p.name} ({size_mb:.1f}MB)"
+
+
+def send_telegram_audio(path: str, caption: str = "") -> str:
+    """Upload an audio file via Telegram sendAudio (multipart/form-data).
+
+    Bot API upload limit is 50MB. Uses only stdlib (manual multipart encoding).
+    """
+    import mimetypes
+    import uuid
+
+    token = _token()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not chat_id:
+        raise RuntimeError("TELEGRAM_CHAT_ID not set.")
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(path)
+    size_mb = p.stat().st_size / (1024 * 1024)
+    if size_mb > 50:
+        raise RuntimeError(
+            f"{p.name} is {size_mb:.1f}MB; exceeds Telegram bot upload limit (50MB)."
+        )
+
+    boundary = f"----ytb{uuid.uuid4().hex}"
+    mime = mimetypes.guess_type(str(p))[0] or "audio/mpeg"
+    fields = {"chat_id": chat_id}
+    if caption:
+        fields["caption"] = caption[:1024]
+
+    body = bytearray()
+    for k, v in fields.items():
+        body += f"--{boundary}\r\n".encode()
+        body += f'Content-Disposition: form-data; name="{k}"\r\n\r\n'.encode()
+        body += f"{v}\r\n".encode()
+    body += f"--{boundary}\r\n".encode()
+    body += (
+        f'Content-Disposition: form-data; name="audio"; filename="{p.name}"\r\n'
+    ).encode()
+    body += f"Content-Type: {mime}\r\n\r\n".encode()
+    body += p.read_bytes()
+    body += f"\r\n--{boundary}--\r\n".encode()
+
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendAudio",
+        data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        out = resp.read().decode("utf-8", errors="replace")
+        if resp.status >= 300:
+            raise RuntimeError(f"sendAudio status {resp.status}: {out}")
+    return f"sent {p.name} ({size_mb:.1f}MB)"
     """Fetch recent updates to discover chat_id. Prints chat ids found."""
     token = _token()
     req = urllib.request.Request(f"https://api.telegram.org/bot{token}/getUpdates")

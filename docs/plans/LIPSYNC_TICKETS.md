@@ -47,7 +47,7 @@
 - **Implementation:**
   - Map each beat's `narration_word_span` to timestamps in `narration/{segment_id}.mp3`, **snapped to nearest detected silence** (beats are sentence-aligned; never interpolate mid-word).
   - Validate slice duration vs `est_duration_sec` within ±20%; unresolvable → compile failure with beat id + silence-map context.
-  - Extract `narration/slices/{beat_id}.mp3` via ffmpeg: 200ms leading silence (closed mouth at start), tail padded with room tone to next **integer** second (seedance `duration` is an integer). Store true unpadded speech length.
+  - Extract `narration/slices/{beat_id}.mp3` via ffmpeg: 200ms leading silence (closed mouth at start), tail padded with room tone to `max(ceil(speech_len + 0.200), min_clip_duration_sec)` where `min_clip_duration_sec = 4` (Seedance 2.0 rejects `duration < 4s`; see `constraints.json → lipsync_render_rules`). Store true unpadded speech length. **A sub-4s beat is padded UP to 4s, never rendered shorter** (would hard-fail then degrade to a still). If padding to 4s would read as a held mouth, merge with an adjacent hero beat as a `render_group` instead.
   - Beat fields written: `audio_slice {file, start_sec, end_sec, speech_len_sec, padded_len_sec, slice_sha256, parent_mp3_sha256}`.
 - **Tests:** `tests/test_audio_slicing.py` (new): `::test_slice_snaps_to_silence_not_midword` (synthetic mp3 with known silences), `::test_slice_duration_within_tolerance`, `::test_unresolvable_beat_fails_compile`, `::test_padding_to_integer_seconds`, `::test_lead_in_200ms`, `::test_slice_hashes_recorded`
 - **Acceptance gate:** Compiling flagship 001 yields a slice for every `hero_lipsync` beat; spot-check 3 slices by ear/waveform = clean sentence boundaries.
@@ -132,7 +132,7 @@
 ## Global acceptance criteria (VALIDATOR checks at T9a and T10)
 
 1. Zero `hero_lipsync` beats without a validated, silence-snapped `audio_slice`; compile dies loudly otherwise.
-2. All slices ±20% of beat duration, 200ms closed-mouth lead-in, integer-second padding with true speech length recorded.
+2. All slices ±20% of beat duration, 200ms closed-mouth lead-in, padded to `max(ceil(speech_len+0.2), 4)` seconds (Seedance 4s floor) with true speech length recorded.
 3. Consecutive lipsync chains ≤15s rendered as merged single clips; no same-setup jump cuts.
 4. Resolution decision documented with cost evidence; total projected spend ≤ $60.
 5. Assembly uses baked lipsync audio verbatim; no overlay/strip on hero spans; timing ±0.25s; provenance wired and firing.

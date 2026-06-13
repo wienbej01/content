@@ -242,6 +242,30 @@ def build_manifest(script, narration_dir, base):
 
         entry = {"media": _rel_to(media_abs, output_dir)}
 
+        # keep_lipsync (hero) span: the clip carries its own baked audio. Thread
+        # the audio_policy + true speech length + provenance into the manifest so
+        # assemble.py uses baked audio verbatim and can re-verify slice hashes.
+        if seg.get("audio_policy") == "keep_lipsync" or seg.get("shot_type") == "hero_lipsync":
+            entry["audio_policy"] = "keep_lipsync"
+            sl = seg.get("audio_slice") or {}
+            if sl.get("speech_len_sec") is not None:
+                entry["speech_len_sec"] = sl["speech_len_sec"]
+            slice_file = sl.get("file")
+            parent_mp3 = None
+            if slice_file:
+                # Slices live under the project narration dir; parent mp3 is the
+                # full-segment narration the slice was cut from.
+                parent_mp3 = f"narration/{seg_id}.{fmt}"
+            entry["lipsync_provenance"] = {
+                "slice_file": slice_file,
+                "slice_sha256": sl.get("slice_sha256"),
+                "parent_mp3": parent_mp3,
+                "parent_mp3_sha256": sl.get("parent_mp3_sha256"),
+            }
+            entry["words"] = 0
+            manifest_segments.append(entry)
+            continue
+
         if mode == "generated_tts":
             audio_path = narration_dir / f"{seg_id}.{fmt}"
             entry["audio"] = _rel_to(audio_path, output_dir)

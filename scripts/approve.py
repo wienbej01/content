@@ -126,21 +126,49 @@ def override_budget(project_id: str, media_plan_path: str, cap_override: float,
     return entry
 
 
+def approve_canary(project_id: str, clip_path: str | None, approved_by: str) -> None:
+    """Record the canary (T9b) gate after a human reviews the single canary clip.
+
+    Per the lipsync ticket board, the canary is rendered AFTER media_plan_review +
+    budget are fresh, and render_approval (full render) comes AFTER this canary
+    human pass. Binds to the reviewed clip's hash when provided so a re-render
+    invalidates the approval.
+    """
+    extra = {"note": "human canary review pass (single shortest lipsync render group)"}
+    artifact = None
+    if clip_path is not None:
+        if not Path(clip_path).exists():
+            sys.stderr.write(f"ERROR: canary clip not found: {clip_path}\n")
+            sys.exit(1)
+        artifact = clip_path
+    entry = record_gate(
+        project_id, "canary", "pass",
+        artifact_path=artifact, approved_by=approved_by, extra=extra)
+    print(f"✓ canary recorded for {project_id} (approved_by={approved_by})")
+    if artifact:
+        print(f"  bound to canary clip: {artifact}")
+    print("  full hero render may proceed once render_approval is recorded against the fresh dry-run report.")
+    return entry
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Human approval CLI for pipeline gates.")
     ap.add_argument("project_id")
-    ap.add_argument("--gate", required=True, choices=["storyboard", "render", "budget"])
+    ap.add_argument("--gate", required=True, choices=["storyboard", "render", "budget", "canary"])
     ap.add_argument("--by", default="human", help="Approver name (recorded in ledger)")
     ap.add_argument("--storyboard", default=None, help="Path to storyboard.json (storyboard gate)")
     ap.add_argument("--dryrun", default=None, help="Path to dry-run report (render gate)")
     ap.add_argument("--media-plan", default=None, help="Path to media_plan.json (budget gate)")
     ap.add_argument("--cap-override", type=float, default=None, help="New USD cap (budget gate)")
+    ap.add_argument("--clip", default=None, help="Path to canary clip reviewed (canary gate)")
     args = ap.parse_args(argv)
 
     if args.gate == "storyboard":
         approve_storyboard(args.project_id, args.storyboard, args.by)
     elif args.gate == "render":
         approve_render(args.project_id, args.dryrun, args.by)
+    elif args.gate == "canary":
+        approve_canary(args.project_id, args.clip, args.by)
     elif args.gate == "budget":
         if args.media_plan is None or args.cap_override is None:
             ap.error("--gate budget requires --media-plan and --cap-override")

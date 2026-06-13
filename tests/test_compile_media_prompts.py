@@ -125,5 +125,73 @@ def test_no_segment_visual_brief_as_prompt(C, sb, project_dir):
     print("  ✓ no positive_prompt is a raw segment visual_brief")
 
 
+def test_lipsync_slices_meet_seedance_minimum(C, sb, project_dir):
+    """Every hero_lipsync beat's padded slice must be >= the Seedance minimum
+    clip duration (constraints.json lipsync_render_rules.min_clip_duration_sec),
+    so short beats never hard-fail at render then degrade to a still."""
+    constraints = C.load_constraints()
+    min_clip = constraints.get("lipsync_render_rules", {}).get("min_clip_duration_sec", 4)
+    plan, _ = C.compile_plan(sb, constraints, C.load_routing(), project_dir=project_dir)
+    short = []
+    for b in plan["beats"]:
+        if b["shot_type"] == "hero_lipsync":
+            sl = b.get("audio_slice") or {}
+            pl = sl.get("padded_len_sec")
+            if pl is None or pl < min_clip:
+                short.append((b["beat_id"], pl))
+    assert not short, f"hero_lipsync beats below {min_clip}s minimum: {short}"
+    print(f"  ✓ all hero_lipsync slices padded to >= {min_clip}s")
+
+
+def test_lipsync_references_rotate_across_angles(C, sb, project_dir):
+    """hero_lipsync beats must rotate across approved canonical frames (>=3 distinct
+    angles), no two CONSECUTIVE hero beats reusing the same frame (Fable G14 / T5)."""
+    plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
+    hero = [b for b in plan["beats"] if b["shot_type"] == "hero_lipsync"]
+    frames = [(b.get("reference_images") or [None])[0] for b in hero]
+    distinct = {f for f in frames if f}
+    assert len(distinct) >= 3, f"hero beats use only {len(distinct)} distinct frame(s): {distinct}"
+    consec = 0
+    for i in range(1, len(hero)):
+        same_group = (hero[i].get("render_group")
+                      and hero[i]["render_group"] == hero[i - 1].get("render_group"))
+        if frames[i] == frames[i - 1] and not same_group:
+            consec += 1
+    assert consec == 0, f"{consec} consecutive hero beats reuse the same reference frame"
+    print(f"  ✓ hero references rotate across {len(distinct)} angles, 0 consecutive repeats")
+
+
+def test_empty_negative_prompt_rejected(C):
+    """A generated beat compiled against blank default_negative_constraints must
+    error (negatives are injection-only; an empty block would ship unguarded)."""
+    constraints = dict(C.load_constraints())
+    constraints["default_negative_constraints"] = ""   # simulate missing/blank
+    beat = {
+        "beat_id": "B999", "segment_id": "s", "shot_type": "broll_archival",
+        "asset_type": "generated_video", "model": "kling3_0",
+        "visual_brief": "period-accurate archival academic scene, warm daylight, shallow depth",
+        "narrative_function": "x", "cost": {"est_clips": 1},
+    }
+    _entry, errs = C.compile_beat(beat, constraints, C.load_routing())
+    assert any("empty negative_prompt" in e for e in errs), errs
+    print("  ✓ generated beat with blank negative_prompt is rejected at compile")
+
+
+def test_sliceless_compile_clean_error_not_crash(C, sb, tmp_path):
+    """A hero_lipsync beat reaching compile without resolvable slices must fail with
+    the clean T1 named-beats message, NOT an AttributeError in the merge step."""
+    sb2 = json.loads(json.dumps(sb))
+    sb2["project_id"] = "sliceless_test"
+    empty_proj = tmp_path / "proj"
+    empty_proj.mkdir()
+    try:
+        _plan, errors = C.compile_plan(sb2, C.load_constraints(), C.load_routing(),
+                                       project_dir=empty_proj)
+    except AttributeError as e:
+        raise AssertionError(f"compile crashed with AttributeError instead of clean error: {e}")
+    assert any("without audio_slice" in e for e in errors), errors
+    print("  ✓ sliceless compile yields clean named-beats error, no AttributeError")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

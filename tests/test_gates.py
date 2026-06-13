@@ -129,5 +129,42 @@ def test_no_secrets_in_source():
     print("  ✓ no secret-like patterns in gates.py")
 
 
+def test_canary_gate_plumbing(gates, tmp_path, monkeypatch):
+    """The canary gate (T9b) can be recorded, bound to a clip, and required."""
+    # canary is a known gate name (has a re-run command hint)
+    assert "canary" in gates.GATE_COMMANDS
+    clip = tmp_path / "canary_clip.mp4"
+    clip.write_bytes(b"fake-clip-bytes")
+    entry = gates.record_gate("canaryproj", "canary", "pass", artifact_path=str(clip),
+                              approved_by="human")
+    assert entry["status"] == "pass"
+    assert entry["artifact_sha256"] is not None
+    gates.require_gates("canaryproj", ["canary"])  # fresh → no raise
+    # Editing the clip invalidates the gate (staleness).
+    clip.write_bytes(b"tampered")
+    with pytest.raises(SystemExit):
+        gates.require_gates("canaryproj", ["canary"])
+    print("  ✓ canary gate records, requires, and goes stale on edit")
+
+
+def test_approve_canary_scope(tmp_path, monkeypatch):
+    """approve.py --gate canary records the canary gate for the project."""
+    spec = importlib.util.spec_from_file_location("approve", ROOT / "scripts" / "approve.py")
+    approve = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(approve)
+    # Redirect both gates + approve module's gate ledger location.
+    g = _load()
+    g.PROJECTS_DIR = tmp_path / "Projects"
+    monkeypatch.setattr(approve, "record_gate", g.record_gate)
+    monkeypatch.setattr(approve, "project_dir", g.project_dir)
+    monkeypatch.setattr(approve, "gate_status", g.gate_status)
+    clip = tmp_path / "canary.mp4"
+    clip.write_bytes(b"clip")
+    approve.approve_canary("acproj", str(clip), "jacob")
+    st = g.gate_status("acproj", "canary")
+    assert st and st["status"] == "pass" and st.get("approved_by") == "jacob"
+    print("  ✓ approve.py --gate canary records the canary gate")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

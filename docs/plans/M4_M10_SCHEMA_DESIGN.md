@@ -84,10 +84,11 @@ PromptEntry:
 | model | string | `seedance_2_0` (A-roll/James) \| `wan2_7` (b-roll) |
 | reference_assets | array<string> | approved asset_ids |
 | expected_duration_sec | number | |
-| output_path | string | |
+| output_path | string | **Canonical clip location (single source of truth).** Generation writes here; QA, reuse-detection, and assembly all read here. Convention `assets/media/{segment_id}/{beat_id}.mp4`. Never moved without updating this field. |
 | audio_policy | enum | `strip` \| `keep_lipsync` |
 | crop_safety | enum | `center_safe`\|`full_frame_16x9` |
 | text_policy | enum | `none`\|`post_overlay` |
+| audio_slice | object | hero_lipsync only: `{file, start_sec, end_sec, speech_len_sec, padded_len_sec, slice_sha256, parent_mp3_sha256}`. `padded_len_sec = max(ceil(speech_len_sec+0.2), 4)` — the **4s Seedance minimum** (`constraints.json → lipsync_render_rules`); sub-4s beats are padded up or merged, never rendered shorter. |
 | qa_checklist | array<string> | per-clip checks from QA_RUBRIC |
 
 ---

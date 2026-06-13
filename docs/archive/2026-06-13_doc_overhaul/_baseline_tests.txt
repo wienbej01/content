@@ -1,0 +1,279 @@
+EEEEEEE...............FFF..F............................................ [ 46%]
+......F.........................................FFFF.FFF.F.............. [ 93%]
+..........                                                               [100%]
+==================================== ERRORS ====================================
+_____________________ ERROR at setup of test_outputs_exist _____________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 40
+  def test_outputs_exist(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:40
+_____________________ ERROR at setup of test_duration_sane _____________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 48
+  def test_duration_sane(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:48
+______________________ ERROR at setup of test_resolution _______________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 59
+  def test_resolution(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:59
+_____________________ ERROR at setup of test_audio_present _____________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 72
+  def test_audio_present(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:72
+_____________________ ERROR at setup of test_volume_range ______________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 80
+  def test_volume_range(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:80
+____________________ ERROR at setup of test_no_long_silence ____________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 95
+  def test_no_long_silence(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:95
+____________________ ERROR at setup of test_pacing_aligned _____________________
+file /home/jacobw/YTchannel/tests/test_assemble.py, line 108
+  def test_pacing_aligned(log):
+E       fixture 'log' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/jacobw/YTchannel/tests/test_assemble.py:108
+=================================== FAILURES ===================================
+__________________________ test_existing_media_reused __________________________
+
+    def test_existing_media_reused():
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            vid = td / "clip.mp4"
+            make_video(vid)
+            script = {
+                "project_id": "t",
+                "segments": [{"id": "seg1", "visual_brief": "Scene", "media": str(vid), "audio_mode": "generated_tts"}],
+            }
+            code, out, err = run_gen(script, "--dry-run", td=td)
+>           assert code == 0
+E           assert 1 == 0
+
+tests/test_generate_media.py:85: AssertionError
+_____________________________ test_dry_run_no_api ______________________________
+
+    def test_dry_run_no_api():
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            script = {
+                "project_id": "t",
+                "segments": [{"id": "seg1", "visual_brief": "A scene description", "media": str(td / "out.mp4"), "audio_mode": "generated_tts"}],
+            }
+            code, out, err = run_gen(script, "--dry-run", "--force", td=td)
+>           assert code == 0
+E           assert 1 == 0
+
+tests/test_generate_media.py:98: AssertionError
+__________________________ test_no_credentials_fails ___________________________
+
+    def test_no_credentials_fails():
+        """Without Higgsfield auth, real generation should fail cleanly."""
+        # This test only works if the CLI is NOT authenticated
+        # Since we are authenticated, skip — but test the error path logic
+        # by checking that generate_media validates before calling API
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            script = {
+                "project_id": "t",
+                "segments": [{"id": "seg1", "visual_brief": "Scene", "media": str(td / "out.mp4"), "audio_mode": "generated_tts"}],
+            }
+            # dry-run doesn't need auth — just verify it works without issues
+            code, out, err = run_gen(script, "--dry-run", "--force", td=td)
+>           assert code == 0
+E           assert 1 == 0
+
+tests/test_generate_media.py:118: AssertionError
+_______________________ test_all_segment_ids_in_dry_run ________________________
+
+    def test_all_segment_ids_in_dry_run():
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            script = {
+                "project_id": "t",
+                "segments": [
+                    {"id": "seg_a", "visual_brief": "Scene A", "media": str(td / "a.mp4"), "audio_mode": "generated_tts"},
+                    {"id": "seg_b", "visual_brief": "Scene B", "media": str(td / "b.mp4"), "audio_mode": "generated_tts"},
+                    {"id": "seg_c", "visual_brief": "Scene C", "media": str(td / "c.mp4"), "audio_mode": "generated_tts"},
+                ],
+            }
+            code, out, err = run_gen(script, "--dry-run", "--force", td=td)
+>           assert code == 0
+E           assert 1 == 0
+
+tests/test_generate_media.py:174: AssertionError
+__________________________ test_default_broll_is_wan ___________________________
+
+    def test_default_broll_is_wan():
+        gm = _load("generate_media")
+>       assert gm.DEFAULT_BROLL_MODEL == "wan2_7"
+E       AssertionError: assert 'kling3_0' == 'wan2_7'
+E         
+E         - wan2_7
+E         + kling3_0
+
+tests/test_m3e.py:171: AssertionError
+______________________________ test_config_loads _______________________________
+
+    def test_config_loads():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+>       assert len(r.routes) >= 8
+E       AssertionError: assert 5 >= 8
+E        +  where 5 = len({'broll_environment': {'model': 'environment_broll', 'preserve_baked_audio': False, 'prompt_template': 'broll_environm... 'lipsync_primary', 'preserve_baked_audio': True, 'prompt_template': 'talking_head_hero', 'requires_audio': True}, ...})
+E        +    where {'broll_environment': {'model': 'environment_broll', 'preserve_baked_audio': False, 'prompt_template': 'broll_environm... 'lipsync_primary', 'preserve_baked_audio': True, 'prompt_template': 'talking_head_hero', 'requires_audio': True}, ...} = <shot_router.ShotRouter object at 0x770fca7d6120>.routes
+
+tests/test_shot_router.py:22: AssertionError
+____________________ test_talking_head_hero_routes_to_veo3 _____________________
+
+    def test_talking_head_hero_routes_to_veo3():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        model_id, prompt, policy = r.resolve("talking_head_hero")
+>       assert model_id == "veo3"
+E       AssertionError: assert 'seedance_2_0' == 'veo3'
+E         
+E         - veo3
+E         + seedance_2_0
+
+tests/test_shot_router.py:32: AssertionError
+___________________ test_broll_environment_routes_to_hailuo ____________________
+
+    def test_broll_environment_routes_to_hailuo():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        model_id, prompt, policy = r.resolve("broll_environment")
+>       assert model_id == "minimax_hailuo"
+E       AssertionError: assert 'kling3_0' == 'minimax_hailuo'
+E         
+E         - minimax_hailuo
+E         + kling3_0
+
+tests/test_shot_router.py:43: AssertionError
+__________________ test_talking_head_standard_routes_to_kling __________________
+
+    def test_talking_head_standard_routes_to_kling():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        model_id, prompt, policy = r.resolve("talking_head_standard")
+>       assert model_id == "kling3_0"
+E       AssertionError: assert 'seedance_2_0' == 'kling3_0'
+E         
+E         - kling3_0
+E         + seedance_2_0
+
+tests/test_shot_router.py:53: AssertionError
+_____________________ test_unavailable_model_fails_loudly ______________________
+
+    def test_unavailable_model_fails_loudly():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        r._available = {"seedance_2_0"}  # simulate limited catalog
+        try:
+            r.resolve("talking_head_hero", allow_alternate=False)
+>           assert False, "should fail"
+E           AssertionError: should fail
+E           assert False
+
+tests/test_shot_router.py:76: AssertionError
+_________________ test_alternate_used_when_primary_unavailable _________________
+
+    def test_alternate_used_when_primary_unavailable():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        r._available = {"kling3_0", "seedance_2_0"}  # veo3 not available
+        model_id, prompt, policy = r.resolve("talking_head_hero", allow_alternate=True)
+>       assert model_id == "kling3_0"
+E       AssertionError: assert 'seedance_2_0' == 'kling3_0'
+E         
+E         - kling3_0
+E         + seedance_2_0
+
+tests/test_shot_router.py:87: AssertionError
+___________________________ test_no_silent_fallback ____________________________
+
+    def test_no_silent_fallback():
+        """If primary unavailable and allow_alternate=False, must fail, not silently substitute."""
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        r._available = {"seedance_2_0"}  # only seedance available
+        try:
+            r.resolve("talking_head_hero", allow_alternate=False)
+>           assert False
+E           assert False
+
+tests/test_shot_router.py:99: AssertionError
+_______________________ test_baked_audio_preserved_flag ________________________
+
+    def test_baked_audio_preserved_flag():
+        sr = _load()
+        r = sr.ShotRouter(skip_availability_check=True)
+        for st in ["talking_head_hero", "talking_head_standard", "talking_head_long"]:
+>           _, _, policy = r.resolve(st)
+                           ^^^^^^^^^^^^^
+
+tests/test_shot_router.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <shot_router.ShotRouter object at 0x770fca7d63c0>
+shot_type = 'talking_head_long', allow_alternate = False
+
+    def resolve(self, shot_type, allow_alternate=False):
+        banned = set(self.config.get('banned_models', []))
+        """Resolve shot_type → (model_id, prompt_template, policy_dict).
+    
+        Fails loudly if primary is unavailable and allow_alternate=False.
+        """
+        if shot_type not in self.routes:
+>           raise ValueError(
+                f"Unknown shot_type: {shot_type!r}. "
+                f"Available: {sorted(self.routes.keys())}")
+E           ValueError: Unknown shot_type: 'talking_head_long'. Available: ['broll_environment', 'broll_human', 'hero_face_insert', 'talking_head_hero', 'talking_head_standard']
+
+scripts/shot_router.py:73: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_generate_media.py::test_existing_media_reused - assert 1 == 0
+FAILED tests/test_generate_media.py::test_dry_run_no_api - assert 1 == 0
+FAILED tests/test_generate_media.py::test_no_credentials_fails - assert 1 == 0
+FAILED tests/test_generate_media.py::test_all_segment_ids_in_dry_run - assert...
+FAILED tests/test_m3e.py::test_default_broll_is_wan - AssertionError: assert ...
+FAILED tests/test_shot_router.py::test_config_loads - AssertionError: assert ...
+FAILED tests/test_shot_router.py::test_talking_head_hero_routes_to_veo3 - Ass...
+FAILED tests/test_shot_router.py::test_broll_environment_routes_to_hailuo - A...
+FAILED tests/test_shot_router.py::test_talking_head_standard_routes_to_kling
+FAILED tests/test_shot_router.py::test_unavailable_model_fails_loudly - Asser...
+FAILED tests/test_shot_router.py::test_alternate_used_when_primary_unavailable
+FAILED tests/test_shot_router.py::test_no_silent_fallback - assert False
+FAILED tests/test_shot_router.py::test_baked_audio_preserved_flag - ValueErro...
+ERROR tests/test_assemble.py::test_outputs_exist
+ERROR tests/test_assemble.py::test_duration_sane
+ERROR tests/test_assemble.py::test_resolution
+ERROR tests/test_assemble.py::test_audio_present
+ERROR tests/test_assemble.py::test_volume_range
+ERROR tests/test_assemble.py::test_no_long_silence
+ERROR tests/test_assemble.py::test_pacing_aligned
+13 failed, 134 passed, 7 errors in 13.19s

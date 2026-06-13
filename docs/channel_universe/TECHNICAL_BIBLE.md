@@ -404,6 +404,23 @@ Understated cinematic bed. Present but not distracting. The narration is the spi
 - B-roll: minimum 2s; typical 4–8s; a cut that comes too quickly reads as hyperactive
 - Insert shots (close-up hands, pen, document): 2–4s; used for emphasis, not decoration
 
+### Lipsync render minimum (Seedance 2.0 — hard floor)
+- **Seedance 2.0 rejects any clip with `duration < 4s`** (API error: `duration: Input should be greater than or equal to 4`). A sub-4s `hero_lipsync` beat that reaches the renderer will hard-fail, then degrade to a `still_kenburns` — losing the talking head entirely.
+- **Rule:** every `hero_lipsync` audio slice is padded so that `padded_len_sec = max(ceil(speech_len_sec + 0.200), min_clip_duration_sec)`, where `min_clip_duration_sec = 4` (see `constraints.json → lipsync_render_rules`). The 200 ms is the closed-mouth lead-in; the padding tail is room tone.
+- If a beat's speech is so short that padding to 4s would feel like a held mouth, **merge it into an adjacent hero beat** as a `render_group` instead of rendering it alone.
+- **Enforcement:** the pad floor is applied at compile (`compile_media_prompts.py`, T3 slicing). `generate_media.py` additionally clamps the `--duration` of any `hero_lipsync` render up to the minimum as defense-in-depth, so a stale or hand-edited plan can never send a sub-4s duration to the API.
+
+### Hero lipsync reference angles (anti-monotony)
+- Seedance composition **follows the reference image** — prompt-text angle changes ("three-quarter") do not materialize unless the reference FRAME is that angle.
+- `hero_lipsync` beats must rotate across **≥3 approved canonical angle frames**, never all anchoring to one frame (that reproduces the failed001 visual repetition). Enforced by `compile_media_prompts.py` (round-robin, no two consecutive hero beats reuse the same frame; honors a beat's explicit `camera_angle_id`).
+- The approved frame set is config-driven: `configs/james/model_routing.yaml → lipsync_references.active_set`. Registered frames are in `REFERENCE_ASSET_MANIFEST.md`.
+- **Wardrobe + setting continuity is mandatory within an episode** — every frame in an `active_set` shares one wardrobe and one setting (James cannot change clothes between cuts). Do not mix wardrobes across hero beats of the same episode.
+- If the desired wardrobe lacks ≥3 angle frames (gap G14), the compiler emits a warning; escalate for a small image-gen budget to fill the missing angles rather than mixing wardrobes.
+
+### Clip output paths (single source of truth)- Every beat's `output_path` in `media_plan.json` is the **one canonical location** for that clip (e.g. `assets/media/{segment_id}/{beat_id}.mp4`).
+- **Generation, technical QA, reuse-detection, and assembly all read `output_path`.** `generate_media.py` writes each clip to its beat's `output_path` (never a separate hardcoded `shots/` directory). If a beat lacks `output_path`, generation falls back to `assets/media/{project_id}/shots/{beat_id}.mp4`, but a compiled plan always carries `output_path`.
+- Consequence: do not move or rename a generated clip without updating the beat's `output_path` (it would orphan the clip from QA + assembly).
+
 ### Continuity
 - One continuous narration section may span multiple visual shots — this is normal and preferred
 - The narration does not need to be interrupted to cut between studio angles or to b-roll

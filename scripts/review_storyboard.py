@@ -52,7 +52,29 @@ def load_constraints():
     return json.loads(CONSTRAINTS_PATH.read_text()) if CONSTRAINTS_PATH.exists() else {}
 
 
-def _bands_check(m, blocking, warnings):
+def _max_hero_chain(beats):
+    """Recompute the true longest CONTINUOUS hero chain (hero_lipsync OR hero_cutaway,
+    consecutive in order) from RAW beats — never trust shot_mix_summary.
+    Returns list of (start_beat, end_beat, total_sec, all_in_act6)."""
+    ordered = sorted(beats, key=lambda b: b.get("order", 0))
+    chains = []
+    i, n = 0, len(ordered)
+    while i < n:
+        if ordered[i].get("shot_type") in HERO_SHOT_TYPES:
+            j, tot, acts = i, 0.0, set()
+            while j < n and ordered[j].get("shot_type") in HERO_SHOT_TYPES:
+                tot += float(ordered[j].get("est_duration_sec") or 0)
+                acts.add(ordered[j].get("act"))
+                j += 1
+            chains.append((ordered[i]["beat_id"], ordered[j - 1]["beat_id"],
+                           round(tot, 2), acts == {6}))
+            i = j
+        else:
+            i += 1
+    return chains
+
+
+def _bands_check(m, blocking, warnings, beats=None):
     """§7 shot-mix acceptance bands."""
     hero_total = m.get("hero_lipsync_pct", 0) + m.get("hero_cutaway_pct", 0)
     if not (25 <= hero_total <= 40):
@@ -69,8 +91,39 @@ def _bands_check(m, blocking, warnings):
     kin = m.get("kinetic_text_pct", 0)
     if not (2 <= kin <= 8):
         warnings.append(f"kinetic text {kin}% outside 2-8% band")
-    if m.get("max_hero_block_sec", 0) > 15.05:
-        blocking.append(f"max hero block {m.get('max_hero_block_sec')}s exceeds 15s")
+
+    # Max hero block: RECOMPUTE from raw beats (do not trust the summary value).
+    # Rule: a continuous hero chain must be <=15s, EXCEPT a single chain lying entirely
+    # in Act 6 (the closing identity-shift) may be <=25s.
+    HERO_CAP, ACT6_CAP = 15.05, 25.05
+    if beats:
+        chains = _max_hero_chain(beats)
+        true_max = max((c[2] for c in chains), default=0.0)
+        act6_long_exceptions = 0
+        for start, end, tot, all_act6 in chains:
+            if tot <= HERO_CAP:
+                continue  # within the normal 15s cap — always fine
+            # Over 15s: only allowed if it's a single Act-6 closing chain <=25s.
+            if all_act6 and tot <= ACT6_CAP:
+                act6_long_exceptions += 1
+                continue
+            blocking.append(
+                f"hero chain {start}-{end} = {tot}s exceeds 15s cap "
+                f"(recomputed from raw beats; act6_exception={all_act6})")
+        if act6_long_exceptions > 1:
+            blocking.append(f"{act6_long_exceptions} Act-6 hero chains exceed 15s using the "
+                            f"<=25s exception (only ONE closing chain may)")
+        # Cross-check: flag if the summary understates the true max (data integrity).
+        claimed = m.get("max_hero_block_sec", 0)
+        if claimed and true_max - claimed > 1.0:
+            warnings.append(
+                f"shot_mix_summary.max_hero_block_sec={claimed}s understates the true "
+                f"continuous hero max {true_max}s (recomputed) — summary is unreliable")
+    else:
+        # No beats available: fall back to the (untrusted) summary value.
+        if m.get("max_hero_block_sec", 0) > HERO_CAP:
+            blocking.append(f"max hero block {m.get('max_hero_block_sec')}s exceeds 15s")
+
     if m.get("distinct_visual_setups", 0) < 12:
         blocking.append(f"only {m.get('distinct_visual_setups')} distinct visual setups (<12)")
 
@@ -176,7 +229,7 @@ def review(storyboard, constraints):
     if not m:
         blocking.append("missing shot_mix_summary")
     else:
-        _bands_check(m, blocking, warnings)
+        _bands_check(m, blocking, warnings, beats=beats)
 
     _anti_patterns(beats, blocking, warnings)
     _trigger_coverage(beats, blocking, warnings)

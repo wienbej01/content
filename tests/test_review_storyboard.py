@@ -79,8 +79,78 @@ def test_all_hero_storyboard_fails(RS):
 def test_max_hero_block_violation_named(RS):
     sb = _all_hero_sb()
     blocking, _, _ = RS.review(sb, RS.load_constraints())
-    assert any("max hero block" in b.lower() for b in blocking)
+    assert any("hero" in b.lower() and ("15s" in b or "exceeds" in b.lower()) for b in blocking)
     print("  ✓ max-hero-block violation is named")
+
+
+def _mixed_chain_sb(chain_specs, summary_max=12.0):
+    """Build a minimal storyboard whose hero chains are given by chain_specs:
+    list of (shot_type, act, dur). Non-hero spacer beats separate explicit chains
+    when a None appears. shot_mix_summary.max_hero_block_sec is set to summary_max
+    (deliberately a LIE to prove the reviewer recomputes from raw beats)."""
+    beats, order = [], 0
+    for i, spec in enumerate(chain_specs):
+        if spec is None:
+            beats.append({"beat_id": f"S{order}", "segment_id": "s", "act": 4, "order": order,
+                          "narration_text": "spacer", "est_duration_sec": 4.0,
+                          "shot_type": "broll_archival", "asset_type": "generated_video",
+                          "model": "kling3_0", "visual_brief": "archival library scene, period detail",
+                          "narrative_function": "x", "lipsync_required": False,
+                          "crop_safety": "center_safe", "cost": {"est_clips": 1, "est_credits": 10, "est_usd": 0.49},
+                          "fallback": {}, "approval": {}, "qa": {}})
+            order += 1
+            continue
+        st, act, dur = spec
+        beats.append({"beat_id": f"H{order}", "segment_id": "s", "act": act, "order": order,
+                      "narration_text": "James speaks.", "est_duration_sec": dur,
+                      "shot_type": st, "asset_type": "generated_video", "model": "seedance_2_0",
+                      "visual_brief": "James medium close-up at the mahogany desk, direct address",
+                      "narrative_function": "x", "lipsync_required": st == "hero_lipsync",
+                      "crop_safety": "center_safe", "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+                      "fallback": {}, "approval": {}, "qa": {}})
+        order += 1
+    return {
+        "schema_version": "2.0", "project_id": "chaintest", "video_type": "explainer",
+        "acts": [], "beats": beats,
+        "shot_mix_summary": {
+            "hero_lipsync_pct": 18.0, "hero_cutaway_pct": 11.0, "broll_specific_pct": 36.0,
+            "broll_metaphorical_pct": 10.0, "graphics_ui_pct": 15.0, "kinetic_text_pct": 5.0,
+            "max_hero_block_sec": summary_max, "distinct_visual_setups": 20,
+        },
+        "totals": {"est_usd": 30, "budget_cap_usd": 60}, "approval": {"status": "draft"},
+    }
+
+
+def test_recomputed_hero_chain_blocks_despite_summary_lie(RS):
+    """A mixed lipsync+cutaway chain of 19.58s in a non-Act-6 act must BLOCK even
+    though shot_mix_summary.max_hero_block_sec lies (12.0). Reviewer recomputes."""
+    sb = _mixed_chain_sb(
+        [("hero_cutaway", 4, 5.42), ("hero_lipsync", 4, 10.83), ("hero_cutaway", 4, 3.33),
+         None, ("broll_archival", 4, 4.0)],
+        summary_max=12.0)
+    blocking, warnings, _ = RS.review(sb, RS.load_constraints())
+    assert any("hero chain" in b.lower() and "exceeds 15s" in b.lower() for b in blocking), blocking
+    assert any("understates" in w.lower() for w in warnings), warnings
+    print("  ✓ recomputed 19.58s non-Act-6 hero chain blocks despite lying summary")
+
+
+def test_act6_closing_chain_exception_allowed(RS):
+    """A SINGLE hero chain entirely in Act 6, <=25s, is allowed (closing exception)."""
+    sb = _mixed_chain_sb(
+        [None, ("hero_cutaway", 6, 5.42), ("hero_lipsync", 6, 10.83), ("hero_cutaway", 6, 3.33)],
+        summary_max=19.58)
+    blocking, _, _ = RS.review(sb, RS.load_constraints())
+    assert not any("hero chain" in b.lower() for b in blocking), blocking
+    print("  ✓ single Act-6 closing hero chain <=25s allowed")
+
+
+def test_act6_chain_over_25s_still_blocks(RS):
+    """Even an Act-6 chain may not exceed 25s."""
+    sb = _mixed_chain_sb(
+        [None, ("hero_lipsync", 6, 14.0), ("hero_cutaway", 6, 13.0)], summary_max=10.0)
+    blocking, _, _ = RS.review(sb, RS.load_constraints())
+    assert any("hero chain" in b.lower() for b in blocking), blocking
+    print("  ✓ Act-6 hero chain >25s still blocks")
 
 
 def test_banned_model_blocks(RS, compliant_sb):

@@ -34,6 +34,19 @@ HUMAN_CLOSEUP_MODEL = "kling3_0"           # hero face, hands, body, human backg
 BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5",
                  "wan2_7", "wan2_6"}        # wan models NOT authorized
 LIPSYNC_MAX_DUR = 10    # seedance_2_0 max duration per clip (seconds)
+
+
+def _seedance_min_duration():
+    """Seedance 2.0 minimum clip duration (constraints.json lipsync_render_rules),
+    default 4s. Seedance rejects duration < this."""
+    try:
+        c = json.loads((ROOT / "docs" / "channel_universe" / "constraints.json").read_text())
+        return int(c.get("lipsync_render_rules", {}).get("min_clip_duration_sec", 4))
+    except Exception:
+        return 4
+
+
+SEEDANCE_MIN_DURATION_SEC = _seedance_min_duration()  # hero_lipsync clips must be >= this
 WAIT_TIMEOUT = "15m"
 WAIT_INTERVAL = "10s"
 MAX_FREEZE = 0.5        # PHASE 5: no held frame longer than this
@@ -823,10 +836,14 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
     # constraints into the positive prompt as an "Avoid:" clause, like the legacy path.
     if negative:
         prompt = f"{prompt} Avoid: {negative}"
-    # For lipsync beats, duration comes from the padded audio slice (integer seconds).
+    # For lipsync beats, duration comes from the padded audio slice (integer seconds),
+    # clamped to [SEEDANCE_MIN_DURATION_SEC, LIPSYNC_MAX_DUR] (API hard limits).
     sl = beat.get("audio_slice") or {}
     if beat.get("lipsync_required") and sl.get("padded_len_sec"):
         duration = int(sl["padded_len_sec"])
+        if beat.get("shot_type") == "hero_lipsync":
+            duration = max(duration, SEEDANCE_MIN_DURATION_SEC)
+            duration = min(duration, LIPSYNC_MAX_DUR)   # Seedance rejects > 10s
     else:
         duration = max(1, int(round(beat.get("duration_target_sec", 5))))
     refs = beat.get("reference_images") or []
@@ -860,7 +877,22 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
             raise RuntimeError(
                 f"{beat['beat_id']}: hero_lipsync requires a narration audio slice "
                 f"(audio_path={audio_path!r}). Compile with audio_timing wired (T3).")
-        cmd += ["--audio", str(audio_path)]
+        # Trim the slice to the render duration when the audio is longer than the
+        # requested clip (e.g. 16s speech → 10s clamped render). Seedance rejects
+        # lipsync jobs where audio duration > video duration.
+        import subprocess as _sp
+        audio_for_api = audio_path
+        audio_dur = float(_sp.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
+            capture_output=True, text=True).stdout.strip() or "0")
+        if audio_dur > duration + 0.1:
+            trimmed = out_path.parent / f"_slice_trim_{out_path.stem}.mp3"
+            _sp.run(["ffmpeg", "-y", "-i", str(audio_path),
+                     "-t", str(duration), "-c", "copy", str(trimmed)],
+                    capture_output=True, check=True)
+            audio_for_api = trimmed
+        cmd += ["--audio", str(audio_for_api)]
 
     cmd += ["--wait", "--wait-timeout", WAIT_TIMEOUT, "--wait-interval", WAIT_INTERVAL, "--json"]
     result = hf_cmd(cmd[2:])
@@ -889,7 +921,7 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
             "lipsync": bool(lipsync)}
 
 
-def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=False):
+def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=False, selected=None):
     """PRIMARY generation path (blueprint §10 #2): media_plan.json is the ONLY
     prompt source. Generates per-beat, with hero lipsync, still_kenburns, reuse
     lookup, provenance, and a dry-run report. Local-graphic beats are skipped
@@ -898,7 +930,19 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
     plan = json.loads(plan_path.read_text())
     project_id = plan["project_id"]
     project_dir = ROOT / "Videos" / "Projects" / project_id
+    # Fallback base only used if a beat lacks an explicit output_path. The media
+    # plan's per-beat output_path is the single source of truth (QA, assembly, and
+    # reuse all read output_path), so generation MUST write there too.
     out_base = ROOT / "assets" / "media" / project_id / "shots"
+
+    def _beat_out_path(beat):
+        """Resolve a beat's clip path from its output_path (ROOT-relative),
+        falling back to the shots/ convention only if output_path is absent."""
+        op = beat.get("output_path")
+        if op:
+            p = Path(op)
+            return p if p.is_absolute() else (ROOT / p)
+        return out_base / f"{beat['beat_id']}.mp4"
 
     # HARD SPEND GATE before any Higgsfield call (§10 #1).
     if not dry_run and not force_unsafe:
@@ -922,7 +966,14 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
     for beat in plan["beats"]:
         bid = beat["beat_id"]
         shot_type = beat["shot_type"]
-        out_path = out_base / f"{bid}.mp4"
+        out_path = _beat_out_path(beat)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Honour --segment / --segments filter (beat_id or render_group).
+        if selected and bid not in selected and (beat.get("render_group") or "") not in selected:
+            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat.get("model",""),
+                                 "clips": 0, "cost_usd": 0.0, "reuse": False, "action": "skipped_not_selected"})
+            continue
 
         # Local graphics are not Higgsfield work — handled by graphics.py (T10).
         if shot_type in LOCAL or beat["model"] == "local_graphic":
@@ -990,7 +1041,7 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
 
         # Generate with retry-once-then-fallback (§2 S6 / G8).
         try:
-            if shot_type == "still_kenburns":
+            if shot_type == "still_kenburns" or beat.get("model") == "still_kenburns":
                 res = _still_kenburns(beat, out_path)
             else:
                 try:
@@ -1403,7 +1454,7 @@ def main():
     if is_media_plan:
         try:
             run_from_media_plan(input_path, dry_run=args.dry_run, force=args.force,
-                                force_unsafe=args.force_unsafe)
+                                force_unsafe=args.force_unsafe, selected=selected)
         except (ValueError, RuntimeError) as e:
             print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)

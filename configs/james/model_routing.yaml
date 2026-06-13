@@ -9,6 +9,38 @@ narration:
   lock_audio: true
   regenerate_after_lipsync: false
 
+# Approved reference frames for hero_lipsync beats (fixes reference-frame monotony,
+# Fable G14). Seedance composition FOLLOWS the reference image, so prompt-text angle
+# changes alone do not materialize — the angle must come from the reference FRAME.
+# The compiler rotates hero_lipsync beats across the `default_set` (round-robin, no
+# two consecutive hero beats reuse the same frame), and honors a beat's explicit
+# camera_angle_id when it matches a frame's `angle`.
+#
+# CONTINUITY RULE: all frames used within ONE episode must share wardrobe + setting
+# (James cannot change clothes between cuts). Each set below is a single wardrobe in a
+# single setting. `active_set` selects which set this production uses.
+lipsync_references:
+  # Brand-default wardrobe (navy sweater / white Oxford, BRAND_SPEC §3). 4 angles:
+  # front + front_speaking + three_quarter + side_profile, all in the library setting.
+  active_set: navy_sweater_library
+  sets:
+    dark_jacket_library:
+      wardrobe: "navy blazer over white open-collar shirt"
+      setting: "home library, anglepoise lamp, bookshelves, framed print"
+      frames:
+        - {angle: front,          path: assets/reference/james/canonical/JAMES_MEDIUM_FRONT_DARK_JACKET_002.png}
+        - {angle: medium_wide,    path: assets/reference/james/canonical/JAMES_MEDIUM_WIDE_DARK_JACKET_002.png}
+        - {angle: three_quarter,  path: assets/reference/james/canonical/JAMES_THREE_QUARTER_DARK_JACKET_SPEAKING_002.png}
+        - {angle: side_profile,   path: assets/reference/james/canonical/JAMES_SIDE_PROFILE_DARK_JACKET_SPEAKING_002.png}
+    navy_sweater_library:
+      wardrobe: "navy fine-knit sweater over white/pale-blue open-collar Oxford shirt"
+      setting: "home library, brass anglepoise lamp at left, white bookshelves, framed print, soft window light"
+      frames:
+        - {angle: front,          path: assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png}
+        - {angle: front_speaking, path: assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png}
+        - {angle: three_quarter,  path: assets/reference/james/canonical/JAMES_THREE_QUARTER_NAVY_SWEATER_002.png}
+        - {angle: side_profile,   path: assets/reference/james/canonical/JAMES_SIDE_PROFILE_NAVY_SWEATER_002.png}
+
 higgsfield:
   require_cost_estimate: true
 

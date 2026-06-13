@@ -1,21 +1,28 @@
 {
   "version": "1.1",
   "purpose": "Machine-readable production constraints for storyboard validator, prompt compiler, and QA scripts. Companion to TECHNICAL_BIBLE.md and UNIVERSE_BIBLE.md.",
-
   "host_led_default": true,
   "non_host_led_condition": "storyboard.allow_all_broll == true",
-
-  "episode_types": ["teaser", "explainer", "trailer", "short"],
-
+  "episode_types": [
+    "teaser",
+    "explainer",
+    "trailer",
+    "short"
+  ],
   "allowed_palette": {
     "primary_dark": "#1B2A4A",
     "primary_warm": "#C8973E",
     "neutral_base": "#F5F0E8",
     "text_shadow": "#2D2D2D",
     "accent": "#6B1D2A",
-    "incidentals": ["dark wood", "aged leather", "brass", "muted sage", "charcoal grey"]
+    "incidentals": [
+      "dark wood",
+      "aged leather",
+      "brass",
+      "muted sage",
+      "charcoal grey"
+    ]
   },
-
   "forbidden_palette": [
     "neon purple",
     "neon blue",
@@ -25,14 +32,12 @@
     "oversaturated corporate primaries",
     "cool-toned teal grade"
   ],
-
   "allowed_lighting": [
     "warm desk lamp (2700-3500K directional)",
     "soft natural side light from window (morning or late afternoon)",
     "reflected warm fill from walls or paper",
     "practical ceiling ambient (background fill only)"
   ],
-
   "forbidden_lighting": [
     "colored ambient glow (blue, purple, teal)",
     "ring light catchlight in eyes",
@@ -42,7 +47,6 @@
     "strobe or flicker effects",
     "any light without a plausible physical source"
   ],
-
   "allowed_camera_movements": [
     "locked-off medium shot",
     "slow push-in",
@@ -54,7 +58,6 @@
     "slow tracking walk",
     "motivated slow pan (bookshelf or desk only)"
   ],
-
   "forbidden_camera_movements": [
     "spinning camera or 360 orbit",
     "aggressive zoom or crash zoom",
@@ -64,7 +67,6 @@
     "hyperactive cuts (average A-roll shot duration below 3s)",
     "unmotivated cinematic swoop"
   ],
-
   "approved_studio_angles": [
     "STUDIO_LIBRARY_WIDE_001",
     "STUDIO_LIBRARY_MEDIUM_DESK_001",
@@ -74,7 +76,6 @@
     "STUDIO_LIBRARY_STANDING_BOOKSHELF_001",
     "STUDIO_LIBRARY_CAT_BACKGROUND_001"
   ],
-
   "allowed_scene_types": [
     "A_ROLL_TALKING_HEAD",
     "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
@@ -86,14 +87,14 @@
     "TRANSITION",
     "TITLE_CARD"
   ],
-
   "scene_type_notes": {
     "A_ROLL_TALKING_HEAD": "Direct camera address + lipsync from final approved narration. Uses seedance_2_0. audio_policy: keep_lipsync.",
     "A_ROLL_CHARACTER_PRESENT_VOICEOVER": "James in frame NOT addressing camera. No lipsync. audio_policy: strip. Narration comes from the continuous master file."
   },
-
-  "excluded_from_presence_count": ["TRANSITION", "TITLE_CARD"],
-
+  "excluded_from_presence_count": [
+    "TRANSITION",
+    "TITLE_CARD"
+  ],
   "forbidden_visual_patterns": [
     "futuristic_ai_city",
     "glowing_hologram_dashboard",
@@ -114,7 +115,6 @@
     "random_studio_redesign",
     "inconsistent_cat_appearance"
   ],
-
   "universal_required_prompt_fields": [
     "beat_id",
     "scene_type",
@@ -133,24 +133,27 @@
     "negative_prompt",
     "model"
   ],
-
   "studio_required_prompt_fields": [
     "camera_angle_id"
   ],
-
   "studio_location_ids": [
     "ENV_STUDIO_LIBRARY",
     "ENV_PRIVATE_STUDY"
   ],
-
   "a_roll_required_prompt_fields": [
     "reference_assets"
   ],
-
-  "text_policy_enum": ["none", "soft_focus_only", "post_overlay"],
-
+  "text_policy_enum": [
+    "none",
+    "soft_focus_only",
+    "post_overlay"
+  ],
   "text_policy": {
-    "enum": ["none", "soft_focus_only", "post_overlay"],
+    "enum": [
+      "none",
+      "soft_focus_only",
+      "post_overlay"
+    ],
     "default": "none",
     "generated_in_scene_text": "forbidden",
     "screens_in_focus": "forbidden",
@@ -159,9 +162,7 @@
     "post_production_overlay": "allowed",
     "soft_focus_documents": "allowed"
   },
-
   "default_negative_constraints": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance",
-
   "audio_policy": {
     "generated_tts": "strip",
     "baked_in": "keep_lipsync",
@@ -180,7 +181,17 @@
     "music_bed_db_target": -28,
     "music_bed_db_quietest": -32
   },
-
+  "lipsync_render_rules": {
+    "model": "seedance_2_0",
+    "min_clip_duration_sec": 4,
+    "min_clip_duration_reason": "Seedance 2.0 rejects duration < 4s ('Input should be greater than or equal to 4'); shorter hero_lipsync beats must be padded to >=4s or merged into an adjacent hero render group, never rendered shorter (would hard-fail then degrade to a still).",
+    "pad_target_rule": "padded_len_sec = max(ceil(speech_len_sec + 0.200), min_clip_duration_sec)",
+    "lead_in_sec": 0.2,
+    "lead_in_reason": "200ms closed-mouth lead-in at slice start",
+    "on_sub_min_beat": "pad slice with room tone to min_clip_duration_sec; if still shorter than speech, merge with adjacent hero beat (render_group) instead",
+    "max_clip_duration_sec": 10,
+    "max_clip_duration_reason": "Seedance 2.0 rejects duration > 10s. Beats with padded_len_sec > 10s must be split into multiple clips or have their slice trimmed to 10s (the render produces 10s; assembly trims to speech_len_sec via T8 baked-audio path)."
+  },
   "crop_safety": {
     "master_format": "16:9",
     "derived_format": "9:16",
@@ -188,31 +199,33 @@
     "james_must_be_center_safe": true,
     "key_props_center_safe_pct": 60
   },
-
   "a_roll_rules": {
     "requires_reference_assets": true,
     "requires_approved_studio_angle": true,
     "lipsync_requires_final_narration": true,
     "no_substitute_presenters": true,
     "presence_measured_by": "beat_count",
-    "presence_excludes_scene_types": ["TRANSITION", "TITLE_CARD"],
+    "presence_excludes_scene_types": [
+      "TRANSITION",
+      "TITLE_CARD"
+    ],
     "min_presence_teaser_pct": 60,
     "min_presence_explainer_pct": 45,
     "min_presence_trailer_pct": 40,
     "min_presence_short_pct": 70,
     "zero_james_host_led_is_hard_fail": true
   },
-
   "storyboard_rules": {
     "min_distinct_angles_or_locations": 3
   },
-
   "cat_rules": {
     "cat_requires_reference": true,
-    "cat_reference_ids": ["CAT_LIBRARY_SLEEPING_001", "CAT_WINDOW_001"],
+    "cat_reference_ids": [
+      "CAT_LIBRARY_SLEEPING_001",
+      "CAT_WINDOW_001"
+    ],
     "cat_frequency_is_human_review": true
   },
-
   "b_roll_rules": {
     "may_not_replace_entire_video": true,
     "audio_must_be_stripped_for_generated_tts": true,
@@ -235,7 +248,6 @@
       "any_forbidden_environment"
     ]
   },
-
   "quality_markers": {
     "shallow_dof_aroll": true,
     "consistent_color_temp": true,
@@ -243,7 +255,6 @@
     "no_crushed_blacks": true,
     "light_has_visible_source": true
   },
-
   "model_routing_policy": {
     "a_roll_lipsync": "seedance_2_0",
     "james_present_voiceover": "seedance_2_0",
@@ -253,7 +264,6 @@
     "llm_utility_tasks": "auto",
     "llm_auto_utility_may_be_sole_creative_approver": false
   },
-
   "qa_scoring_scale": {
     "5": "Excellent; strongly on-brand; no issues",
     "4": "Good; on-brand; minor notes only",
@@ -261,7 +271,6 @@
     "2": "Poor; major repair needed",
     "1": "Unusable; automatic fail"
   },
-
   "automatic_fail_conditions": [
     "generated_tts_broll_audio_in_final_output",
     "james_absent_from_host_led_episode",

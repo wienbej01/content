@@ -155,6 +155,14 @@ def compile_beat(beat, constraints, routing):
     negative = constraints.get("default_negative_constraints", "")
     positive = _compose_positive(beat, constraints)
 
+    # Guard: every GENERATED (non-local) beat must carry a non-empty negative prompt.
+    # Negatives are injection-only, so an empty default_negative_constraints would
+    # silently ship generated beats with no suppression block — reject at compile.
+    is_generated = asset_type in ("generated_video", "generated_still") and model != "local_graphic"
+    if is_generated and not (negative and negative.strip()):
+        errors.append(f"{bid}: generated beat has an empty negative_prompt "
+                      f"(constraints.default_negative_constraints is missing/blank)")
+
     for fail in vagueness_lint(beat, positive_prompt=positive):
         errors.append(f"{bid}: {fail}")
 
@@ -259,7 +267,7 @@ def _compose_positive(beat, constraints):
     return f"{base} {pal}. {light}. Photorealistic, cinematic, 16:9. No people in close-up unless specified."
 
 
-def slice_hero_beats(plan_beats, storyboard, project_dir):
+def slice_hero_beats(plan_beats, storyboard, project_dir, constraints=None):
     """T3: populate audio_slice for every hero_lipsync beat using silence-snapped
     timing from the segment narration files.
 
@@ -386,8 +394,14 @@ def slice_hero_beats(plan_beats, storyboard, project_dir):
 
                 # 200ms lead-in (closed mouth at start).
                 slice_start = max(0.0, round(t_start - 0.2, 3))
-                # Pad to next integer second for seedance duration param.
-                padded_len = math.ceil(speech_len + 0.2)
+                # Pad to next integer second for seedance duration param, then
+                # enforce the seedance minimum clip duration (constraints.json
+                # lipsync_render_rules.min_clip_duration_sec, default 4s). Seedance
+                # rejects duration < 4s; a sub-min beat would hard-fail then degrade
+                # to a still, so pad it up with room tone here.
+                min_clip = ((constraints or {}).get("lipsync_render_rules", {})
+                            .get("min_clip_duration_sec", 4))
+                padded_len = max(math.ceil(speech_len + 0.2), int(min_clip))
                 slice_end = round(slice_start + padded_len, 3)
                 slice_end = min(slice_end, total_dur + 0.5)  # don't exceed source + margin
 
@@ -439,7 +453,7 @@ def _merge_lipsync_chains(plan_beats, project_dir):
         chains.append(chain)
 
     for chain in chains:
-        total_speech = sum(b.get("audio_slice", {}).get("speech_len_sec", 0) for b in chain)
+        total_speech = sum((b.get("audio_slice") or {}).get("speech_len_sec", 0) for b in chain)
         if total_speech > 15.0 or total_speech == 0:
             continue  # don't merge chains >15s or those with no slices yet
         group_id = f"RG_{chain[0]['beat_id']}_{chain[-1]['beat_id']}"
@@ -471,17 +485,96 @@ def _merge_lipsync_chains(plan_beats, project_dir):
                     "speech_len_sec": round(total_speech, 3),
                     "padded_len_sec": padded_len,
                     "slice_sha256": combined_sha,
-                    "parent_mp3_sha256": chain[0].get("audio_slice", {}).get("parent_mp3_sha256"),
+                    "parent_mp3_sha256": (chain[0].get("audio_slice") or {}).get("parent_mp3_sha256"),
                     "merged_beats": [b["beat_id"] for b in chain],
                 }
                 for b in chain[1:]:
                     b["audio_slice"]["merged_into"] = group_id
 
 
+def assign_lipsync_references(plan_beats, routing):
+    """Distribute approved canonical reference frames across hero_lipsync beats so
+    they rotate through >=3 angles (fixes reference-frame monotony / Fable G14).
+
+    - Uses routing['lipsync_references'] active_set frames (angle-tagged, one wardrobe).
+    - Honors a beat's explicit camera_angle_id when it matches a frame angle.
+    - Otherwise round-robins; never assigns the SAME frame to two CONSECUTIVE hero
+      beats (T5 rule). Merged-group followers inherit the group leader's frame.
+    Returns (errors, warnings). Mutates beat['reference_images'].
+    errors block compile (broken config / missing files); warnings do not (G14 gap).
+    """
+    cfg = (routing or {}).get("lipsync_references") or {}
+    active = cfg.get("active_set")
+    sets = cfg.get("sets") or {}
+    frames = (sets.get(active) or {}).get("frames") or []
+    errors, warnings = [], []
+    if not frames:
+        warnings.append("lipsync_references: no active_set frames configured — hero beats "
+                        "fall back to the single canonical frame (monotony not fixed).")
+        return errors, warnings
+
+    # Validate frames exist on disk. A configured-but-not-yet-generated frame is a
+    # WARNING (e.g. a G14 gap awaiting image-gen), not a hard error — the compiler
+    # rotates across whatever frames DO exist and flags the shortfall.
+    usable = []
+    for fr in frames:
+        p = fr.get("path")
+        if p and (ROOT / p).exists():
+            usable.append(fr)
+        else:
+            warnings.append(f"lipsync_references: frame not yet on disk (skipped): {p}")
+    if len(usable) < 3:
+        warnings.append(f"lipsync_references active_set {active!r} has only {len(usable)} usable "
+                        f"frame(s) (<3) — angle variety insufficient; generate the missing angles "
+                        f"(G14) e.g. via scripts/generate_navy_lipsync_angles.py.")
+    if not usable:
+        return errors, warnings
+
+    by_angle = {fr.get("angle"): fr["path"] for fr in usable}
+    rr = [fr["path"] for fr in usable]
+    rr_i = 0
+    last_path = None
+    group_leader_path = {}
+
+    for b in plan_beats:
+        if b.get("shot_type") != "hero_lipsync":
+            continue
+        # Merged-group followers inherit the leader's frame (same physical clip).
+        rg = b.get("render_group")
+        if rg and b.get("render_group_index", 0) > 0 and rg in group_leader_path:
+            b["reference_images"] = [group_leader_path[rg]]
+            continue
+
+        chosen = None
+        # 1) explicit angle match
+        ang = b.get("camera_angle_id")
+        if ang:
+            for a, path in by_angle.items():
+                if a and a.lower() in str(ang).lower():
+                    chosen = path
+                    break
+        # 2) round-robin, skip if it would repeat the previous hero frame
+        if chosen is None:
+            for _ in range(len(rr)):
+                cand = rr[rr_i % len(rr)]
+                rr_i += 1
+                if cand != last_path or len(rr) == 1:
+                    chosen = cand
+                    break
+        if chosen is None:
+            chosen = rr[0]
+        b["reference_images"] = [chosen]
+        last_path = chosen
+        if rg:
+            group_leader_path[rg] = chosen
+    return errors, warnings
+
+
 def compile_plan(storyboard, constraints, routing, project_dir=None):
     beats_in = storyboard.get("beats", [])
     plan_beats = []
     all_errors = []
+    plan_warnings = []
     for b in beats_in:
         entry, errs = compile_beat(b, constraints, routing)
         plan_beats.append(entry)
@@ -489,8 +582,14 @@ def compile_plan(storyboard, constraints, routing, project_dir=None):
 
     # T3 (LIPSYNC_TICKETS): generate audio slices for hero_lipsync beats.
     if project_dir:
-        slice_errors = slice_hero_beats(plan_beats, storyboard, project_dir)
+        slice_errors = slice_hero_beats(plan_beats, storyboard, project_dir, constraints)
         all_errors.extend(slice_errors)
+
+    # Reference-frame rotation: distribute approved canonical angles across hero
+    # beats so they don't all anchor to one frame (Fable G14 / T5).
+    ref_errors, ref_warnings = assign_lipsync_references(plan_beats, routing)
+    all_errors.extend(ref_errors)
+    plan_warnings.extend(ref_warnings)
 
     # T4: merge consecutive hero_lipsync chains ≤15s into render groups.
     _merge_lipsync_chains(plan_beats, project_dir)
@@ -525,6 +624,8 @@ def compile_plan(storyboard, constraints, routing, project_dir=None):
             "pct_zero_cost_beats": round(100 * local / max(1, len(plan_beats)), 1),
         },
     }
+    if plan_warnings:
+        plan["warnings"] = plan_warnings
     return plan, all_errors
 
 

@@ -23,8 +23,44 @@
 
 ---
 
-## Additional Existing Assets
+## Hero lipsync reference set (angle rotation — Fable G14 fix)
 
+These angle-correct canonical frames are rotated across `hero_lipsync` beats by
+`compile_media_prompts.py` (config: `configs/james/model_routing.yaml → lipsync_references`).
+Seedance composition follows the reference frame, so the ANGLE must come from the frame,
+not prompt text. All frames in a single `active_set` share one wardrobe + setting
+(James cannot change clothes between cuts).
+
+**Set `dark_jacket_library` (active for flagship_001 — 4 distinct angles, 16:9 1376×768):**
+
+| Asset ID | Path | Angle | Wardrobe | Status |
+|---|---|---|---|---|
+| `JAMES_MEDIUM_FRONT_DARK_JACKET_002` | `assets/reference/james/canonical/JAMES_MEDIUM_FRONT_DARK_JACKET_002.png` | front | navy blazer / white open collar | found |
+| `JAMES_MEDIUM_WIDE_DARK_JACKET_002` | `assets/reference/james/canonical/JAMES_MEDIUM_WIDE_DARK_JACKET_002.png` | medium_wide | navy blazer / white open collar | found |
+| `JAMES_THREE_QUARTER_DARK_JACKET_SPEAKING_002` | `assets/reference/james/canonical/JAMES_THREE_QUARTER_DARK_JACKET_SPEAKING_002.png` | three_quarter | navy blazer / white open collar | found |
+| `JAMES_SIDE_PROFILE_DARK_JACKET_SPEAKING_002` | `assets/reference/james/canonical/JAMES_SIDE_PROFILE_DARK_JACKET_SPEAKING_002.png` | side_profile | navy blazer / white open collar | found |
+
+**Set `navy_sweater_library` (matches established brand wardrobe — G14 GAP: only 2 angles):**
+
+| Asset ID | Path | Angle | Wardrobe | Status |
+|---|---|---|---|---|
+| `JAMES_MEDIUM_FRONT_NAVY_SWEATER_002` | `assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png` | front | navy sweater / white Oxford collar | found |
+| `JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002` | `assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png` | front_speaking | navy sweater / white Oxford collar | found |
+| `JAMES_THREE_QUARTER_NAVY_SWEATER_002` | (to generate) | three_quarter | navy sweater | **G14 — missing** |
+| `JAMES_SIDE_PROFILE_NAVY_SWEATER_002` | (to generate) | side_profile | navy sweater | **G14 — missing** |
+
+**Supplementary new frames (not in an active lipsync set):**
+
+| Asset ID | Path | Use |
+|---|---|---|
+| `JAMES_THREE_QUARTER_OLIVE_SWEATER_002` | `assets/reference/james/canonical/JAMES_THREE_QUARTER_OLIVE_SWEATER_002.png` | alt wardrobe / future set |
+| `JAMES_SEATED_OXBLOOD_SWEATER_WINDOW_002` | `assets/reference/james/canonical/JAMES_SEATED_OXBLOOD_SWEATER_WINDOW_002.png` | seated framing, oxblood wardrobe |
+| `JAMES_CLOSEUP_NAVY_DARK_BG_002` | `assets/reference/james/canonical/JAMES_CLOSEUP_NAVY_DARK_BG_002.png` | closeup, dark studio bg (setting differs) |
+| `JAMES_PORTRAIT_NAVY_DARK_BG_SQUARE_001` | `assets/reference/james/canonical/JAMES_PORTRAIT_NAVY_DARK_BG_SQUARE_001.png` | 1:1 portrait — thumbnail/avatar, not a 16:9 hero ref |
+
+---
+
+## Additional Existing Assets
 | Asset ID | Expected path | Source type | Status | Notes |
 |---|---|---|---|---|
 | `JAMES_VERTICAL_CLOSEUP_001` | `assets/reference/james/JAMES_VERTICAL_CLOSEUP_001.png` | `existing_repo` | `found` | Source: `brand/James_harrington_vertical.png` (317×552px); 9:16 compositions |

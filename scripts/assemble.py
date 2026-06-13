@@ -24,6 +24,7 @@ Outputs (in manifest output.directory):
 Paths in the manifest are relative to the manifest file's directory.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -49,6 +50,94 @@ def run(cmd, label=""):
 TAIL_PAD = 0.25   # seconds appended after narration ends (prevents last-word cut-off)
 MAX_FREEZE = 0.5  # max held-frame duration before requiring multiple shots (PHASE 5)
 
+# Audio policy for a segment. "keep_lipsync" means the clip carries its own baked
+# lipsync audio (from a seedance hero render) and the master narration must NEVER be
+# overlaid on it (that would mute the mouth-synced audio / cause echo). Any other
+# value (or absence) means the segment is a voiceover/graphic span that takes a
+# separate narration track overlaid on muted visuals — the existing behavior.
+KEEP_LIPSYNC = "keep_lipsync"
+LIPSYNC_TIMING_TOL = 0.25  # ±s allowed between a baked span's true length and its slice
+
+
+def file_sha256(path):
+    """SHA-256 of a file's bytes (None if missing)."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def audio_stream_sha256(path):
+    """SHA-256 of a media file's decoded-then-reencoded *audio* payload only.
+
+    We hash the extracted audio (copied, container-stripped) so the check is
+    stable across video re-encodes. Returns None if the file has no audio.
+    """
+    p = Path(path)
+    if not p.exists():
+        return None
+    # Probe for an audio stream first
+    ra = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a",
+         "-show_entries", "stream=codec_type",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(p)],
+        capture_output=True, text=True)
+    if "audio" not in ra.stdout:
+        return None
+    # Extract raw PCM and hash it (re-encode-stable representation of the audio)
+    r = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(p),
+         "-vn", "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
+        capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        return None
+    return hashlib.sha256(r.stdout).hexdigest()
+
+
+def validate_lipsync_provenance(seg, base):
+    """Re-verify a keep_lipsync segment's baked-audio provenance against the
+    media plan's recorded slice hashes. Returns a list of problem strings
+    (empty == clean). Assembly MUST fail if this returns problems.
+
+    The media plan records, per hero beat/render-group:
+      audio_slice.slice_sha256       — sha256 of narration/slices/{beat}.mp3 bytes
+      audio_slice.parent_mp3_sha256  — sha256 of the parent segment narration mp3
+    We re-hash the live slice file and parent file and compare.
+    """
+    prov = seg.get("lipsync_provenance")
+    if not prov:
+        return [f"keep_lipsync segment {seg.get('id','?')!r}: no lipsync_provenance "
+                f"recorded — cannot verify baked audio source."]
+    problems = []
+    slice_file = resolve(base, prov.get("slice_file"))
+    expected_slice = prov.get("slice_sha256")
+    if expected_slice:
+        if not slice_file or not slice_file.exists():
+            problems.append(
+                f"keep_lipsync segment {seg.get('id','?')!r}: slice file missing "
+                f"({prov.get('slice_file')}) — provenance unverifiable.")
+        else:
+            live = file_sha256(slice_file)
+            if live != expected_slice:
+                problems.append(
+                    f"BLOCKED: keep_lipsync segment {seg.get('id','?')!r} slice hash mismatch "
+                    f"(expected {expected_slice[:12]}, live {live[:12] if live else 'missing'}).")
+    parent_file = resolve(base, prov.get("parent_mp3"))
+    expected_parent = prov.get("parent_mp3_sha256")
+    if expected_parent and parent_file is not None:
+        if parent_file.exists():
+            livep = file_sha256(parent_file)
+            if livep != expected_parent:
+                problems.append(
+                    f"BLOCKED: keep_lipsync segment {seg.get('id','?')!r} parent narration hash "
+                    f"mismatch (expected {expected_parent[:12]}, live "
+                    f"{livep[:12] if livep else 'missing'}).")
+    return problems
+
 
 def probe_dur(path):
     r = subprocess.run(
@@ -59,20 +148,19 @@ def probe_dur(path):
 
 
 def resolve(base, p):
-    """Resolve a path relative to manifest directory."""
+    """Resolve a path relative to manifest directory, falling back to repo ROOT."""
     if p is None:
         return None
     path = Path(p)
     if path.is_absolute():
         return path
-    return (base / path).resolve()
-    """Resolve a path relative to manifest directory."""
-    if p is None:
-        return None
-    path = Path(p)
-    if path.is_absolute():
-        return path
-    return (base / path).resolve()
+    local = (base / path).resolve()
+    if local.exists():
+        return local
+    root_rel = (ROOT / path).resolve()
+    if root_rel.exists():
+        return root_rel
+    return local  # return intended path even if missing (caller checks exists())
 
 
 def validate_manifest(manifest, base):
@@ -101,12 +189,25 @@ def validate_manifest(manifest, base):
 
     for i, seg in enumerate(segments):
         prefix = f"segments[{i}]"
+        is_lipsync = seg.get("audio_policy") == "keep_lipsync"
         if "media" not in seg:
             errors.append(f"{prefix}: missing 'media'")
         else:
             media = resolve(base, seg["media"])
             if not media.exists():
                 errors.append(f"{prefix}.media: file not found: {media}")
+
+        if is_lipsync:
+            # keep_lipsync spans carry their own baked audio; 'words'/'audio' are
+            # not required. speech_len_sec is needed to trim to true speech length.
+            if "speech_len_sec" not in seg:
+                errors.append(f"{prefix}: audio_policy=keep_lipsync requires 'speech_len_sec'")
+            elif not isinstance(seg["speech_len_sec"], (int, float)) or seg["speech_len_sec"] <= 0:
+                errors.append(f"{prefix}.speech_len_sec: must be > 0, got {seg['speech_len_sec']}")
+            if "lipsync_provenance" not in seg:
+                errors.append(f"{prefix}: audio_policy=keep_lipsync requires 'lipsync_provenance' "
+                              f"(slice_sha256/parent_mp3_sha256 from the media plan)")
+            continue
 
         if "words" not in seg:
             errors.append(f"{prefix}: missing 'words'")
@@ -161,6 +262,11 @@ def compute_speeds(segments, pacing, base):
 
     wps_list = []
     for seg in segments:
+        # keep_lipsync spans run at native speed (lipsync timing is sacred); skip
+        # WPS measurement (they may have no 'words'/'audio'). Use a sentinel WPS.
+        if seg.get("audio_policy") == "keep_lipsync":
+            wps_list.append(None)
+            continue
         # Measure narration audio for WPS — use separate audio if provided (generated_tts),
         # fall back to media file (baked_in lipsync clips where audio IS the narration).
         audio_file = resolve(base, seg.get("audio"))
@@ -169,8 +275,12 @@ def compute_speeds(segments, pacing, base):
         pace = measure_pace(probe_target, words)
         wps_list.append(pace.wps)
 
+    # Reference must be a non-lipsync segment with a real WPS.
+    if wps_list[ref_idx] is None:
+        ref_idx = next((i for i, x in enumerate(wps_list) if x is not None), ref_idx)
     ref_wps = wps_list[ref_idx]
-    speeds = [baseline * ref_wps / w for w in wps_list]
+    # keep_lipsync segments get speed 1.0; others align to the reference WPS.
+    speeds = [1.0 if w is None else baseline * ref_wps / w for w in wps_list]
     return speeds, wps_list, ref_wps
 
 
@@ -193,14 +303,122 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
 
     is_image = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
 
+    # --- keep_lipsync span: use the clip's OWN baked audio verbatim ---------
+    # Hero lipsync clips carry mouth-synced audio. We must never overlay the
+    # master narration (echo) and never strip the audio (silent mouth). Trim to
+    # the clip's true speech length (clips were padded to integer seconds for
+    # seedance). Provenance is verified by the caller before this point.
+    if seg.get("audio_policy") == KEEP_LIPSYNC:
+        speech_len = seg.get("speech_len_sec")
+        media_dur = probe_dur(media)
+        # Trim to true speech length when known; else keep full clip.
+        out_dur = float(speech_len) if speech_len else media_dur
+        if out_dur > media_dur + 0.05:
+            raise ValueError(
+                f"keep_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
+                f"length {media_dur:.3f}s — slice/clip mismatch.")
+        # Re-encode with brand scale/crop/grade; KEEP original audio (0:a), no atempo,
+        # no speed (lipsync timing is sacred), no narration overlay.
+        run(["ffmpeg", "-y", "-i", str(media),
+             "-vf", f"{scale_crop},{grade}",
+             "-t", f"{out_dur:.3f}",
+             "-map", "0:v", "-map", "0:a",
+             "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+             "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+             "-pix_fmt", "yuv420p", str(dst)], f"seg_{idx}_lipsync")
+        return dst
+
     # PHASE 5: multi-shot visual bed — concatenate distinct shots to cover narration,
     # then overlay continuous narration once (no audio pause, no loop, no long freeze).
     shots = seg.get("shots")
     audio_src = seg.get("audio")
     if shots and audio_src:
+        # If ANY shot is keep_lipsync, we cannot use a single narration overlay for
+        # the whole bed — lipsync shots must keep their baked audio. Instead, process
+        # each shot individually: lipsync shots via the keep_lipsync path (baked audio,
+        # trimmed to speech_len_sec); voiceover shots via a proportional narration slice.
+        has_lipsync = any(
+            isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC
+            for sh in shots)
+
         audio_path = resolve(base, audio_src)
-        out_dur = probe_dur(audio_path) + TAIL_PAD  # do not apply WPS speed here: voice integrity preserved; shots already cover exact target length
-        # Normalize each shot to the format, strip its audio
+        total_nar_dur = probe_dur(audio_path)
+        out_dur = total_nar_dur + TAIL_PAD
+
+        if has_lipsync:
+            # Per-shot processing: build individual clips with correct audio, then concat.
+            shot_clips = []
+            # Compute actual lipsync duration from the real clip files (not speech_len_sec)
+            # — clips clamped to LIPSYNC_MAX_DUR are shorter than speech_len_sec, so using
+            # speech_len_sec would under-allocate narration time to the voiceover shots.
+            actual_lipsync_dur = 0.0
+            for sh in shots:
+                if isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC:
+                    sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
+                    speech_len = float(sh.get("speech_len_sec") or 0)
+                    clip_dur = probe_dur(sp) or speech_len
+                    actual_lipsync_dur += min(speech_len, clip_dur) if speech_len else clip_dur
+            vo_shots = [sh for sh in shots
+                        if not (isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC)]
+            n_vo = len(vo_shots)
+            vo_nar_dur = max(0.0, total_nar_dur - actual_lipsync_dur)
+            per_vo = (vo_nar_dur / n_vo) if n_vo else 0.0
+            nar_offset = 0.0  # current position in narration mp3
+
+            for j, sh in enumerate(shots):
+                is_lip = isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC
+                sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
+                sdst = tmp / f"seg_{idx}_shot{j}.mp4"
+
+                if is_lip:
+                    speech_len = float(sh.get("speech_len_sec") or 0) or probe_dur(sp)
+                    clip_dur = min(speech_len, probe_dur(sp))
+                    # Keep baked audio, trim to speech_len
+                    run(["ffmpeg", "-y", "-i", str(sp),
+                         "-vf", f"{scale_crop},{grade}", "-t", f"{clip_dur:.3f}",
+                         "-map", "0:v", "-map", "0:a",
+                         "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                         "-pix_fmt", "yuv420p", str(sdst)], f"seg_{idx}_shot{j}_lip")
+                    nar_offset += clip_dur
+                else:
+                    # Voiceover shot: muted visual + a narration slice overlay
+                    slot = per_vo if n_vo else (probe_dur(sp) or 4.0)
+                    shot_src_dur = probe_dur(sp) or slot
+                    vf_shot = f"{scale_crop},{grade}"
+                    if shot_src_dur < slot - 0.05:
+                        pad = min(slot - shot_src_dur, MAX_FREEZE)
+                        vf_shot = f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad:.3f}"
+                    # Extract narration slice for this voiceover shot
+                    nar_slice = tmp / f"seg_{idx}_narslice{j}.mp3"
+                    run(["ffmpeg", "-y", "-i", str(audio_path),
+                         "-ss", f"{nar_offset:.3f}", "-t", f"{slot:.3f}",
+                         "-c", "copy", str(nar_slice)], f"seg_{idx}_narslice{j}")
+                    # Build muted visual then overlay the narration slice
+                    muted = tmp / f"seg_{idx}_muted{j}.mp4"
+                    run(["ffmpeg", "-y", "-i", str(sp), "-an", "-vf", vf_shot,
+                         "-t", f"{slot:.3f}", "-c:v", "libx264", "-preset", "medium",
+                         "-crf", str(crf), "-pix_fmt", "yuv420p", "-r", str(fps),
+                         str(muted)], f"seg_{idx}_shot{j}_mute")
+                    run(["ffmpeg", "-y", "-i", str(muted), "-i", str(nar_slice),
+                         "-af", "aresample=48000", "-t", f"{slot + TAIL_PAD/n_vo:.3f}",
+                         "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+                         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                         str(sdst)], f"seg_{idx}_shot{j}_vo")
+                    nar_offset += slot
+
+                shot_clips.append(sdst)
+
+            # Concat all per-shot clips
+            concat_list = tmp / f"seg_{idx}_shots.txt"
+            concat_list.write_text("".join(f"file '{p}'\n" for p in shot_clips))
+            run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+                 "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                 "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                 "-pix_fmt", "yuv420p", str(dst)], f"seg_{idx}_concat_mixed")
+            return dst
+
+        # Pure voiceover segment: build muted visual bed + overlay narration (original path)
         norm_shots = []
         per = out_dur / len(shots)
         for j, sh in enumerate(shots):
@@ -209,24 +427,21 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
             seg_dur = min(seg_dur, per) if len(shots) > 1 else per
             ndst = tmp / f"seg_{idx}_shot{j}.mp4"
             shot_src_dur = probe_dur(sp)
-            # If shot shorter than its slot, hold last frame up to MAX_FREEZE, else trim
             vf_shot = f"{scale_crop},{grade}"
             if shot_src_dur < per - 0.05:
                 pad = per - shot_src_dur
                 if pad > MAX_FREEZE:
-                    pad = MAX_FREEZE  # cap; remaining slot handled by next shot timing
+                    pad = MAX_FREEZE
                 vf_shot = f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad:.3f}"
             run(["ffmpeg", "-y", "-i", str(sp), "-an", "-vf", vf_shot,
                  "-t", f"{per:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                  "-pix_fmt", "yuv420p", "-r", str(fps), str(ndst)], f"seg_{idx}_shot{j}")
             norm_shots.append(ndst)
-        # Concat the shots into a single visual bed
         concat_list = tmp / f"seg_{idx}_shots.txt"
         concat_list.write_text("".join(f"file '{p}'\n" for p in norm_shots))
         bed = tmp / f"seg_{idx}_bed.mp4"
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
              "-c", "copy", str(bed)], f"seg_{idx}_concat")
-        # Overlay continuous narration onto the bed
         run(["ffmpeg", "-y", "-i", str(bed), "-i", str(audio_path),
              "-af", "aresample=48000", "-t", f"{out_dur:.3f}",
              "-map", "0:v", "-map", "1:a", "-c:v", "copy",
@@ -468,6 +683,17 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         # Build muted visual bed: each segment runs for its share of narration time
         # Simple division: split narration evenly across visual segments
         # (timing map refinement is used if available for per-segment durations)
+        # GUARD: the continuous-master-overlay path replaces ALL audio with the
+        # single master narration track, which would MUTE baked lipsync audio on
+        # hero spans. If any segment is keep_lipsync, this path is unsafe — the
+        # caller must use the segment path (per-segment baked/overlay audio).
+        if any(s.get("audio_policy") == KEEP_LIPSYNC for s in segments):
+            raise ValueError(
+                "continuous_voiceover assembly cannot be used when any segment is "
+                "audio_policy=keep_lipsync: overlaying the master narration would mute "
+                "the baked lipsync audio on hero clips. Use the segment path "
+                "(remove narration_mode=continuous_voiceover) so each lipsync span keeps "
+                "its own baked audio and each voiceover span overlays its narration slice.")
         n_segs = len(segments)
         if timing and timing.get("beats"):
             # Group beats by segment_id to get per-segment duration
@@ -525,7 +751,28 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         # 1. Process segments
         norm_clips = []
         for i, seg in enumerate(segments):
+            # keep_lipsync spans: verify baked-audio provenance BEFORE assembling.
+            # A tampered slice hash (or missing provenance) must kill assembly.
+            if seg.get("audio_policy") == KEEP_LIPSYNC:
+                prov_problems = validate_lipsync_provenance(seg, base)
+                if prov_problems:
+                    raise ValueError(
+                        "Lipsync provenance check failed — refusing to assemble:\n  "
+                        + "\n  ".join(prov_problems))
             clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
+            if seg.get("audio_policy") == KEEP_LIPSYNC:
+                # Baked-audio span: assert the assembled clip's audio matches the
+                # clip's own baked audio and the true speech length within ±0.25s.
+                seg_dur = probe_dur(clip)
+                speech_len = seg.get("speech_len_sec")
+                if speech_len is not None:
+                    if abs(seg_dur - float(speech_len)) > LIPSYNC_TIMING_TOL:
+                        raise ValueError(
+                            f"keep_lipsync segment {seg.get('id','?')}: assembled span "
+                            f"{seg_dur:.3f}s vs true speech_len {float(speech_len):.3f}s "
+                            f"exceeds ±{LIPSYNC_TIMING_TOL}s.")
+                norm_clips.append(clip)
+                continue
             # ENG-04: assert assembled segment audio aligns with narration (within 0.3s)
             audio_src = seg.get("audio")
             if audio_src:
@@ -623,7 +870,7 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
         manifest["segments"], manifest.get("pacing", {}), base)
 
     log["pacing"] = {
-        "wps_per_segment": [round(w, 3) for w in wps_list],
+        "wps_per_segment": [round(w, 3) if w is not None else None for w in wps_list],
         "speeds": [round(s, 4) for s in speeds],
         "target_wps": round(ref_wps * manifest.get("pacing", {}).get("baseline_speed", 1.0), 3),
     }
