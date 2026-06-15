@@ -1,0 +1,15 @@
+beat_id,source_beat_id,split_index,split_total,timing_method,timing_confidence,rerouted,reroute_reason,narration_words,original_words,word_match
+B001,B001,,,,,yes,unsplittable single-sentence over model limit,21,21,TRUE
+B002,B002,,,,,,N/A,7,7,TRUE
+B003,B003,,,,,,N/A,28,28,TRUE
+B004,B004,,,,,,N/A,9,9,TRUE
+B005,B005,,,,,,N/A,32,32,TRUE
+B006a,B006,0,2,silence_detection,high,no,,8,16,TRUE (concat)
+B006b,B006,1,2,silence_detection,high,no,,8,16,TRUE (concat)
+B007,B007,,,,,,N/A,17,17,TRUE
+B008a,B008,0,3,silence_detection,high,no,,12,36,TRUE (concat)
+B008b,B008,1,3,silence_detection,high,no,,12,36,TRUE (concat)
+B008c,B008,2,3,silence_detection,high,no,,12,36,TRUE (concat)
+B009,B009,,,,,yes,unsplittable single-sentence over model limit,35,35,TRUE
+B010a,B010,0,2,silence_detection,high,no,,10,19,TRUE (concat)
+B010b,B010,1,2,silence_detection,high,no,,9,19,TRUE (concat)

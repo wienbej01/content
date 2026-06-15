@@ -1,0 +1,9 @@
+{
+  "venvPath": "",
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Linux",
+  "include": ["scripts", "tools"],
+  "extraPaths": ["scripts", "tools"],
+  "reportMissingImports": "warning",
+  "reportAttributeAccessIssue": "warning"
+}

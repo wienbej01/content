@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "structural": {
+    "passed": true,
+    "errors": [],
+    "warnings": [
+      "HERO_PROPORTION: hero_lipsync is 64.3% of beats (high \u2014 verify creative approval)",
+      "TEXT_SURFACE_BROLL: beat B001 has banned term 'notebook' in visual_brief (rerouted \u2014 may need brief update)",
+      "TEXT_SURFACE_BROLL: beat B009 has banned term 'notebook' in visual_brief (rerouted \u2014 may need brief update)"
+    ]
+  },
+  "creative": {
+    "passed": true,
+    "score": null,
+    "notes": []
+  },
+  "blocks_production": false
+}

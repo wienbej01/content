@@ -1,0 +1,127 @@
+{
+  "project_id": "poc_short_focus",
+  "title": "The Hidden Cost of Interruptions Isn't Time",
+  "video_type": "short",
+  "narration_mode": "continuous_voiceover",
+  "output_dir": "/home/jacobw/YTchannel/Videos/Projects/poc_short_focus",
+  "voice": {
+    "model_id": "eleven_multilingual_v2",
+    "speed": 1.08,
+    "settings": {
+      "stability": 0.48,
+      "similarity_boost": 0.75,
+      "style": 0.0,
+      "use_speaker_boost": true
+    }
+  },
+  "music": {
+    "path": "Videos/Projects/flagship_001_learn_half_time/Night_Snow_Music.mp3",
+    "level_db": -24
+  },
+  "sources": [
+    {
+      "id": "mark2008",
+      "citation": "Mark, Gudith & Klocke (2008). The Cost of Interrupted Work: More Speed and Stress. CHI 2008.",
+      "verified_against": "/home/jacobw/chi08-mark.pdf",
+      "claims_used": [
+        "interrupted tasks completed in LESS time, no quality difference",
+        "people compensate by working faster",
+        "after 20 min of interrupted work: significantly higher stress, frustration, workload, effort, pressure"
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "text": "Everyone tells you interruptions waste your time. The research says the opposite. And what they actually cost you is far more dangerous."
+    },
+    {
+      "id": "002_finding",
+      "audio_mode": "generated_tts",
+      "text": "In a controlled study at the University of California, Gloria Mark found that interrupted workers finished their tasks in less time, with no drop in quality. They simply worked faster to compensate."
+    },
+    {
+      "id": "003_realcost",
+      "audio_mode": "generated_tts",
+      "text": "But that speed has a hidden price. After just twenty minutes of interrupted work, people reported significantly higher stress, frustration, and mental effort. You don't lose the minutes. You burn the fuel."
+    },
+    {
+      "id": "004_cta",
+      "audio_mode": "generated_tts",
+      "text": "So stop measuring focus by the clock. Protect your attention not to save time, but to protect the energy you need to do the work that matters."
+    }
+  ],
+  "key_points": [
+    {
+      "text": "You don't lose the minutes. You burn the fuel.",
+      "emphasis": {
+        "treatment": "hero_payoff",
+        "pause_before_sec": 0.6,
+        "overlay": {
+          "kind": "key_line",
+          "text": "You don't lose the minutes.\nYou burn the fuel."
+        },
+        "hero_gesture": "slow open-palm press downward, as if pressing something into the desk"
+      }
+    },
+    {
+      "text": "Interrupted workers finished their tasks in less time, with no drop in quality.",
+      "emphasis": {
+        "treatment": "overlay_on_broll",
+        "pause_before_sec": 0.4,
+        "overlay": {
+          "kind": "key_line",
+          "text": "Faster. Same quality.\nBut at a cost."
+        }
+      }
+    },
+    {
+      "text": "Protect your attention not to save time, but to protect the energy you need to do the work that matters.",
+      "emphasis": {
+        "treatment": "overlay_on_broll",
+        "pause_before_sec": 0.6,
+        "overlay": {
+          "kind": "framework",
+          "title": "What focus actually protects",
+          "items": [
+            "Not your time",
+            "Your energy",
+            "Your capacity to do work that matters"
+          ],
+          "highlight_index": 1
+        }
+      }
+    }
+  ],
+  "tts_blocks": [
+    {
+      "type": "intro_hook",
+      "text": "Everyone tells you interruptions waste your time. <break time=\"1.0s\" /> The research says the opposite. <break time=\"1.5s\" /> And what they ACTUALLY cost you... is far more dangerous.",
+      "pause_ms": 300,
+      "stability": 0.4,
+      "style": 0.2
+    },
+    {
+      "type": "factual_data",
+      "text": "In a controlled study at the University of California, Gloria Mark found that interrupted workers finished their tasks in less time, with no drop in quality. They simply worked faster to compensate.",
+      "pause_ms": 400,
+      "stability": 0.65,
+      "style": 0.0
+    },
+    {
+      "type": "the_climax",
+      "text": "But that speed <break time=\"0.5s\" /> has a hidden price. <break time=\"1.5s\" /> After just twenty minutes of interrupted work, people reported significantly higher stress, frustration, and mental effort.",
+      "pause_ms": 400,
+      "stability": 0.35,
+      "style": 0.3
+    },
+    {
+      "type": "the_punchline",
+      "text": "You don't lose the minutes. <break time=\"1.0s\" /> You BURN the fuel. <break time=\"1.5s\" /> So stop measuring focus by the clock. Protect your attention. Not to save time, but to protect the ENERGY you need to do the work that matters.",
+      "pause_ms": 0,
+      "stability": 0.45,
+      "style": 0.15
+    }
+  ]
+}

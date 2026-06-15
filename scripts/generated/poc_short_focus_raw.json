@@ -1,0 +1,55 @@
+{
+  "project_id": "poc_short_focus",
+  "title": "The Hidden Cost of Interruptions Isn't Time",
+  "video_type": "short",
+  "narration_mode": "continuous_voiceover",
+  "output_dir": "/home/jacobw/YTchannel/Videos/Projects/poc_short_focus",
+  "voice": {
+    "model_id": "eleven_multilingual_v2",
+    "speed": 1.08,
+    "settings": {
+      "stability": 0.48,
+      "similarity_boost": 0.75,
+      "style": 0.0,
+      "use_speaker_boost": true
+    }
+  },
+  "music": {
+    "path": "Videos/Projects/flagship_001_learn_half_time/Night_Snow_Music.mp3",
+    "level_db": -24
+  },
+  "sources": [
+    {
+      "id": "mark2008",
+      "citation": "Mark, Gudith & Klocke (2008). The Cost of Interrupted Work: More Speed and Stress. CHI 2008.",
+      "verified_against": "/home/jacobw/chi08-mark.pdf",
+      "claims_used": [
+        "interrupted tasks completed in LESS time, no quality difference",
+        "people compensate by working faster",
+        "after 20 min of interrupted work: significantly higher stress, frustration, workload, effort, pressure"
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "text": "Everyone tells you interruptions waste your time. The research says the opposite. And what they actually cost you is far more dangerous."
+    },
+    {
+      "id": "002_finding",
+      "audio_mode": "generated_tts",
+      "text": "In a controlled study at the University of California, Gloria Mark found that interrupted workers finished their tasks in less time, with no drop in quality. They simply worked faster to compensate."
+    },
+    {
+      "id": "003_realcost",
+      "audio_mode": "generated_tts",
+      "text": "But that speed has a hidden price. After just twenty minutes of interrupted work, people reported significantly higher stress, frustration, and mental effort. You don't lose the minutes. You burn the fuel."
+    },
+    {
+      "id": "004_cta",
+      "audio_mode": "generated_tts",
+      "text": "So stop measuring focus by the clock. Protect your attention not to save time, but to protect the energy you need to do the work that matters."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+test_name,injection_type,enforcement_point,expected_exit,actual_exit,verdict,notes
+coverage_gap,+0.5s to first slot start,production_storyboard.py validate,nonzero,1,PASS,Detected slot duration mismatch + beat start mismatch
+coverage_overlap,-0.5s to second beat first slot start,production_storyboard.py validate,nonzero,1,PASS,Detected overlap
+missing_required_end_sec,deleted required_end_sec,production_storyboard.py validate,nonzero,1,PASS,Schema error detected
+duplicate_slot_id,duplicated slot_id within beat,production_storyboard.py validate,nonzero,1,PASS,Duplicate slot rejected
+narration_mutation,appended word to beat narration_text,review_production_storyboard.py,nonzero,1,PASS,Review detects narration drift
+narration_mutation_validate,appended word to beat narration_text,production_storyboard.py validate,nonzero,0,EXPECTED,validate only checks geometry; review enforces narration
+text_surface_policy_hard,hero_cutaway with banned term 'notebook',compile_plan errors,error returned,error returned,PASS,Correctly refuses generation of text-surface beat
+reroute_broll,broll with banned term 'laptop screen',compile_plan reroute,rerouted to local_graphic,rerouted,PASS,Auto-reroute works for broll
+creative_storyboard_fallback,missing production_storyboard.json,produce.py step_compile_media_plan,RuntimeError,RuntimeError,PASS,"Explicit guard: 'Creative storyboard fallback is NOT permitted'"
+missing_review_report,review blocks production,produce.py step_production_storyboard,RuntimeError,RuntimeError,PASS,blocks_production=true raises
+stale_fingerprint,upstream hash changed,produce.py step_production_storyboard,re-reconcile,re-reconcile,PASS,Fingerprint mismatch triggers re-run
+test_coverage_gap_serialized,gap injection via subprocess,test_serialized_handoff,fail,fail,PASS,Exit code 1 on gap
+test_malformed_repair_output,bad repair output,test_serialized_handoff,fail,fail,PASS,Malformed output not promoted

@@ -1,0 +1,370 @@
+{
+  "schema_version": "1.0",
+  "project_id": "using_ai_to_help_memory_retention_short",
+  "creative_storyboard_sha256": "cdae177f4df54d4b8ea65862ce44fe73e33eb0a804f567cad483df0405b41138",
+  "timing_map_sha256": "cb8579a7cd880e3645e246957344d31508cf77c81dd099112ffa0238256c223e",
+  "master_audio_duration_sec": 146.599,
+  "total_beats": 12,
+  "created_at": "2026-06-14T07:17:47.443281+00:00",
+  "beats": [
+    {
+      "beat_id": "B001",
+      "source_beat_id": "B001",
+      "audio_start_sec": 0.0,
+      "audio_end_sec": 13.994,
+      "audio_duration_sec": 13.994,
+      "narration_text": "Every time you ask AI for an answer you already half-know \u2014 you're making a small withdrawal from your own memory.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "needs_repair": true,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 0.0,
+          "required_end_sec": 13.994,
+          "required_duration_sec": 13.994
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "lower_third",
+          "text": "COGNITIVE WITHDRAWAL",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "beat_id": "B002",
+      "source_beat_id": "B002",
+      "audio_start_sec": 13.994,
+      "audio_end_sec": 18.658,
+      "audio_duration_sec": 4.664,
+      "narration_text": "And the research says those withdrawals compound.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 13.994,
+          "required_end_sec": 18.658,
+          "required_duration_sec": 4.664
+        }
+      ]
+    },
+    {
+      "beat_id": "B003",
+      "source_beat_id": "B003",
+      "audio_start_sec": 18.658,
+      "audio_end_sec": 37.552,
+      "audio_duration_sec": 18.894,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 18.658,
+          "required_end_sec": 23.382,
+          "required_duration_sec": 4.724
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 23.382,
+          "required_end_sec": 28.105,
+          "required_duration_sec": 4.724
+        },
+        {
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 28.105,
+          "required_end_sec": 32.829,
+          "required_duration_sec": 4.724
+        },
+        {
+          "asset_role": "continuation_3",
+          "asset_type": "generated_video",
+          "required_start_sec": 32.829,
+          "required_end_sec": 37.552,
+          "required_duration_sec": 4.723
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "stat_callout",
+          "text": "RCT 2025 \u2014 Barcaui / ScienceDirect",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (18.894s) \u2014 coverage_plan has 4 slots"
+    },
+    {
+      "beat_id": "B004",
+      "source_beat_id": "B004",
+      "audio_start_sec": 37.552,
+      "audio_end_sec": 43.313,
+      "audio_duration_sec": 5.761,
+      "narration_text": "The tool wasn't neutral. It actively worked against them.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 37.552,
+          "required_end_sec": 43.313,
+          "required_duration_sec": 5.761
+        }
+      ]
+    },
+    {
+      "beat_id": "B005",
+      "source_beat_id": "B005",
+      "audio_start_sec": 43.313,
+      "audio_end_sec": 64.914,
+      "audio_duration_sec": 21.601,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 43.313,
+          "required_end_sec": 48.713,
+          "required_duration_sec": 5.4
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 48.713,
+          "required_end_sec": 54.114,
+          "required_duration_sec": 5.4
+        },
+        {
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 54.114,
+          "required_end_sec": 59.514,
+          "required_duration_sec": 5.4
+        },
+        {
+          "asset_role": "continuation_3",
+          "asset_type": "generated_video",
+          "required_start_sec": 59.514,
+          "required_end_sec": 64.914,
+          "required_duration_sec": 5.4
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "DIGITAL AMNESIA",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (21.601s) \u2014 coverage_plan has 4 slots"
+    },
+    {
+      "beat_id": "B006a",
+      "source_beat_id": "B006",
+      "split_index": 0,
+      "split_total": 2,
+      "audio_start_sec": 64.914,
+      "audio_end_sec": 67.571,
+      "audio_duration_sec": 2.657,
+      "narration_text": "Here's the counterintuitive part.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 64.914,
+          "required_end_sec": 67.571,
+          "required_duration_sec": 2.657
+        }
+      ]
+    },
+    {
+      "beat_id": "B006b",
+      "source_beat_id": "B006",
+      "split_index": 1,
+      "split_total": 2,
+      "audio_start_sec": 67.571,
+      "audio_end_sec": 75.54,
+      "audio_duration_sec": 7.969,
+      "narration_text": "AI can also accelerate memory \u2014 but only through the opposite mode.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 67.571,
+          "required_end_sec": 75.54,
+          "required_duration_sec": 7.969
+        }
+      ]
+    },
+    {
+      "beat_id": "B007",
+      "source_beat_id": "B007",
+      "audio_start_sec": 75.54,
+      "audio_end_sec": 86.627,
+      "audio_duration_sec": 11.087,
+      "narration_text": "Timed, active retrieval. Your brain under deliberate load. Cognitive science has consistently shown this outperforms passive re-reading.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 75.54,
+          "required_end_sec": 81.084,
+          "required_duration_sec": 5.543
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 81.084,
+          "required_end_sec": 86.627,
+          "required_duration_sec": 5.543
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "lower_third",
+          "text": "ACTIVE RETRIEVAL",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (11.087s) \u2014 coverage_plan has 2 slots"
+    },
+    {
+      "beat_id": "B008",
+      "source_beat_id": "B008",
+      "audio_start_sec": 86.627,
+      "audio_end_sec": 110.516,
+      "audio_duration_sec": 23.889,
+      "narration_text": "Try asking your AI to quiz you on a decision you made last week, then defend your reasoning out loud. The variable isn't whether you use AI. It's whether your brain is working during the interaction.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "needs_repair": true,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 86.627,
+          "required_end_sec": 110.516,
+          "required_duration_sec": 23.889
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "The variable: is your brain working during the interaction?",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "beat_id": "B009",
+      "source_beat_id": "B009",
+      "audio_start_sec": 110.516,
+      "audio_end_sec": 133.938,
+      "audio_duration_sec": 23.422,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "needs_repair": true,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 110.516,
+          "required_end_sec": 133.938,
+          "required_duration_sec": 23.422
+        }
+      ]
+    },
+    {
+      "beat_id": "B010a",
+      "source_beat_id": "B010",
+      "split_index": 0,
+      "split_total": 2,
+      "audio_start_sec": 133.938,
+      "audio_end_sec": 141.934,
+      "audio_duration_sec": 7.996,
+      "narration_text": "In the last week, has your AI been making withdrawals or deposits?",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 133.938,
+          "required_end_sec": 141.934,
+          "required_duration_sec": 7.996
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "side_by_side",
+          "text": "W \u2014 Withdrawal  |  D \u2014 Deposit",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "beat_id": "B010b",
+      "source_beat_id": "B010",
+      "split_index": 1,
+      "split_total": 2,
+      "audio_start_sec": 141.934,
+      "audio_end_sec": 146.599,
+      "audio_duration_sec": 4.665,
+      "narration_text": "Reply W for withdrawal, D for deposit.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 141.934,
+          "required_end_sec": 146.599,
+          "required_duration_sec": 4.665
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "side_by_side",
+          "text": "W \u2014 Withdrawal  |  D \u2014 Deposit",
+          "timing": "on_spoken_line"
+        }
+      ]
+    }
+  ]
+}

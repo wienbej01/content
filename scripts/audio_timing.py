@@ -94,6 +94,79 @@ def extract_beats_from_script(script_path):
     return beats
 
 
+def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_THRESH_DB, min_dur=SILENCE_MIN_DUR):
+    """Map storyboard beats (ordered, with narration_text) to [start, end] in continuous audio.
+
+    Each beat gets a proportional share of the master duration based on word count,
+    with boundaries snapped to the nearest detected silence (±0.4s).
+
+    Args:
+        audio_path: path to the continuous master MP3/wav.
+        storyboard_beats: list of dicts with at least {beat_id, narration_text}.
+        noise_db, min_dur: silence detection params.
+
+    Returns:
+        dict with 'beats' list [{beat_id, start, end, duration}, ...] and metadata.
+    """
+    total_dur = probe_duration(audio_path)
+    if not total_dur:
+        raise RuntimeError(f"Cannot probe duration: {audio_path}")
+
+    # Word counts per beat
+    word_counts = []
+    for b in storyboard_beats:
+        text = b.get("narration_text") or ""
+        word_counts.append(len(text.split()))
+    total_words = sum(word_counts) or 1
+
+    # Proportional boundaries (cumulative)
+    boundaries = [0.0]
+    cum = 0
+    for wc in word_counts:
+        cum += wc
+        boundaries.append(round(cum / total_words * total_dur, 4))
+    # Ensure last boundary == total_dur
+    boundaries[-1] = round(total_dur, 4)
+
+    # Detect silences for snapping
+    silences = detect_silences(audio_path, noise_db, min_dur)
+    # Silence midpoints
+    silence_mids = [round((s + e) / 2, 4) for s, e in silences]
+
+    # Snap internal boundaries to nearest silence within SNAP_WINDOW
+    SNAP_WINDOW = 0.4
+    snapped = [boundaries[0]]
+    for i in range(1, len(boundaries) - 1):
+        raw = boundaries[i]
+        candidates = [m for m in silence_mids if abs(m - raw) <= SNAP_WINDOW]
+        snapped.append(min(candidates, key=lambda m: abs(m - raw)) if candidates else raw)
+    snapped.append(boundaries[-1])
+
+    # Ensure monotonically increasing
+    for i in range(1, len(snapped)):
+        if snapped[i] <= snapped[i - 1]:
+            snapped[i] = snapped[i - 1] + 0.01
+
+    # Build output
+    beat_timings = []
+    for i, b in enumerate(storyboard_beats):
+        start = round(snapped[i], 3)
+        end = round(snapped[i + 1], 3)
+        beat_timings.append({
+            "beat_id": b["beat_id"],
+            "start": start,
+            "end": end,
+            "duration": round(end - start, 3),
+        })
+
+    return {
+        "audio_path": str(audio_path),
+        "total_duration": round(total_dur, 3),
+        "beat_count": len(storyboard_beats),
+        "beats": beat_timings,
+    }
+
+
 def build_timing_map(audio_path, beats, noise_db=SILENCE_THRESH_DB, min_dur=SILENCE_MIN_DUR):
     """Build the full timing map: detect audio segments, align to text beats."""
     total_dur = probe_duration(audio_path)
@@ -154,6 +227,7 @@ def main():
     ap = argparse.ArgumentParser(description="Build a timing map from narration audio + script text.")
     ap.add_argument("audio", help="Path to narration audio file (MP3/WAV)")
     ap.add_argument("--script", default=None, help="Script JSON (extracts segment texts as beats)")
+    ap.add_argument("--storyboard", default=None, help="Storyboard JSON (maps beat_id → [start,end] using narration_text)")
     ap.add_argument("--text", default=None, help="Raw text to split into beats (alternative to --script)")
     ap.add_argument("--output", "-o", default=None, help="Output timing map JSON (default: stdout)")
     ap.add_argument("--noise-db", type=int, default=SILENCE_THRESH_DB, help=f"Silence threshold dB (default {SILENCE_THRESH_DB})")
@@ -165,30 +239,30 @@ def main():
         print(f"ERROR: audio file not found: {audio}", file=sys.stderr)
         sys.exit(1)
 
-    # Get beats
-    if args.script:
-        beats = extract_beats_from_script(args.script)
-    elif args.text:
-        subs = split_text_into_beats(args.text)
-        beats = [{"segment_id": "input", "beat_index": i, "text": s, "word_count": len(s.split())}
-                 for i, s in enumerate(subs)]
+    if args.storyboard:
+        sb = json.loads(Path(args.storyboard).read_text())
+        beats = sb.get("beats", [])
+        timing = build_storyboard_timing_map(audio, beats, args.noise_db, args.min_silence)
     else:
-        # No text provided — just detect audio segments
-        beats = []
+        if args.script:
+            beats = extract_beats_from_script(args.script)
+        elif args.text:
+            subs = split_text_into_beats(args.text)
+            beats = [{"segment_id": "input", "beat_index": i, "text": s, "word_count": len(s.split())}
+                     for i, s in enumerate(subs)]
+        else:
+            beats = []
+        timing = build_timing_map(audio, beats, args.noise_db, args.min_silence)
 
-    # Build map
-    timing = build_timing_map(audio, beats, args.noise_db, args.min_silence)
-
-    # Output
     out = json.dumps(timing, indent=2)
     if args.output:
         Path(args.output).write_text(out)
-        print(f"Timing map: {args.output} ({timing['audio_segments_detected']} segments, "
-              f"{len(timing['flags'])} flags)")
+        print(f"Timing map: {args.output} ({timing.get('beat_count', timing.get('audio_segments_detected', '?'))} beats, "
+              f"{len(timing.get('flags', []))} flags)")
     else:
         print(out)
 
-    if timing["flags"]:
+    if timing.get("flags"):
         print(f"\nFlags ({len(timing['flags'])}):", file=sys.stderr)
         for f in timing["flags"]:
             print(f"  ⚠ {f}", file=sys.stderr)

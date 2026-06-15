@@ -82,27 +82,64 @@ def parse_json_response(text):
     """Parse JSON from response, stripping markdown fences if present."""
     if not text:
         return None
-    # Strip ```json ... ``` fences
-    m = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', text, re.DOTALL)
-    if m:
+    # Strip ```json ... ``` fences (closing fence optional — may be truncated)
+    m = re.search(r'```(?:json)?\s*\n?(.*?)(?:\n?\s*```|$)', text, re.DOTALL)
+    if m and m.group(1).strip():
         text = m.group(1)
+    # Also strip a bare leading 'json' line (kiro-cli sometimes prefixes this)
+    text = re.sub(r'^\s*json\s*\n', '', text)
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Try to find JSON object in the text
-        m = re.search(r'\{.*\}', text, re.DOTALL)
+        pass
+    # Try to find a JSON array first, then an object
+    for pattern in (r'\[.*\]', r'\{.*\}'):
+        m = re.search(pattern, text, re.DOTALL)
         if m:
             try:
-                return json.loads(m.group())
+                obj = json.loads(m.group())
+                # Reject fragments: empty arrays, nested sub-objects without expected keys
+                if isinstance(obj, list) and len(obj) == 0:
+                    continue
+                if isinstance(obj, dict) and not any(k in obj for k in ('status', 'persona', 'beat_id', 'beats', 'task', 'angle', 'key_claims')):
+                    continue
+                return obj
             except json.JSONDecodeError:
-                pass
+                continue
+    # Last resort: repair truncated JSON (LLM hit token limit mid-output).
+    # Cut at the last complete array/object boundary to salvage critical fields.
+    start = text.find('{')
+    if start >= 0:
+        blob = text[start:]
+        # Strategy: find last '], ' or '},' and close the object
+        for marker in ('],', '},'):
+            idx = blob.rfind(marker)
+            if idx > len(blob) // 3:
+                candidate = blob[:idx + len(marker) - 1]  # include the ] or } but not comma
+                for closer in ('}', ']}', ''):
+                    try:
+                        obj = json.loads(candidate + closer)
+                        if isinstance(obj, dict) and obj:
+                            return obj
+                    except json.JSONDecodeError:
+                        continue
     return None
 
 
 def validate_output(data):
-    """Validate required fields in structured LLM output."""
+    """Validate structured LLM output.
+
+    Both JSON objects and JSON arrays are valid parsed responses. Arrays are used
+    by callers that expect a list (e.g. a storyboard beat list or a list of reviewer
+    verdicts), so a successfully parsed list must NOT be flagged. The reviewer-style
+    field checks (status/may_proceed) only apply to dict responses. Anything that is
+    neither a dict nor a list (e.g. a bare string/number that slipped through parsing)
+    is invalid.
+    """
+    if isinstance(data, list):
+        return []
     if not isinstance(data, dict):
-        return ["response is not a JSON object"]
+        return ["response is not a JSON object or array"]
     errors = []
     if "status" in data and data["status"] not in ("pass", "fail", "blocked"):
         errors.append(f"status must be pass/fail/blocked, got: {data['status']!r}")
@@ -117,18 +154,18 @@ def call_kiro(model, prompt, timeout=120, verbose=False):
     Hardening (2026-06-12): the default agent (ytbuilder) runs spawn/stop hooks on
     every chat invocation, which adds latency and can stall a non-interactive call.
     We trust NO tools (--trust-tools=) so the model cannot trigger tool/hook
-    execution, and we close stdin (DEVNULL) so the subprocess can never block
-    waiting for interactive input. A timeout raises a clear error instead of hanging.
+    execution. Prompt is piped via stdin to avoid OS arg-length limits on large prompts.
+    A timeout raises a clear error instead of hanging.
     """
     cmd = [KIRO_CLI, "chat", "--no-interactive", "--model", model,
-           "--wrap", "never", "--trust-tools=", prompt]
+           "--wrap", "never", "--trust-tools=", "--agent", "pipeline"]
     if verbose:
-        print(f"  cmd: {KIRO_CLI} chat --no-interactive --model {model} --trust-tools= ...",
-              file=sys.stderr)
+        print(f"  cmd: {KIRO_CLI} chat --no-interactive --model {model} --trust-tools= "
+              f"[stdin: {len(prompt)} chars]", file=sys.stderr)
     t0 = time.time()
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                           stdin=subprocess.DEVNULL)
+                           input=prompt)
     except subprocess.TimeoutExpired:
         raise RuntimeError(
             f"kiro-cli did not respond within {timeout}s (model {model}). "

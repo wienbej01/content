@@ -1,0 +1,30 @@
+# voice_pacing.yaml — Measured James Harrington voice pacing for ElevenLabs TTS
+# These rates are empirical measurements from real TTS runs.
+# NEVER use estimates as authoritative durations; they are planning targets only.
+
+voice_id: james_harrington
+model: eleven_v3
+
+# Measured from narration runs (words per minute)
+measured_wpm:
+  - project_id: using_ai_to_help_memory_retention_short
+    word_count: 265
+    duration_sec: 146.599
+    wpm: 108.46
+    date: "2026-06-14"
+    notes: "Short format, measured from continuous.mp3"
+
+# Derived calibrated rate (mean of measured runs)
+calibrated_wpm: 108.46
+calibrated_wps: 1.8077
+
+# Confidence interval (single data point has wide interval)
+estimate_uncertainty_pct: 15  # ±15% until more data points
+
+# Per-treatment adjustment factors (relative to average)
+# Hero lipsync tends to be slower (more deliberate)
+# B-roll narration tends to be faster
+treatment_factors:
+  hero_lipsync: 1.0
+  broll: 1.0
+  local_graphic: 1.0

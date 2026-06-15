@@ -55,7 +55,9 @@ def load_constraints():
 def _max_hero_chain(beats):
     """Recompute the true longest CONTINUOUS hero chain (hero_lipsync OR hero_cutaway,
     consecutive in order) from RAW beats — never trust shot_mix_summary.
-    Returns list of (start_beat, end_beat, total_sec, all_in_act6)."""
+    Returns list of (start_beat, end_beat, total_sec, all_in_act6).
+    Chains that cross into Act 6 are SPLIT at the boundary: the pre-Act-6 portion
+    is a separate chain (capped at 15s), the Act-6 portion is separate (capped at 25s)."""
     ordered = sorted(beats, key=lambda b: b.get("order", 0))
     chains = []
     i, n = 0, len(ordered)
@@ -63,6 +65,15 @@ def _max_hero_chain(beats):
         if ordered[i].get("shot_type") in HERO_SHOT_TYPES:
             j, tot, acts = i, 0.0, set()
             while j < n and ordered[j].get("shot_type") in HERO_SHOT_TYPES:
+                # Split at act boundary transitions into Act 6
+                if acts and ordered[j].get("act") == 6 and 6 not in acts:
+                    # End the pre-Act-6 chain here
+                    chains.append((ordered[i]["beat_id"], ordered[j - 1]["beat_id"],
+                                   round(tot, 2), acts == {6}))
+                    # Start a new Act-6 chain
+                    i = j
+                    tot = 0.0
+                    acts = set()
                 tot += float(ordered[j].get("est_duration_sec") or 0)
                 acts.add(ordered[j].get("act"))
                 j += 1
@@ -74,23 +85,27 @@ def _max_hero_chain(beats):
     return chains
 
 
-def _bands_check(m, blocking, warnings, beats=None):
-    """§7 shot-mix acceptance bands."""
+def _bands_check(m, blocking, warnings, beats=None, video_type="explainer"):
+    """§7 shot-mix acceptance bands. Relaxed for 'short' video type (≤8 beats)."""
+    is_short = video_type == "short"
+
     hero_total = m.get("hero_lipsync_pct", 0) + m.get("hero_cutaway_pct", 0)
-    if not (25 <= hero_total <= 40):
-        blocking.append(f"hero total {hero_total:.1f}% outside 25-40% band")
-    if m.get("hero_lipsync_pct", 0) > 25:
-        blocking.append(f"hero_lipsync {m.get('hero_lipsync_pct')}% exceeds 25% cap")
-    if m.get("broll_specific_pct", 0) < 25:
+    hero_band = (8, 60) if is_short else (25, 40)
+    if not (hero_band[0] <= hero_total <= hero_band[1]):
+        blocking.append(f"hero total {hero_total:.1f}% outside {hero_band[0]}-{hero_band[1]}% band")
+    hero_lipsync_cap = 60 if is_short else 25
+    if m.get("hero_lipsync_pct", 0) > hero_lipsync_cap:
+        blocking.append(f"hero_lipsync {m.get('hero_lipsync_pct')}% exceeds {hero_lipsync_cap}% cap")
+    if not is_short and m.get("broll_specific_pct", 0) < 25:
         blocking.append(f"specific/archival b-roll {m.get('broll_specific_pct')}% below 25%")
     if m.get("graphics_ui_pct", 0) < 10:
         blocking.append(f"graphics+UI {m.get('graphics_ui_pct')}% below 10%")
     meta = m.get("broll_metaphorical_pct", 0)
-    if not (5 <= meta <= 15):
+    if not is_short and not (5 <= meta <= 15):
         warnings.append(f"metaphorical b-roll {meta}% outside 5-15% band")
     kin = m.get("kinetic_text_pct", 0)
-    if not (2 <= kin <= 8):
-        warnings.append(f"kinetic text {kin}% outside 2-8% band")
+    if not (2 <= kin <= (20 if is_short else 8)):
+        warnings.append(f"kinetic text {kin}% outside band")
 
     # Max hero block: RECOMPUTE from raw beats (do not trust the summary value).
     # Rule: a continuous hero chain must be <=15s, EXCEPT a single chain lying entirely
@@ -124,8 +139,9 @@ def _bands_check(m, blocking, warnings, beats=None):
         if m.get("max_hero_block_sec", 0) > HERO_CAP:
             blocking.append(f"max hero block {m.get('max_hero_block_sec')}s exceeds 15s")
 
-    if m.get("distinct_visual_setups", 0) < 12:
-        blocking.append(f"only {m.get('distinct_visual_setups')} distinct visual setups (<12)")
+    if m.get("distinct_visual_setups", 0) < (4 if is_short else 12):
+        min_setups = 4 if is_short else 12
+        blocking.append(f"only {m.get('distinct_visual_setups')} distinct visual setups (<{min_setups})")
 
 
 def _anti_patterns(beats, blocking, warnings):
@@ -229,7 +245,8 @@ def review(storyboard, constraints):
     if not m:
         blocking.append("missing shot_mix_summary")
     else:
-        _bands_check(m, blocking, warnings, beats=beats)
+        _bands_check(m, blocking, warnings, beats=beats,
+                     video_type=storyboard.get("video_type", "explainer"))
 
     _anti_patterns(beats, blocking, warnings)
     _trigger_coverage(beats, blocking, warnings)

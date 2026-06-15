@@ -162,7 +162,7 @@
     "post_production_overlay": "allowed",
     "soft_focus_documents": "allowed"
   },
-  "default_negative_constraints": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance",
+  "default_negative_constraints": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
   "audio_policy": {
     "generated_tts": "strip",
     "baked_in": "keep_lipsync",
@@ -189,8 +189,8 @@
     "lead_in_sec": 0.2,
     "lead_in_reason": "200ms closed-mouth lead-in at slice start",
     "on_sub_min_beat": "pad slice with room tone to min_clip_duration_sec; if still shorter than speech, merge with adjacent hero beat (render_group) instead",
-    "max_clip_duration_sec": 10,
-    "max_clip_duration_reason": "Seedance 2.0 rejects duration > 10s. Beats with padded_len_sec > 10s must be split into multiple clips or have their slice trimmed to 10s (the render produces 10s; assembly trims to speech_len_sec via T8 baked-audio path)."
+    "max_clip_duration_sec": 15,
+    "max_clip_duration_reason": "Seedance 2.0 generates clips up to 15 seconds per shot (source: higgsfield.ai/seedance/2.0). Beats exceeding 15s must be split or rerouted."
   },
   "crop_safety": {
     "master_format": "16:9",
@@ -246,6 +246,21 @@
       "generic_stock_photo_professionals",
       "ai_generated_text_close_up",
       "any_forbidden_environment"
+    ],
+    "content_must_be": [
+      "conceptual",
+      "observational",
+      "metaphorical"
+    ],
+    "forbid_text_surfaces": true,
+    "reject_terms": [
+      "writing",
+      "reading document",
+      "handwriting",
+      "studying text",
+      "looking at screen with text",
+      "spreadsheet",
+      "whiteboard with notes"
     ]
   },
   "quality_markers": {
@@ -288,5 +303,37 @@
     "neon_or_electric_glow_lighting",
     "credits_spent_before_storyboard_approved",
     "media_prompt_from_raw_visual_brief_after_m5_m8"
-  ]
+  ],
+  "qa_thresholds": {
+    "min_luma_stddev": 5.0,
+    "max_freeze_pct": 50.0,
+    "max_ngram_repetition": 0.12
+  },
+  "final_cut_thresholds": {
+    "max_freeze_sec": 1.5,
+    "max_black_sec": 0.2,
+    "length_tol_sec": 0.25,
+    "tail_tol_sec": 0.25,
+    "transition_window_sec": 0.3
+  },
+  "music": {
+    "required_for_formats": ["short", "explainer"],
+    "default_path": "brand/music/night_snow.mp3",
+    "volume_db": -24,
+    "fade_in_sec": 1.0,
+    "fade_out_sec": 2.0,
+    "duck_db": -18,
+    "min_rms_db": -35
+  },
+  "reroute_policy": {
+    "unsplittable_hero_target": "hero_cutaway",
+    "broll_slot_max_sec": 6.0,
+    "allowed_targets": ["hero_cutaway", "broll", "local_graphic"]
+  },
+  "text_surface_policy": {
+    "banned_terms": ["laptop screen", "reading", "writing", "notebook", "handwriting", "book page", "document", "spreadsheet", "dashboard", "phone app", "article text", "chat interface", "ui interface"],
+    "banned_for_asset_types": ["generated_video"],
+    "required_action": "route_to_local_graphic_or_abstract",
+    "abstract_alternatives": ["blank laptop screen", "closed book", "empty desk", "abstract motion", "out of frame"]
+  }
 }

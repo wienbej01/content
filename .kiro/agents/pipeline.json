@@ -1,0 +1,4 @@
+{
+  "name": "pipeline",
+  "description": "Lightweight agent for programmatic LLM calls — no hooks, no context injection"
+}

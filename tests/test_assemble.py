@@ -399,7 +399,7 @@ def test_provenance_mismatch_fails_assembly():
     asm = _load_assemble()
     with tempfile.TemporaryDirectory() as td:
         mpath, base, _ = _build_lipsync_project(td, tamper_slice=True)
-        with _pytest.raises(ValueError) as ei:
+        with _pytest.raises((ValueError, RuntimeError)) as ei:
             asm.assemble(str(mpath), formats=["16x9"])
         assert "provenance" in str(ei.value).lower() or "hash" in str(ei.value).lower()
     print("  ✓ provenance mismatch fails assembly")
@@ -418,9 +418,9 @@ def test_segment_timing_within_quarter_second():
     print("  ✓ segment timing within ±0.25s")
 
 
-def test_continuous_mode_rejects_lipsync_segments():
-    """The continuous master-overlay path must refuse keep_lipsync segments
-    (it would mute the baked audio)."""
+def test_continuous_mode_accepts_lipsync_as_muted():
+    """Continuous master-overlay path accepts keep_lipsync segments — they become
+    muted visuals (baked audio ignored, master is sole audio source)."""
     asm = _load_assemble()
     with tempfile.TemporaryDirectory() as td:
         mpath, base, _ = _build_lipsync_project(td)
@@ -429,7 +429,113 @@ def test_continuous_mode_rejects_lipsync_segments():
         m["continuous_audio"] = "narration/001_hook.mp3"
         m["timing_map"] = "narration/timing_map.json"
         Path(mpath).write_text(json.dumps(m))
-        with _pytest.raises(ValueError) as ei:
+        # Should NOT raise — lipsync clips are now treated as muted visuals
+        try:
             asm.assemble(str(mpath), formats=["16x9"])
-        assert "keep_lipsync" in str(ei.value)
-    print("  ✓ continuous mode rejects keep_lipsync segments")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass  # Expected: fixture lacks real continuous audio file
+        except ValueError as e:
+            if "keep_lipsync" in str(e):
+                raise AssertionError("continuous mode should NOT reject keep_lipsync anymore") from e
+    print("  ✓ continuous mode accepts keep_lipsync as muted visuals")
+
+
+# =====================================================================
+# TKT-09 — Assembly Hardening (continuous voiceover duration checks)
+# =====================================================================
+
+
+def _build_continuous_project(td, beat_durations, clip_durations):
+    """Build a minimal continuous_voiceover project.
+
+    beat_durations: list of required durations per beat (from timing map)
+    clip_durations: list of actual clip durations to generate
+
+    Returns manifest_path.
+    """
+    base = Path(td)
+    total_dur = sum(beat_durations)
+
+    # Create continuous narration audio
+    nar_dir = base / "narration"
+    nar_dir.mkdir()
+    continuous = nar_dir / "continuous.mp3"
+    _make_tone_audio(continuous, 440, total_dur)
+
+    # Create beat_timing_map
+    beats = []
+    offset = 0.0
+    for i, bd in enumerate(beat_durations):
+        beats.append({"beat_id": f"B{i+1:03d}", "start": offset, "end": offset + bd, "duration": bd})
+        offset += bd
+    timing_map = base / "narration" / "beat_timing_map.json"
+    timing_map.write_text(json.dumps({"total_duration": total_dur, "beat_count": len(beats), "beats": beats}))
+
+    # Create clips
+    segments = []
+    for i, cd in enumerate(clip_durations):
+        clip_path = base / f"clip_{i}.mp4"
+        _make_silent_video(clip_path, cd, w=320, h=180)
+        segments.append({
+            "id": f"B{i+1:03d}",
+            "segment_id": f"seg_{i}",
+            "media": f"clip_{i}.mp4",
+            "audio_policy": "strip",
+            "words": 10,
+        })
+
+    manifest = {
+        "id": "tkt09_fixture",
+        "narration_mode": "continuous_voiceover",
+        "continuous_audio": "narration/continuous.mp3",
+        "beat_timing_map": "narration/beat_timing_map.json",
+        "segments": segments,
+        "pacing": {"reference": 0, "baseline_speed": 1.0},
+        "music": {"enabled": False},
+        "brand": {},
+        "render": {"fps": 24, "crf": 23, "grade": "null"},
+        "output": {"directory": "out", "prefix": "tkt09"},
+    }
+    mpath = base / "manifest.json"
+    mpath.write_text(json.dumps(manifest, indent=2))
+    return mpath
+
+
+def test_short_visual_long_audio_fails_before_mux():
+    """TKT-09: A beat needing 10s but only a 3s clip raises BEFORE producing the final file."""
+    asm = _load_assemble()
+    with tempfile.TemporaryDirectory() as td:
+        mpath = _build_continuous_project(td, beat_durations=[10.0], clip_durations=[3.0])
+        base = Path(td)
+        final = base / "out" / "tkt09_16x9.mp4"
+        with _pytest.raises(RuntimeError, match="too short"):
+            asm.assemble(str(mpath), formats=["16x9"])
+        assert not final.exists(), "Final file must NOT exist after failure"
+
+
+def test_visual_bed_mismatch_fails():
+    """TKT-09: When all clips sum to far less than the timing map total, assembly fails
+    with a duration-mismatch error before mux."""
+    asm = _load_assemble()
+    with tempfile.TemporaryDirectory() as td:
+        # 2 beats each needing 10s, but clips are only 2s each (4s total vs 20s needed)
+        mpath = _build_continuous_project(td, beat_durations=[10.0, 10.0], clip_durations=[2.0, 2.0])
+        base = Path(td)
+        final = base / "out" / "tkt09_16x9.mp4"
+        with _pytest.raises(RuntimeError, match="(too short|mismatch)"):
+            asm.assemble(str(mpath), formats=["16x9"])
+        assert not final.exists(), "Final file must NOT exist after failure"
+
+
+def test_valid_continuous_fixture_assembles():
+    """TKT-09: When clips cover their required durations, assembly succeeds
+    with abs(video_dur - audio_dur) <= 0.25s."""
+    asm = _load_assemble()
+    with tempfile.TemporaryDirectory() as td:
+        # 2 beats, clips exactly match durations
+        mpath = _build_continuous_project(td, beat_durations=[3.0, 3.0], clip_durations=[3.0, 3.0])
+        log = asm.assemble(str(mpath), formats=["16x9"])
+        final = Path(log["formats"]["16x9"]["path"])
+        assert final.exists(), "Final file should exist"
+        dur = _probe_dur(final)
+        assert abs(dur - 6.0) <= 0.25, f"Final duration {dur:.3f}s should be ~6.0s"

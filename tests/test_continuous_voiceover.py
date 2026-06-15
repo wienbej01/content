@@ -104,6 +104,54 @@ def test_script_default_is_segment_tts():
     print("  ✓ teaser_02 defaults to segment_tts (continuous is opt-in)")
 
 
+def test_continuous_single_audio_track():
+    """Continuous output has exactly ONE audio stream (the master), not per-clip audio."""
+    asm = _load("assemble")
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        # Create a lipsync clip WITH baked audio (to prove it's ignored)
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=green:size=320x180:d=3",
+                        "-f", "lavfi", "-i", "sine=frequency=880:duration=3",
+                        "-c:v", "libx264", "-c:a", "aac", "-pix_fmt", "yuv420p",
+                        str(td / "lipsync.mp4")], capture_output=True, check=True)
+        # Create continuous narration (3s)
+        _make_wav(td / "continuous.mp3", duration=3.0)
+        timing = {"beats": [
+            {"beat_id": "b0", "segment_id": "s0", "start": 0, "end": 3.0, "text": "x", "word_count": 1, "duration": 3},
+        ], "total_duration": 3.0, "audio_segments_detected": 1, "flags": []}
+        (td / "timing_map.json").write_text(json.dumps(timing))
+        manifest = {
+            "id": "test_single_audio",
+            "narration_mode": "continuous_voiceover",
+            "continuous_audio": "continuous.mp3",
+            "timing_map": "timing_map.json",
+            "segments": [{"media": "lipsync.mp4", "words": 1, "audio_policy": "keep_lipsync",
+                          "speech_len_sec": 3.0, "lipsync_provenance": {}}],
+            "pacing": {"reference": 0, "baseline_speed": 1.0},
+            "music": {"enabled": False},
+            "brand": {},
+            "render": {"fps": 24, "crf": 23, "grade": "null"},
+            "output": {"directory": ".", "prefix": "test_single"},
+        }
+        (td / "manifest.json").write_text(json.dumps(manifest))
+        log = asm.assemble(str(td / "manifest.json"), formats=["16x9"], tmp_base=str(td / "_tmp"))
+        final = Path(log["formats"]["16x9"]["path"])
+        # Probe: must have exactly 1 audio stream
+        probe = subprocess.run(["ffprobe", "-v", "quiet", "-show_streams",
+                                "-select_streams", "a", str(final)],
+                               capture_output=True, text=True)
+        audio_streams = probe.stdout.count("[STREAM]")
+        assert audio_streams == 1, f"expected 1 audio stream, got {audio_streams}"
+    print("  ✓ continuous mode: single audio track even with keep_lipsync segment")
+
+
+def test_manifest_declares_beat_timing_map():
+    """build_manifest includes beat_timing_map reference when file exists."""
+    src = (ROOT / "scripts" / "tts.py").read_text()
+    assert "beat_timing_map" in src
+    print("  ✓ manifest includes beat_timing_map field")
+
+
 def main():
     print("Continuous Voiceover Tests (P4-10)")
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

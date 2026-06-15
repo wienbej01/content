@@ -45,6 +45,16 @@ DEFAULT_WPS = 2.4               # words per second (calm band midpoint)
 BEAT_MIN_SEC = 4.0
 BEAT_MAX_SEC = 10.0
 HERO_MAX_SEC = 15.0             # hard cap for hero_lipsync beats (§3.2)
+
+def _read_lipsync_max():
+    try:
+        import json as _j
+        _p = Path(__file__).resolve().parent.parent / "docs" / "channel_universe" / "constraints.json"
+        return float(_j.loads(_p.read_text()).get("lipsync_render_rules", {}).get("max_clip_duration_sec", 15))
+    except Exception:
+        return 15.0
+
+LIPSYNC_RENDER_MAX_SEC = _read_lipsync_max()  # Seedance render limit from constraints.json
 EMOTIONAL_CLOSE_MAX_SEC = 25.0  # the single exception (Act 6, justified)
 
 # ---- cost basis (mirrors configs/james/model_routing.yaml; budget.py is source of truth) ----
@@ -562,6 +572,23 @@ def route(script: dict, constraints: dict, wps: float = DEFAULT_WPS) -> dict:
     """Deterministic routing pass. Returns a schema-v2 storyboard dict."""
     segments = script.get("segments", [])
     video_type = script.get("video_type") or _infer_video_type(script)
+
+    # SHORT profile (R9/E1): target ~180s, 6-8 beats. Use only the first segment
+    # or enough segments to fill ~180s. MITmonk-shaped (hook→1 framework→CTA).
+    SHORT_TARGET_SEC = 180.0
+    SHORT_MAX_BEATS = 8
+    if video_type == "short":
+        # Estimate duration per segment and truncate
+        cum_sec = 0.0
+        short_segments = []
+        for seg in segments:
+            seg_text = seg.get("text", "")
+            seg_dur = len(seg_text.split()) / wps if seg_text else 5.0
+            cum_sec += seg_dur
+            short_segments.append(seg)
+            if cum_sec >= SHORT_TARGET_SEC:
+                break
+        segments = short_segments
     raw_beats = []
     order = 0
     word_offset = 0
@@ -577,8 +604,11 @@ def route(script: dict, constraints: dict, wps: float = DEFAULT_WPS) -> dict:
             shot_type = choose_shot_type(triggers, act, order,
                                          raw_beats[-1]["shot_type"] if raw_beats else None, 0.0)
 
-            # Per-shot-type max duration (§3.2): hero ≤15s, b-roll ≤12s, kinetic ≤3s.
-            if shot_type in HERO_SHOT_TYPES:
+            # Per-shot-type max duration (§3.2): hero_lipsync ≤10s (render limit),
+            # hero_cutaway ≤15s, b-roll ≤12s, kinetic ≤3s.
+            if shot_type == "hero_lipsync":
+                max_sec = LIPSYNC_RENDER_MAX_SEC
+            elif shot_type in HERO_SHOT_TYPES:
                 max_sec = HERO_MAX_SEC
             elif shot_type == "kinetic_text":
                 max_sec = 3.0
@@ -605,10 +635,34 @@ def route(script: dict, constraints: dict, wps: float = DEFAULT_WPS) -> dict:
     _rebalance_mix(raw_beats)
     _boost_hero_takeaways(raw_beats)
     _break_hero_runs(raw_beats)
+    _dedupe_titlecard_hero_narration(raw_beats)
     _diversify_briefs(raw_beats)
 
     acts = _summarize_acts(raw_beats)
     shot_mix = _shot_mix(raw_beats)
+
+    # R7/D4: Shot-mix structural failsafe — inject required graphics if below band floor.
+    graphics_pct = shot_mix.get("graphics_ui_pct", 0)
+    if graphics_pct < 10:
+        _inject_graphics_failsafe(raw_beats, wps)
+        shot_mix = _shot_mix(raw_beats)  # recompute after injection
+
+    # SHORT: cap beats to SHORT_MAX_BEATS (keep hook + framework + CTA shape)
+    if video_type == "short" and len(raw_beats) > SHORT_MAX_BEATS:
+        raw_beats = raw_beats[:SHORT_MAX_BEATS]
+        shot_mix = _shot_mix(raw_beats)
+
+    # Check for hook presence (Act 1 must have a hero beat)
+    act1_heroes = [b for b in raw_beats if b["act"] == 1 and b["shot_type"] in HERO_SHOT_TYPES]
+    if not act1_heroes:
+        # Promote first Act-1 beat to hero (hook must have James)
+        act1_beats = [b for b in raw_beats if b["act"] == 1]
+        if act1_beats:
+            _retag(act1_beats[0], "hero_lipsync", wps)
+
+    # Key-point emphasis: coordinate hero/overlay/pause for the script's payoff lines.
+    _apply_key_point_emphasis(raw_beats, script.get("key_points", []), wps)
+
     totals = _totals(raw_beats, video_type)
 
     storyboard = {
@@ -627,6 +681,11 @@ def route(script: dict, constraints: dict, wps: float = DEFAULT_WPS) -> dict:
         "approval": {"status": "draft", "approved_by": None, "approved_at": None,
                      "sha256_at_approval": None},
     }
+    # Thread music + voice through from the script so downstream stages keep them.
+    if script.get("music"):
+        storyboard["music"] = script["music"]
+    if script.get("voice"):
+        storyboard["voice"] = script["voice"]
     return storyboard
 
 
@@ -671,15 +730,19 @@ def _break_hero_runs(beats, wps: float = DEFAULT_WPS):
     approved close. Break runs of consecutive hero beats whose total exceeds 15s by
     converting the surplus to hero_cutaway/broll, except in Act 6 close."""
     run_sec = 0.0
+    prev_act = None
     for i, b in enumerate(beats):
+        # Reset at act boundaries (Act-6 chains are handled separately)
+        if prev_act is not None and b["act"] != prev_act:
+            run_sec = 0.0
+        prev_act = b["act"]
         if b["shot_type"] in HERO_SHOT_TYPES and b["act"] != 6:
             run_sec += b["est_duration_sec"]
             if run_sec > HERO_MAX_SEC:
-                # Convert this beat out of the hero run.
                 _retag(b, "broll_environment", wps)
                 run_sec = 0.0
-        else:
-            run_sec = b["est_duration_sec"] if b["shot_type"] in HERO_SHOT_TYPES else 0.0
+        elif b["act"] != 6:
+            run_sec = 0.0
     # Act 6: allow one long close but cap others; ensure the close ≤25s w/ justification.
     act6_heroes = [b for b in beats if b["act"] == 6 and b["shot_type"] in HERO_SHOT_TYPES]
     for b in act6_heroes:
@@ -756,6 +819,96 @@ def _rebalance_mix(beats, wps: float = DEFAULT_WPS):
             _retag(b, target, wps)
 
 
+def _apply_key_point_emphasis(beats, key_points, wps=DEFAULT_WPS):
+    """Coordinate emphasis for the script's payoff lines across layers.
+
+    For each key_point, find the beat whose narration contains its text and apply:
+      - treatment 'hero_payoff'    -> promote to hero_lipsync + inject gesture cue
+      - treatment 'overlay_on_broll' -> keep shot_type, attach the key_line overlay
+    Both attach the overlay payload and record pause_before_sec so the TTS/assembly
+    stages can insert the emphasis pause and composite the synced text.
+    """
+    if not key_points:
+        return
+    for kp in key_points:
+        kp_text = (kp.get("text") or "").strip()
+        emph = kp.get("emphasis", {})
+        if not kp_text:
+            continue
+        # Match the beat containing (most of) this key-point text.
+        target = None
+        kp_head = kp_text[:30].lower()
+        for b in beats:
+            nt = (b.get("narration_text") or "").lower()
+            if kp_head in nt or (len(kp_text) > 15 and kp_text[-25:].lower() in nt):
+                target = b
+                break
+        if target is None:
+            continue
+
+        treatment = emph.get("treatment", "overlay_on_broll")
+        if treatment == "hero_payoff" and target["shot_type"] != "hero_lipsync":
+            _retag(target, "hero_lipsync", wps)
+            gesture = emph.get("hero_gesture")
+            if gesture:
+                base = re.sub(r'\s*\[beat focus:[^\]]*\]', '', target["visual_brief"]).strip()
+                target["visual_brief"] = f"{base} GESTURE: {gesture}."
+
+        # Attach overlay + emphasis metadata regardless of treatment.
+        ov = emph.get("overlay")
+        if ov:
+            target["overlay"] = {"required": True, "type": ov.get("kind", "key_line"),
+                                 "text": ov.get("text"), "timing": "on_spoken_line"}
+        target["key_point"] = True
+        target["pause_before_sec"] = emph.get("pause_before_sec", 0.0)
+
+
+def _dedupe_titlecard_hero_narration(beats):
+    """R12/F6: if a graphic_title_card beat's narration_text overlaps with the
+    immediately following beat, clear the title card's narration (it's a visual-only
+    beat; the narration belongs to the next spoken beat, not repeated)."""
+    for i in range(len(beats) - 1):
+        if beats[i]["shot_type"] != "graphic_title_card":
+            continue
+        tc_text = beats[i].get("narration_text", "").strip()
+        next_text = beats[i + 1].get("narration_text", "").strip()
+        if not tc_text or not next_text:
+            continue
+        # Check overlap: title card text is a prefix of (or contained in) next beat
+        if next_text.startswith(tc_text[:40]) or tc_text.startswith(next_text[:40]):
+            # Title card is visual-only; clear its narration to prevent double-play
+            beats[i]["narration_text"] = ""
+            beats[i]["est_duration_sec"] = min(beats[i]["est_duration_sec"], 3.0)
+
+
+def _inject_graphics_failsafe(beats, wps=DEFAULT_WPS):
+    """R7: inject graphic_progressive beats at act transitions until graphics ≥10%.
+    Only injects at natural framework boundaries (act transitions, principle statements)."""
+    total_dur = sum(b["est_duration_sec"] for b in beats) or 1.0
+    graphics_dur = sum(b["est_duration_sec"] for b in beats
+                       if b["shot_type"] in ("graphic_progressive", "graphic_title_card", "ui_insert"))
+    target_dur = total_dur * 0.10
+    # Find act transition points (first beat of each act after Act 1)
+    act_starts = []
+    prev_act = 0
+    for i, b in enumerate(beats):
+        if b["act"] != prev_act and b["act"] > 1:
+            act_starts.append(i)
+            prev_act = b["act"]
+        else:
+            prev_act = b["act"]
+    # Convert broll beats at act transitions to graphic_progressive
+    inserted = 0
+    for idx in act_starts:
+        if graphics_dur >= target_dur:
+            break
+        b = beats[idx]
+        if b["shot_type"] not in HERO_SHOT_TYPES and b["shot_type"] != "graphic_progressive":
+            _retag(b, "graphic_progressive", wps)
+            graphics_dur += b["est_duration_sec"]
+            inserted += 1
+
+
 def _diversify_briefs(beats):
     """Ensure ≥12 distinct visual setups (§7) by appending a per-beat specificity
     suffix derived from the narration, so identical seed briefs don't collapse."""
@@ -765,9 +918,11 @@ def _diversify_briefs(beats):
         seen.setdefault(key, []).append(b)
     # Append a short distinguishing phrase from the beat's own narration.
     for b in beats:
+        # Strip any existing [beat focus:] tags to prevent duplication (R11/F2)
+        brief = re.sub(r'\s*\[beat focus:[^\]]*\]', '', b["visual_brief"]).strip()
         words = [w for w in re.findall(r"[A-Za-z']+", b["narration_text"]) if len(w) > 4]
         anchor = " ".join(words[:4]) if words else b["beat_id"]
-        b["visual_brief"] = f"{b['visual_brief']} [beat focus: {anchor}]"
+        b["visual_brief"] = f"{brief} [beat focus: {anchor}]"
 
 
 def _summarize_acts(beats) -> list:
@@ -861,13 +1016,26 @@ def llm_refine(storyboard: dict, constraints: dict) -> dict:
     from llm_call import llm_call  # noqa
 
     beats_for_llm = [{"beat_id": b["beat_id"], "shot_type": b["shot_type"],
-                      "narration_text": b["narration_text"][:120],
+                      "narration_text": b["narration_text"][:160],
                       "visual_brief": b["visual_brief"]} for b in storyboard["beats"]]
     prompt = (
-        "You are a film director refining visual briefs for a faceless educational video.\n"
-        "RULES (hard, cannot change): keep each beat's shot_type exactly as given. Only rewrite "
-        "the 'visual_brief' to be more specific and cinematic, staying within a warm navy/gold/ivory "
-        "palette, motivated practical lighting, no readable text, no logos, no sci-fi/cyberpunk.\n"
+        "You are a film director refining visual briefs for a faceless educational video.\n\n"
+        "HARD RULES (cannot change):\n"
+        "- Keep each beat's shot_type EXACTLY as given.\n"
+        "- Palette: warm navy/gold/ivory, dark wood, brass. Motivated practical lighting.\n"
+        "- NO readable text, NO writing/handwriting/documents-with-text, NO charts-with-labels, "
+        "NO logos, NO sci-fi/cyberpunk/neon, NO floating UI.\n\n"
+        "SPECIFICITY MANDATE (this is the point of the task):\n"
+        "- Generic briefs are FORBIDDEN. 'books on a desk', 'academic scene', 'grounded environment' "
+        "are REJECTED.\n"
+        "- Derive the SUBJECT from the beat's narration_text. If the narration names a researcher, a "
+        "study, a place, a number, or a concrete action, the brief MUST depict THAT specific thing.\n"
+        "- B-roll MUST use ACTION VERBS showing motion, never static poses. Write 'a hand drawing a "
+        "continuous descending curve in the air', NOT 'a hand near paper'. Write 'a person at a "
+        "workstation rubbing their temples, shoulders visibly tensing', NOT 'someone at a desk'.\n"
+        "- For hero beats keep James Harrington (60yo British man, silver hair, navy sweater) consistent.\n\n"
+        "For each beat, write a vivid, SPECIFIC, motion-led visual_brief (1-2 sentences) grounded in its "
+        "narration.\n"
         "Return ONLY a JSON array of {beat_id, visual_brief}.\n\n"
         f"Beats:\n{json.dumps(beats_for_llm, indent=2)}")
     try:

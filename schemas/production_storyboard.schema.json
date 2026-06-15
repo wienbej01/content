@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://leveragemind/schemas/production_storyboard.schema.json",
+  "title": "Production Storyboard",
+  "description": "Post-TTS authoritative artifact reconciling creative beats to exact audio timing with model-legal visual coverage. Superset contract: carries all creative fields needed by the media-plan compiler.",
+  "type": "object",
+  "required": ["schema_version", "project_id", "creative_storyboard_sha256", "timing_map_sha256",
+               "master_audio_duration_sec", "total_beats", "created_at", "beats"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "project_id": {"type": "string", "minLength": 1},
+    "creative_storyboard_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "timing_map_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "master_audio_duration_sec": {"type": "number", "exclusiveMinimum": 0},
+    "total_beats": {"type": "integer", "minimum": 1},
+    "created_at": {"type": "string"},
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/production_beat"}
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "production_beat": {
+      "type": "object",
+      "required": ["beat_id", "source_beat_id", "audio_start_sec", "audio_end_sec",
+                   "audio_duration_sec", "treatment", "coverage_plan",
+                   "shot_type", "segment_id"],
+      "properties": {
+        "beat_id": {"type": "string", "minLength": 1},
+        "source_beat_id": {"type": "string", "minLength": 1},
+        "audio_start_sec": {"type": "number", "minimum": 0},
+        "audio_end_sec": {"type": "number", "minimum": 0},
+        "audio_duration_sec": {"type": "number", "minimum": 0},
+        "narration_text": {"type": "string"},
+        "treatment": {"type": "string"},
+        "model": {"type": "string"},
+        "model_max_duration_sec": {"type": ["number", "null"]},
+        "coverage_plan": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/coverage_entry"}
+        },
+        "shot_type": {"type": "string", "minLength": 1},
+        "segment_id": {"type": "string", "minLength": 1},
+        "visual_brief": {"type": "string"},
+        "subject": {"type": "string"},
+        "action": {"type": "string"},
+        "camera": {"type": "string"},
+        "setting": {"type": "string"},
+        "continuity_anchor": {"type": "string"},
+        "asset_type": {"type": "string"},
+        "model_tier": {"type": "string"},
+        "lipsync_required": {"type": "boolean"},
+        "reference_required": {"type": "boolean"},
+        "reference_images": {"type": "array", "items": {"type": "string"}},
+        "prompt_class": {"type": "string"},
+        "audio_mode": {"type": "string"},
+        "crop_safety": {"type": "string"},
+        "shots_per_beat": {"type": "integer", "minimum": 1},
+        "narrative_function": {"type": "string"},
+        "era": {"type": "string"},
+        "duration_target_sec": {"type": "number"},
+        "est_duration_sec": {"type": "number"},
+        "graphics": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/graphic_entry"}
+        },
+        "coverage_slot": {"type": "string", "pattern": "^B\\d{3}-s\\d+$"},
+        "split_index": {"type": "integer", "minimum": 0},
+        "split_total": {"type": "integer", "minimum": 1},
+        "needs_repair": {"type": "boolean"},
+        "note": {"type": "string"},
+        "cost": {"type": "object"},
+        "reuse": {"type": "object"},
+        "fallback": {"type": "object"},
+        "justification": {"type": ["string", "null"]},
+        "music_duck": {"type": "boolean"},
+        "narration_word_span": {"type": "array", "items": {"type": "integer"}},
+        "visual_function": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "coverage_entry": {
+      "type": "object",
+      "required": ["asset_role", "asset_type", "required_start_sec", "required_end_sec", "required_duration_sec"],
+      "properties": {
+        "asset_role": {"type": "string"},
+        "asset_type": {"type": "string"},
+        "required_start_sec": {"type": "number", "minimum": 0},
+        "required_end_sec": {"type": "number", "minimum": 0},
+        "required_duration_sec": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "graphic_entry": {
+      "type": "object",
+      "required": ["required", "layout", "text", "timing"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "layout": {"type": "string"},
+        "text": {"type": "string"},
+        "timing": {"type": "string"},
+        "display_slot": {"type": "string"},
+        "display_interval": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,5 @@
+injection,result,mechanism
+gap_injection,REJECTED,validate_production_storyboard detects non-contiguous audio intervals
+overlap_injection,REJECTED,validate_production_storyboard detects overlapping audio intervals
+narration_mutation,REJECTED,run_review detects narration text mismatch vs creative storyboard
+missing_shot_type,REJECTED,validate_production_storyboard detects missing required field

@@ -139,19 +139,19 @@ def lipsync_checks(beat, media_path, info, base):
         for field in ("slice_sha256", "parent_mp3_sha256", "file"):
             if not slice_info.get(field):
                 issues.append(f"LIPSYNC: audio_slice missing provenance field '{field}'")
-        slice_file_rel = slice_info.get("file")
-        expected = slice_info.get("slice_sha256")
+        slice_file_rel = slice_info.get("file") or slice_info.get("path")
+        expected = slice_info.get("slice_sha256") or slice_info.get("sha256")
         if slice_file_rel and expected:
             # Resolve slice relative to the project/output dir of the plan.
             sf = resolve(base, slice_file_rel)
             if sf is None or not sf.exists():
-                # Try resolving against the media plan's project dir convention.
-                issues.append(f"LIPSYNC: slice file missing for provenance check ({slice_file_rel})")
+                issues.append(
+                    f"PROVENANCE: audio slice missing for {bid} ({slice_file_rel})")
             else:
                 live = _file_sha256(sf)
                 if live != expected:
                     issues.append(
-                        f"LIPSYNC: slice provenance hash mismatch "
+                        f"PROVENANCE: audio slice hash mismatch for {bid} "
                         f"(expected {expected[:12]}, live {live[:12] if live else 'missing'})")
     return issues
 
@@ -205,6 +205,94 @@ def resolve(base, p):
     return local
 
 
+# ---- Perceptual QA (R1/C1) -----------------------------------------------
+# Thresholds loaded from constraints.json (qa_thresholds), with safe defaults.
+
+def _load_qa_thresholds():
+    """Load QA thresholds from constraints.json."""
+    cpath = ROOT / "docs" / "channel_universe" / "constraints.json"
+    if cpath.exists():
+        c = json.loads(cpath.read_text())
+        return c.get("qa_thresholds", {})
+    return {}
+
+
+def check_blank_screen(path):
+    """Detect solid-color/blank clips by sampling frames and checking pixel stddev.
+    Returns list of issues (empty = pass)."""
+    thresh = _load_qa_thresholds()
+    min_stddev = thresh.get("min_luma_stddev", 1.0)
+    issues = []
+    # Sample 3 frames and check stddev via showinfo
+    r = subprocess.run(
+        ["ffmpeg", "-i", str(path), "-vf",
+         "select=eq(n\\,0)+eq(n\\,30)+eq(n\\,60),showinfo",
+         "-vsync", "vfr", "-f", "null", "-"],
+        capture_output=True, text=True)
+    import re
+    stddevs = re.findall(r"stdev:\[([^\]]+)\]", r.stderr)
+    if stddevs:
+        all_zero = all(
+            all(float(v.strip()) <= min_stddev for v in sd.split())
+            for sd in stddevs
+        )
+        if all_zero:
+            issues.append(f"BLANK_SCREEN: all sampled frames have stdev ≤ {min_stddev} "
+                          f"(solid color / blank)")
+    return issues
+
+
+def check_frozen_video(path, duration=None):
+    """Detect frozen/static video clips using freezedetect.
+    Returns list of issues (empty = pass)."""
+    thresh = _load_qa_thresholds()
+    max_freeze_pct = thresh.get("max_freeze_pct", 50.0)
+    issues = []
+    r = subprocess.run(
+        ["ffmpeg", "-i", str(path), "-vf", "freezedetect=n=0.003:d=0.5",
+         "-an", "-f", "null", "-"],
+        capture_output=True, text=True)
+    import re
+    # Parse freeze durations; if freeze_start exists without freeze_end, it's frozen till end
+    freeze_durs = re.findall(r"freeze_duration:\s*([\d.]+)", r.stderr)
+    freeze_starts = re.findall(r"freeze_start:\s*([\d.]+)", r.stderr)
+    total_freeze = sum(float(d) for d in freeze_durs)
+    # Handle perpetual freeze (start without end): frozen from start to clip end
+    if freeze_starts and not freeze_durs and duration:
+        total_freeze = duration - float(freeze_starts[0])
+    if duration and duration > 0 and total_freeze > 0:
+        freeze_pct = (total_freeze / duration) * 100
+        if freeze_pct >= max_freeze_pct:
+            issues.append(f"FROZEN_VIDEO: {freeze_pct:.0f}% frozen "
+                          f"({total_freeze:.1f}s of {duration:.1f}s)")
+    return issues
+
+
+def _load_timing_map(project_id, base):
+    """Load beat_timing_map.json if it exists. Returns dict or None."""
+    if not project_id:
+        return None
+    tm_path = ROOT / "Videos" / "Projects" / project_id / "narration" / "beat_timing_map.json"
+    if tm_path.exists():
+        return json.loads(tm_path.read_text())
+    # Also try relative to base
+    alt = base / "narration" / "beat_timing_map.json"
+    if alt.exists():
+        return json.loads(alt.read_text())
+    return None
+
+
+def _classify_issue(issue_text, beat):
+    """Classify an issue into (target_step, change_type) for change-request routing."""
+    text = issue_text.upper()
+    if "LIPSYNC" in text and ("AUDIO DURATION" in text or "AUDIO_SLICE" in text or "PROVENANCE" in text):
+        return "slice_lipsync", "re-slice"
+    if "MISSING" in text:
+        return "generate_media", "regenerate"
+    # Default: coverage deficit, dimension, too_short, frozen, blank → regenerate
+    return "generate_media", "regenerate"
+
+
 def run_qa(script_path, selected_segment=None, scope="source", record_gate=False, project_id=None):
     """Run media QA. Returns (results_list, pass_bool)."""
     script = json.load(open(script_path))
@@ -215,6 +303,16 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
     results = []
     all_pass = True
     exp_w, exp_h = DIMS_BY_SCOPE.get(scope, (EXPECTED_WIDTH, EXPECTED_HEIGHT))
+
+    # CDB-05: Read clip repository from DB (golden-truth source)
+    _clip_id_map = {}  # production_beat_id → clip_id
+    try:
+        import clip_db
+        if pid:
+            for c in clip_db.list_clips(pid):
+                _clip_id_map[c["production_beat_id"]] = c["clip_id"]
+    except (ImportError, Exception):
+        pass  # DB not available — legacy path
 
     # Accept either a script (segments + audio_mode) or a media plan (beats).
     units_top = script.get("segments")
@@ -273,10 +371,13 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
             media_path = resolve(base, unit["media"])
             entry = {"id": uid, "segment_id": sid, "audio_mode": mode,
                      "media_path": str(media_path), "issues": []}
+            # CDB-05: Attach clip_id if this beat is in the DB
+            if uid in _clip_id_map:
+                entry["clip_id"] = _clip_id_map[uid]
 
             if not media_path or not media_path.exists():
                 entry["issues"].append("MISSING: file does not exist")
-                entry["status"] = "fail"
+                entry["status"] = "FAIL"
                 results.append(entry)
                 all_pass = False
                 continue
@@ -284,15 +385,22 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
             info = probe(media_path)
             if info is None:
                 entry["issues"].append("UNREADABLE: ffprobe cannot parse file")
-                entry["status"] = "fail"
+                entry["status"] = "FAIL"
                 results.append(entry)
                 all_pass = False
                 continue
 
             entry.update(info)
 
-            # Dimension check
-            if info["width"] != exp_w or info["height"] != exp_h:
+            # Dimension check. Source-scope clips may be 720p OR native 1080p
+            # (hero lipsync now renders at native 1080p for a crisp source); both
+            # 16:9 sizes are acceptable as long as the aspect is correct.
+            ok_dims = (info["width"] == exp_w and info["height"] == exp_h)
+            if scope == "source" and not ok_dims:
+                ACCEPTED_SOURCE = {(1280, 720), (1920, 1080)}
+                if (info["width"], info["height"]) in ACCEPTED_SOURCE:
+                    ok_dims = True
+            if not ok_dims:
                 entry["issues"].append(
                     f"DIMENSIONS: {info['width']}x{info['height']} (expected {exp_w}x{exp_h})")
 
@@ -330,10 +438,74 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
                         f"CROP_SAFETY: assembled aspect {info['width']}x{info['height']} "
                         f"!= {want[0]}:{want[1]} (center crop not applied)")
 
-            entry["status"] = "fail" if entry["issues"] else "pass"
+            # R1/C1: Perceptual checks (blank-screen + frozen-video).
+            # Only for generated video clips in source scope (local_graphic is
+            # intentionally static — not checked).
+            is_generated_video = (seg.get("asset_type") in ("generated_video",)
+                                  or mode in ("generated_tts", "baked_in"))
+            is_local = seg.get("shot_type") in ("graphic_progressive", "graphic_title_card",
+                                                 "kinetic_text", "ui_insert")
+            if scope == "source" and is_generated_video and not is_local:
+                entry["issues"].extend(check_blank_screen(media_path))
+                entry["issues"].extend(check_frozen_video(media_path, info.get("duration")))
+
+            # Artifact fingerprint check (TKT-01).
+            from artifact_fingerprint import read_fingerprint as _read_fp, verify_fingerprint as _verify_fp
+            _fp = _read_fp(media_path)
+            if _fp is None:
+                entry.setdefault("warnings", []).append("FINGERPRINT_MISSING: no .fp.json for clip")
+            else:
+                _fp_valid, _fp_reason = _verify_fp(media_path, expected_project_id=pid)
+                if not _fp_valid:
+                    entry["issues"].append(f"STALE_ARTIFACT: {_fp_reason}")
+
+            entry["status"] = "FAIL" if entry["issues"] else "PASS"
             if entry["issues"]:
                 all_pass = False
             results.append(entry)
+
+    # Coverage-deficit check: compare clip duration vs timing-map requirement
+    timing_map = _load_timing_map(pid, base)
+    if timing_map:
+        tm_lookup = {b["beat_id"]: b for b in timing_map.get("beats", [])}
+        for entry in results:
+            bid = entry.get("id")
+            if bid and bid in tm_lookup and entry.get("duration"):
+                req = tm_lookup[bid]["end"] - tm_lookup[bid]["start"]
+                actual = entry["duration"]
+                deficit = req - actual
+                if deficit > 0.25:
+                    entry["issues"].append(
+                        f"COVERAGE_DEFICIT: beat {bid} has {actual:.3f}s visual "
+                        f"but needs {req:.3f}s (deficit {deficit:.3f}s)")
+                    entry["status"] = "FAIL"
+                    all_pass = False
+
+    # --- CDB-05: Interactive clip_db integration ---
+    # For each beat with a clip_id, mark valid or raise change requests.
+    try:
+        import clip_db
+        if pid:
+            for entry in results:
+                clip_id = entry.get("clip_id")
+                if not clip_id:
+                    continue
+                if entry.get("status") == "PASS":
+                    clip_db.mark_valid(clip_id, validated_by='qa_media')
+                else:
+                    for issue in entry.get("issues", []):
+                        target_step, change_type = _classify_issue(issue, entry)
+                        clip_db.request_change(
+                            clip_id, requested_by='qa_media',
+                            target_step=target_step,
+                            change_type=change_type, reason=issue)
+    except ImportError:
+        pass  # clip_db not available — legacy mode
+
+    # Aggregate consistency: ensure passed bool agrees with per-row statuses
+    row_pass = all(r.get("status", "").upper() == "PASS" for r in results)
+    if row_pass != all_pass:
+        all_pass = False
 
     return results, all_pass
 
@@ -354,10 +526,10 @@ def main():
     results, all_pass = run_qa(args.script, args.segment, scope=args.scope)
 
     # Print summary
-    passed = sum(1 for r in results if r["status"] == "pass")
-    failed = sum(1 for r in results if r["status"] == "fail")
+    passed = sum(1 for r in results if r["status"] == "PASS")
+    failed = sum(1 for r in results if r["status"] == "FAIL")
     for r in results:
-        icon = "✓" if r["status"] == "pass" else "✗"
+        icon = "✓" if r["status"] == "PASS" else "✗"
         issues = "; ".join(r["issues"]) if r["issues"] else ""
         extra = f" — {issues}" if issues else ""
         print(f"  {icon} [{r['id']}] {r.get('width','?')}x{r.get('height','?')} "

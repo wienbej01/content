@@ -32,13 +32,17 @@ STUB_FAIL = {
 
 
 def test_persona_prompts_exist():
-    for p in ["filmmaker", "technical", "universe", "audio"]:
+    # New cast (per CREATIVE_CHAIN_SPRINT): audience(both stages), brand_voice(script),
+    # filmmaker+visual_director+technical(storyboard). audio persona removed.
+    for p in ["audience", "brand_voice", "filmmaker", "visual_director", "technical"]:
         path = ROOT / "docs" / "reviewer_prompts" / f"{p}.md"
         assert path.exists(), f"missing: {path}"
         content = path.read_text()
         assert "BLOCKING" in content
         assert "JSON" in content
-    print("  ✓ all 4 persona prompts exist with blocking + JSON schema")
+    # audio persona must be archived/removed (speakability handled by chunk-and-stitch)
+    assert not (ROOT / "docs" / "reviewer_prompts" / "audio.md").exists(), "audio persona should be removed"
+    print("  ✓ new reviewer cast present (audience/brand_voice/filmmaker/visual_director/technical); audio removed")
 
 
 def test_review_script_dry_run():

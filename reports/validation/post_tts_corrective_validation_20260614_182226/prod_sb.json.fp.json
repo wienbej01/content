@@ -1,0 +1,14 @@
+{
+  "artifact": "reports/validation/post_tts_corrective_validation_20260614_182226/prod_sb.json",
+  "created_at": "2026-06-14T18:23:38+08:00",
+  "mtime": 1781432618.808245,
+  "producer": "reconcile_production_storyboard",
+  "producer_version": "1.0",
+  "project_id": "using_ai_to_help_memory_retention_short",
+  "sha256": "a50b55a0eba6f5f80b0a828a793768ad9d514ac0a6ac1922122df81b9e4c1410",
+  "size_bytes": 44935,
+  "upstream_hashes": [
+    "cdae177f4df54d4b8ea65862ce44fe73e33eb0a804f567cad483df0405b41138",
+    "cb8579a7cd880e3645e246957344d31508cf77c81dd099112ffa0238256c223e"
+  ]
+}

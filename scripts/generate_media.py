@@ -23,17 +23,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gates import require_gates  # noqa: E402
+from artifact_fingerprint import read_fingerprint, write_fingerprint, verify_fingerprint  # noqa: E402
+from clip_db import can_reuse, record_generated, mark_failed, get_path, log_access, init_db  # noqa: E402
 
 # Gates that must pass before ANY Higgsfield spend (blueprint §2/§6/§10).
 SPEND_GATES = ["storyboard_review", "media_plan_review", "budget", "render_approval"]
 
 HF_BIN = ROOT / "node_modules" / "@higgsfield" / "cli" / "bin" / "higgsfield.js"
 DEFAULT_LIPSYNC_MODEL = "seedance_2_0"    # lipsync: only CLI model with --audio
+HERO_RENDER_RESOLUTION = "720p"           # Seedance hero source res (flip to "1080p" for crisp source; 2x cost)
 DEFAULT_BROLL_MODEL = "kling3_0"           # b-roll: kling (wan NOT authorized)
 HUMAN_CLOSEUP_MODEL = "kling3_0"           # hero face, hands, body, human background
 BANNED_MODELS = {"minimax_hailuo", "seedance_2_0_fast", "seedance1_5",
                  "wan2_7", "wan2_6"}        # wan models NOT authorized
-LIPSYNC_MAX_DUR = 10    # seedance_2_0 max duration per clip (seconds)
+def _load_lipsync_max():
+    """Read max clip duration from constraints.json (single source of truth)."""
+    try:
+        import json as _json
+        c = _json.loads((ROOT / "docs" / "channel_universe" / "constraints.json").read_text())
+        return int(c.get("lipsync_render_rules", {}).get("max_clip_duration_sec", 15))
+    except Exception:
+        return 15
+
+LIPSYNC_MAX_DUR = _load_lipsync_max()
 
 
 def _seedance_min_duration():
@@ -377,10 +389,11 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
         raise RuntimeError(f"[{seg_id}] no result_url in response: {json.dumps(result)[:300]}")
 
     media_path.parent.mkdir(parents=True, exist_ok=True)
+    _cleanup_stale_downloads(media_path.parent)
 
-    import urllib.request
+    # Atomic download + validation (TKT-06)
     raw_path = media_path.parent / f".raw_{media_path.name}"
-    urllib.request.urlretrieve(url, str(raw_path))
+    _atomic_download(url, raw_path, expected_duration=duration)
 
     # Strip audio from b-roll (generated_tts segments use ElevenLabs narration,
     # not random Higgsfield ambient audio). Keep video-only at the final target.
@@ -389,8 +402,8 @@ def generate_segment(seg, media_path, model, dry_run=False, audio_mode=None, spe
             ["ffmpeg", "-y", "-i", str(raw_path), "-an", "-c:v", "copy", str(media_path)],
             capture_output=True)
     else:
-        import shutil
-        shutil.move(str(raw_path), str(media_path))
+        import shutil, os
+        os.replace(str(raw_path), str(media_path))
 
     # Clean up raw if final exists
     if media_path.exists() and raw_path.exists():
@@ -542,6 +555,64 @@ def file_sha256(path):
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _cleanup_stale_downloads(directory):
+    """Remove leftover .downloading temp files from interrupted runs."""
+    if not directory.exists():
+        return
+    for tmp in directory.glob("*.downloading"):
+        tmp.unlink(missing_ok=True)
+
+
+def _atomic_download(url, out_path, expected_duration=None):
+    """Download to a temp file, validate with ffprobe, then atomically rename.
+
+    Raises RuntimeError on validation failure (zero-byte, no video stream,
+    duration out of expected range). Cleans up temp file on failure.
+    """
+    import urllib.request
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = out_path.parent / (out_path.name + ".downloading")
+    try:
+        urllib.request.urlretrieve(url, str(tmp_path))
+        # Validate: non-zero size
+        if tmp_path.stat().st_size == 0:
+            raise RuntimeError(f"downloaded file is zero bytes: {out_path.name}")
+        # Validate: ffprobe shows video stream
+        info = probe_video(tmp_path)
+        if info is None or info["width"] == 0:
+            raise RuntimeError(f"downloaded file has no video stream: {out_path.name}")
+        # Validate: duration within expected range (if provided)
+        if expected_duration and info["duration"] > 0:
+            if info["duration"] < expected_duration * 0.5 or info["duration"] > expected_duration * 2.0:
+                raise RuntimeError(
+                    f"downloaded clip duration {info['duration']:.1f}s outside expected "
+                    f"range [{expected_duration*0.5:.1f}, {expected_duration*2.0:.1f}]s")
+        # Atomic rename
+        import os
+        os.replace(str(tmp_path), str(out_path))
+        return info
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _validate_existing_output(out_path, expected_duration=None):
+    """Validate an existing output file. Returns True if valid, False if corrupt.
+
+    Checks: non-zero size, ffprobe video stream, duration sanity."""
+    if not out_path.exists():
+        return False
+    if out_path.stat().st_size == 0:
+        return False
+    info = probe_video(out_path)
+    if info is None or info["width"] == 0:
+        return False
+    if expected_duration and info["duration"] > 0:
+        if info["duration"] < expected_duration * 0.3:
+            return False
+    return True
 
 
 def validate_lipsync_provenance(script, base):
@@ -805,16 +876,23 @@ def _still_kenburns(beat, out_path, dry_run=False):
                 "model": "still_kenburns", "cost_usd": 0.0, "action": "kenburns(dry)"}
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if src:
-        # zoompan over the still
+        # zoompan over the still — motion must be strong enough to pass freeze
+        # detection (the final-cut gate fails near-static clips). Continuous zoom
+        # + slow pan guarantees per-frame change.
         subprocess.run(
             ["ffmpeg", "-y", "-loop", "1", "-i", str(src), "-t", f"{dur}",
-             "-vf", f"scale=1280:720,zoompan=z='min(zoom+0.0008,1.12)':d={int(dur*25)}:s=1280x720,format=yuv420p",
+             "-vf", (f"scale=2560:1440,zoompan=z='min(zoom+0.0015,1.25)':"
+                     f"x='iw/2-(iw/zoom/2)+sin(on/30)*40':y='ih/2-(ih/zoom/2)':"
+                     f"d={int(dur*25)}:s=1280x720,format=yuv420p"),
              "-r", "25", "-an", str(out_path)], capture_output=True)
     else:
-        # solid ivory frame (placeholder still; real still comes from reference lib)
-        subprocess.run(
-            ["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=0xF5F0E8:s=1280x720:d={dur}",
-             "-r", "25", "-an", str(out_path)], capture_output=True)
+        # NO usable still reference. We must NOT emit a solid/blank frame (that is
+        # exactly the blank-screen defect). Hard-fail so the caller re-rolls or
+        # surfaces the missing-reference error instead of shipping a dead clip.
+        return {"beat_id": beat["beat_id"], "model": "still_kenburns",
+                "cost_usd": 0.0, "error": "still_kenburns fallback has NO reference "
+                "image — refusing to emit a solid/blank frame. Provide a reference "
+                "or regenerate the source beat.", "status": "fail"}
     info = probe_video(out_path)
     return {"beat_id": beat["beat_id"], "media_path": str(out_path),
             "model": "still_kenburns", "duration": round(info["duration"], 2) if info else dur,
@@ -843,7 +921,7 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
         duration = int(sl["padded_len_sec"])
         if beat.get("shot_type") == "hero_lipsync":
             duration = max(duration, SEEDANCE_MIN_DURATION_SEC)
-            duration = min(duration, LIPSYNC_MAX_DUR)   # Seedance rejects > 10s
+            duration = min(duration, LIPSYNC_MAX_DUR)   # Seedance max 15s per clip
     else:
         duration = max(1, int(round(beat.get("duration_target_sec", 5))))
     refs = beat.get("reference_images") or []
@@ -858,6 +936,15 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
 
     cmd = ["node", str(HF_BIN), "generate", "create", model, "--prompt", prompt]
     cmd += ["--duration", str(duration)]
+
+    # Native render resolution. Configurable per-beat via beat['render_resolution'];
+    # otherwise uses HERO_RENDER_RESOLUTION (default 720p — flip to '1080p' here or
+    # per-beat for a crisp source; the 1080p benefit was judged marginal vs 2x cost).
+    render_res = beat.get("render_resolution")
+    if not render_res and model == "seedance_2_0":
+        render_res = HERO_RENDER_RESOLUTION
+    if render_res:
+        cmd += ["--resolution", render_res]
 
     if ref_image and (ROOT / ref_image).exists():
         r = subprocess.run(["node", str(HF_BIN), "upload", "create", str(ROOT / ref_image), "--json"],
@@ -903,22 +990,25 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
     if not url:
         raise RuntimeError(f"{beat['beat_id']}: no result_url: {json.dumps(result)[:200]}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    import urllib.request
+    # Atomic download + validation
+    _cleanup_stale_downloads(out_path.parent)
     raw = out_path.parent / f".raw_{out_path.name}"
-    urllib.request.urlretrieve(url, str(raw))
+    _atomic_download(url, raw, expected_duration=duration)
     # Keep embedded audio only for a TRUE lipsync render; otherwise strip.
     if not lipsync:
         subprocess.run(["ffmpeg", "-y", "-i", str(raw), "-an", "-c:v", "copy", str(out_path)],
                        capture_output=True)
         raw.unlink(missing_ok=True)
     else:
-        import shutil
-        shutil.move(str(raw), str(out_path))
+        import shutil, os
+        os.replace(str(raw), str(out_path))
     info = probe_video(out_path)
     return {"beat_id": beat["beat_id"], "media_path": str(out_path), "model": model,
             "duration": round(info["duration"], 2) if info else duration,
             "cost_usd": beat.get("cost", {}).get("est_usd", 0.0),
-            "lipsync": bool(lipsync)}
+            "lipsync": bool(lipsync),
+            "job_id": result.get("id") or result.get("job_id"),
+            "result_url": url}
 
 
 def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=False, selected=None):
@@ -990,22 +1080,41 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
                                  "action": "merged_follower"})
             continue
 
-        # Reuse lookup (≤2× per video).
-        reused_path = _library_lookup(beat, index)
-        if reused_path and reuse_counts.get(reused_path, 0) < 2:
-            reuse_counts[reused_path] = reuse_counts.get(reused_path, 0) + 1
-            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
-                                 "clips": 0, "cost_usd": 0.0, "reuse": True,
-                                 "reused_asset": reused_path, "action": "reuse"})
-            reused += 1
-            continue
+        # --- CDB-03: clip_db-based reuse decision ---
+        clip_id = beat.get("clip_id")
+        if clip_id and not force and not dry_run:
+            reusable, reason = can_reuse(clip_id)
+            if reusable:
+                log_access(clip_id, 'generate_media', 'reuse', reason)
+                report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                                     "clips": 1, "cost_usd": 0.0, "reuse": True, "action": "reuse_db"})
+                reused += 1
+                continue
+            else:
+                print(f"  [{bid}] regenerating: {reason}")
+        elif not clip_id and not force and not dry_run:
+            # Legacy path: no clip_id (not ordered via CDB-02). Fall back to fingerprint check.
+            print(f"  [{bid}] WARNING: no clip_id — using legacy reuse check", file=sys.stderr)
+            if out_path.exists():
+                _cleanup_stale_downloads(out_path.parent)
+                if not _validate_existing_output(out_path):
+                    out_path.unlink(missing_ok=True)
+                else:
+                    fp = read_fingerprint(out_path)
+                    if fp and fp.get("project_id") == project_id:
+                        valid, _r = verify_fingerprint(out_path, expected_project_id=project_id)
+                        if valid or "sha256 mismatch" not in _r:
+                            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
+                                                 "clips": 1, "cost_usd": 0.0, "reuse": True, "action": "exists"})
+                            reused += 1
+                            continue
 
-        # Existing on-disk clip (skip unless --force).
-        if out_path.exists() and not force and not dry_run:
-            report_beats.append({"beat_id": bid, "shot_type": shot_type, "model": beat["model"],
-                                 "clips": 1, "cost_usd": 0.0, "reuse": True, "action": "exists"})
-            reused += 1
-            continue
+        # Use canonical DB path when clip_id is set (fixes missing-slot bug).
+        if clip_id:
+            db_path_str = get_path(clip_id)
+            if db_path_str:
+                out_path = ROOT / db_path_str if not Path(db_path_str).is_absolute() else Path(db_path_str)
+                out_path.parent.mkdir(parents=True, exist_ok=True)
 
         cost = beat.get("cost", {}).get("est_usd", 0.0)
         total_cost += cost
@@ -1040,6 +1149,7 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
                     "Re-compile with scripts/compile_media_prompts.py (T3 wires audio_timing).")
 
         # Generate with retry-once-then-fallback (§2 S6 / G8).
+        # TKT-06: hero_lipsync (lipsync_required) beats NEVER fall back to stills.
         try:
             if shot_type == "still_kenburns" or beat.get("model") == "still_kenburns":
                 res = _still_kenburns(beat, out_path)
@@ -1051,14 +1161,37 @@ def run_from_media_plan(plan_path, dry_run=False, force=False, force_unsafe=Fals
                     time.sleep(30)
                     try:
                         res = _generate_beat_clip(beat, out_path, audio_path=audio_path)
-                    except RuntimeError:
+                    except RuntimeError as retry_err:
+                        if beat.get("lipsync_required"):
+                            # TKT-06: NO fallback to still for required lipsync.
+                            raise RuntimeError(
+                                f"{bid}: hero_lipsync generation failed after retries — "
+                                f"no still fallback allowed (zero silent degradation). "
+                                f"Last error: {retry_err}") from retry_err
                         fb = beat.get("fallback", {}).get("on_generation_fail", "still_kenburns")
                         print(f"  [{bid}] retry failed; falling back to {fb}", file=sys.stderr)
                         res = _still_kenburns(beat, out_path)
             _record_beat_provenance(project_dir, beat, res, audio_path)
+            if out_path.exists():
+                plan_hash = file_sha256(plan_path)
+                write_fingerprint(out_path, "generate_media.py", "1",
+                                  upstream_hashes=[plan_hash], project_id=project_id)
+                # CDB-03: record actual rendered attributes to the DB.
+                if clip_id:
+                    info = probe_video(out_path)
+                    if info:
+                        record_generated(clip_id, actual_dur_sec=info['duration'],
+                                         actual_width=info['width'], actual_height=info['height'],
+                                         actual_has_audio=info['has_audio'],
+                                         actual_sha256=file_sha256(out_path))
+                        log_access(clip_id, 'generate_media', 'generate',
+                                   f'rendered {info["duration"]:.1f}s')
             generated += 1
             print(f"  [{bid}] {shot_type} → {res.get('model')} (${cost:.2f})")
         except RuntimeError as e:
+            # CDB-03: mark clip as failed in the DB.
+            if clip_id:
+                mark_failed(clip_id, str(e)[:500])
             print(f"  [{bid}] FATAL: {e}", file=sys.stderr)
             raise
 
@@ -1091,13 +1224,33 @@ def datetime_now():
 
 
 def _record_beat_provenance(project_dir, beat, res, audio_path):
+    """TKT-06: Write rich generation metadata per beat."""
     log_path = project_dir / "media_generation_log.json"
     log = json.loads(log_path.read_text()) if log_path.exists() else {"beats": {}}
     log.setdefault("beats", {})
+    media_path = res.get("media_path")
+    probe = probe_video(media_path) if media_path and Path(media_path).exists() else None
     entry = {
-        "beat_id": beat["beat_id"], "shot_type": beat["shot_type"],
-        "model": res.get("model"), "media_path": res.get("media_path"),
-        "duration": res.get("duration"), "generated_at": datetime_now(),
+        "beat_id": beat["beat_id"],
+        "project_id": project_dir.name,
+        "job_id": res.get("job_id"),
+        "provider": "higgsfield",
+        "model": res.get("model"),
+        "status": "succeeded",
+        "output_path": media_path,
+        "sha256": file_sha256(media_path) if media_path and Path(media_path).exists() else None,
+        "probe_summary": {
+            "duration": round(probe["duration"], 2) if probe else None,
+            "width": probe["width"] if probe else None,
+            "height": probe["height"] if probe else None,
+            "has_audio": probe["has_audio"] if probe else None,
+        } if probe else None,
+        "generated_at": datetime_now(),
+        "request_params": {
+            "prompt": beat.get("positive_prompt", "")[:200],
+            "duration": res.get("duration"),
+            "model": beat.get("model"),
+        },
         "lipsync": bool(beat.get("lipsync_required")),
     }
     if audio_path and Path(audio_path).exists():

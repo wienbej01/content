@@ -240,6 +240,110 @@ def test_generation_targets_beat_output_path(tmp_path):
     print("  ✓ generation resolves clip path from beat.output_path")
 
 
+# --- TKT-06 tests: atomic download, zero-byte handling, no-still-fallback ---
+
+def test_interrupted_download_cleaned_up(tmp_path):
+    """A leftover .downloading temp file from a previous interrupted run is
+    cleaned up before generation proceeds."""
+    gm = _load_gen()
+    # Simulate a leftover .downloading file.
+    out_dir = tmp_path / "assets" / "media" / "tkt06_test"
+    out_dir.mkdir(parents=True)
+    stale_tmp = out_dir / "B099.mp4.downloading"
+    stale_tmp.write_text("partial data from crashed download")
+    assert stale_tmp.exists()
+    # Call the cleanup function directly.
+    gm._cleanup_stale_downloads(out_dir)
+    assert not stale_tmp.exists(), ".downloading file should be removed"
+    print("  ✓ interrupted .downloading temp file cleaned up")
+
+
+def test_zero_byte_output_triggers_regeneration(tmp_path):
+    """A zero-byte file at the output path is treated as invalid and triggers
+    deletion (regeneration attempt via the normal flow)."""
+    gm = _load_gen()
+    out_dir = tmp_path / "assets" / "media" / "tkt06_zero"
+    out_dir.mkdir(parents=True)
+    zero_file = out_dir / "B100.mp4"
+    zero_file.write_bytes(b"")
+    assert zero_file.exists() and zero_file.stat().st_size == 0
+    # _validate_existing_output should return False for zero-byte files.
+    assert not gm._validate_existing_output(zero_file), "zero-byte file must fail validation"
+    # A media plan with this beat: dry_run=False, force=False would normally skip
+    # existing files. With a zero-byte file it should NOT skip.
+    plan = {
+        "schema_version": "media_plan_2.0", "project_id": "tkt06_zero",
+        "beats": [{
+            "beat_id": "B100", "shot_type": "b_roll_abstract", "model": "kling3_0",
+            "lipsync_required": False, "output_path": str(zero_file),
+            "positive_prompt": "City skyline at dusk",
+            "cost": {"est_usd": 0.50, "est_clips": 1},
+        }],
+    }
+    pp = tmp_path / "plan.json"
+    pp.write_text(json.dumps(plan))
+    # dry_run should show action=generate (not exists/reused).
+    summary = gm.run_from_media_plan(str(pp), dry_run=True)
+    assert summary["beats"][0]["action"] == "generate", \
+        "zero-byte output must trigger generation, not be reused"
+    print("  ✓ zero-byte output triggers regeneration")
+
+
+def test_lipsync_beat_no_still_fallback(tmp_path, monkeypatch):
+    """When a hero_lipsync beat's provider returns failure, no still image
+    should be produced. Expect RuntimeError after retries."""
+    gm = _load_gen()
+    import time as _time
+
+    # Mock _generate_beat_clip to always raise (simulates provider failure).
+    def _mock_generate_fail(beat, out_path, dry_run=False, audio_path=None):
+        raise RuntimeError("provider returned nsfw_content_detected")
+
+    monkeypatch.setattr(gm, "_generate_beat_clip", _mock_generate_fail)
+    # Mock time.sleep to not actually wait.
+    monkeypatch.setattr(_time, "sleep", lambda _: None)
+    # Mock gates to pass.
+    monkeypatch.setattr(gm, "require_gates", lambda *a, **kw: None)
+    # Mock check_hf_available to pass.
+    monkeypatch.setattr(gm, "check_hf_available", lambda: (True, "ok"))
+
+    # Create necessary audio slice.
+    project_dir = tmp_path / "Videos" / "Projects" / "tkt06_nofallback"
+    slice_dir = project_dir / "narration" / "slices"
+    slice_dir.mkdir(parents=True)
+    audio_slice = slice_dir / "B200.mp3"
+    audio_slice.write_bytes(b"\xff\xfb\x90\x00" * 100)  # minimal mp3-like
+
+    plan = {
+        "schema_version": "media_plan_2.0", "project_id": "tkt06_nofallback",
+        "beats": [{
+            "beat_id": "B200", "shot_type": "hero_lipsync", "model": "seedance_2_0",
+            "lipsync_required": True,
+            "positive_prompt": "James speaking at desk",
+            "negative_prompt": "",
+            "output_path": str(tmp_path / "assets" / "media" / "B200.mp4"),
+            "cost": {"est_usd": 1.10, "est_clips": 1},
+            "reference_images": ["ref.jpg"],
+            "audio_slice": {"file": "narration/slices/B200.mp3", "padded_len_sec": 5,
+                            "speech_len_sec": 4.5, "slice_sha256": "x", "parent_mp3_sha256": "y"},
+        }],
+    }
+    pp = tmp_path / "plan.json"
+    pp.write_text(json.dumps(plan))
+
+    # Patch ROOT so project_dir resolves correctly.
+    monkeypatch.setattr(gm, "ROOT", tmp_path)
+
+    import pytest
+    with pytest.raises(RuntimeError, match="no still fallback allowed"):
+        gm.run_from_media_plan(str(pp), dry_run=False, force=False, force_unsafe=True)
+
+    # Verify no still was produced at the output path.
+    out = tmp_path / "assets" / "media" / "B200.mp4"
+    assert not out.exists(), "lipsync beat must NOT produce a still fallback"
+    print("  ✓ lipsync beat raises RuntimeError, no still fallback")
+
+
 def main():
     print("M3 Generate Media Tests")
     tests = [

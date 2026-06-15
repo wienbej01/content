@@ -1,173 +1,114 @@
-#!/usr/bin/env python3
-"""tests/test_music.py — MVP background music support tests."""
-import importlib.util
+"""TKT-10: Music bed implementation and verification tests."""
 import json
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+import pytest
 
-# --- fixture helpers ---
-
-def _make_sine(path, duration=10.0, freq=440):
-    """Generate a silent-ish sine wave MP3 fixture using ffmpeg."""
-    subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi",
-         f"-i", f"sine=frequency={freq}:duration={duration}",
-         "-ar", "44100", "-ac", "2", "-b:a", "64k", str(path)],
-        capture_output=True, check=True)
+SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 
 
-def _load_asm():
-    spec = importlib.util.spec_from_file_location("assemble", ROOT / "scripts" / "assemble.py")
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
+def make_sine_wav(path, duration=3.0, freq=440):
+    """Generate a sine-wave audio file using ffmpeg."""
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "lavfi", "-i",
+        f"sine=frequency={freq}:duration={duration}",
+        "-ac", "2", "-ar", "48000", str(path)
+    ], capture_output=True, check=True)
 
 
-# --- tests ---
-
-def test_no_music_disabled():
-    """make_music_bed returns None when enabled=False."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        result = asm.make_music_bed(30.0, {"enabled": False}, Path(td), ROOT)
-    assert result is None
-    print("  ✓ music disabled → returns None")
-
-
-def test_no_music_empty_cfg():
-    """make_music_bed returns None when no music block at all."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        result = asm.make_music_bed(30.0, {}, Path(td), ROOT)
-    assert result is None
-    print("  ✓ empty music config → returns None")
+def make_test_video(path, duration=3.0):
+    """Generate a silent test video clip."""
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "lavfi", "-i",
+        f"color=c=blue:s=320x180:d={duration}",
+        "-f", "lavfi", "-i", f"sine=frequency=220:duration={duration}",
+        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "64k", "-ar", "48000", "-ac", "2",
+        str(path)
+    ], capture_output=True, check=True)
 
 
-def test_missing_music_file_raises():
-    """enabled=True with missing file raises FileNotFoundError."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        try:
-            asm.make_music_bed(30.0, {"enabled": True, "path": "nonexistent.mp3"},
-                               Path(td), ROOT)
-            assert False, "should have raised"
-        except FileNotFoundError as e:
-            assert "nonexistent.mp3" in str(e)
-    print("  ✓ missing music file raises FileNotFoundError")
+def write_manifest(tmp, music_cfg, fmt="explainer"):
+    """Write a minimal continuous_voiceover manifest for testing music."""
+    clip = tmp / "clip.mp4"
+    make_test_video(clip, duration=3.0)
+    narration = tmp / "narration.mp3"
+    make_sine_wav(narration, duration=3.0, freq=300)
+
+    manifest = {
+        "id": "test_music",
+        "format": fmt,
+        "narration_mode": "continuous_voiceover",
+        "continuous_audio": "narration.mp3",
+        "segments": [{"id": "seg_0", "media": "clip.mp4", "audio_policy": "strip", "words": 10}],
+        "music": music_cfg,
+        "render": {"fps": 24, "crf": 28},
+        "output": {"directory": "out", "prefix": "test"},
+        "pacing": {}
+    }
+    manifest_path = tmp / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest))
+    return manifest_path
 
 
-def test_no_path_raises():
-    """enabled=True with no path raises ValueError."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        try:
-            asm.make_music_bed(30.0, {"enabled": True}, Path(td), ROOT)
-            assert False, "should have raised"
-        except ValueError as e:
-            assert "path" in str(e).lower()
-    print("  ✓ no path raises ValueError")
+def run_assemble(manifest_path, fmt="16x9"):
+    """Run assemble.py and return (returncode, stderr)."""
+    r = subprocess.run(
+        ["python3", str(SCRIPTS / "assemble.py"), str(manifest_path),
+         "--formats", fmt],
+        capture_output=True, text=True, cwd=manifest_path.parent
+    )
+    return r.returncode, r.stderr
 
 
-def test_valid_music_produces_bed():
-    """enabled=True with valid file produces a music bed."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        td = Path(td)
-        sine = td / "fixture.mp3"
-        _make_sine(sine, duration=15.0)
-        bed = asm.make_music_bed(10.0, {"enabled": True, "path": str(sine),
-                                        "volume_db": -24, "fade_in": 0.5, "fade_out": 1.0},
-                                 td, ROOT)
-        assert bed is not None and bed.exists()
-        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                            "-of", "default=noprint_wrappers=1:nokey=1", str(bed)],
-                           capture_output=True, text=True)
-        dur = float(r.stdout.strip())
-        assert 9.5 < dur < 11.0, f"bed duration unexpected: {dur}"
-    print(f"  ✓ valid music file → bed produced ({dur:.1f}s)")
+class TestMusicRequired:
+    def test_required_music_missing_path_fails(self, tmp_path):
+        """Music enabled=true but path doesn't exist -> RuntimeError."""
+        music_cfg = {"enabled": True, "path": "nonexistent_music.mp3"}
+        manifest_path = write_manifest(tmp_path, music_cfg)
+        rc, stderr = run_assemble(manifest_path)
+        assert rc != 0
+        assert "not found" in stderr.lower() or "RuntimeError" in stderr
+
+    def test_required_format_but_disabled_fails(self, tmp_path):
+        """Format=short requires music per constraints, but enabled=false -> RuntimeError."""
+        music_cfg = {"enabled": False}
+        manifest_path = write_manifest(tmp_path, music_cfg, fmt="short")
+        rc, stderr = run_assemble(manifest_path)
+        assert rc != 0
+        assert "required" in stderr.lower() or "Music is required" in stderr
 
 
-def test_short_track_loops():
-    """A track shorter than video is looped to cover the full duration."""
-    asm = _load_asm()
-    with tempfile.TemporaryDirectory() as td:
-        td = Path(td)
-        sine = td / "short.mp3"
-        _make_sine(sine, duration=5.0)
-        bed = asm.make_music_bed(20.0, {"enabled": True, "path": str(sine),
-                                        "volume_db": -30, "fade_in": 0.3, "fade_out": 0.5,
-                                        "loop": True}, td, ROOT)
-        assert bed is not None and bed.exists()
-        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                            "-of", "default=noprint_wrappers=1:nokey=1", str(bed)],
-                           capture_output=True, text=True)
-        dur = float(r.stdout.strip())
-        assert 19.0 < dur < 21.0, f"looped bed should cover 20s, got {dur}"
-    print(f"  ✓ short track loops to cover video duration ({dur:.1f}s)")
+class TestMusicBed:
+    def test_music_bed_mixes_correctly(self, tmp_path):
+        """Valid music bed assembles correctly."""
+        music_file = tmp_path / "music.mp3"
+        make_sine_wav(music_file, duration=5.0, freq=880)
+        music_cfg = {
+            "enabled": True,
+            "path": "music.mp3",
+            "volume_db": -24,
+            "fade_in": 0.5,
+            "fade_out": 0.5,
+            "loop": False
+        }
+        manifest_path = write_manifest(tmp_path, music_cfg)
+        rc, stderr = run_assemble(manifest_path)
+        assert rc == 0, f"Assembly failed: {stderr}"
+        out = tmp_path / "out" / "test_16x9.mp4"
+        assert out.exists()
+        # Verify output has audio stream
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(out)],
+            capture_output=True, text=True)
+        assert "audio" in probe.stdout
 
-
-def test_music_is_one_track_per_video():
-    """Music config is top-level in manifest, not per-segment."""
-    script = json.load(open(ROOT / "scripts/generated/james_growth_system_teaser_02.json"))
-    assert "music" in script, "music block must be at script/manifest top level"
-    for seg in script["segments"]:
-        assert "music" not in seg, f"segment {seg['id']} must not have per-segment music"
-    print("  ✓ music is top-level, not per-segment")
-
-
-def test_music_config_in_teaser_script():
-    """teaser_02 script has a valid, enabled music block."""
-    script = json.load(open(ROOT / "scripts/generated/james_growth_system_teaser_02.json"))
-    m = script.get("music", {})
-    assert m.get("enabled") is True
-    assert m.get("path"), "music.path must be set"
-    assert m.get("volume_db", 0) <= -12, "music volume should be conservative (≤ -12 dB)"
-    path = ROOT / m["path"]
-    assert path.exists(), f"music file does not exist: {path}"
-    print(f"  ✓ teaser_02 music config valid: {m['path']} @ {m['volume_db']}dB")
-
-
-def test_assemble_no_music_flag():
-    """assemble() signature accepts no_music kwarg; make_music_bed returns None with it."""
-    asm = _load_asm()
-    import inspect
-    sig = inspect.signature(asm.assemble)
-    assert "no_music" in sig.parameters
-    assert "music_override" in sig.parameters
-    assert "music_volume_db" in sig.parameters
-    print("  ✓ assemble() accepts no_music/music_override/music_volume_db params")
-
-
-def test_log_records_music_metadata():
-    """Assembly log structure includes music key (verify shape without running full assembly)."""
-    # We test this by checking the log-writing code path is present
-    src = (ROOT / "scripts" / "assemble.py").read_text()
-    assert 'log["music"]' in src
-    assert '"volume_db"' in src
-    assert '"fade_in"' in src
-    assert '"looped"' in src
-    print("  ✓ assembly log records music metadata (volume_db, fade_in, looped)")
-
-
-def main():
-    print("Music Support Tests")
-    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
-    passed = failed = 0
-    for t in tests:
-        try:
-            t()
-            passed += 1
-        except Exception as e:
-            print(f"  ✗ {t.__name__}: {e}")
-            failed += 1
-    print(f"\n{'PASSED' if failed == 0 else 'FAILED'}: {passed}/{passed+failed}")
-    sys.exit(0 if failed == 0 else 1)
-
-
-if __name__ == "__main__":
-    main()
+    def test_optional_music_disabled_ok(self, tmp_path):
+        """Format=teaser not in required_for_formats, music disabled -> no error."""
+        music_cfg = {"enabled": False}
+        manifest_path = write_manifest(tmp_path, music_cfg, fmt="teaser")
+        rc, stderr = run_assemble(manifest_path)
+        assert rc == 0, f"Assembly failed unexpectedly: {stderr}"

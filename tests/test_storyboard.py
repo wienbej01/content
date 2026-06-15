@@ -124,3 +124,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def test_short_profile_shape():
+    """video_type=short produces ≤8 beats with $25 cap and ≥1 hero."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("storyboard", ROOT / "scripts" / "storyboard.py")
+    S = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(S)
+    script = json.loads(Path(ROOT / "scripts/generated/flagship_001_learn_half_time.json").read_text())
+    script["video_type"] = "short"
+    sb = S.route(script, S.load_constraints())
+    assert len(sb["beats"]) <= 8, f"short should have ≤8 beats, got {len(sb['beats'])}"
+    assert sb["totals"]["budget_cap_usd"] == 25.0
+    hero_count = sum(1 for b in sb["beats"] if b["shot_type"] in S.HERO_SHOT_TYPES)
+    assert hero_count >= 1, "short must have at least 1 hero (hook)"
+    print(f"  ✓ short profile: {len(sb['beats'])} beats, ${sb['totals']['budget_cap_usd']}, "
+          f"{hero_count} hero")

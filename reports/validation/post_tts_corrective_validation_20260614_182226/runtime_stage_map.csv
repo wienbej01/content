@@ -1,0 +1,22 @@
+step_index,step_name,exit_status,notes
+0,research,N/A,not executed (upstream of TTS)
+1,script_create,N/A,not executed (upstream of TTS)
+2,script_review_loop,N/A,not executed (upstream of TTS)
+3,storyboard_create,N/A,not executed (upstream of TTS)
+4,storyboard_review_loop,N/A,not executed (upstream of TTS)
+5,tts,N/A,immutable inputs verified (master audio SHA-256 matches)
+6,build_timing_map,PASS,beat_timing_map.json exists with 10 beats
+7,production_storyboard,PASS,"reconcile exit 0; validate exit 0; review exit 0 — 14 beats, 7 splits, 5 multi-slot"
+8,compliance_check,N/A,validates creative storyboard (not production)
+9,compile_media_plan,FAIL,"5 errors (2 hard TEXT_SURFACE_POLICY + 3 reroutes); produce.py raises RuntimeError"
+10,slice_lipsync,BLOCKED,depends on step 9 success
+11,gate_a_budget,BLOCKED,depends on step 9 success
+12,generate_media,BLOCKED,depends on step 9 success
+13,qa_media,BLOCKED,depends on step 12 success
+14,reconcile_duration,BLOCKED,depends on step 13 success
+15,render_graphics,BLOCKED,"additionally: graphics field-name mismatch would find 0 required graphics"
+16,build_manifest,BLOCKED,depends on step 15
+17,assemble,BLOCKED,depends on step 16
+18,qa_final,INDEPENDENT PASS,defective MP4 correctly fails (exit 1)
+19,build_quality_report,BLOCKED,depends on step 17
+20,gate_b_review,BLOCKED,depends on step 19

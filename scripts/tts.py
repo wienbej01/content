@@ -162,9 +162,11 @@ def validate_script(script, base):
                     errors.append(f"{prefix}: audio_mode=baked_in but media has no audio stream")
 
         media = seg.get("media")
-        if not media:
+        if not media and script.get("narration_mode") != "continuous_voiceover":
             errors.append(f"{prefix}: missing 'media' (required for assembly)")
-        # Note: media existence is checked at assembly time, not TTS time
+        # In continuous_voiceover mode, media comes from the storyboard beats,
+        # not the script segments — TTS only needs 'text'. Media existence is
+        # checked at assembly time, not TTS time.
 
     return errors
 
@@ -226,6 +228,67 @@ def _rel_to(path, base_dir):
         return os.path.relpath(str(path), str(base_dir))
 
 
+def generate_chunked(blocks, voice_id, model_id, voice_settings, api_key, speed,
+                     out_path, tmp_dir):
+    """Chunk-and-stitch TTS, V2 (dynamic emotion + native pacing).
+
+    Blocks are FEW + LARGE logical groups (preserve the emotional arc / contextual
+    memory). Pacing inside a block uses NATIVE ElevenLabs <break time="Xs"/> tags so
+    the model reads ahead and carries pitch/intensity across the gap (no flat
+    sentence-by-sentence reset). Each block may carry its OWN voice settings
+    (stability/style) so factual passages sound crisp/authoritative and climaxes
+    sound emotional.
+
+    block fields:
+      text     : str (may contain <break> tags for internal pacing)
+      pause_ms : int silence to add AFTER the block (small; most pacing is internal)
+      stability, style : optional per-block overrides
+    Returns total duration (s).
+    """
+    import subprocess
+    tmp_dir = Path(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    parts = []
+    for i, blk in enumerate(blocks):
+        text = (blk.get("text") or "").strip()
+        if text:
+            # Per-block dynamic settings (fall back to the global ones)
+            vs = dict(voice_settings)
+            if blk.get("stability") is not None:
+                vs["stability"] = blk["stability"]
+            if blk.get("style") is not None:
+                vs["style"] = blk["style"]
+            audio = synthesize_segment(text, voice_id, model_id, vs, api_key, speed=speed)
+            cpath = tmp_dir / f"chunk_{i:02d}.mp3"
+            cpath.write_bytes(audio)
+            wpath = tmp_dir / f"chunk_{i:02d}.wav"
+            subprocess.run(["ffmpeg", "-y", "-i", str(cpath), "-ar", "44100", "-ac", "1", str(wpath)],
+                           capture_output=True)
+            parts.append(wpath)
+        pause_ms = int(blk.get("pause_ms", 0) or 0)
+        if pause_ms > 0:
+            spath = tmp_dir / f"sil_{i:02d}.wav"
+            subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i",
+                            f"anullsrc=r=44100:cl=mono:d={pause_ms/1000.0}", str(spath)],
+                           capture_output=True)
+            parts.append(spath)
+    if not parts:
+        raise ValueError("chunk-and-stitch produced no audio")
+    inputs = []
+    for p in parts:
+        inputs += ["-i", str(p)]
+    n = len(parts)
+    fc = "".join(f"[{i}:a]" for i in range(n)) + f"concat=n={n}:v=0:a=1[o]"
+    subprocess.run(["ffmpeg", "-y"] + inputs + ["-filter_complex", fc, "-map", "[o]",
+                    "-c:a", "libmp3lame", "-q:a", "2", str(out_path)], capture_output=True)
+    for p in parts:
+        p.unlink(missing_ok=True)
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                        "-of", "default=noprint_wrappers=1:nokey=1", str(out_path)],
+                       capture_output=True, text=True)
+    return float(r.stdout.strip())
+
+
 def build_manifest(script, narration_dir, base):
     """Build an assemble.py-compatible manifest from the script + generated narration."""
     segments = script["segments"]
@@ -238,6 +301,12 @@ def build_manifest(script, narration_dir, base):
     for seg in segments:
         seg_id = seg["id"]
         mode = seg.get("audio_mode", "generated_tts")
+        # In continuous_voiceover mode, segments may have no media (it comes from
+        # storyboard beats). Skip media resolution; assembly uses beat_timing_map.
+        if "media" not in seg:
+            if script.get("narration_mode") == "continuous_voiceover":
+                continue
+            raise KeyError(f"segment {seg_id!r} missing 'media'")
         media_abs = resolve(base, seg["media"])
 
         entry = {"media": _rel_to(media_abs, output_dir)}
@@ -290,7 +359,7 @@ def build_manifest(script, narration_dir, base):
         manifest_segments.append(entry)
 
     # Pacing: reference is the longest segment (most words) for natural pacing
-    ref_idx = max(range(len(manifest_segments)), key=lambda i: manifest_segments[i]["words"])
+    ref_idx = max(range(len(manifest_segments)), key=lambda i: manifest_segments[i]["words"]) if manifest_segments else 0
 
     # Brand assets relative to output_dir
     brand_dir = ROOT / "brand" / "assets"
@@ -343,6 +412,9 @@ def build_manifest(script, narration_dir, base):
         manifest["continuous_audio"] = _rel_to(narration_dir / f"continuous.{defaults.get('format', 'mp3')}",
                                                output_dir)
         manifest["timing_map"] = _rel_to(narration_dir / "timing_map.json", output_dir)
+        beat_timing = narration_dir / "beat_timing_map.json"
+        if beat_timing.exists():
+            manifest["beat_timing_map"] = _rel_to(beat_timing, output_dir)
 
     return manifest
 
@@ -397,7 +469,13 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False,
 
     # Setup output
     project_id = script["project_id"]
-    output_dir = resolve(base, script.get("output_dir", f"Videos/Projects/{project_id}"))
+    if script.get("output_dir"):
+        output_dir = resolve(base, script["output_dir"])
+    elif "Videos/Projects" in str(base):
+        # Script already lives in a project dir — use it directly
+        output_dir = base
+    else:
+        output_dir = resolve(base, f"Videos/Projects/{project_id}")
     output_dir.mkdir(parents=True, exist_ok=True)
     narration_dir = output_dir / "narration"
     narration_dir.mkdir(exist_ok=True)
@@ -436,24 +514,48 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False,
 
     if narration_mode == "continuous_voiceover":
         # --- Continuous mode: one TTS call for the entire script ---
-        full_text = " ".join(seg.get("text", "") for seg in segments if seg.get("text"))
+        # Use 'tts_text' (may contain <break> tags + pacing) if present, else 'text'.
+        full_text = " ".join(seg.get("tts_text") or seg.get("text", "")
+                             for seg in segments if (seg.get("tts_text") or seg.get("text")))
         if not full_text.strip():
             raise ValueError("continuous_voiceover requires text in segments")
         continuous_path = narration_dir / f"continuous.{fmt}"
+        tts_blocks = script.get("tts_blocks")
         if continuous_path.exists() and not force:
             dur = probe_dur(continuous_path)
             print(f"  [continuous] reused existing ({dur:.2f}s)")
+        elif tts_blocks:
+            # CHUNK-AND-STITCH (deterministic pacing): each block is its own call,
+            # stitched with exact silence. Consistent settings → consistent timbre.
+            print(f"  [continuous] chunk-and-stitch: {len(tts_blocks)} blocks...", flush=True)
+            dur = generate_chunked(tts_blocks, voice_id, model_id, voice_settings, api_key,
+                                   speed, continuous_path, narration_dir / "_chunks")
+            print(f"  [continuous] stitched {len(tts_blocks)} blocks → {dur:.2f}s")
         else:
             print(f"  [continuous] generating TTS ({len(full_text.split())} words)...", end=" ", flush=True)
             audio_bytes = synthesize_segment(full_text, voice_id, model_id, voice_settings, api_key, speed=speed)
             continuous_path.write_bytes(audio_bytes)
             dur = probe_dur(continuous_path)
             print(f"done ({dur:.2f}s, {len(audio_bytes)//1024}KB)")
+            # Auto-normalize pacing (codified calibration learnings): slow rushed
+            # phrases (>30% over target WPS) + trim over-long pauses. Edits are made
+            # inside silence gaps so there is never an audible seam.
+            try:
+                sys.path.insert(0, str(ROOT / "scripts"))
+                from normalize_pacing import normalize_master
+                word_count_total = len(full_text.split())
+                rep = normalize_master(str(continuous_path), word_count_total)
+                if rep.get("edits"):
+                    print(f"  pacing normalized: {len(rep['wps_fixes'])} WPS, "
+                          f"{len(rep['pause_fixes'])} pause fixes -> {rep.get('new_duration')}s")
+                    dur = probe_dur(continuous_path)
+            except Exception as e:  # noqa - never block on normalization
+                print(f"  (pacing normalization skipped: {e})")
         log_entries.append({"id": "continuous", "action": "generated", "duration": dur})
 
         # Build timing map using audio_timing
         sys.path.insert(0, str(ROOT / "scripts"))
-        from audio_timing import extract_beats_from_script, build_timing_map
+        from audio_timing import extract_beats_from_script, build_timing_map, build_storyboard_timing_map
         beats = extract_beats_from_script(str(script_path))
         timing = build_timing_map(continuous_path, beats)
         timing_path = narration_dir / "timing_map.json"
@@ -461,6 +563,23 @@ def run_tts(script_path, force=False, do_assemble=False, validate_only=False,
             json.dump(timing, f, indent=2)
         print(f"  timing map: {timing_path} ({timing['audio_segments_detected']} audio segments, "
               f"{len(timing['flags'])} flags)")
+
+        # If storyboard exists, build beat-level timing map for assembly
+        storyboard_path = script_path.parent / "storyboard.json"
+        if not storyboard_path.exists():
+            # Try project dir
+            project_dir = narration_dir.parent
+            storyboard_path = project_dir / "storyboard.json"
+        if storyboard_path.exists():
+            sb = json.load(open(storyboard_path))
+            sb_beats = sorted(sb.get("beats", []), key=lambda b: b.get("order", 0))
+            sb_beats_with_text = [b for b in sb_beats if b.get("narration_text")]
+            if sb_beats_with_text:
+                beat_timing = build_storyboard_timing_map(continuous_path, sb_beats_with_text)
+                beat_timing_path = narration_dir / "beat_timing_map.json"
+                with open(beat_timing_path, "w") as f:
+                    json.dump(beat_timing, f, indent=2)
+                print(f"  beat timing map: {beat_timing_path} ({beat_timing['beat_count']} beats)")
     else:
         # --- Segment mode (default): per-segment TTS ---
         for seg in segments:

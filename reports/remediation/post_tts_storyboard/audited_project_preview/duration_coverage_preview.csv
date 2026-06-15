@@ -1,0 +1,13 @@
+beat_id,source_beat_id,audio_duration_sec,treatment,model,coverage_slots,total_coverage_sec,status,notes
+B001,B001,13.994,hero_lipsync,seedance_2_0,1,13.994,NEEDS_LLM_REPAIR,single sentence exceeds max 10s
+B002,B002,4.664,hero_lipsync,seedance_2_0,1,4.664,OK,within limits
+B003,B003,18.894,broll,kling3_0,4,18.894,OK,multi-slot coverage (4 × ~4.72s)
+B004,B004,5.761,hero_lipsync,seedance_2_0,1,5.761,OK,within limits
+B005,B005,21.601,broll,kling3_0,4,21.601,OK,multi-slot coverage (4 × ~5.40s)
+B006a,B006,2.657,hero_lipsync,seedance_2_0,1,2.657,SPLIT,child 0/2 (will be padded to 4s at render)
+B006b,B006,7.969,hero_lipsync,seedance_2_0,1,7.969,SPLIT,child 1/2
+B007,B007,11.087,broll,kling3_0,2,11.087,OK,multi-slot coverage (2 × ~5.54s)
+B008,B008,23.889,hero_lipsync,seedance_2_0,1,23.889,NEEDS_LLM_REPAIR,first sentence alone exceeds 10s
+B009,B009,23.422,hero_lipsync,seedance_2_0,1,23.422,NEEDS_LLM_REPAIR,single sentence exceeds max 10s
+B010a,B010,7.996,hero_lipsync,seedance_2_0,1,7.996,SPLIT,child 0/2
+B010b,B010,4.665,hero_lipsync,seedance_2_0,1,4.665,SPLIT,child 1/2

@@ -205,6 +205,9 @@ def send_telegram_audio(path: str, caption: str = "") -> str:
         if resp.status >= 300:
             raise RuntimeError(f"sendAudio status {resp.status}: {out}")
     return f"sent {p.name} ({size_mb:.1f}MB)"
+
+
+def get_updates():
     """Fetch recent updates to discover chat_id. Prints chat ids found."""
     token = _token()
     req = urllib.request.Request(f"https://api.telegram.org/bot{token}/getUpdates")
@@ -224,6 +227,72 @@ def send_telegram_audio(path: str, caption: str = "") -> str:
     for cid, name in seen.items():
         lines.append(f"  chat_id={cid}  ({name})")
     return "\n".join(lines)
+
+
+def get_telegram_replies(since_update_id=None, timeout=10):
+    """Poll getUpdates once. Return list of {update_id, text, date, chat_id} for messages
+    from the configured chat. Does NOT long-poll-block forever; one bounded call."""
+    token = _token()
+    load_runtime_env()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not chat_id:
+        raise RuntimeError("TELEGRAM_CHAT_ID not set.")
+    params = {"timeout": str(timeout)}
+    if since_update_id is not None:
+        params["offset"] = str(since_update_id + 1)
+    url = f"https://api.telegram.org/bot{token}/getUpdates?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url)
+    with urllib.request.urlopen(req, timeout=timeout + 10) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    if not data.get("ok"):
+        return []
+    messages = []
+    for upd in data.get("result", []):
+        msg = upd.get("message") or {}
+        chat = msg.get("chat") or {}
+        if str(chat.get("id")) == str(chat_id) and msg.get("text"):
+            messages.append({
+                "update_id": upd["update_id"],
+                "text": msg["text"],
+                "date": msg.get("date", 0),
+                "chat_id": chat["id"],
+            })
+    return messages
+
+
+def wait_for_reply(prompt_text, valid_prefixes=None, poll_interval=15, max_wait=3600, since_update_id=None):
+    """Send prompt_text, then poll getUpdates every poll_interval until a reply arrives
+    (or max_wait elapses). Returns the reply text, or None on timeout.
+    Tracks the latest update_id so only replies AFTER the prompt are considered."""
+    import time as _time
+    # Ensure Telegram is configured (raises RuntimeError if not)
+    _token()
+    load_runtime_env()
+    if not os.environ.get("TELEGRAM_CHAT_ID"):
+        raise RuntimeError("Telegram not configured: TELEGRAM_CHAT_ID missing.")
+
+    # Get current latest update_id before sending prompt
+    if since_update_id is None:
+        existing = get_telegram_replies(since_update_id=None, timeout=0)
+        since_update_id = existing[-1]["update_id"] if existing else 0
+
+    send_telegram_message(prompt_text)
+
+    deadline = _time.time() + max_wait
+    while _time.time() < deadline:
+        _time.sleep(poll_interval)
+        replies = get_telegram_replies(since_update_id=since_update_id, timeout=5)
+        for r in replies:
+            text = r["text"].strip()
+            if valid_prefixes:
+                if any(text.lower().startswith(p.lower()) for p in valid_prefixes):
+                    return text
+            else:
+                return text
+            since_update_id = max(since_update_id, r["update_id"])
+        if replies:
+            since_update_id = max(since_update_id, replies[-1]["update_id"])
+    return None
 
 
 def verify() -> str:

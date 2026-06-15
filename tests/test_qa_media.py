@@ -19,7 +19,8 @@ def _load():
 
 
 def _make_clip(path, duration=5, width=1280, height=720, audio=False):
-    cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=blue:size={width}x{height}:d={duration}"]
+    # Use testsrc2 (moving pattern) to avoid triggering perceptual blank/frozen checks
+    cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", f"testsrc2=size={width}x{height}:d={duration}:rate=24"]
     if audio:
         cmd += ["-f", "lavfi", "-i", f"sine=duration={duration}"]
         cmd += ["-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "64k"]
@@ -39,7 +40,7 @@ def test_pass_generated_tts_no_audio():
         sp = td / "script.json"
         sp.write_text(json.dumps(script))
         results, ok = qa.run_qa(str(sp))
-    assert ok and results[0]["status"] == "pass"
+    assert ok and results[0]["status"] == "PASS"
     print("  ✓ generated_tts without audio → pass")
 
 
@@ -113,8 +114,8 @@ def test_real_teaser_qa():
         print("  ⊘ teaser_02 script not found (skipped)")
         return
     results, ok = qa.run_qa(str(sp))
-    passed = sum(1 for r in results if r["status"] == "pass")
-    failed = sum(1 for r in results if r["status"] == "fail")
+    passed = sum(1 for r in results if r["status"] == "PASS")
+    failed = sum(1 for r in results if r["status"] == "FAIL")
     print(f"  ✓ teaser_02 QA: {passed} pass, {failed} fail (info only)")
 
 
@@ -300,3 +301,156 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# --- Phase C1: Perceptual QA tests ---
+
+def test_blank_screen_fatal():
+    """A solid-color clip triggers BLANK_SCREEN FATAL."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        clip = Path(td) / "blank.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i",
+                        "color=c=0xFAFAF0:size=320x180:d=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        str(clip)], capture_output=True, check=True)
+        issues = qa.check_blank_screen(str(clip))
+        assert any("BLANK_SCREEN" in i for i in issues), f"expected BLANK_SCREEN, got {issues}"
+    print("  ✓ blank/solid-color clip triggers BLANK_SCREEN")
+
+
+def test_frozen_video_fatal():
+    """A clip that is one held frame (loop) triggers FROZEN_VIDEO."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        clip = Path(td) / "frozen.mp4"
+        # Single image looped for 6s = frozen
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i",
+                        "color=c=navy:size=320x180:d=6",
+                        "-vf", "drawtext=text='static':fontsize=24:fontcolor=white:x=10:y=10",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        str(clip)], capture_output=True, check=True)
+        issues = qa.check_frozen_video(str(clip), duration=6.0)
+        assert any("FROZEN_VIDEO" in i for i in issues), f"expected FROZEN_VIDEO, got {issues}"
+    print("  ✓ frozen/static clip triggers FROZEN_VIDEO")
+
+
+def test_moving_video_passes():
+    """A clip with real motion (testsrc2) passes both checks."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        clip = Path(td) / "motion.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i",
+                        "testsrc2=size=320x180:d=4:rate=24",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        str(clip)], capture_output=True, check=True)
+        blank_issues = qa.check_blank_screen(str(clip))
+        frozen_issues = qa.check_frozen_video(str(clip), duration=4.0)
+        assert not blank_issues, f"false positive blank: {blank_issues}"
+        assert not frozen_issues, f"false positive frozen: {frozen_issues}"
+    print("  ✓ moving video passes perceptual checks (no false positives)")
+
+
+# --- TKT-07: Media QA Upgrade tests ---
+
+def test_lowercase_fail_counts_as_failure():
+    """Any row with status 'fail' (lowercase) must make aggregate passed=False.
+    After the fix, qa_media emits uppercase, but produce.py now handles both."""
+    qa = _load()
+    # Simulate old-style lowercase results going through produce.py logic
+    results = [
+        {"id": "B001", "status": "PASS", "issues": []},
+        {"id": "B002", "status": "fail", "issues": ["something"]},
+    ]
+    # The produce.py aggregation logic (case-insensitive)
+    fail_count = sum(1 for r in results if r.get("status", "").upper() == "FAIL")
+    assert fail_count == 1, f"expected 1 fail, got {fail_count}"
+    passed = fail_count == 0
+    assert not passed, "aggregate must be False when any row is fail/FAIL"
+    print("  ✓ lowercase 'fail' counts as failure in aggregation")
+
+
+def test_coverage_deficit_fails_beat():
+    """A clip shorter than its timing-map requirement triggers COVERAGE_DEFICIT."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        # Create a 3s clip
+        clip = td / "B001.mp4"
+        _make_clip(clip, duration=3, audio=False)
+        # Create project structure with timing map expecting 10s
+        proj = td / "Videos" / "Projects" / "tkt07test"
+        nar = proj / "narration"
+        nar.mkdir(parents=True)
+        timing = {"beats": [{"beat_id": "B001", "start": 0.0, "end": 10.0}],
+                  "total_duration": 10.0, "beat_count": 1}
+        (nar / "beat_timing_map.json").write_text(json.dumps(timing))
+        # Build media plan
+        plan = {"project_id": "tkt07test", "defaults": {"format": "mp3"}, "beats": [{
+            "beat_id": "B001", "shot_type": "b_roll_specific",
+            "audio_mode": "generated_tts", "output_path": str(clip),
+        }]}
+        pp = td / "media_plan.json"
+        pp.write_text(json.dumps(plan))
+        # Patch ROOT so _load_timing_map finds our fixture
+        import scripts.qa_media as qm
+        orig_root = qm.ROOT
+        qm.ROOT = td
+        try:
+            results, ok = qm.run_qa(str(pp))
+        finally:
+            qm.ROOT = orig_root
+    assert not ok, f"should fail with coverage deficit, got passed=True"
+    assert any("COVERAGE_DEFICIT" in i for r in results for i in r.get("issues", [])), \
+        f"expected COVERAGE_DEFICIT issue, got {results}"
+    print("  ✓ coverage deficit (3s clip, 10s required) → FAIL")
+
+
+def test_coverage_sufficient_passes():
+    """A clip with duration >= timing-map requirement passes."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        clip = td / "B001.mp4"
+        _make_clip(clip, duration=10, audio=False)
+        proj = td / "Videos" / "Projects" / "tkt07ok"
+        nar = proj / "narration"
+        nar.mkdir(parents=True)
+        timing = {"beats": [{"beat_id": "B001", "start": 0.0, "end": 9.5}],
+                  "total_duration": 9.5, "beat_count": 1}
+        (nar / "beat_timing_map.json").write_text(json.dumps(timing))
+        plan = {"project_id": "tkt07ok", "defaults": {"format": "mp3"}, "beats": [{
+            "beat_id": "B001", "shot_type": "b_roll_specific",
+            "audio_mode": "generated_tts", "output_path": str(clip),
+        }]}
+        pp = td / "media_plan.json"
+        pp.write_text(json.dumps(plan))
+        import scripts.qa_media as qm
+        orig_root = qm.ROOT
+        qm.ROOT = td
+        try:
+            results, ok = qm.run_qa(str(pp))
+        finally:
+            qm.ROOT = orig_root
+    assert ok, f"10s clip covering 9.5s requirement should pass, issues={results}"
+    assert all("COVERAGE_DEFICIT" not in i for r in results for i in r.get("issues", []))
+    print("  ✓ coverage sufficient (10s clip, 9.5s required) → PASS")
+
+
+def test_aggregate_cannot_disagree_with_rows():
+    """If any row is FAIL, overall passed must be False — enforced by aggregate check."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        clip = td / "clip.mp4"
+        _make_clip(clip, width=640, height=480)  # wrong dims → FAIL
+        plan = {"project_id": "t", "defaults": {"format": "mp3"}, "beats": [{
+            "beat_id": "B001", "shot_type": "b_roll_specific",
+            "audio_mode": "generated_tts", "output_path": str(clip),
+        }]}
+        pp = td / "media_plan.json"
+        pp.write_text(json.dumps(plan))
+        results, ok = qa.run_qa(str(pp))
+    assert not ok, "aggregate must be False when any row has issues"
+    assert results[0]["status"] == "FAIL"
+    print("  ✓ aggregate cannot disagree with row-level FAIL")

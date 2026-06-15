@@ -1,0 +1,1144 @@
+{
+  "schema_version": "1.0",
+  "project_id": "using_ai_to_help_memory_retention_short",
+  "creative_storyboard_sha256": "cdae177f4df54d4b8ea65862ce44fe73e33eb0a804f567cad483df0405b41138",
+  "timing_map_sha256": "cb8579a7cd880e3645e246957344d31508cf77c81dd099112ffa0238256c223e",
+  "master_audio_duration_sec": 146.599,
+  "total_beats": 14,
+  "created_at": "2026-06-14T10:52:20.283868+00:00",
+  "beats": [
+    {
+      "shot_type": "hero_cutaway",
+      "segment_id": "001_hook",
+      "visual_brief": "60-year-old man, silver hair, navy sweater over white Oxford collar, leaning slightly forward at a dark mahogany desk, speaking directly to camera with calm authority. Behind him: floor-to-ceiling built-in off-white bookshelves filled with mixed-spine books. Brass adjustable-arm task lamp at left casts warm directional light across the desk. Open dark-cover notebook visible. Medium close-up, shallow depth of field, background soft but present. Warm color temperature, restrained cinematic grade, 16:9.",
+      "subject": "James Harrington, 60, silver hair, navy sweater over white Oxford collar",
+      "action": "leaning slightly forward, speaking with quiet gravity, left hand resting on notebook",
+      "camera": "medium close-up, locked off, shallow depth of field, slight downward angle",
+      "setting": "canonical studio library \u2014 mahogany desk, off-white built-in bookshelves, brass task lamp at left casting warm side-light",
+      "continuity_anchor": "James at desk, notebook open, brass lamp lit \u2014 establish canonical studio",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Open loop \u2014 introduces the withdrawal metaphor and stakes a provocative claim before evidence is presented",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 79,
+        "est_usd": 3.87,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 8.75,
+      "narration_word_span": [
+        0,
+        21
+      ],
+      "est_duration_sec": 8.75,
+      "beat_id": "B001",
+      "source_beat_id": "B001",
+      "audio_start_sec": 0.0,
+      "audio_end_sec": 13.994,
+      "audio_duration_sec": 13.994,
+      "narration_text": "Every time you ask AI for an answer you already half-know \u2014 you're making a small withdrawal from your own memory.",
+      "treatment": "hero_cutaway",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": null,
+      "needs_repair": false,
+      "coverage_plan": [
+        {
+          "slot_id": "B001-s0",
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 0.0,
+          "required_end_sec": 4.665,
+          "required_duration_sec": 4.665
+        },
+        {
+          "slot_id": "B001-s1",
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 4.665,
+          "required_end_sec": 9.329,
+          "required_duration_sec": 4.664
+        },
+        {
+          "slot_id": "B001-s2",
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 9.329,
+          "required_end_sec": 13.994,
+          "required_duration_sec": 4.665
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "lower_third",
+          "text": "COGNITIVE WITHDRAWAL",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "audio_policy": "strip",
+      "reroute": {
+        "from_treatment": "hero_lipsync",
+        "to_treatment": "hero_cutaway",
+        "reason": "unsplittable single-sentence over model limit"
+      }
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "001_hook",
+      "visual_brief": "Continuous from B001. Same framing: 60-year-old silver-haired man at mahogany desk, navy sweater, brass lamp warm side-light, off-white bookshelves behind. He holds eye contact after speaking, a beat of deliberate stillness. Shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "holds eye contact, lets a brief pause land after the line \u2014 slight stillness used as authority",
+      "camera": "same medium close-up, no cut \u2014 hold the frame",
+      "setting": "canonical studio library",
+      "continuity_anchor": "same frame as B001 \u2014 no cut, continuous presence",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Close the hook beat \u2014 delivers the compound-interest implication that creates urgency to keep watching",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 36,
+        "est_usd": 1.76,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 4,
+      "narration_word_span": [
+        21,
+        28
+      ],
+      "est_duration_sec": 4,
+      "beat_id": "B002",
+      "source_beat_id": "B002",
+      "audio_start_sec": 13.994,
+      "audio_end_sec": 18.658,
+      "audio_duration_sec": 4.664,
+      "narration_text": "And the research says those withdrawals compound.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 13.994,
+          "required_end_sec": 18.658,
+          "required_duration_sec": 4.664
+        }
+      ],
+      "graphics": [
+        {
+          "required": false,
+          "layout": null,
+          "text": null,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "shot_type": "broll_environment",
+      "segment_id": "002_proof",
+      "visual_brief": "University library interior, evening. A student sits at a dark wood table, laptop open in front of them, leaning back passively. A chat interface glows on the laptop screen \u2014 text deliberately out of focus and unreadable. A closed textbook sits pushed to the side. Warm amber table lamp beside them. Dark wood shelving softly out of focus behind. Slow push-in toward the screen. Shallow depth of field. Restrained cinematic grade, warm tones, no neon, no logos. 16:9.",
+      "subject": "university student at a library desk, laptop open, leaning back passively while AI chat interface glows on screen",
+      "action": "student scrolls through chat responses without writing anything down, textbook pushed to the side untouched",
+      "camera": "medium shot, slow push-in toward screen, shallow focus \u2014 screen text deliberately blurred and unreadable",
+      "setting": "quiet university library interior, warm amber table lamps, dark wood shelves out of focus in background, late evening light",
+      "continuity_anchor": "warm amber library lighting echoes James's studio lamp \u2014 consistent palette",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "lipsync_required": false,
+      "reference_required": false,
+      "reference_images": [],
+      "prompt_class": "environment_broll",
+      "audio_mode": "voiceover",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Visual proof anchor \u2014 makes the RCT finding concrete without requiring James on screen; passive retrieval mode shown behaviorally",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 36,
+        "est_usd": 1.76,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 6,
+      "narration_word_span": [
+        28,
+        56
+      ],
+      "est_duration_sec": 6,
+      "beat_id": "B003",
+      "source_beat_id": "B003",
+      "audio_start_sec": 18.658,
+      "audio_end_sec": 37.552,
+      "audio_duration_sec": 18.894,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 18.658,
+          "required_end_sec": 23.382,
+          "required_duration_sec": 4.724
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 23.382,
+          "required_end_sec": 28.105,
+          "required_duration_sec": 4.723
+        },
+        {
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 28.105,
+          "required_end_sec": 32.829,
+          "required_duration_sec": 4.724
+        },
+        {
+          "asset_role": "continuation_3",
+          "asset_type": "generated_video",
+          "required_start_sec": 32.829,
+          "required_end_sec": 37.552,
+          "required_duration_sec": 4.723
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "stat_callout",
+          "text": "RCT 2025 \u2014 Barcaui / ScienceDirect",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (18.894s) \u2014 coverage_plan has 4 slots"
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "002_proof",
+      "visual_brief": "Return to canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Leans slightly forward as he delivers the line, measured and unhurried. Brass task lamp side-light from left. Off-white built-in bookshelves behind. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "leans slightly forward, deliberate emphasis on 'against' \u2014 controlled, no theatrics",
+      "camera": "medium close-up, same canonical angle, rack-focus to James sharp",
+      "setting": "canonical studio library",
+      "continuity_anchor": "return to James at desk \u2014 brass lamp, bookshelves, notebook \u2014 identical to B001",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Punch-line delivery of the study's counter-intuitive finding \u2014 James's presence makes the claim accountable",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 36,
+        "est_usd": 1.76,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 4,
+      "narration_word_span": [
+        56,
+        65
+      ],
+      "est_duration_sec": 4,
+      "beat_id": "B004",
+      "source_beat_id": "B004",
+      "audio_start_sec": 37.552,
+      "audio_end_sec": 43.313,
+      "audio_duration_sec": 5.761,
+      "narration_text": "The tool wasn't neutral. It actively worked against them.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 37.552,
+          "required_end_sec": 43.313,
+          "required_duration_sec": 5.761
+        }
+      ],
+      "graphics": [
+        {
+          "required": false,
+          "layout": null,
+          "text": null,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "shot_type": "broll_tactical",
+      "segment_id": "002_proof",
+      "visual_brief": "Dark mahogany desk surface under warm brass lamp light. A hand writes in a dark-cover notebook \u2014 mid-sentence the pen pauses, is set down, and a hand picks up a phone instead. The notebook page sits unfinished. Slow tilt from desk surface upward. Notebook text is intentionally illegible. No faces in frame. Warm amber tones, shallow DOF, restrained cinematic grade. 16:9.",
+      "subject": "close view of a hand writing in a dark-cover notebook at a mahogany desk, then pen stopping mid-sentence as the writer reaches for a phone instead",
+      "action": "pen pauses on a half-written line, hand sets it down and picks up a phone \u2014 the notebook sits unfinished",
+      "camera": "medium shot framing desk surface, slow tilt up to reveal the unfinished notebook, phone in hand \u2014 text on notebook unreadable",
+      "setting": "executive desk, warm brass lamp glow, dark wood surface, muted ambient light",
+      "continuity_anchor": "dark mahogany desk surface and brass lamp echo James's canonical studio \u2014 same palette, different angle",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "lipsync_required": false,
+      "reference_required": false,
+      "reference_images": [],
+      "prompt_class": "tactical_insert",
+      "audio_mode": "voiceover",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Illustrates the digital amnesia mechanism behaviourally \u2014 the moment retrieval is offloaded \u2014 making the muscle metaphor visual",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 36,
+        "est_usd": 1.76,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 6,
+      "narration_word_span": [
+        65,
+        97
+      ],
+      "est_duration_sec": 6,
+      "beat_id": "B005",
+      "source_beat_id": "B005",
+      "audio_start_sec": 43.313,
+      "audio_end_sec": 64.914,
+      "audio_duration_sec": 21.601,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 43.313,
+          "required_end_sec": 48.713,
+          "required_duration_sec": 5.4
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 48.713,
+          "required_end_sec": 54.114,
+          "required_duration_sec": 5.401
+        },
+        {
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 54.114,
+          "required_end_sec": 59.514,
+          "required_duration_sec": 5.4
+        },
+        {
+          "asset_role": "continuation_3",
+          "asset_type": "generated_video",
+          "required_start_sec": 59.514,
+          "required_end_sec": 64.914,
+          "required_duration_sec": 5.4
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "DIGITAL AMNESIA",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (21.601s) \u2014 coverage_plan has 4 slots"
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "003_flip",
+      "visual_brief": "Same canonical studio setup. 60-year-old man, silver hair, navy sweater, mahogany desk. He pauses before the word 'counterintuitive' \u2014 a brief dry half-smile, then returns to composed delivery. Brass lamp warm side-light. Off-white bookshelves in shallow focus behind. Medium close-up. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "slight pause before 'counterintuitive', a brief half-smile \u2014 dry, earned \u2014 then composure resumes",
+      "camera": "medium close-up, same canonical frame",
+      "setting": "canonical studio library",
+      "continuity_anchor": "James at desk, notebook, brass lamp \u2014 continuous studio presence",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Pivot beat \u2014 signals the flip without over-selling it; the half-smile earns the turn without theatrics",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 60,
+        "est_usd": 2.94,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 6.67,
+      "narration_word_span": [
+        97,
+        113
+      ],
+      "est_duration_sec": 6.67,
+      "beat_id": "B006a",
+      "source_beat_id": "B006",
+      "split_index": 0,
+      "split_total": 2,
+      "audio_start_sec": 64.914,
+      "audio_end_sec": 72.378,
+      "audio_duration_sec": 7.464,
+      "narration_text": "Here's the counterintuitive part. AI can also accelerate memory \u2014 but only through the opposite mode.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          72.378
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 64.914,
+          "required_end_sec": 72.378,
+          "required_duration_sec": 7.464
+        }
+      ],
+      "graphics": [
+        {
+          "required": false,
+          "layout": null,
+          "text": null,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "003_flip",
+      "visual_brief": "Same canonical studio setup. 60-year-old man, silver hair, navy sweater, mahogany desk. He pauses before the word 'counterintuitive' \u2014 a brief dry half-smile, then returns to composed delivery. Brass lamp warm side-light. Off-white bookshelves in shallow focus behind. Medium close-up. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "slight pause before 'counterintuitive', a brief half-smile \u2014 dry, earned \u2014 then composure resumes",
+      "camera": "medium close-up, same canonical frame",
+      "setting": "canonical studio library",
+      "continuity_anchor": "James at desk, notebook, brass lamp \u2014 continuous studio presence",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Pivot beat \u2014 signals the flip without over-selling it; the half-smile earns the turn without theatrics",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 60,
+        "est_usd": 2.94,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 6.67,
+      "narration_word_span": [
+        97,
+        113
+      ],
+      "est_duration_sec": 6.67,
+      "beat_id": "B006b",
+      "source_beat_id": "B006",
+      "split_index": 1,
+      "split_total": 2,
+      "audio_start_sec": 72.378,
+      "audio_end_sec": 75.54,
+      "audio_duration_sec": 3.162,
+      "narration_text": "",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          72.378
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 72.378,
+          "required_end_sec": 75.54,
+          "required_duration_sec": 3.162
+        }
+      ],
+      "graphics": [
+        {
+          "required": false,
+          "layout": null,
+          "text": null,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "shot_type": "broll_tactical",
+      "segment_id": "003_flip",
+      "visual_brief": "Modern home office, morning. A professional in their 30s\u201340s stands at a desk, looking away from a laptop screen, lips moving as they recall something, then writing in a dark notebook. Active, deliberate motion \u2014 not scrolling, not reading. Slow rack focus from hand writing to face. Notebook text unreadable. Warm window light from one side. Shallow DOF, restrained cinematic grade, warm neutral palette. No logos, no readable screens. 16:9.",
+      "subject": "professional at a standing desk, eyes up and away from screen, speaking aloud \u2014 visibly recalling, not reading",
+      "action": "person looks away from laptop, moves lips, writes a recalled answer in a notebook \u2014 active, not passive",
+      "camera": "medium shot from slight angle, slow rack focus from notebook to face \u2014 text unreadable",
+      "setting": "modern home office, morning window light, clean desk, no clutter \u2014 warm neutral tones",
+      "continuity_anchor": "warm neutral tones and dark notebook echo studio palette",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "lipsync_required": false,
+      "reference_required": false,
+      "reference_images": [],
+      "prompt_class": "tactical_insert",
+      "audio_mode": "voiceover",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Shows the active-retrieval mode in contrast to B003 \u2014 the same format (person + device + notebook) but opposite behaviour",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 36,
+        "est_usd": 1.76,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 6,
+      "narration_word_span": [
+        113,
+        130
+      ],
+      "est_duration_sec": 6,
+      "beat_id": "B007",
+      "source_beat_id": "B007",
+      "audio_start_sec": 75.54,
+      "audio_end_sec": 86.627,
+      "audio_duration_sec": 11.087,
+      "narration_text": "Timed, active retrieval. Your brain under deliberate load. Cognitive science has consistently shown this outperforms passive re-reading.",
+      "treatment": "broll",
+      "model": "kling3_0",
+      "model_max_duration_sec": null,
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 75.54,
+          "required_end_sec": 81.084,
+          "required_duration_sec": 5.544
+        },
+        {
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 81.084,
+          "required_end_sec": 86.627,
+          "required_duration_sec": 5.543
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "lower_third",
+          "text": "ACTIVE RETRIEVAL",
+          "timing": "on_spoken_line"
+        }
+      ],
+      "note": "Long broll (11.087s) \u2014 coverage_plan has 2 slots"
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "003_flip",
+      "visual_brief": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "settles back slightly, measured delivery \u2014 holds eye contact on 'whether your brain is working', no movement",
+      "camera": "medium close-up, locked \u2014 wider than B001 by a fraction to give the line space",
+      "setting": "canonical studio library",
+      "continuity_anchor": "James at desk, brass lamp, bookshelves \u2014 canonical throughout",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 90,
+        "est_usd": 4.41,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 10,
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "est_duration_sec": 10,
+      "beat_id": "B008a",
+      "source_beat_id": "B008",
+      "split_index": 0,
+      "split_total": 3,
+      "audio_start_sec": 86.627,
+      "audio_end_sec": 95.068,
+      "audio_duration_sec": 8.441,
+      "narration_text": "Try asking your AI to quiz you on a decision you made last week, then defend your reasoning out loud.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          95.068,
+          101.749
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 86.627,
+          "required_end_sec": 95.068,
+          "required_duration_sec": 8.441
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "The variable: is your brain working during the interaction?",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "003_flip",
+      "visual_brief": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "settles back slightly, measured delivery \u2014 holds eye contact on 'whether your brain is working', no movement",
+      "camera": "medium close-up, locked \u2014 wider than B001 by a fraction to give the line space",
+      "setting": "canonical studio library",
+      "continuity_anchor": "James at desk, brass lamp, bookshelves \u2014 canonical throughout",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 90,
+        "est_usd": 4.41,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 10,
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "est_duration_sec": 10,
+      "beat_id": "B008b",
+      "source_beat_id": "B008",
+      "split_index": 1,
+      "split_total": 3,
+      "audio_start_sec": 95.068,
+      "audio_end_sec": 101.749,
+      "audio_duration_sec": 6.681,
+      "narration_text": "The variable isn't whether you use AI.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          95.068,
+          101.749
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 95.068,
+          "required_end_sec": 101.749,
+          "required_duration_sec": 6.681
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "The variable: is your brain working during the interaction?",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "003_flip",
+      "visual_brief": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "settles back slightly, measured delivery \u2014 holds eye contact on 'whether your brain is working', no movement",
+      "camera": "medium close-up, locked \u2014 wider than B001 by a fraction to give the line space",
+      "setting": "canonical studio library",
+      "continuity_anchor": "James at desk, brass lamp, bookshelves \u2014 canonical throughout",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 90,
+        "est_usd": 4.41,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 10,
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "est_duration_sec": 10,
+      "beat_id": "B008c",
+      "source_beat_id": "B008",
+      "split_index": 2,
+      "split_total": 3,
+      "audio_start_sec": 101.749,
+      "audio_end_sec": 110.516,
+      "audio_duration_sec": 8.767,
+      "narration_text": "It's whether your brain is working during the interaction.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          95.068,
+          101.749
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 101.749,
+          "required_end_sec": 110.516,
+          "required_duration_sec": 8.767
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "key_line",
+          "text": "The variable: is your brain working during the interaction?",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "shot_type": "hero_cutaway",
+      "segment_id": "004_takeaway_cta",
+      "visual_brief": "Canonical studio. James Harrington, 60, silver hair, navy sweater over white Oxford, at dark mahogany desk. Slight forward lean as he delivers the opening clause, voice settles on the final phrase. Open notebook visible on desk. Brass task lamp warm side-light from left. Off-white bookshelves behind, soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "steady, unhurried \u2014 slight forward lean returns on 'compound their expertise', voice drops on 'fast lookup'",
+      "camera": "medium close-up, same canonical frame",
+      "setting": "canonical studio library",
+      "continuity_anchor": "identical studio setup \u2014 continuity through final act",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "Stakes the long-term consequence \u2014 frames it as a compounding professional advantage, not just a memory tip",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 90,
+        "est_usd": 4.41,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 10,
+      "narration_word_span": [
+        166,
+        201
+      ],
+      "est_duration_sec": 10,
+      "beat_id": "B009",
+      "source_beat_id": "B009",
+      "audio_start_sec": 110.516,
+      "audio_end_sec": 133.938,
+      "audio_duration_sec": 23.422,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "treatment": "hero_cutaway",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": null,
+      "needs_repair": false,
+      "coverage_plan": [
+        {
+          "slot_id": "B009-s0",
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 110.516,
+          "required_end_sec": 116.372,
+          "required_duration_sec": 5.856
+        },
+        {
+          "slot_id": "B009-s1",
+          "asset_role": "continuation_1",
+          "asset_type": "generated_video",
+          "required_start_sec": 116.372,
+          "required_end_sec": 122.227,
+          "required_duration_sec": 5.855
+        },
+        {
+          "slot_id": "B009-s2",
+          "asset_role": "continuation_2",
+          "asset_type": "generated_video",
+          "required_start_sec": 122.227,
+          "required_end_sec": 128.083,
+          "required_duration_sec": 5.856
+        },
+        {
+          "slot_id": "B009-s3",
+          "asset_role": "continuation_3",
+          "asset_type": "generated_video",
+          "required_start_sec": 128.083,
+          "required_end_sec": 133.938,
+          "required_duration_sec": 5.855
+        }
+      ],
+      "graphics": [
+        {
+          "required": false,
+          "layout": null,
+          "text": null,
+          "timing": null
+        }
+      ],
+      "audio_policy": "strip",
+      "reroute": {
+        "from_treatment": "hero_lipsync",
+        "to_treatment": "hero_cutaway",
+        "reason": "unsplittable single-sentence over model limit"
+      }
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "004_takeaway_cta",
+      "visual_brief": "Canonical studio, continuous from B009. James Harrington at mahogany desk, relaxed but attentive posture. Direct eye contact as he poses the question. Holds a natural beat before the CTA line. Brass lamp warm side-light, off-white bookshelves behind in soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "relaxes posture slightly, direct eye contact, a natural pause before 'Reply W' \u2014 lets the question sit",
+      "camera": "medium close-up, hold frame, no cut",
+      "setting": "canonical studio library",
+      "continuity_anchor": "same frame as B009 \u2014 continuous final presence, brass lamp, bookshelves",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "CTA \u2014 converts the episode idea into a binary self-audit that drives comment engagement with minimal friction",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 71,
+        "est_usd": 3.48,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 7.92,
+      "narration_word_span": [
+        201,
+        220
+      ],
+      "est_duration_sec": 7.92,
+      "beat_id": "B010a",
+      "source_beat_id": "B010",
+      "split_index": 0,
+      "split_total": 2,
+      "audio_start_sec": 133.938,
+      "audio_end_sec": 142.654,
+      "audio_duration_sec": 8.716,
+      "narration_text": "In the last week, has your AI been making withdrawals or deposits?",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          142.654
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 133.938,
+          "required_end_sec": 142.654,
+          "required_duration_sec": 8.716
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "side_by_side",
+          "text": "W \u2014 Withdrawal  |  D \u2014 Deposit",
+          "timing": "on_spoken_line"
+        }
+      ]
+    },
+    {
+      "shot_type": "hero_lipsync",
+      "segment_id": "004_takeaway_cta",
+      "visual_brief": "Canonical studio, continuous from B009. James Harrington at mahogany desk, relaxed but attentive posture. Direct eye contact as he poses the question. Holds a natural beat before the CTA line. Brass lamp warm side-light, off-white bookshelves behind in soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9.",
+      "subject": "James Harrington",
+      "action": "relaxes posture slightly, direct eye contact, a natural pause before 'Reply W' \u2014 lets the question sit",
+      "camera": "medium close-up, hold frame, no cut",
+      "setting": "canonical studio library",
+      "continuity_anchor": "same frame as B009 \u2014 continuous final presence, brass lamp, bookshelves",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "lipsync_required": true,
+      "reference_required": true,
+      "reference_images": [],
+      "prompt_class": "james_studio_lipsync",
+      "audio_mode": "lipsync",
+      "crop_safety": "center_safe",
+      "shots_per_beat": 1,
+      "visual_function": "develops",
+      "narrative_function": "CTA \u2014 converts the episode idea into a binary self-audit that drives comment engagement with minimal friction",
+      "era": "modern_2020s",
+      "cost": {
+        "est_tokens": 71,
+        "est_usd": 3.48,
+        "est_clips": 1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "music_duck": false,
+      "duration_target_sec": 7.92,
+      "narration_word_span": [
+        201,
+        220
+      ],
+      "est_duration_sec": 7.92,
+      "beat_id": "B010b",
+      "source_beat_id": "B010",
+      "split_index": 1,
+      "split_total": 2,
+      "audio_start_sec": 142.654,
+      "audio_end_sec": 146.599,
+      "audio_duration_sec": 3.945,
+      "narration_text": "Reply W for withdrawal, D for deposit.",
+      "treatment": "hero_lipsync",
+      "model": "seedance_2_0",
+      "model_max_duration_sec": 10,
+      "timing_provenance": {
+        "method": "silence_detection",
+        "confidence": "high",
+        "audio_sha256": "2a817f4fd21619dd3e1e74a26ef5bc0e123f1f566b7c6106d38e741c7486e6ce",
+        "boundary_evidence": [
+          142.654
+        ]
+      },
+      "coverage_plan": [
+        {
+          "asset_role": "primary",
+          "asset_type": "generated_video",
+          "required_start_sec": 142.654,
+          "required_end_sec": 146.599,
+          "required_duration_sec": 3.945
+        }
+      ],
+      "graphics": [
+        {
+          "required": true,
+          "layout": "side_by_side",
+          "text": "W \u2014 Withdrawal  |  D \u2014 Deposit",
+          "timing": "on_spoken_line"
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,13 @@ profiles:
     purpose: creative/reasoning-heavy tasks
     is_final_creative_authority: true
     default_for: creative
+    anti_repetition_directive: "CRITICAL: Never repeat the same phrase, sentence structure, or pattern verbatim. Each sentence must advance the narrative. If you find yourself writing a similar construction to something earlier, restructure it completely."
+    max_reroll_attempts: 2
+
+  storyboard_director:
+    model: claude-opus-4.8
+    purpose: bulletproof storyboard authoring grounded in all bibles + source text
+    is_final_creative_authority: true
 
   auto_utility:
     model: auto

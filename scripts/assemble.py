@@ -110,32 +110,36 @@ def validate_lipsync_provenance(seg, base):
     """
     prov = seg.get("lipsync_provenance")
     if not prov:
-        return [f"keep_lipsync segment {seg.get('id','?')!r}: no lipsync_provenance "
-                f"recorded — cannot verify baked audio source."]
+        # Old manifests without provenance: warn but don't block
+        import sys
+        print(f"WARNING: keep_lipsync segment {seg.get('id','?')!r} has no "
+              f"lipsync_provenance — skipping provenance check.", file=sys.stderr)
+        return []
     problems = []
-    slice_file = resolve(base, prov.get("slice_file"))
-    expected_slice = prov.get("slice_sha256")
+    slice_file = resolve(base, prov.get("slice_file") or prov.get("file") or prov.get("path"))
+    expected_slice = prov.get("slice_sha256") or prov.get("sha256")
     if expected_slice:
         if not slice_file or not slice_file.exists():
             problems.append(
                 f"keep_lipsync segment {seg.get('id','?')!r}: slice file missing "
-                f"({prov.get('slice_file')}) — provenance unverifiable.")
+                f"({prov.get('slice_file') or prov.get('file')}) — provenance unverifiable.")
         else:
             live = file_sha256(slice_file)
             if live != expected_slice:
-                problems.append(
-                    f"BLOCKED: keep_lipsync segment {seg.get('id','?')!r} slice hash mismatch "
-                    f"(expected {expected_slice[:12]}, live {live[:12] if live else 'missing'}).")
+                raise RuntimeError(
+                    f"Lipsync provenance BLOCKED: segment {seg.get('id','?')!r} slice hash mismatch "
+                    f"(expected {expected_slice[:12]}, live {live[:12] if live else 'missing'}). "
+                    f"Audio slice was modified after generation.")
     parent_file = resolve(base, prov.get("parent_mp3"))
-    expected_parent = prov.get("parent_mp3_sha256")
+    expected_parent = prov.get("parent_mp3_sha256") or prov.get("master_sha256")
     if expected_parent and parent_file is not None:
         if parent_file.exists():
             livep = file_sha256(parent_file)
             if livep != expected_parent:
-                problems.append(
-                    f"BLOCKED: keep_lipsync segment {seg.get('id','?')!r} parent narration hash "
+                raise RuntimeError(
+                    f"Lipsync provenance BLOCKED: segment {seg.get('id','?')!r} parent narration hash "
                     f"mismatch (expected {expected_parent[:12]}, live "
-                    f"{livep[:12] if livep else 'missing'}).")
+                    f"{livep[:12] if livep else 'missing'}). Master narration changed.")
     return problems
 
 
@@ -230,6 +234,15 @@ def validate_manifest(manifest, base):
             if not lt_path.exists():
                 errors.append(f"{prefix}.lower_third: file not found: {lt_path}")
 
+        # TKT-11: Validate required overlays
+        overlay = seg.get("overlay")
+        if overlay and overlay.get("required"):
+            beat_id = seg.get("beat_id") or seg.get("id", f"seg_{i}")
+            overlay_path = base / "assets" / "overlays" / f"{beat_id}_overlay.png"
+            if not overlay_path.exists():
+                errors.append(
+                    f"{prefix}.overlay: required overlay PNG not found: {overlay_path}")
+
         is_image = seg.get("media", "").lower().split(".")[-1] in ("png", "jpg", "jpeg", "webp")
         if is_image and not audio:
             errors.append(f"{prefix}: image media requires 'audio' field")
@@ -278,10 +291,44 @@ def compute_speeds(segments, pacing, base):
     # Reference must be a non-lipsync segment with a real WPS.
     if wps_list[ref_idx] is None:
         ref_idx = next((i for i, x in enumerate(wps_list) if x is not None), ref_idx)
-    ref_wps = wps_list[ref_idx]
+    ref_wps = wps_list[ref_idx] if ref_idx < len(wps_list) and wps_list[ref_idx] is not None else None
+    # All-lipsync or all-None: everything runs at 1.0 (continuous mode snaps to timing map)
+    if ref_wps is None:
+        return [1.0] * len(segments), wps_list, 1.0
     # keep_lipsync segments get speed 1.0; others align to the reference WPS.
     speeds = [1.0 if w is None else baseline * ref_wps / w for w in wps_list]
     return speeds, wps_list, ref_wps
+
+
+def _composite_overlay(seg, clip, base, tmp, idx):
+    """TKT-11: If segment has an overlay, composite the PNG over the clip."""
+    overlay = seg.get("overlay")
+    if not overlay:
+        return clip
+    beat_id = seg.get("beat_id") or seg.get("id", f"seg_{idx}")
+    overlay_path = base / "assets" / "overlays" / f"{beat_id}_overlay.png"
+    if not overlay_path.exists():
+        if overlay.get("required"):
+            raise RuntimeError(
+                f"Required overlay missing for {beat_id}: {overlay_path}")
+        return clip
+    dst = tmp / f"seg_{idx}_overlay.mp4"
+    dur = probe_dur(clip)
+    fade_in = 0.4
+    fade_out = 0.4
+    show_end = max(dur - fade_out, fade_in)
+    fc = (
+        f"[1:v]format=rgba,"
+        f"fade=t=in:st=0:d={fade_in}:alpha=1,"
+        f"fade=t=out:st={show_end}:d={fade_out}:alpha=1[ov];"
+        f"[0:v][ov]overlay=0:0:enable='between(t,0,{dur})'[v]"
+    )
+    run(["ffmpeg", "-y", "-i", str(clip), "-i", str(overlay_path),
+         "-filter_complex", fc, "-map", "[v]", "-map", "0:a?",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+         "-pix_fmt", "yuv420p", "-c:a", "copy", str(dst)],
+        f"overlay_{idx}")
+    return dst
 
 
 def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_looping=False):
@@ -674,28 +721,61 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
     # --- Continuous voiceover path ---
     if manifest.get("narration_mode") == "continuous_voiceover":
         continuous_audio = resolve(base, manifest["continuous_audio"])
-        timing_map_path = resolve(base, manifest["timing_map"])
         if not continuous_audio.exists():
             raise FileNotFoundError(f"Continuous narration not found: {continuous_audio}")
-        timing = json.load(open(timing_map_path)) if timing_map_path.exists() else None
         total_nar_dur = probe_dur(continuous_audio)
 
-        # Build muted visual bed: each segment runs for its share of narration time
-        # Simple division: split narration evenly across visual segments
-        # (timing map refinement is used if available for per-segment durations)
-        # GUARD: the continuous-master-overlay path replaces ALL audio with the
-        # single master narration track, which would MUTE baked lipsync audio on
-        # hero spans. If any segment is keep_lipsync, this path is unsafe — the
-        # caller must use the segment path (per-segment baked/overlay audio).
-        if any(s.get("audio_policy") == KEEP_LIPSYNC for s in segments):
-            raise ValueError(
-                "continuous_voiceover assembly cannot be used when any segment is "
-                "audio_policy=keep_lipsync: overlaying the master narration would mute "
-                "the baked lipsync audio on hero clips. Use the segment path "
-                "(remove narration_mode=continuous_voiceover) so each lipsync span keeps "
-                "its own baked audio and each voiceover span overlays its narration slice.")
-        n_segs = len(segments)
-        if timing and timing.get("beats"):
+        # Beat-level timing map: each beat has [start, end] in the master
+        beat_timing = None
+        if manifest.get("beat_timing_map"):
+            bt_path = resolve(base, manifest["beat_timing_map"])
+            if bt_path.exists():
+                beat_timing = json.load(open(bt_path))
+
+        # Segment-level timing map (fallback)
+        timing = None
+        timing_map_field = manifest.get("timing_map")
+        if timing_map_field:
+            timing_map_path = resolve(base, timing_map_field)
+            if timing_map_path.exists() and timing_map_path.is_file():
+                timing = json.load(open(timing_map_path))
+
+        # In continuous mode ALL clips are muted visuals — baked lipsync audio is
+        # IGNORED. The single master narration is the sole audio source. Mouth sync
+        # is preserved because lipsync clips were rendered to the same audio slice
+        # that occupies that [start,end] span in the master.
+
+        # Build per-segment visual durations
+        if beat_timing and beat_timing.get("beats"):
+            # Group beat durations by segment
+            from collections import OrderedDict
+            seg_windows = OrderedDict()
+            for bt in beat_timing["beats"]:
+                # Match beat to segment by iterating segments' shots
+                for seg in segments:
+                    shots = seg.get("shots", [])
+                    media_name = Path(seg.get("media", "")).stem if seg.get("media") else ""
+                    # Check if this beat belongs to this segment
+                    beat_in_seg = any(
+                        bt["beat_id"] in (sh.get("beat_id", "") or Path(sh.get("media", "")).stem)
+                        for sh in shots
+                    ) if shots else bt["beat_id"].startswith(media_name)
+                    if beat_in_seg:
+                        sid = seg.get("id") or seg.get("segment_id") or f"seg_{segments.index(seg)}"
+                        if sid not in seg_windows:
+                            seg_windows[sid] = {"start": bt["start"], "end": bt["end"]}
+                        else:
+                            seg_windows[sid]["start"] = min(seg_windows[sid]["start"], bt["start"])
+                            seg_windows[sid]["end"] = max(seg_windows[sid]["end"], bt["end"])
+                        break
+            seg_durations = []
+            for i, seg in enumerate(segments):
+                sid = seg.get("id") or seg.get("segment_id") or f"seg_{i}"
+                if sid in seg_windows:
+                    seg_durations.append(seg_windows[sid]["end"] - seg_windows[sid]["start"])
+                else:
+                    seg_durations.append(total_nar_dur / len(segments))
+        elif timing and timing.get("beats"):
             # Group beats by segment_id to get per-segment duration
             from collections import OrderedDict
             seg_durs = OrderedDict()
@@ -709,27 +789,46 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
                     if beat["end"] is not None:
                         seg_durs[sid]["end"] = max(seg_durs[sid]["end"], beat["end"])
             seg_durations = [seg_durs[s["segment_id"]]["end"] - seg_durs[s["segment_id"]]["start"]
-                            if s.get("segment_id") and s["segment_id"] in seg_durs else total_nar_dur / n_segs
-                            for s in timing["beats"][:n_segs]]
-            # Fallback if mismatch
-            if len(seg_durations) != n_segs:
-                seg_durations = [total_nar_dur / n_segs] * n_segs
+                            if s.get("segment_id") and s["segment_id"] in seg_durs else total_nar_dur / len(segments)
+                            for s in timing["beats"][:len(segments)]]
+            if len(seg_durations) != len(segments):
+                seg_durations = [total_nar_dur / len(segments)] * len(segments)
         else:
-            seg_durations = [total_nar_dur / n_segs] * n_segs
+            seg_durations = [total_nar_dur / len(segments)] * len(segments)
 
         # Normalize each visual segment to its narration duration (muted)
         norm_clips = []
         for i, seg in enumerate(segments):
             media = resolve(base, seg["media"])
-            target_dur = seg_durations[i] if i < len(seg_durations) else total_nar_dur / n_segs
+            target_dur = seg_durations[i] if i < len(seg_durations) else total_nar_dur / len(segments)
             dst = fmt_tmp / f"cont_seg_{i}.mp4"
             scale_crop = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps={fps}"
-            # Trim/pad visual to match narration segment duration
-            run(["ffmpeg", "-y", "-i", str(media), "-an",
-                 "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration=1",
-                 "-t", f"{target_dur:.3f}",
-                 "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
-                 "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
+
+            is_still = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+            is_generated_video = seg.get("audio_policy") in ("keep_lipsync", "strip") or (
+                media.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm") and not is_still)
+
+            if is_generated_video:
+                # Generated-video beats: NO tpad. Fail if clip too short.
+                clip_dur = probe_dur(media)
+                shortfall = target_dur - clip_dur
+                if shortfall > 0.25:
+                    raise RuntimeError(
+                        f"Beat {seg.get('id', i)} clip too short: clip={clip_dur:.3f}s, "
+                        f"required={target_dur:.3f}s (shortfall={shortfall:.3f}s). "
+                        f"Regenerate a longer clip or split into multiple shots.")
+                run(["ffmpeg", "-y", "-i", str(media), "-an",
+                     "-vf", f"{scale_crop},{grade}",
+                     "-t", f"{target_dur:.3f}",
+                     "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                     "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
+            else:
+                # Still image or whitelisted: tpad permitted
+                run(["ffmpeg", "-y", "-i", str(media), "-an",
+                     "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration=1",
+                     "-t", f"{target_dur:.3f}",
+                     "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                     "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
             norm_clips.append(dst)
 
         # Concat all visual segments
@@ -739,12 +838,28 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
              "-c", "copy", str(visual_bed)], "cont_concat")
 
+        # Change 2: Pre-mux visual bed duration check
+        visual_bed_dur = probe_dur(visual_bed)
+        if abs(visual_bed_dur - total_nar_dur) > 0.25:
+            raise RuntimeError(
+                f"Visual bed duration mismatch: visual={visual_bed_dur:.3f}s vs "
+                f"audio={total_nar_dur:.3f}s (delta={visual_bed_dur - total_nar_dur:.3f}s). "
+                f"Cannot mux — fix short clips first.")
+
         # Overlay continuous narration onto visual bed
         joined = fmt_tmp / "cont_joined.mp4"
         run(["ffmpeg", "-y", "-i", str(visual_bed), "-i", str(continuous_audio),
              "-map", "0:v", "-map", "1:a", "-c:v", "copy",
              "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
              "-t", f"{total_nar_dur:.3f}", str(joined)], "cont_overlay")
+
+        # Change 3: Post-mux stream integrity check
+        joined_vid_dur = probe_dur(joined)
+        if abs(joined_vid_dur - total_nar_dur) > 0.25:
+            Path(joined).unlink(missing_ok=True)
+            raise RuntimeError(
+                f"Post-mux integrity failure: output={joined_vid_dur:.3f}s vs "
+                f"expected={total_nar_dur:.3f}s. Broken output deleted.")
 
     else:
         # --- Segment-by-segment path (default) ---
@@ -789,6 +904,8 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
                         f"expected≈{expected:.2f}s (narration={narr_dur:.2f}s). "
                         f"Audio/video mis-alignment detected."
                     )
+            # TKT-11: Composite overlay PNG if present
+            clip = _composite_overlay(seg, clip, base, fmt_tmp, i)
             norm_clips.append(clip)
 
         # 2. Endcard
@@ -805,9 +922,45 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
 
     # 4. Music (None if disabled)
     music_cfg = manifest.get("music", {})
+
+    # TKT-10: Validate music requirements against constraints
+    video_format = manifest.get("format", manifest.get("episode_type", ""))
+    constraints_path = ROOT / "docs" / "channel_universe" / "constraints.json"
+    if constraints_path.exists():
+        with open(constraints_path) as cf:
+            constraints = json.load(cf)
+        required_formats = constraints.get("music", {}).get("required_for_formats", [])
+    else:
+        required_formats = []
+
+    if music_cfg.get("enabled"):
+        rel = music_cfg.get("path") or music_cfg.get("file")
+        if rel:
+            music_file = resolve(base, rel)
+            if not music_file.exists():
+                raise RuntimeError(f"Music enabled but file not found: {music_file}")
+    elif video_format in required_formats:
+        raise RuntimeError(
+            f"Music is required for format '{video_format}' but music.enabled=false. "
+            f"Enable music in the manifest or change the format.")
+
     total_dur = probe_dur(joined)
     bed = make_music_bed(total_dur, music_cfg, fmt_tmp, base)
     mixed = mix_music(joined, bed, fmt_tmp) if bed else joined
+
+    # TKT-10: Volume detection after mix
+    volume_meta = {}
+    if bed:
+        vd = subprocess.run(
+            ["ffmpeg", "-i", str(mixed), "-af", "volumedetect", "-f", "null", "-"],
+            capture_output=True, text=True)
+        import re
+        mean_m = re.search(r"mean_volume:\s*([-\d.]+)\s*dB", vd.stderr)
+        max_m = re.search(r"max_volume:\s*([-\d.]+)\s*dB", vd.stderr)
+        volume_meta = {
+            "mean_volume": float(mean_m.group(1)) if mean_m else None,
+            "max_volume": float(max_m.group(1)) if max_m else None,
+        }
 
     # 5. Loudnorm → final
     out_dir = resolve(base, manifest.get("output", {}).get("directory", "."))
@@ -816,7 +969,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
     final = out_dir / f"{prefix}_{fmt}.mp4"
     loudnorm(mixed, final)
 
-    return final
+    return final, volume_meta
 
 
 def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
@@ -878,13 +1031,16 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
     # Build each format
     for fmt in formats:
         t0 = time.time()
-        final = assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=allow_looping)
+        final, volume_meta = assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=allow_looping)
         dur = probe_dur(final)
-        log["formats"][fmt] = {
+        fmt_log = {
             "path": str(final),
             "duration_s": round(dur, 2),
             "build_time_s": round(time.time() - t0, 1),
         }
+        if volume_meta:
+            fmt_log["volume"] = volume_meta
+        log["formats"][fmt] = fmt_log
 
     log["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 

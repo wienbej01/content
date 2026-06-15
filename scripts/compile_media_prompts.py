@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -120,8 +121,9 @@ def vagueness_lint(beat, positive_prompt=None) -> list[str]:
 
 
 def compile_beat(beat, constraints, routing):
-    """Compile one storyboard beat into a media-plan beat. Returns (entry, errors)."""
+    """Compile one storyboard beat into a media-plan beat. Returns (entry, errors, warnings)."""
     errors = []
+    warnings = []
     bid = beat["beat_id"]
     shot_type = beat["shot_type"]
     model = beat["model"]
@@ -130,6 +132,15 @@ def compile_beat(beat, constraints, routing):
     # Banned model check (§5 / §10 #9).
     if model in BANNED_MODELS:
         errors.append(f"{bid}: banned model {model!r}")
+
+    # Early reject: hero lipsync beats exceeding Seedance max (catch before slice).
+    if shot_type == "hero_lipsync":
+        max_clip = constraints.get("lipsync_render_rules", {}).get("max_clip_duration_sec", 15)
+        est_dur = beat.get("est_duration_sec", 0)
+        if est_dur > max_clip:
+            errors.append(
+                f"{bid}: hero speech span {est_dur:.1f}s exceeds Seedance max "
+                f"{max_clip:.1f}s. Beat must be split in storyboard or routed to b-roll.")
 
     # Reference image required for identity shots (§3.8 / §5.2 #4).
     is_hero = shot_type in HERO_SHOT_TYPES
@@ -155,6 +166,45 @@ def compile_beat(beat, constraints, routing):
     negative = constraints.get("default_negative_constraints", "")
     positive = _compose_positive(beat, constraints)
 
+    # Text-surface policy (TKT-12): ban prompts requesting readable text surfaces
+    # in generated_video beats — these produce pseudo-text artefacts.
+    tsp = constraints.get("text_surface_policy", {})
+    tsp_banned = tsp.get("banned_terms", [])
+    if asset_type in tsp.get("banned_for_asset_types", []):
+        check_text = (beat.get("visual_brief", "") + " " + positive).lower()
+        for term in tsp_banned:
+            if term in check_text:
+                # Reroute to local_graphic if shot_type allows it
+                if shot_type in LOCAL_SHOT_TYPES or shot_type.startswith("broll"):
+                    asset_type = "local_graphic"
+                    model = "local_graphic"
+                    beat["asset_type"] = asset_type
+                    beat["model"] = model
+                    warnings.append(
+                        f"TEXT_SURFACE_POLICY: beat {bid} rerouted to local_graphic "
+                        f"(visual_brief contains '{term}')")
+                elif shot_type == "hero_cutaway":
+                    # hero_cutaway is continuous-VO b-roll-style; neutralize
+                    # the banned term in negative_prompt, do NOT hard-error.
+                    negative = f"{negative}, no {term}" if negative else f"no {term}"
+                    warnings.append(
+                        f"TEXT_SURFACE_POLICY: beat {bid} hero_cutaway neutralized "
+                        f"'{term}' in negative_prompt (continuous VO, no readable text)")
+                elif shot_type.startswith("hero"):
+                    # hero_lipsync / hero shots: talking-head with set decoration.
+                    # The term (e.g. 'notebook') is background scenery, not
+                    # instructional readable text. Neutralize, do NOT hard-error.
+                    negative = f"{negative}, no {term}, no readable text" if negative else f"no {term}, no readable text"
+                    warnings.append(
+                        f"TEXT_SURFACE_POLICY: beat {bid} hero neutralized "
+                        f"'{term}' in negative_prompt (set decoration, not readable text)")
+                else:
+                    errors.append(
+                        f"TEXT_SURFACE_POLICY: beat {bid} visual_brief contains "
+                        f"'{term}' which requires readable text in a generated video. "
+                        f"Reroute to local_graphic or rewrite prompt.")
+                break
+
     # Guard: every GENERATED (non-local) beat must carry a non-empty negative prompt.
     # Negatives are injection-only, so an empty default_negative_constraints would
     # silently ship generated beats with no suppression block — reject at compile.
@@ -162,6 +212,11 @@ def compile_beat(beat, constraints, routing):
     if is_generated and not (negative and negative.strip()):
         errors.append(f"{bid}: generated beat has an empty negative_prompt "
                       f"(constraints.default_negative_constraints is missing/blank)")
+
+    # Append banned terms to negative_prompt for generated_video beats (after empty check)
+    if asset_type in ("generated_video", "generated_still") and model != "local_graphic" and tsp_banned:
+        extra_neg = ", ".join(f"no {t}" for t in tsp_banned)
+        negative = f"{negative}, {extra_neg}" if negative else extra_neg
 
     for fail in vagueness_lint(beat, positive_prompt=positive):
         errors.append(f"{bid}: {fail}")
@@ -195,7 +250,7 @@ def compile_beat(beat, constraints, routing):
         "audio_policy": audio_policy,
         "crop_safety": beat.get("crop_safety", "center_safe"),
         "duration_target_sec": beat.get("est_duration_sec", 6),
-        "output_path": f"assets/media/{beat.get('segment_id','seg')}/{bid}.mp4",
+        "output_path": f"assets/media/{beat.get('segment_id','seg')}/{bid}.mp4",  # CDB-02: overwritten by clip_db when project_id present
         "positive_prompt": positive,
         "negative_prompt": negative,
         "model": model,
@@ -204,6 +259,11 @@ def compile_beat(beat, constraints, routing):
         "asset_type": asset_type,
         "model_tier": beat.get("model_tier"),
         "prompt_class": beat.get("prompt_class"),
+        # Production storyboard timing (carried for downstream slice/generate)
+        "audio_start_sec": beat.get("audio_start_sec"),
+        "audio_end_sec": beat.get("audio_end_sec"),
+        "audio_duration_sec": beat.get("audio_duration_sec"),
+        "source_beat_id": beat.get("source_beat_id"),
         "shots_per_beat": beat.get("shots_per_beat", 1),
         "reference_images": refs,
         "lipsync_required": beat.get("lipsync_required", False),
@@ -211,7 +271,7 @@ def compile_beat(beat, constraints, routing):
         "narration_word_span": beat.get("narration_word_span"),
         "audio_slice": beat.get("audio_slice"),
         "overlay": beat.get("overlay"),
-        "graphic": beat.get("graphic"),
+        "graphics": beat.get("graphics") or (beat.get("graphic") and [beat.get("graphic")]) or [],
         "narrative_function": beat.get("narrative_function"),
         "music_duck": beat.get("music_duck", False),
         "cost": {"est_clips": max(1, clips) if asset_type not in LOCAL_SHOT_TYPES else 0,
@@ -223,7 +283,7 @@ def compile_beat(beat, constraints, routing):
     }
     if is_hero:
         entry["camera_angle_id"] = "STUDIO_LIBRARY_MEDIUM_DESK_001"
-    return entry, errors
+    return entry, errors, warnings
 
 
 def _scene_type(shot_type):
@@ -263,7 +323,13 @@ def _compose_positive(beat, constraints):
     if beat["shot_type"] in HERO_SHOT_TYPES:
         ident = ("James Harrington — the SAME person as the reference image: ~60yo British "
                  "man, silver-grey hair, navy sweater over white Oxford collar, calm authority")
-        return f"{base} {ident}. {pal}. {light}. Photorealistic, cinematic, 16:9."
+        # Composition/proportion lock: prevents the desk being rendered too high (which
+        # dwarfs the subject / makes him look child-sized). Anchors adult proportions.
+        framing = ("Seated upright at natural adult proportions, FOREARMS RESTING on the "
+                   "desk surface, the desktop at his lower-chest/waist height (NOT up at his "
+                   "neck or shoulders), shoulders and upper torso clearly above the desk, "
+                   "eyeline at upper third of frame")
+        return f"{base} {ident}. {framing}. {pal}. {light}. Photorealistic, cinematic, 16:9."
     return f"{base} {pal}. {light}. Photorealistic, cinematic, 16:9. No people in close-up unless specified."
 
 
@@ -295,9 +361,18 @@ def slice_hero_beats(plan_beats, storyboard, project_dir, constraints=None):
     for b in plan_beats:
         seg_all_beats.setdefault(b.get("segment_id", ""), []).append(b)
 
+    # Continuous-voiceover projects have ONE master, not per-segment files. In that
+    # case defer hero slicing to slice_continuous_lipsync.py (run after compile) and
+    # do not error on missing per-segment narration.
+    continuous_master = narration_dir / "continuous.mp3"
+    continuous_mode = continuous_master.exists() and not any(
+        (narration_dir / f"{sid}.mp3").exists() for sid in seg_lipsync)
+
     for seg_id, lipsync_beats in seg_lipsync.items():
         mp3 = narration_dir / f"{seg_id}.mp3"
         if not mp3.exists():
+            if continuous_mode:
+                continue  # slices come from the continuous master post-compile
             errors.append(f"narration file missing for segment {seg_id}: {mp3}")
             continue
 
@@ -401,7 +476,18 @@ def slice_hero_beats(plan_beats, storyboard, project_dir, constraints=None):
                 # to a still, so pad it up with room tone here.
                 min_clip = ((constraints or {}).get("lipsync_render_rules", {})
                             .get("min_clip_duration_sec", 4))
+                max_clip = ((constraints or {}).get("lipsync_render_rules", {})
+                            .get("max_clip_duration_sec", 15))
                 padded_len = max(math.ceil(speech_len + 0.2), int(min_clip))
+                # R3: Reject any lipsync beat that exceeds the render limit. This
+                # should never happen if storyboard split correctly — if it does,
+                # force a re-split rather than clamp (clamping causes desync).
+                if padded_len > max_clip:
+                    errors.append(
+                        f"{b['beat_id']}: padded_len {padded_len}s exceeds render limit "
+                        f"{max_clip}s — storyboard must split this beat (never clamp)")
+                    cum_words += wc
+                    continue
                 slice_end = round(slice_start + padded_len, 3)
                 slice_end = min(slice_end, total_dur + 0.5)  # don't exceed source + margin
 
@@ -570,15 +656,73 @@ def assign_lipsync_references(plan_beats, routing):
     return errors, warnings
 
 
-def compile_plan(storyboard, constraints, routing, project_dir=None):
+def _expand_coverage_slots(entry, beat_input, constraints, routing):
+    """PTC-07: expand a compiled beat into per-slot assets if it has a multi-slot coverage_plan.
+
+    Returns a list of media-plan asset entries (1 if no expansion needed).
+    Backward compat: beats without coverage_plan produce one asset (the entry itself).
+    """
+    coverage = beat_input.get("coverage_plan")
+    if not coverage or len(coverage) <= 1:
+        return [entry]
+
+    project_id = entry.get("segment_id", "seg")
+    beat_id = entry["beat_id"]
+    source_beat_id = beat_input.get("source_beat_id", beat_id)
+    assets = []
+    for i, slot in enumerate(coverage):
+        slot_id = slot.get("slot_id", f"{beat_id}-s{i}")
+        slot_asset_type = slot.get("asset_type", entry["asset_type"])
+        slot_model = slot.get("model", entry["model"])
+        slot_dur = slot["required_duration_sec"]
+
+        # Per-slot cost
+        is_local = (slot_asset_type in LOCAL_SHOT_TYPES or
+                    slot_asset_type == "local_graphic" or slot_model == "local_graphic")
+        if is_local:
+            usd, cred = 0.0, 0.0
+            slot_model = "local_graphic"
+        else:
+            usd, cred = cost_for(slot_model, 1, routing)
+
+        asset = dict(entry)
+        asset["media_plan_asset_id"] = f"{beat_id}-{slot_id}" if not slot_id.startswith(beat_id) else slot_id
+        asset["source_beat_id"] = source_beat_id
+        asset["production_beat_id"] = beat_id
+        asset["coverage_slot_id"] = slot_id
+        asset["required_start_sec"] = slot["required_start_sec"]
+        asset["required_end_sec"] = slot["required_end_sec"]
+        asset["required_duration_sec"] = slot_dur
+        asset["duration_target_sec"] = slot_dur
+        asset["asset_type"] = slot_asset_type
+        asset["model"] = slot_model
+        asset["output_path"] = f"assets/media/{project_id}/{beat_id}_{slot_id}.mp4"  # CDB-02: overwritten by clip_db
+        asset["cost"] = {"est_clips": 0 if is_local else 1,
+                         "est_credits": cred, "est_usd": usd}
+        assets.append(asset)
+    return assets
+
+
+def compile_plan(storyboard, constraints, routing, project_dir=None, db_path=None):
     beats_in = storyboard.get("beats", [])
     plan_beats = []
     all_errors = []
     plan_warnings = []
     for b in beats_in:
-        entry, errs = compile_beat(b, constraints, routing)
-        plan_beats.append(entry)
+        entry, errs, beat_warns = compile_beat(b, constraints, routing)
+        expanded = _expand_coverage_slots(entry, b, constraints, routing)
+        plan_beats.extend(expanded)
         all_errors.extend(errs)
+        plan_warnings.extend(beat_warns)
+
+    # PST-06: verify production storyboard traceability — every beat must have source_beat_id.
+    if storyboard.get("reconciled_from") or storyboard.get("production"):
+        missing_source = [b.get("beat_id", f"idx{i}") for i, b in enumerate(beats_in)
+                          if not b.get("source_beat_id")]
+        if missing_source:
+            all_errors.append(
+                f"Production storyboard beats missing source_beat_id ({len(missing_source)}): "
+                f"{', '.join(missing_source[:5])}")
 
     # T3 (LIPSYNC_TICKETS): generate audio slices for hero_lipsync beats.
     if project_dir:
@@ -591,17 +735,72 @@ def compile_plan(storyboard, constraints, routing, project_dir=None):
     all_errors.extend(ref_errors)
     plan_warnings.extend(ref_warnings)
 
+    # R8/D5: Assert every hero beat's reference is in the active set (lock enforcement).
+    lipsync_cfg = routing.get("lipsync_references", {})
+    active_set_name = lipsync_cfg.get("active_set")
+    if active_set_name:
+        active_frames = lipsync_cfg.get("sets", {}).get(active_set_name, {}).get("frames", [])
+        active_paths = {f.get("path") for f in active_frames if f.get("path")}
+        for b in plan_beats:
+            if b.get("lipsync_required"):
+                refs = b.get("reference_images") or []
+                for rp in refs:
+                    if rp and rp not in active_paths:
+                        plan_warnings.append(
+                            f"{b['beat_id']}: reference {Path(rp).name} not in active set "
+                            f"'{active_set_name}' — wardrobe/identity drift risk")
+
     # T4: merge consecutive hero_lipsync chains ≤15s into render groups.
     _merge_lipsync_chains(plan_beats, project_dir)
 
     # T1 (LIPSYNC_TICKETS): every hero_lipsync beat MUST have audio_slice after compile.
-    # Missing slice = hard fail listing all offending beat ids.
+    # slice_lipsync is a DOWNSTREAM step (runs after compile_media_plan in produce.py),
+    # so missing slices at compile time are expected — emit a warning, not an error.
     sliceless = [b["beat_id"] for b in plan_beats
                  if b.get("lipsync_required") and not b.get("audio_slice")]
     if sliceless:
-        all_errors.append(
+        plan_warnings.append(
             f"hero_lipsync beats without audio_slice ({len(sliceless)}): "
-            f"{', '.join(sliceless)}. Wire audio_timing.py to populate slices before compile.")
+            f"{', '.join(sliceless)}. slice_lipsync step will populate these.")
+
+    # CDB-02: Order all plan beats through clip_db — the DB assigns canonical paths/IDs.
+    project_id = storyboard.get("project_id")
+    if project_id:
+        import clip_db as _clip_db
+        _clip_db.init_db(db_path=db_path)
+        for b in plan_beats:
+            _b_segment = b.get("segment_id") or "seg"
+            _b_prod_id = b.get("production_beat_id") or b["beat_id"]
+            _b_source_id = b.get("source_beat_id") or _b_prod_id
+            _b_slot_id = b.get("coverage_slot_id")
+            _b_start = b.get("required_start_sec") or b.get("audio_start_sec") or 0.0
+            _b_end = b.get("required_end_sec") or b.get("audio_end_sec") or _b_start + b.get("duration_target_sec", 5.0)
+            _plan_sha = hashlib.sha256(json.dumps(
+                {k: b.get(k) for k in ("beat_id", "segment_id", "model", "asset_type",
+                                        "audio_policy", "lipsync_required", "duration_target_sec",
+                                        "coverage_slot_id", "required_start_sec", "required_end_sec")},
+                sort_keys=True).encode()).hexdigest()
+            row = _clip_db.order_clip(
+                project_id=project_id,
+                source_beat_id=_b_source_id,
+                production_beat_id=_b_prod_id,
+                segment_id=_b_segment,
+                asset_type=b.get("asset_type", "generated_video"),
+                model=b.get("model"),
+                audio_policy=b.get("audio_policy", "strip"),
+                lipsync_required=b.get("lipsync_required", False),
+                required_start_sec=_b_start,
+                required_end_sec=_b_end,
+                slot_id=_b_slot_id,
+                split_index=b.get("split_index"),
+                split_total=b.get("split_total"),
+                speech_len_sec=b.get("audio_slice", {}).get("speech_len_sec") if isinstance(b.get("audio_slice"), dict) else None,
+                plan_sha256=_plan_sha,
+                db_path=db_path,
+            )
+            # DB-authoritative path and clip_id written back into plan beat
+            b["output_path"] = row["output_path"]
+            b["clip_id"] = row["clip_id"]
 
     total_usd = round(sum(b["cost"]["est_usd"] for b in plan_beats), 2)
     total_cred = round(sum(b["cost"]["est_credits"] for b in plan_beats), 1)

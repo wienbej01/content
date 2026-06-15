@@ -1,0 +1,15 @@
+beat_id,source_beat_id,audio_start,audio_end,duration,treatment,n_slots,coverage_complete
+B001,B001,0.0,13.994,13.994,hero_cutaway,3,True
+B002,B002,13.994,18.658,4.664,hero_lipsync,1,True
+B003,B003,18.658,37.552,18.894,broll,4,True
+B004,B004,37.552,43.313,5.761,hero_lipsync,1,True
+B005,B005,43.313,64.914,21.601,broll,4,True
+B006a,B006,64.914,72.378,7.464,hero_lipsync,1,True
+B006b,B006,72.378,75.54,3.162,hero_lipsync,1,True
+B007,B007,75.54,86.627,11.087,broll,2,True
+B008a,B008,86.627,95.068,8.441,hero_lipsync,1,True
+B008b,B008,95.068,101.749,6.681,hero_lipsync,1,True
+B008c,B008,101.749,110.516,8.767,hero_lipsync,1,True
+B009,B009,110.516,133.938,23.422,hero_cutaway,4,True
+B010a,B010,133.938,142.654,8.716,hero_lipsync,1,True
+B010b,B010,142.654,146.599,3.945,hero_lipsync,1,True

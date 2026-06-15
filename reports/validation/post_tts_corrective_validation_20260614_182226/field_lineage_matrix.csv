@@ -1,0 +1,15 @@
+field,creative_storyboard,production_storyboard,media_plan,render_graphics,assembly,status
+beat_id,beat_id,beat_id,beat_id,beat_id,beat_id,OK
+source_beat_id,N/A,source_beat_id,source_beat_id (expanded only),N/A,N/A,PARTIAL — missing for single-slot beats
+shot_type,shot_type,shot_type (may be rerouted),shot_type,N/A,N/A,OK
+visual_brief,visual_brief,visual_brief (carried),positive_prompt (derived),N/A,N/A,OK
+narration_text,narration_text,narration_text (immutable),narration_text,N/A,narration overlay,OK
+graphic (singular),graphic={...},N/A (not carried as singular),beat.get('graphic') → None,beat.get('graphic') → None,N/A,BROKEN — field name mismatch
+graphics (plural),N/A,graphics=[{...}] (normalized from singular),NOT READ,NOT READ,N/A,BROKEN — never consumed downstream
+coverage_plan,N/A,coverage_plan=[{slot...}],expanded to per-slot assets,N/A,N/A,OK
+timing_provenance,N/A,timing_provenance={method...},N/A,N/A,N/A,OK — informational
+audio_slice,N/A,N/A,audio_slice={file/sha/timing},N/A,assembly reads it,OK (when project_dir provided)
+lipsync_required,lipsync_required,lipsync_required,lipsync_required,N/A,determines audio mode,OK
+model,model_tier → routing,inherited/rerouted,model (concrete),N/A,N/A,OK
+cost,N/A,N/A,cost={clips/credits/usd},N/A,N/A,OK
+reroute,N/A,reroute={from/to/reason},N/A,N/A,N/A,OK — informational

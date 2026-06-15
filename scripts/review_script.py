@@ -34,6 +34,54 @@ PERSONA_WEIGHTS = {
 WEIGHTED_PASS_THRESHOLD = 3.0  # weighted average score must be ≥ this to proceed
 
 
+def detect_repetition(script):
+    """R4/D1: deterministic stutter pre-filter. Check for N-gram repetition and
+    adjacent near-duplicate sentences BEFORE spending on LLM personas.
+
+    Returns (is_blocking: bool, reason: str or None).
+    """
+    import re
+    from collections import Counter
+
+    # Extract full script text
+    text = " ".join(seg.get("text", "") for seg in script.get("segments", []))
+    if not text.strip():
+        return False, None
+
+    # Load threshold from constraints.json
+    cpath = ROOT / "docs" / "channel_universe" / "constraints.json"
+    max_ratio = 0.12  # default
+    if cpath.exists():
+        c = json.loads(cpath.read_text())
+        max_ratio = c.get("qa_thresholds", {}).get("max_ngram_repetition", 0.12)
+
+    words = re.findall(r"[a-z]+", text.lower())
+    if len(words) < 20:
+        return False, None
+
+    # 5-gram repetition ratio
+    ngrams_5 = [tuple(words[i:i+5]) for i in range(len(words) - 4)]
+    counts = Counter(ngrams_5)
+    repeated = sum(c - 1 for c in counts.values() if c > 1)
+    ratio = repeated / len(ngrams_5) if ngrams_5 else 0
+
+    if ratio > max_ratio:
+        # Find the most repeated phrase
+        top = counts.most_common(1)[0]
+        return True, (f"machine repetition: 5-gram ratio {ratio:.2%} > {max_ratio:.0%} "
+                      f"(top: '{' '.join(top[0])}' x{top[1]})")
+
+    # Adjacent near-duplicate sentences (within 5-sentence window)
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    for i in range(len(sentences)):
+        for j in range(i + 1, min(i + 5, len(sentences))):
+            if sentences[i].strip() == sentences[j].strip() and len(sentences[i].split()) > 4:
+                return True, (f"verbatim sentence repeat within 5-sentence window: "
+                              f"'{sentences[i][:60]}...'")
+
+    return False, None
+
+
 def load_persona_prompt(persona):
     p = PROMPTS_DIR / f"{persona}.md"
     if not p.exists():
@@ -69,6 +117,21 @@ def run_review(script_path, personas=None, dry_run=False, output_path=None):
     from llm_call import llm_call
 
     script = json.load(open(script_path))
+
+    # R4: Deterministic stutter pre-filter — instant fail, no LLM spend.
+    is_blocking, reason = detect_repetition(script)
+    if is_blocking:
+        report = {
+            "script": str(script_path),
+            "status": "fail",
+            "blocking_issues": [f"REPETITION_GATE: {reason}"],
+            "reviews": [],
+            "note": "LLM personas SKIPPED — deterministic pre-filter tripped.",
+        }
+        if output_path:
+            Path(output_path).write_text(json.dumps(report, indent=2))
+        return report
+
     if personas is None:
         personas = PERSONAS
 

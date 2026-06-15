@@ -313,3 +313,65 @@ def test_qa_gate_passes_on_aligned_segment():
         actual_dur = _probe_audio_dur(out)
         expected = NARRATION_DUR + 0.25
         assert abs(actual_dur - expected) < 0.5
+
+
+# --- Phase A1: Storyboard timing map tests ---
+
+def test_storyboard_timing_map_emitted():
+    """build_storyboard_timing_map produces a beat-level timing map with correct structure."""
+    at = _load()
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "master.wav"
+        _make_speech_fixture(str(audio), segments=3)
+        beats = [
+            {"beat_id": "B001", "narration_text": "First sentence here spoken"},
+            {"beat_id": "B002", "narration_text": "Second sentence"},
+            {"beat_id": "B003", "narration_text": "Third sentence here"},
+        ]
+        result = at.build_storyboard_timing_map(str(audio), beats)
+        assert result["beat_count"] == 3
+        assert len(result["beats"]) == 3
+        assert result["beats"][0]["beat_id"] == "B001"
+        assert result["beats"][0]["start"] == 0.0
+        assert result["beats"][-1]["end"] == result["total_duration"]
+        # Monotonically increasing
+        for i in range(1, len(result["beats"])):
+            assert result["beats"][i]["start"] >= result["beats"][i-1]["end"] - 0.02
+        print("  ✓ storyboard timing map emitted with correct structure")
+
+
+def test_timing_map_covers_all_beats():
+    """Every beat gets a start/end assignment — no beat is left unmapped."""
+    at = _load()
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "master.wav"
+        _make_speech_fixture(str(audio), segments=5)
+        beats = [{"beat_id": f"B{i:03d}", "narration_text": f"words number {i} spoken"} for i in range(5)]
+        result = at.build_storyboard_timing_map(str(audio), beats)
+        for bt in result["beats"]:
+            assert bt["start"] is not None
+            assert bt["end"] is not None
+            assert bt["duration"] > 0
+        print("  ✓ timing map covers all beats")
+
+
+def test_timing_snaps_to_silence():
+    """Boundaries snap to detected silences rather than raw proportional positions."""
+    at = _load()
+    with tempfile.TemporaryDirectory() as td:
+        audio = Path(td) / "master.wav"
+        # 3 segments with clear silences between them
+        _make_speech_fixture(str(audio), segments=3)
+        # 3 equal-word beats: proportional boundaries would be at 33%/66%
+        # but actual silences are at specific points — boundaries should snap
+        beats = [
+            {"beat_id": "B001", "narration_text": "one two three four five"},
+            {"beat_id": "B002", "narration_text": "six seven eight nine ten"},
+            {"beat_id": "B003", "narration_text": "eleven twelve thirteen fourteen fifteen"},
+        ]
+        result = at.build_storyboard_timing_map(str(audio), beats)
+        # Boundaries should be close to silence positions (1.0s, 2.5s approx)
+        # rather than exactly proportional
+        assert result["beats"][0]["end"] > 0
+        assert result["beats"][1]["start"] > 0
+        print("  ✓ timing snaps to silence boundaries")

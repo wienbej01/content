@@ -96,13 +96,34 @@ def test_dry_run_no_files_created(GM):
 
 
 def test_still_kenburns_local_render(GM):
-    """still_kenburns must render locally with zero Higgsfield cost."""
+    """still_kenburns: with a reference image, renders a real moving file at $0.
+    Without a reference, it MUST hard-fail (never emit a solid/blank frame)."""
+    import subprocess, tempfile
     beat = _mini_plan()["beats"][3]
-    out = GM.ROOT / "Videos" / "Projects" / "t_proj" / "B004.mp4"
-    res = GM._still_kenburns(beat, out, dry_run=False)
+
+    # No reference → must hard-fail (the safety contract: no blank frames)
+    out_nofile = GM.ROOT / "Videos" / "Projects" / "t_proj" / "B004_noref.mp4"
+    res = GM._still_kenburns(beat, out_nofile, dry_run=False)
     assert res["cost_usd"] == 0.0
-    assert out.exists(), "kenburns should produce a real file"
-    print("  ✓ still_kenburns renders locally at $0")
+    assert res.get("status") == "fail" and "error" in res, \
+        "still_kenburns with no reference must hard-fail, not emit a blank frame"
+    assert not out_nofile.exists(), "must NOT produce a file when no reference"
+
+    # With a reference image → renders a real file at $0
+    with tempfile.TemporaryDirectory() as td:
+        ref = Path(td) / "ref.png"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i",
+                        "testsrc2=size=1280x720:d=1", "-frames:v", "1", str(ref)],
+                       capture_output=True, check=True)
+        beat2 = dict(beat)
+        beat2["reference_images"] = [str(ref.relative_to(GM.ROOT)) if str(ref).startswith(str(GM.ROOT)) else str(ref)]
+        # Use absolute path so the resolver finds it
+        beat2["reference_images"] = [str(ref)]
+        out = Path(td) / "B004.mp4"
+        res2 = GM._still_kenburns(beat2, out, dry_run=False)
+        assert res2["cost_usd"] == 0.0
+        assert out.exists(), "kenburns with a reference should produce a real file"
+    print("  ✓ still_kenburns: renders with ref at $0; hard-fails (no blank) without ref")
 
 
 def test_reuse_lookup(GM):

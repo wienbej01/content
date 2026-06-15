@@ -26,7 +26,20 @@ kiro-cli settings chat.enableKnowledge true   # if not already on (knowledge bas
 # kiro-cli agent set-default ytbuilder   # or use /agent set-default ytbuilder in chat
 ```
 
-## Starting a work session
+## Producing a video (the primary execution method)
+
+For content production (P6+), use the single-command orchestrator:
+
+```bash
+python3 scripts/produce.py --seed "your topic" --format short    # new video
+python3 scripts/produce.py --resume Videos/Projects/<dir>        # resume interrupted run
+```
+
+This runs the full 16-step pipeline automatically (research → script → review → storyboard →
+review → TTS → compile → generate → QA → assemble), pausing only at two human gates (budget
+approval + final review). See **docs/PIPELINE.md** for complete documentation.
+
+## Starting a planning/development session
 
 ```bash
 cd ~/YTchannel

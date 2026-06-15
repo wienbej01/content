@@ -1,0 +1,16 @@
+{
+  "video": "Videos/Projects/using_ai_to_help_memory_retention_short/using_ai_to_help_memory_retention_short_16x9.mp4",
+  "video_duration": 146.6,
+  "audio_duration": 146.6,
+  "freeze_spans": [],
+  "black_spans": [],
+  "thresholds": {
+    "max_freeze_sec": 1.5,
+    "max_black_sec": 0.2,
+    "length_tol_sec": 0.5,
+    "tail_tol_sec": 0.5,
+    "transition_window_sec": 0.3
+  },
+  "issues": [],
+  "status": "pass"
+}

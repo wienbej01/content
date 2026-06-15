@@ -1,0 +1,1572 @@
+{
+  "schema_version": "media_plan_2.0",
+  "project_id": "using_ai_to_help_memory_retention_short",
+  "video_type": null,
+  "source_storyboard": "",
+  "compiled_at": "2026-06-14T18:25:01",
+  "beats": [
+    {
+      "beat_id": "B001",
+      "segment_id": "001_hook",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.665,
+      "output_path": "assets/media/001_hook/B001_B001-s0.mp4",
+      "positive_prompt": "60-year-old man, silver hair, navy sweater over white Oxford collar, leaning slightly forward at a dark mahogany desk, speaking directly to camera with calm authority. Behind him: floor-to-ceiling built-in off-white bookshelves filled with mixed-spine books. Brass adjustable-arm task lamp at left casts warm directional light across the desk. Open dark-cover notebook visible. Medium close-up, shallow depth of field, background soft but present. Warm color temperature, restrained cinematic grade, 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Every time you ask AI for an answer you already half-know \u2014 you're making a small withdrawal from your own memory.",
+      "narration_word_span": [
+        0,
+        21
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Open loop \u2014 introduces the withdrawal metaphor and stakes a provocative claim before evidence is presented",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B001-s0",
+      "source_beat_id": "B001",
+      "production_beat_id": "B001",
+      "coverage_slot_id": "B001-s0",
+      "required_start_sec": 0.0,
+      "required_end_sec": 4.665,
+      "required_duration_sec": 4.665
+    },
+    {
+      "beat_id": "B001",
+      "segment_id": "001_hook",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.664,
+      "output_path": "assets/media/001_hook/B001_B001-s1.mp4",
+      "positive_prompt": "60-year-old man, silver hair, navy sweater over white Oxford collar, leaning slightly forward at a dark mahogany desk, speaking directly to camera with calm authority. Behind him: floor-to-ceiling built-in off-white bookshelves filled with mixed-spine books. Brass adjustable-arm task lamp at left casts warm directional light across the desk. Open dark-cover notebook visible. Medium close-up, shallow depth of field, background soft but present. Warm color temperature, restrained cinematic grade, 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Every time you ask AI for an answer you already half-know \u2014 you're making a small withdrawal from your own memory.",
+      "narration_word_span": [
+        0,
+        21
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Open loop \u2014 introduces the withdrawal metaphor and stakes a provocative claim before evidence is presented",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B001-s1",
+      "source_beat_id": "B001",
+      "production_beat_id": "B001",
+      "coverage_slot_id": "B001-s1",
+      "required_start_sec": 4.665,
+      "required_end_sec": 9.329,
+      "required_duration_sec": 4.664
+    },
+    {
+      "beat_id": "B001",
+      "segment_id": "001_hook",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.665,
+      "output_path": "assets/media/001_hook/B001_B001-s2.mp4",
+      "positive_prompt": "60-year-old man, silver hair, navy sweater over white Oxford collar, leaning slightly forward at a dark mahogany desk, speaking directly to camera with calm authority. Behind him: floor-to-ceiling built-in off-white bookshelves filled with mixed-spine books. Brass adjustable-arm task lamp at left casts warm directional light across the desk. Open dark-cover notebook visible. Medium close-up, shallow depth of field, background soft but present. Warm color temperature, restrained cinematic grade, 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Every time you ask AI for an answer you already half-know \u2014 you're making a small withdrawal from your own memory.",
+      "narration_word_span": [
+        0,
+        21
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Open loop \u2014 introduces the withdrawal metaphor and stakes a provocative claim before evidence is presented",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B001-s2",
+      "source_beat_id": "B001",
+      "production_beat_id": "B001",
+      "coverage_slot_id": "B001-s2",
+      "required_start_sec": 9.329,
+      "required_end_sec": 13.994,
+      "required_duration_sec": 4.665
+    },
+    {
+      "beat_id": "B002",
+      "segment_id": "001_hook",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4,
+      "output_path": "assets/media/001_hook/B002.mp4",
+      "positive_prompt": "Continuous from B001. Same framing: 60-year-old silver-haired man at mahogany desk, navy sweater, brass lamp warm side-light, off-white bookshelves behind. He holds eye contact after speaking, a beat of deliberate stillness. Shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "And the research says those withdrawals compound.",
+      "narration_word_span": [
+        21,
+        28
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Close the hook beat \u2014 delivers the compound-interest implication that creates urgency to keep watching",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B003",
+      "segment_id": "002_proof",
+      "scene_type": "B_ROLL_SUPPORTING_VISUAL",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.724,
+      "output_path": "assets/media/002_proof/B003_B003-s0.mp4",
+      "positive_prompt": "University library interior, evening. A student sits at a dark wood table, laptop open in front of them, leaning back passively. A chat interface glows on the laptop screen \u2014 text deliberately out of focus and unreadable. A closed textbook sits pushed to the side. Warm amber table lamp beside them. Dark wood shelving softly out of focus behind. Slow push-in toward the screen. Shallow depth of field. Restrained cinematic grade, warm tones, no neon, no logos. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_environment",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "environment_broll",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "narration_word_span": [
+        28,
+        56
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Visual proof anchor \u2014 makes the RCT finding concrete without requiring James on screen; passive retrieval mode shown behaviorally",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B003-s0",
+      "source_beat_id": "B003",
+      "production_beat_id": "B003",
+      "coverage_slot_id": "B003-s0",
+      "required_start_sec": 18.658,
+      "required_end_sec": 23.382,
+      "required_duration_sec": 4.724
+    },
+    {
+      "beat_id": "B003",
+      "segment_id": "002_proof",
+      "scene_type": "B_ROLL_SUPPORTING_VISUAL",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.723,
+      "output_path": "assets/media/002_proof/B003_B003-s1.mp4",
+      "positive_prompt": "University library interior, evening. A student sits at a dark wood table, laptop open in front of them, leaning back passively. A chat interface glows on the laptop screen \u2014 text deliberately out of focus and unreadable. A closed textbook sits pushed to the side. Warm amber table lamp beside them. Dark wood shelving softly out of focus behind. Slow push-in toward the screen. Shallow depth of field. Restrained cinematic grade, warm tones, no neon, no logos. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_environment",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "environment_broll",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "narration_word_span": [
+        28,
+        56
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Visual proof anchor \u2014 makes the RCT finding concrete without requiring James on screen; passive retrieval mode shown behaviorally",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B003-s1",
+      "source_beat_id": "B003",
+      "production_beat_id": "B003",
+      "coverage_slot_id": "B003-s1",
+      "required_start_sec": 23.382,
+      "required_end_sec": 28.105,
+      "required_duration_sec": 4.723
+    },
+    {
+      "beat_id": "B003",
+      "segment_id": "002_proof",
+      "scene_type": "B_ROLL_SUPPORTING_VISUAL",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.724,
+      "output_path": "assets/media/002_proof/B003_B003-s2.mp4",
+      "positive_prompt": "University library interior, evening. A student sits at a dark wood table, laptop open in front of them, leaning back passively. A chat interface glows on the laptop screen \u2014 text deliberately out of focus and unreadable. A closed textbook sits pushed to the side. Warm amber table lamp beside them. Dark wood shelving softly out of focus behind. Slow push-in toward the screen. Shallow depth of field. Restrained cinematic grade, warm tones, no neon, no logos. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_environment",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "environment_broll",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "narration_word_span": [
+        28,
+        56
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Visual proof anchor \u2014 makes the RCT finding concrete without requiring James on screen; passive retrieval mode shown behaviorally",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B003-s2",
+      "source_beat_id": "B003",
+      "production_beat_id": "B003",
+      "coverage_slot_id": "B003-s2",
+      "required_start_sec": 28.105,
+      "required_end_sec": 32.829,
+      "required_duration_sec": 4.724
+    },
+    {
+      "beat_id": "B003",
+      "segment_id": "002_proof",
+      "scene_type": "B_ROLL_SUPPORTING_VISUAL",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4.723,
+      "output_path": "assets/media/002_proof/B003_B003-s3.mp4",
+      "positive_prompt": "University library interior, evening. A student sits at a dark wood table, laptop open in front of them, leaning back passively. A chat interface glows on the laptop screen \u2014 text deliberately out of focus and unreadable. A closed textbook sits pushed to the side. Warm amber table lamp beside them. Dark wood shelving softly out of focus behind. Slow push-in toward the screen. Shallow depth of field. Restrained cinematic grade, warm tones, no neon, no logos. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_environment",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "environment_broll",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "A 2025 randomised controlled trial found that students who used ChatGPT to retrieve direct answers retained less knowledge long-term than those who did not use it at all.",
+      "narration_word_span": [
+        28,
+        56
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Visual proof anchor \u2014 makes the RCT finding concrete without requiring James on screen; passive retrieval mode shown behaviorally",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B003-s3",
+      "source_beat_id": "B003",
+      "production_beat_id": "B003",
+      "coverage_slot_id": "B003-s3",
+      "required_start_sec": 32.829,
+      "required_end_sec": 37.552,
+      "required_duration_sec": 4.723
+    },
+    {
+      "beat_id": "B004",
+      "segment_id": "002_proof",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 4,
+      "output_path": "assets/media/002_proof/B004.mp4",
+      "positive_prompt": "Return to canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Leans slightly forward as he delivers the line, measured and unhurried. Brass task lamp side-light from left. Off-white built-in bookshelves behind. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The tool wasn't neutral. It actively worked against them.",
+      "narration_word_span": [
+        56,
+        65
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Punch-line delivery of the study's counter-intuitive finding \u2014 James's presence makes the claim accountable",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B005",
+      "segment_id": "002_proof",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.4,
+      "output_path": "assets/media/002_proof/B005_B005-s0.mp4",
+      "positive_prompt": "Dark mahogany desk surface under warm brass lamp light. A hand writes in a dark-cover notebook \u2014 mid-sentence the pen pauses, is set down, and a hand picks up a phone instead. The notebook page sits unfinished. Slow tilt from desk surface upward. Notebook text is intentionally illegible. No faces in frame. Warm amber tones, shallow DOF, restrained cinematic grade. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "narration_word_span": [
+        65,
+        97
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Illustrates the digital amnesia mechanism behaviourally \u2014 the moment retrieval is offloaded \u2014 making the muscle metaphor visual",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B005-s0",
+      "source_beat_id": "B005",
+      "production_beat_id": "B005",
+      "coverage_slot_id": "B005-s0",
+      "required_start_sec": 43.313,
+      "required_end_sec": 48.713,
+      "required_duration_sec": 5.4
+    },
+    {
+      "beat_id": "B005",
+      "segment_id": "002_proof",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.401,
+      "output_path": "assets/media/002_proof/B005_B005-s1.mp4",
+      "positive_prompt": "Dark mahogany desk surface under warm brass lamp light. A hand writes in a dark-cover notebook \u2014 mid-sentence the pen pauses, is set down, and a hand picks up a phone instead. The notebook page sits unfinished. Slow tilt from desk surface upward. Notebook text is intentionally illegible. No faces in frame. Warm amber tones, shallow DOF, restrained cinematic grade. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "narration_word_span": [
+        65,
+        97
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Illustrates the digital amnesia mechanism behaviourally \u2014 the moment retrieval is offloaded \u2014 making the muscle metaphor visual",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B005-s1",
+      "source_beat_id": "B005",
+      "production_beat_id": "B005",
+      "coverage_slot_id": "B005-s1",
+      "required_start_sec": 48.713,
+      "required_end_sec": 54.114,
+      "required_duration_sec": 5.401
+    },
+    {
+      "beat_id": "B005",
+      "segment_id": "002_proof",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.4,
+      "output_path": "assets/media/002_proof/B005_B005-s2.mp4",
+      "positive_prompt": "Dark mahogany desk surface under warm brass lamp light. A hand writes in a dark-cover notebook \u2014 mid-sentence the pen pauses, is set down, and a hand picks up a phone instead. The notebook page sits unfinished. Slow tilt from desk surface upward. Notebook text is intentionally illegible. No faces in frame. Warm amber tones, shallow DOF, restrained cinematic grade. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "narration_word_span": [
+        65,
+        97
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Illustrates the digital amnesia mechanism behaviourally \u2014 the moment retrieval is offloaded \u2014 making the muscle metaphor visual",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B005-s2",
+      "source_beat_id": "B005",
+      "production_beat_id": "B005",
+      "coverage_slot_id": "B005-s2",
+      "required_start_sec": 54.114,
+      "required_end_sec": 59.514,
+      "required_duration_sec": 5.4
+    },
+    {
+      "beat_id": "B005",
+      "segment_id": "002_proof",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.4,
+      "output_path": "assets/media/002_proof/B005_B005-s3.mp4",
+      "positive_prompt": "Dark mahogany desk surface under warm brass lamp light. A hand writes in a dark-cover notebook \u2014 mid-sentence the pen pauses, is set down, and a hand picks up a phone instead. The notebook page sits unfinished. Slow tilt from desk surface upward. Notebook text is intentionally illegible. No faces in frame. Warm amber tones, shallow DOF, restrained cinematic grade. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "There's a name for the broader pattern \u2014 digital amnesia: the more you outsource retrieval to a machine, the weaker your own retrieval pathways become. Like a muscle that is never loaded.",
+      "narration_word_span": [
+        65,
+        97
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Illustrates the digital amnesia mechanism behaviourally \u2014 the moment retrieval is offloaded \u2014 making the muscle metaphor visual",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B005-s3",
+      "source_beat_id": "B005",
+      "production_beat_id": "B005",
+      "coverage_slot_id": "B005-s3",
+      "required_start_sec": 59.514,
+      "required_end_sec": 64.914,
+      "required_duration_sec": 5.4
+    },
+    {
+      "beat_id": "B006a",
+      "segment_id": "003_flip",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 6.67,
+      "output_path": "assets/media/003_flip/B006a.mp4",
+      "positive_prompt": "Same canonical studio setup. 60-year-old man, silver hair, navy sweater, mahogany desk. He pauses before the word 'counterintuitive' \u2014 a brief dry half-smile, then returns to composed delivery. Brass lamp warm side-light. Off-white bookshelves in shallow focus behind. Medium close-up. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_THREE_QUARTER_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Here's the counterintuitive part. AI can also accelerate memory \u2014 but only through the opposite mode.",
+      "narration_word_span": [
+        97,
+        113
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Pivot beat \u2014 signals the flip without over-selling it; the half-smile earns the turn without theatrics",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B006b",
+      "segment_id": "003_flip",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 6.67,
+      "output_path": "assets/media/003_flip/B006b.mp4",
+      "positive_prompt": "Same canonical studio setup. 60-year-old man, silver hair, navy sweater, mahogany desk. He pauses before the word 'counterintuitive' \u2014 a brief dry half-smile, then returns to composed delivery. Brass lamp warm side-light. Off-white bookshelves in shallow focus behind. Medium close-up. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_SIDE_PROFILE_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "",
+      "narration_word_span": [
+        97,
+        113
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Pivot beat \u2014 signals the flip without over-selling it; the half-smile earns the turn without theatrics",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B007",
+      "segment_id": "003_flip",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.544,
+      "output_path": "assets/media/003_flip/B007_B007-s0.mp4",
+      "positive_prompt": "Modern home office, morning. A professional in their 30s\u201340s stands at a desk, looking away from a laptop screen, lips moving as they recall something, then writing in a dark notebook. Active, deliberate motion \u2014 not scrolling, not reading. Slow rack focus from hand writing to face. Notebook text unreadable. Warm window light from one side. Shallow DOF, restrained cinematic grade, warm neutral palette. No logos, no readable screens. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "Timed, active retrieval. Your brain under deliberate load. Cognitive science has consistently shown this outperforms passive re-reading.",
+      "narration_word_span": [
+        113,
+        130
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Shows the active-retrieval mode in contrast to B003 \u2014 the same format (person + device + notebook) but opposite behaviour",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B007-s0",
+      "source_beat_id": "B007",
+      "production_beat_id": "B007",
+      "coverage_slot_id": "B007-s0",
+      "required_start_sec": 75.54,
+      "required_end_sec": 81.084,
+      "required_duration_sec": 5.544
+    },
+    {
+      "beat_id": "B007",
+      "segment_id": "003_flip",
+      "scene_type": "INSERT_HANDS_WRITING",
+      "a_roll_or_b_roll": "b_roll",
+      "james_presence": "absent",
+      "location_id": "ENV_PROFESSIONAL_COMMON",
+      "camera_movement": "slow controlled move / subtle parallax",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.543,
+      "output_path": "assets/media/003_flip/B007_B007-s1.mp4",
+      "positive_prompt": "Modern home office, morning. A professional in their 30s\u201340s stands at a desk, looking away from a laptop screen, lips moving as they recall something, then writing in a dark notebook. Active, deliberate motion \u2014 not scrolling, not reading. Slow rack focus from hand writing to face. Notebook text unreadable. Warm window light from one side. Shallow DOF, restrained cinematic grade, warm neutral palette. No logos, no readable screens. 16:9. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9. No people in close-up unless specified.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "model": "local_graphic",
+      "shot_type": "broll_tactical",
+      "asset_type": "generated_video",
+      "model_tier": "standard",
+      "prompt_class": "tactical_insert",
+      "shots_per_beat": 1,
+      "reference_images": [],
+      "lipsync_required": false,
+      "narration_text": "Timed, active retrieval. Your brain under deliberate load. Cognitive science has consistently shown this outperforms passive re-reading.",
+      "narration_word_span": [
+        113,
+        130
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Shows the active-retrieval mode in contrast to B003 \u2014 the same format (person + device + notebook) but opposite behaviour",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 0,
+        "est_credits": 0.0,
+        "est_usd": 0.0
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "media_plan_asset_id": "B007-s1",
+      "source_beat_id": "B007",
+      "production_beat_id": "B007",
+      "coverage_slot_id": "B007-s1",
+      "required_start_sec": 81.084,
+      "required_end_sec": 86.627,
+      "required_duration_sec": 5.543
+    },
+    {
+      "beat_id": "B008a",
+      "segment_id": "003_flip",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 10,
+      "output_path": "assets/media/003_flip/B008a.mp4",
+      "positive_prompt": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Try asking your AI to quiz you on a decision you made last week, then defend your reasoning out loud.",
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B008b",
+      "segment_id": "003_flip",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 10,
+      "output_path": "assets/media/003_flip/B008b.mp4",
+      "positive_prompt": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The variable isn't whether you use AI.",
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B008c",
+      "segment_id": "003_flip",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 10,
+      "output_path": "assets/media/003_flip/B008c.mp4",
+      "positive_prompt": "Canonical studio. 60-year-old man, silver hair, navy sweater over white Oxford, at dark mahogany desk. Settled, unhurried delivery. He holds eye contact through the final clause \u2014 'whether your brain is working during the interaction' \u2014 with stillness used as authority. Brass adjustable-arm task lamp at left, warm side-light. Off-white built-in bookshelves behind in soft focus. Medium close-up, fractionally wider than prior James shots. Shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_THREE_QUARTER_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "It's whether your brain is working during the interaction.",
+      "narration_word_span": [
+        130,
+        166
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Delivers the core reframe and the actionable instruction \u2014 the single idea the viewer should remember and save",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B009",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.856,
+      "output_path": "assets/media/004_takeaway_cta/B009_B009-s0.mp4",
+      "positive_prompt": "Canonical studio. James Harrington, 60, silver hair, navy sweater over white Oxford, at dark mahogany desk. Slight forward lean as he delivers the opening clause, voice settles on the final phrase. Open notebook visible on desk. Brass task lamp warm side-light from left. Off-white bookshelves behind, soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "narration_word_span": [
+        166,
+        201
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Stakes the long-term consequence \u2014 frames it as a compounding professional advantage, not just a memory tip",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B009-s0",
+      "source_beat_id": "B009",
+      "production_beat_id": "B009",
+      "coverage_slot_id": "B009-s0",
+      "required_start_sec": 110.516,
+      "required_end_sec": 116.372,
+      "required_duration_sec": 5.856
+    },
+    {
+      "beat_id": "B009",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.855,
+      "output_path": "assets/media/004_takeaway_cta/B009_B009-s1.mp4",
+      "positive_prompt": "Canonical studio. James Harrington, 60, silver hair, navy sweater over white Oxford, at dark mahogany desk. Slight forward lean as he delivers the opening clause, voice settles on the final phrase. Open notebook visible on desk. Brass task lamp warm side-light from left. Off-white bookshelves behind, soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "narration_word_span": [
+        166,
+        201
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Stakes the long-term consequence \u2014 frames it as a compounding professional advantage, not just a memory tip",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B009-s1",
+      "source_beat_id": "B009",
+      "production_beat_id": "B009",
+      "coverage_slot_id": "B009-s1",
+      "required_start_sec": 116.372,
+      "required_end_sec": 122.227,
+      "required_duration_sec": 5.855
+    },
+    {
+      "beat_id": "B009",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.856,
+      "output_path": "assets/media/004_takeaway_cta/B009_B009-s2.mp4",
+      "positive_prompt": "Canonical studio. James Harrington, 60, silver hair, navy sweater over white Oxford, at dark mahogany desk. Slight forward lean as he delivers the opening clause, voice settles on the final phrase. Open notebook visible on desk. Brass task lamp warm side-light from left. Off-white bookshelves behind, soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "narration_word_span": [
+        166,
+        201
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Stakes the long-term consequence \u2014 frames it as a compounding professional advantage, not just a memory tip",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B009-s2",
+      "source_beat_id": "B009",
+      "production_beat_id": "B009",
+      "coverage_slot_id": "B009-s2",
+      "required_start_sec": 122.227,
+      "required_end_sec": 128.083,
+      "required_duration_sec": 5.856
+    },
+    {
+      "beat_id": "B009",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_CHARACTER_PRESENT_VOICEOVER",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_silent",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "over-the-shoulder desk shot",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "strip",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 5.855,
+      "output_path": "assets/media/004_takeaway_cta/B009_B009-s3.mp4",
+      "positive_prompt": "Canonical studio. James Harrington, 60, silver hair, navy sweater over white Oxford, at dark mahogany desk. Slight forward lean as he delivers the opening clause, voice settles on the final phrase. Open notebook visible on desk. Brass task lamp warm side-light from left. Off-white bookshelves behind, soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_cutaway",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/studio_library/canonical/STUDIO_CANONICAL_003_PATTERN_FRAME.jpg"
+      ],
+      "lipsync_required": true,
+      "narration_text": "The professionals who compound their expertise will be those who use AI to quiz them, push back on them, force them to explain their reasoning \u2014 not those who use it as a fast lookup.",
+      "narration_word_span": [
+        166,
+        201
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "Stakes the long-term consequence \u2014 frames it as a compounding professional advantage, not just a memory tip",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001",
+      "media_plan_asset_id": "B009-s3",
+      "source_beat_id": "B009",
+      "production_beat_id": "B009",
+      "coverage_slot_id": "B009-s3",
+      "required_start_sec": 128.083,
+      "required_end_sec": 133.938,
+      "required_duration_sec": 5.855
+    },
+    {
+      "beat_id": "B010a",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 7.92,
+      "output_path": "assets/media/004_takeaway_cta/B010a.mp4",
+      "positive_prompt": "Canonical studio, continuous from B009. James Harrington at mahogany desk, relaxed but attentive posture. Direct eye contact as he poses the question. Holds a natural beat before the CTA line. Brass lamp warm side-light, off-white bookshelves behind in soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_SIDE_PROFILE_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "In the last week, has your AI been making withdrawals or deposits?",
+      "narration_word_span": [
+        201,
+        220
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "CTA \u2014 converts the episode idea into a binary self-audit that drives comment engagement with minimal friction",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    },
+    {
+      "beat_id": "B010b",
+      "segment_id": "004_takeaway_cta",
+      "scene_type": "A_ROLL_TALKING_HEAD",
+      "a_roll_or_b_roll": "a_roll",
+      "james_presence": "present_speaking",
+      "location_id": "ENV_STUDIO_LIBRARY",
+      "camera_movement": "locked-off medium shot, slow push-in",
+      "lighting": "warm desk lamp (2700-3500K directional), soft window fill",
+      "palette": "navy #1B2A4A, gold #C8973E, ivory #F5F0E8, dark wood",
+      "text_policy": "none",
+      "audio_policy": "keep_lipsync",
+      "crop_safety": "center_safe",
+      "duration_target_sec": 7.92,
+      "output_path": "assets/media/004_takeaway_cta/B010b.mp4",
+      "positive_prompt": "Canonical studio, continuous from B009. James Harrington at mahogany desk, relaxed but attentive posture. Direct eye contact as he poses the question. Holds a natural beat before the CTA line. Brass lamp warm side-light, off-white bookshelves behind in soft focus. Medium close-up, shallow DOF. Warm restrained cinematic grade. 16:9. James Harrington \u2014 the SAME person as the reference image: ~60yo British man, silver-grey hair, navy sweater over white Oxford collar, calm authority. Seated upright at natural adult proportions, FOREARMS RESTING on the desk surface, the desktop at his lower-chest/waist height (NOT up at his neck or shoulders), shoulders and upper torso clearly above the desk, eyeline at upper third of frame. warm navy/gold/ivory palette, dark wood, brass, aged leather incidentals. motivated warm practical lighting, visible light source. Photorealistic, cinematic, 16:9.",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture, no laptop screen, no reading, no writing, no notebook, no handwriting, no book page, no document, no spreadsheet, no dashboard, no phone app, no article text, no chat interface, no ui interface",
+      "model": "seedance_2_0",
+      "shot_type": "hero_lipsync",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "prompt_class": "james_studio_lipsync",
+      "shots_per_beat": 1,
+      "reference_images": [
+        "assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png"
+      ],
+      "lipsync_required": true,
+      "narration_text": "Reply W for withdrawal, D for deposit.",
+      "narration_word_span": [
+        201,
+        220
+      ],
+      "audio_slice": null,
+      "overlay": null,
+      "graphic": null,
+      "narrative_function": "CTA \u2014 converts the episode idea into a binary self-audit that drives comment engagement with minimal friction",
+      "music_duck": false,
+      "cost": {
+        "est_clips": 1,
+        "est_credits": 22.5,
+        "est_usd": 1.1
+      },
+      "reuse": {
+        "allowed": false,
+        "reused_asset_id": null
+      },
+      "fallback": {
+        "on_generation_fail": "still_kenburns",
+        "on_qa_fail": "regenerate_once_then_fallback"
+      },
+      "justification": null,
+      "approval": {
+        "status": "pending"
+      },
+      "camera_angle_id": "STUDIO_LIBRARY_MEDIUM_DESK_001"
+    }
+  ],
+  "totals": {
+    "est_usd": 17.6,
+    "est_higgsfield_credits": 360.0,
+    "budget_cap_usd": 60.0,
+    "beats_requiring_generation": 26,
+    "beats_local_or_reused": 0,
+    "pct_zero_cost_beats": 0.0
+  },
+  "warnings": [
+    "B001: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B001: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B001: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B009: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B009: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B009: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "B009: reference STUDIO_CANONICAL_003_PATTERN_FRAME.jpg not in active set 'navy_sweater_library' \u2014 wardrobe/identity drift risk",
+    "continuous mode: 16 hero beats need slicing from master (run scripts/slice_continuous_lipsync.py): B001, B001, B001, B002, B004, B006a, B006b, B008a, B008b, B008c, B009, B009, B009, B009, B010a, B010b"
+  ]
+}

@@ -33,16 +33,6 @@
       {
         "command": "cd ~/YTchannel && python3 strategy/plan.py status",
         "description": "Show current time-plan status when the agent starts"
-      },
-      {
-        "command": "cd ~/YTchannel && python3 tools/notify.py --kind info \"Session started\"",
-        "description": "Ping Telegram when a work session begins"
-      }
-    ],
-    "stop": [
-      {
-        "command": "cd ~/YTchannel && python3 tools/notify.py --kind done \"Turn complete\"",
-        "description": "Ping Telegram when assistant finishes a turn"
       }
     ]
   },

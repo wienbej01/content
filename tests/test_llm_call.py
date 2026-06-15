@@ -114,7 +114,10 @@ def test_validate_output():
     assert lc.validate_output({"status": "invalid"}) != []
     assert lc.validate_output({"may_proceed": "yes"}) != []
     assert lc.validate_output("not a dict") != []
-    print("  ✓ validate_output catches bad status/may_proceed/non-dict")
+    # A successfully-parsed JSON array is valid (storyboard beats / reviewer lists)
+    assert lc.validate_output([{"beat_id": "B001"}]) == []
+    assert lc.validate_output([]) == []
+    print("  ✓ validate_output catches bad status/may_proceed/non-dict, accepts arrays")
 
 
 def test_dry_run_no_subprocess(capsys=None):
