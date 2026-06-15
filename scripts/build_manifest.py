@@ -26,8 +26,16 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-def load_music_config(project_dir, format_str="short"):
-    """Load music config from constraints.json. Returns (dict, error_or_None)."""
+def load_music_config(project_dir, format_str="short", project_id=None):
+    """Load music config from constraints.json. Returns (dict, error_or_None).
+
+    Selection logic:
+    1. If default_path is set AND the file exists, use it (explicit override).
+    2. Else select deterministically from library_dir based on project_id.
+    3. If library is empty/missing and format requires music, error.
+    """
+    import hashlib
+
     constraints_path = ROOT / "docs" / "channel_universe" / "constraints.json"
     if not constraints_path.exists():
         return {"enabled": False, "reason": "constraints.json not found"}, None
@@ -35,27 +43,53 @@ def load_music_config(project_dir, format_str="short"):
     constraints = json.loads(constraints_path.read_text())
     music_cfg = constraints.get("music", {})
     required_formats = music_cfg.get("required_for_formats", [])
-    default_path = music_cfg.get("default_path")
+    required = format_str in required_formats
 
-    if not default_path:
-        if format_str in required_formats:
-            return None, f"Music required for format '{format_str}' but no default_path configured"
-        return {"enabled": False, "reason": "no default_path configured"}, None
-
-    resolved = ROOT / default_path
-    if not resolved.exists():
-        if format_str in required_formats:
-            return None, f"Music required for format '{format_str}' but file not found: {default_path}"
-        return {"enabled": False, "reason": f"file not found: {default_path}"}, None
+    # Use project_dir name as fallback project_id
+    if project_id is None:
+        project_id = Path(project_dir).name if project_dir else "default"
 
     audio_policy = constraints.get("audio_policy", {})
-    return {
-        "enabled": True,
-        "path": default_path,
-        "volume_db": music_cfg.get("volume_db", audio_policy.get("music_bed_db_target", -28)),
-        "fade_in_sec": music_cfg.get("fade_in_sec", 1.0),
-        "fade_out_sec": music_cfg.get("fade_out_sec", 2.0),
-    }, None
+
+    def _make_result(path, selected_by=None):
+        result = {
+            "enabled": True,
+            "path": str(path),
+            "volume_db": music_cfg.get("volume_db", audio_policy.get("music_bed_db_target", -28)),
+            "fade_in_sec": music_cfg.get("fade_in_sec", 1.0),
+            "fade_out_sec": music_cfg.get("fade_out_sec", 2.0),
+        }
+        if selected_by:
+            result["selected_by"] = selected_by
+            result["project_id"] = project_id
+        return result, None
+
+    # 1. Explicit override: default_path set and exists
+    default_path = music_cfg.get("default_path")
+    if default_path:
+        resolved = ROOT / default_path
+        if resolved.exists():
+            return _make_result(default_path)
+
+    # 2. Library-based deterministic selection
+    library_dir = music_cfg.get("library_dir")
+    if library_dir:
+        lib_path = ROOT / library_dir
+        if lib_path.is_dir():
+            tracks = sorted(
+                p.name for p in lib_path.iterdir()
+                if p.suffix.lower() in (".mp3", ".wav", ".m4a") and p.is_file()
+            )
+            if tracks:
+                h = int(hashlib.sha256(project_id.encode()).hexdigest(), 16)
+                selected = tracks[h % len(tracks)]
+                rel_path = str(Path(library_dir) / selected)
+                return _make_result(rel_path, selected_by="deterministic_per_project")
+
+    # 3. No track available
+    if required:
+        return None, f"Music required for format '{format_str}' but no track available (library empty or missing)"
+    return {"enabled": False, "reason": "no music track available"}, None
 
 
 def build(project_dir, allow_missing=False, format_str=None):
@@ -266,7 +300,7 @@ def build(project_dir, allow_missing=False, format_str=None):
         return None, errors, warnings
 
     # Music
-    music, music_err = load_music_config(project_dir, format_str)
+    music, music_err = load_music_config(project_dir, format_str, project_id=project_id)
     if music_err:
         errors.append(music_err)
         return None, errors, warnings

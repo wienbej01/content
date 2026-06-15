@@ -320,7 +320,8 @@
   },
   "music": {
     "required_for_formats": ["short", "explainer"],
-    "default_path": "brand/music/night_snow.mp3",
+    "library_dir": "assets/music",
+    "selection": "deterministic_per_project",
     "volume_db": -24,
     "fade_in_sec": 1.0,
     "fade_out_sec": 2.0,
