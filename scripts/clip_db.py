@@ -129,9 +129,17 @@ def _clip_id(project_id, production_beat_id, slot_id=None):
     return f"{project_id}::{production_beat_id}::{suffix}"
 
 
-def _canonical_path(project_id, segment_id, production_beat_id, slot_id=None):
+def _ext_for_asset_type(asset_type):
+    """Return canonical file extension for an asset_type."""
+    if asset_type in ("local_graphic", "still_image"):
+        return ".png"
+    return ".mp4"
+
+
+def _canonical_path(project_id, segment_id, production_beat_id, slot_id=None, asset_type=None):
     """THE single path rule. All clip paths are computed here and nowhere else."""
-    filename = f"{production_beat_id}_{slot_id}.mp4" if slot_id else f"{production_beat_id}.mp4"
+    ext = _ext_for_asset_type(asset_type)
+    filename = f"{production_beat_id}_{slot_id}{ext}" if slot_id else f"{production_beat_id}{ext}"
     return f"assets/media/{project_id}/{segment_id}/{filename}"
 
 
@@ -158,7 +166,7 @@ def order_clip(project_id, source_beat_id, production_beat_id, segment_id, asset
                plan_sha256=None, created_by_step='compile_media_plan', db_path=None):
     """Upsert a clip row with canonical clip_id + output_path. Returns clip dict."""
     cid = _clip_id(project_id, production_beat_id, slot_id)
-    opath = _canonical_path(project_id, segment_id, production_beat_id, slot_id)
+    opath = _canonical_path(project_id, segment_id, production_beat_id, slot_id, asset_type=asset_type)
     required_dur_sec = required_end_sec - required_start_sec
     now = _now()
 
@@ -235,18 +243,11 @@ def can_reuse(clip_id, tolerance=0.25, db_path=None):
         conn.close()
         return False, f"status is {clip['status']}"
 
-    # File existence
-    full_path = ROOT / clip["output_path"]
-    if not full_path.exists():
+    # File existence + SHA check (shared helper)
+    ok, reason = verify_clip_file(clip)
+    if not ok:
         conn.close()
-        return False, "file missing at output_path"
-
-    # SHA check
-    if clip["actual_sha256"]:
-        current_sha = _sha256_file(full_path)
-        if current_sha != clip["actual_sha256"]:
-            conn.close()
-            return False, "file sha256 mismatch (modified outside DB)"
+        return False, reason
 
     # Duration check
     if clip["actual_dur_sec"] is not None:
@@ -284,9 +285,38 @@ def record_generated(clip_id, actual_dur_sec, actual_width, actual_height, actua
     conn.close()
 
 
+def verify_clip_file(clip, root=None):
+    """Shared filesystem truth check. Returns (ok: bool, reason: str).
+    Reused by can_reuse, mark_valid, and assert_all_valid (DRY).
+    """
+    r = root or ROOT
+    opath = Path(clip["output_path"])
+    full_path = opath if opath.is_absolute() else (Path(r) / opath)
+    if not full_path.exists():
+        return False, f"file missing at {clip['output_path']}"
+    if clip.get("actual_sha256"):
+        current_sha = _sha256_file(full_path)
+        if current_sha != clip["actual_sha256"]:
+            return False, f"sha256 mismatch at {clip['output_path']}"
+    return True, "ok"
+
+
 def mark_valid(clip_id, validated_by='qa_media', db_path=None):
-    """Mark clip as valid (QA passed)."""
+    """Mark clip as valid (QA passed). Verifies file exists + SHA first."""
     conn = get_db(db_path)
+    row = conn.execute("SELECT * FROM clips WHERE clip_id=?", (clip_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise ValueError(f"clip {clip_id} not found in DB")
+    clip = _row_to_dict(row)
+    ok, reason = verify_clip_file(clip)
+    if not ok:
+        conn.execute("UPDATE clips SET status='failed', status_reason=? WHERE clip_id=?",
+                     (reason, clip_id))
+        conn.commit()
+        log_access(clip_id, "system", "invalidate", detail=reason, db_path=db_path)
+        conn.close()
+        raise FileNotFoundError(f"mark_valid refused for {clip_id}: {reason}")
     now = _now()
     conn.execute("UPDATE clips SET status='valid', last_validated_at=? WHERE clip_id=?", (now, clip_id))
     conn.commit()
@@ -376,7 +406,7 @@ def apply_human_override(clip_id, decision, note, db_path=None):
 
 
 def assert_all_valid(project_id, db_path=None):
-    """GATE: True only if every clip is valid with no open change requests."""
+    """GATE: True only if every clip is valid, files exist on disk, and no open change requests."""
     conn = get_db(db_path)
     invalid = conn.execute(
         "SELECT clip_id, status, status_reason FROM clips WHERE project_id=? AND status != 'valid'",
@@ -386,9 +416,17 @@ def assert_all_valid(project_id, db_path=None):
         JOIN clips c ON cr.clip_id = c.clip_id
         WHERE c.project_id=? AND cr.status='open'
     """, (project_id,)).fetchall()
+    # Filesystem truth: verify every clip's file exists + SHA matches
+    all_clips = conn.execute("SELECT * FROM clips WHERE project_id=?", (project_id,)).fetchall()
     conn.close()
 
     problems = [_row_to_dict(r) for r in invalid] + [_row_to_dict(r) for r in open_reqs]
+    for row in all_clips:
+        clip = _row_to_dict(row)
+        ok, reason = verify_clip_file(clip)
+        if not ok:
+            problems.append({"clip_id": clip["clip_id"], "status": clip["status"],
+                             "status_reason": f"filesystem: {reason}"})
     if problems:
         return False, problems
     return True, []

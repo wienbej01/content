@@ -83,8 +83,11 @@ class TestGoldenGate:
         project_id = "proj02"
         _fixtures(tmp_path, project_id)
         cid = _order(project_id, "B001")
+        clip_path = clip_db.ROOT / clip_db.get_path(cid)
+        _make_clip(clip_path)
+        sha = clip_db._sha256_file(clip_path)
         clip_db.record_generated(cid, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="abc")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=sha)
         clip_db.mark_valid(cid)
         clip_db.request_change(cid, requested_by="qa_media", target_step="generate_media",
                                change_type="regenerate", reason="too short")
@@ -99,8 +102,11 @@ class TestGoldenGate:
         project_id = "proj03"
         _fixtures(tmp_path, project_id)
         cid = _order(project_id, "B001")
+        clip_path = clip_db.ROOT / clip_db.get_path(cid)
+        _make_clip(clip_path)
+        sha = clip_db._sha256_file(clip_path)
         clip_db.record_generated(cid, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="abc")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=sha)
         clip_db.mark_valid(cid)
         rc, _, stderr = _run(tmp_path)
         assert rc == 0, f"Expected success, got: {stderr}"

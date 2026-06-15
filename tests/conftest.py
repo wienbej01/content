@@ -23,3 +23,14 @@ def _isolate_clip_db(tmp_path, monkeypatch):
     monkeypatch.setenv("CLIP_DB_PATH", db_file)
     yield
     clip_db._db_path_override = None
+
+
+def make_clip_file(clip, content=b"FAKE_MEDIA"):
+    """Create a stub file at clip's output_path and return its real SHA-256.
+    Use this before mark_valid to satisfy filesystem truth checks.
+    """
+    import clip_db
+    full_path = clip_db.ROOT / clip["output_path"]
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    full_path.write_bytes(content)
+    return clip_db._sha256_file(full_path)

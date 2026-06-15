@@ -67,9 +67,16 @@ class TestQaPassMarksValid:
         clip_path = _make_clip(tmp_path, duration=5.0)
         clip_id = _order_clip(project_id, "B001", required_dur=5.0)
 
+        # Create file at canonical output_path so mark_valid's filesystem check passes
+        canonical = clip_db.ROOT / clip_db.get_path(clip_id)
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(str(clip_path), str(canonical))
+        sha = clip_db._sha256_file(canonical)
+
         # Record as generated so it's in 'generated' state
         clip_db.record_generated(clip_id, actual_dur_sec=5.0, actual_width=1280,
-                                 actual_height=720, actual_has_audio=False, actual_sha256="abc")
+                                 actual_height=720, actual_has_audio=False, actual_sha256=sha)
 
         # Build a plan with the clip pointing to the fixture file
         beats = [{"id": "B001", "beat_id": "B001", "segment_id": "S01",
@@ -202,8 +209,15 @@ class TestQaDoesNotCrashPipeline:
         project_id = "proj01"
         clip_path = _make_clip(tmp_path, duration=5.0)
         clip_id = _order_clip(project_id, "B005", required_dur=5.0)
+
+        # Create file at canonical output_path so mark_valid's filesystem check passes
+        canonical = clip_db.ROOT / clip_db.get_path(clip_id)
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(str(clip_path), str(canonical))
+        sha = clip_db._sha256_file(canonical)
         clip_db.record_generated(clip_id, actual_dur_sec=5.0, actual_width=1280,
-                                 actual_height=720, actual_has_audio=False, actual_sha256="abc")
+                                 actual_height=720, actual_has_audio=False, actual_sha256=sha)
 
         # One passing, one missing
         cid2 = _order_clip(project_id, "B006", required_dur=5.0)

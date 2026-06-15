@@ -99,12 +99,17 @@ class TestFullLoopDeficitThenFixed:
         assert "golden-truth gate FAILED" in stderr
 
         # --- Step 5: Regenerate at correct duration + resolve changes ---
+        path_a = clip_db.ROOT / clip_db.get_path(cid_a)
+        path_b = clip_db.ROOT / clip_db.get_path(cid_b)
+        path_a.parent.mkdir(parents=True, exist_ok=True)
+        path_a.write_bytes(b"REGEN_A")
+        path_b.write_bytes(b"REGEN_B")
         clip_db.record_generated(cid_a, actual_dur_sec=7.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_a2")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_a))
         clip_db.resolve_change(cid_a, resolved_by="generate_media", outcome="regenerated")
 
         clip_db.record_generated(cid_b, actual_dur_sec=7.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_b2")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_b))
         clip_db.resolve_change(cid_b, resolved_by="generate_media", outcome="regenerated")
 
         # Mark valid after successful regen

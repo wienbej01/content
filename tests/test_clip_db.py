@@ -140,42 +140,58 @@ def test_can_reuse_true_when_valid_and_matches(tmp_db):
 
 def test_request_change_drops_clip_out_of_valid(tmp_db):
     clip = _order_basic(tmp_db)
-    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, "sha_x", db_path=tmp_db)
+    full_path = clip_db.ROOT / clip["output_path"]
+    _make_tiny_mp4(full_path)
+    sha = clip_db._sha256_file(full_path)
+    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, sha, db_path=tmp_db)
     clip_db.mark_valid(clip["clip_id"], db_path=tmp_db)
     # Now request a change
     clip_db.request_change(clip["clip_id"], "qa_media", "generate_media", "regenerate", "wrong angle", db_path=tmp_db)
     c = clip_db.get_clip(clip["clip_id"], db_path=tmp_db)
     assert c["status"] == "change_requested"
+    full_path.unlink(missing_ok=True)
 
 
 def test_resolve_change_returns_clip_to_flow(tmp_db):
     clip = _order_basic(tmp_db)
-    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, "sha_x", db_path=tmp_db)
+    full_path = clip_db.ROOT / clip["output_path"]
+    _make_tiny_mp4(full_path)
+    sha = clip_db._sha256_file(full_path)
+    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, sha, db_path=tmp_db)
     clip_db.mark_valid(clip["clip_id"], db_path=tmp_db)
     clip_db.request_change(clip["clip_id"], "qa_media", "generate_media", "regenerate", "too dark", db_path=tmp_db)
     # Resolve
     clip_db.resolve_change(clip["clip_id"], "generate_media", "regenerated successfully", db_path=tmp_db)
     c = clip_db.get_clip(clip["clip_id"], db_path=tmp_db)
     assert c["status"] == "ordered"  # back in flow, ready to re-generate
+    full_path.unlink(missing_ok=True)
 
 
 def test_assert_all_valid_fails_with_open_request(tmp_db):
     clip = _order_basic(tmp_db)
-    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, "sha_x", db_path=tmp_db)
+    full_path = clip_db.ROOT / clip["output_path"]
+    _make_tiny_mp4(full_path)
+    sha = clip_db._sha256_file(full_path)
+    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, sha, db_path=tmp_db)
     clip_db.mark_valid(clip["clip_id"], db_path=tmp_db)
     clip_db.request_change(clip["clip_id"], "reconcile", "generate_media", "regenerate", "short", db_path=tmp_db)
     ok, problems = clip_db.assert_all_valid("proj001", db_path=tmp_db)
     assert not ok
     assert len(problems) > 0
+    full_path.unlink(missing_ok=True)
 
 
 def test_assert_all_valid_passes_when_all_valid(tmp_db):
     clip = _order_basic(tmp_db)
-    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, "sha_x", db_path=tmp_db)
+    full_path = clip_db.ROOT / clip["output_path"]
+    _make_tiny_mp4(full_path)
+    sha = clip_db._sha256_file(full_path)
+    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, sha, db_path=tmp_db)
     clip_db.mark_valid(clip["clip_id"], db_path=tmp_db)
     ok, problems = clip_db.assert_all_valid("proj001", db_path=tmp_db)
     assert ok
     assert problems == []
+    full_path.unlink(missing_ok=True)
 
 
 def test_coverage_for_beat_sums_children(tmp_db):
@@ -212,7 +228,10 @@ def test_coverage_for_beat_reports_deficit(tmp_db):
 
 def test_access_log_records_actions(tmp_db):
     clip = _order_basic(tmp_db)
-    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, "sha_x", db_path=tmp_db)
+    full_path = clip_db.ROOT / clip["output_path"]
+    _make_tiny_mp4(full_path)
+    sha = clip_db._sha256_file(full_path)
+    clip_db.record_generated(clip["clip_id"], 5.5, 1920, 1080, True, sha, db_path=tmp_db)
     clip_db.mark_valid(clip["clip_id"], db_path=tmp_db)
     conn = clip_db.get_db(tmp_db)
     logs = conn.execute("SELECT * FROM clip_access_log WHERE clip_id=? ORDER BY id",
@@ -222,6 +241,7 @@ def test_access_log_records_actions(tmp_db):
     assert "order" in actions
     assert "generate" in actions
     assert "validate" in actions
+    full_path.unlink(missing_ok=True)
 
 
 def test_open_change_requests_routes_to_target_step(tmp_db):

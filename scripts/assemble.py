@@ -1024,7 +1024,7 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
                     db_path = clip_db.get_path(cid)
                     if db_path:
                         seg["media"] = db_path
-            # Gate: all clips must be valid before muxing
+            # Gate: all clips must be valid + files exist on disk before muxing
             ok, problems = clip_db.assert_all_valid(project_id)
             if not ok:
                 lines = [f"  {p['clip_id']}: status={p.get('status','?')} reason={p.get('status_reason') or p.get('reason','')}"

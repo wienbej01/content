@@ -96,11 +96,13 @@ class TestSlotAndSplitFullChain:
 
         # --- Generate mock clips + record_generated ---
         for c in all_clips:
-            _make_clip(ROOT / c["output_path"], duration=c["required_dur_sec"])
+            clip_path = ROOT / c["output_path"]
+            _make_clip(clip_path, duration=c["required_dur_sec"])
+            sha = clip_db._sha256_file(clip_path)
             clip_db.record_generated(
                 c["clip_id"], actual_dur_sec=c["required_dur_sec"],
                 actual_width=64, actual_height=64, actual_has_audio=False,
-                actual_sha256=f"sha_{c['clip_id']}")
+                actual_sha256=sha)
 
         # --- QA marks valid ---
         for c in all_clips:
@@ -205,10 +207,15 @@ class TestFeedbackLoopKeyedOnClipId:
         cid_s1 = f"{project_id}::B003::B003-s1"
 
         # Generate BOTH — s0 too short (deficit), s1 correct
+        path_s0 = clip_db.ROOT / clip_db.get_clip(cid_s0)["output_path"]
+        path_s1 = clip_db.ROOT / clip_db.get_clip(cid_s1)["output_path"]
+        path_s0.parent.mkdir(parents=True, exist_ok=True)
+        path_s0.write_bytes(b"STUB_SHORT")
+        path_s1.write_bytes(b"STUB_OK")
         clip_db.record_generated(cid_s0, actual_dur_sec=2.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_short")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s0))
         clip_db.record_generated(cid_s1, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_ok")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s1))
         clip_db.mark_valid(cid_s1)  # s1 passes QA
 
         # QA raises change_request on s0 (keyed by clip_id)
@@ -231,8 +238,9 @@ class TestFeedbackLoopKeyedOnClipId:
 
         # Regenerate s0 at correct duration
         clip_db.resolve_change(cid_s0, resolved_by="generate_media", outcome="regenerated")
+        path_s0.write_bytes(b"STUB_FIXED")
         clip_db.record_generated(cid_s0, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_fixed")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s0))
         clip_db.mark_valid(cid_s0)
 
         # assert_all_valid now PASSES
@@ -271,11 +279,16 @@ class TestSiblingSlotsIndependent:
         cid_s1 = f"{project_id}::B003::B003-s1"
 
         # Generate and validate BOTH
+        path_s0 = clip_db.ROOT / clip_db.get_clip(cid_s0)["output_path"]
+        path_s1 = clip_db.ROOT / clip_db.get_clip(cid_s1)["output_path"]
+        path_s0.parent.mkdir(parents=True, exist_ok=True)
+        path_s0.write_bytes(b"STUB_S0")
+        path_s1.write_bytes(b"STUB_S1")
         clip_db.record_generated(cid_s0, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_s0")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s0))
         clip_db.mark_valid(cid_s0)
         clip_db.record_generated(cid_s1, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_s1")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s1))
         clip_db.mark_valid(cid_s1)
 
         # Both valid
@@ -303,8 +316,9 @@ class TestSiblingSlotsIndependent:
 
         # Resolve s0 → everything passes
         clip_db.resolve_change(cid_s0, resolved_by="generate_media", outcome="regenerated")
+        path_s0.write_bytes(b"STUB_S0_V2")
         clip_db.record_generated(cid_s0, actual_dur_sec=5.0, actual_width=64,
-                                 actual_height=64, actual_has_audio=False, actual_sha256="sha_s0_v2")
+                                 actual_height=64, actual_has_audio=False, actual_sha256=clip_db._sha256_file(path_s0))
         clip_db.mark_valid(cid_s0)
 
         ok, _ = clip_db.assert_all_valid(project_id)
