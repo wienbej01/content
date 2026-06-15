@@ -1,5 +1,28 @@
 # Production Pipeline Data Flow Map
 
+## Systemic principle: stages derive behaviour from the authoritative contract, never re-infer
+
+Every clip's behaviour-determining attributes — `audio_policy`, `asset_type`, `model`,
+per-clip timing, and `clip_id` — are set ONCE (by compile/reconcile, recorded in the clip DB
+and carried in the media plan + manifest). Downstream stages MUST read these authoritative
+fields. They must NOT re-infer behaviour from incidental signals like the media file extension.
+
+Concrete rule (locked by tests):
+- Whether a segment needs its own audio is determined by `audio_policy`:
+  - `keep_lipsync` → baked audio in the clip
+  - `strip` / `post_overlay` in continuous_voiceover mode → silent visual under the master
+    narration track; needs NO per-segment audio (even when the media is a .png graphic card)
+  - segment_tts mode → each segment carries its own audio
+- `words=0` is valid for a silent graphic in continuous mode; required >0 only in segment_tts.
+- assemble resolves the media PATH from the clip DB (`get_path(clip_id)`), not from a derived
+  filename, and gates on `assert_all_valid`.
+
+This replaces the previous defect class where assemble re-derived "is this an image that needs
+audio?" from `media.suffix == .png`, contradicting the DB/plan which had already declared the
+clip a silent local_graphic under continuous narration.
+
+---
+
 ## Overview
 
 This document maps how media segments are created, referenced, validated, and consumed

@@ -256,6 +256,9 @@ def build(project_dir, allow_missing=False, format_str=None):
             "timing_out": timing_out,
             "duration_required": round(duration, 6),
             "audio_policy": b.get("audio_policy", "strip"),
+            # Carry the authoritative asset_type so assemble derives behaviour from the
+            # DB/plan contract, not from re-inferring it from the media file extension.
+            "asset_type": b.get("asset_type", "generated_video"),
         }
 
         # Lipsync provenance

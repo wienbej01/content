@@ -178,6 +178,10 @@ def validate_manifest(manifest, base):
     if "id" not in manifest or not manifest["id"]:
         errors.append("Missing required field: 'id'")
 
+    # In continuous_voiceover mode, narration is ONE master track; per-segment audio is
+    # not required and silent graphic/image segments legitimately have words=0.
+    is_continuous = manifest.get("narration_mode") == "continuous_voiceover"
+
     segments = manifest.get("segments")
     if not segments or not isinstance(segments, list):
         errors.append("'segments' must be a non-empty array")
@@ -216,8 +220,12 @@ def validate_manifest(manifest, base):
 
         if "words" not in seg:
             errors.append(f"{prefix}: missing 'words'")
-        elif not isinstance(seg["words"], int) or seg["words"] <= 0:
-            errors.append(f"{prefix}.words: must be a positive integer, got {seg['words']}")
+        elif not isinstance(seg["words"], int) or seg["words"] < 0:
+            errors.append(f"{prefix}.words: must be a non-negative integer, got {seg['words']}")
+        elif seg["words"] == 0 and not is_continuous:
+            # Segment-TTS mode: every segment must carry its own narration words.
+            # Continuous mode: silent graphic/image segments legitimately have 0 words.
+            errors.append(f"{prefix}.words: must be a positive integer, got 0")
 
         trim = seg.get("trim_end")
         if trim is not None and (not isinstance(trim, (int, float)) or trim <= 0):
@@ -244,9 +252,17 @@ def validate_manifest(manifest, base):
                 errors.append(
                     f"{prefix}.overlay: required overlay PNG not found: {overlay_path}")
 
+        # Whether a segment needs its OWN audio is determined by the authoritative
+        # audio_policy from the DB/plan — NOT re-inferred from the media file extension.
+        #   keep_lipsync → handled above (baked audio)
+        #   strip / post_overlay (continuous mode) → silent visual under master narration; no per-seg audio
+        #   segment_tts (non-continuous) → an image segment needs its own audio
         is_image = seg.get("media", "").lower().split(".")[-1] in ("png", "jpg", "jpeg", "webp")
-        if is_image and not audio:
-            errors.append(f"{prefix}: image media requires 'audio' field")
+        policy = seg.get("audio_policy", "strip")
+        silent_under_master = is_continuous and policy in ("strip", "post_overlay")
+        if is_image and not audio and not silent_under_master:
+            errors.append(f"{prefix}: image media requires 'audio' field "
+                          f"(audio_policy={policy!r}, continuous={is_continuous})")
 
     # Validate brand assets (non-fatal if missing — endcard is optional)
     brand = manifest.get("brand", {})
