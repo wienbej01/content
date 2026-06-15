@@ -263,12 +263,12 @@ class TestLowConfidenceBoundaryReroutesOrFails:
             "--output", str(out_path),
             "--dry-run",
         ])
-        # Either reroutes (exit 0) or fails — never produces hero split > 10s
+        # Either reroutes (exit 0) or fails — never produces hero split > 15s
         prod_sb = json.loads(out_path.read_text())
         for b in prod_sb["beats"]:
             if b.get("treatment") == "hero_lipsync":
                 assert b["audio_duration_sec"] <= MODEL_MAX_CLIP_SEC + 0.042, \
-                    f"Hero lipsync beat {b['beat_id']} exceeds 10s — word-proportional split leaked"
+                    f"Hero lipsync beat {b['beat_id']} exceeds 15s — word-proportional split leaked"
 
 
 class TestGraphicsRequiredSplitSerialized:

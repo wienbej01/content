@@ -42,7 +42,7 @@ def project_dir():
 
 def test_compiles_clean(C, sb, project_dir):
     plan, errors = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
-    # R3: oversized hero_lipsync beats (>10s) are now correctly REJECTED at compile.
+    # R3: oversized hero_lipsync beats (>15s) are now correctly REJECTED at compile.
     # The live storyboard has B047/B081/B090 (pre-R3, generated at HERO_MAX=15s).
     # Filter out the expected overlong rejections to verify compile is otherwise clean.
     overlong = [e for e in errors if "exceeds render limit" in e or "exceeds Seedance max" in e]

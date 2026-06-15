@@ -65,7 +65,9 @@ class TestManifestBuilder:
         manifest = json.loads((tmp_path / "manifest.json").read_text())
         assert len(manifest["segments"]) == 1
         seg = manifest["segments"][0]
+        assert seg["clip_id"] == "B001"
         assert seg["id"] == "B001"
+        assert seg["source_beat_id"] == "B001"
         assert seg["timing_in"] == 0.0
         assert seg["timing_out"] == 5.0
         assert seg["duration_required"] == 5.0
@@ -73,7 +75,12 @@ class TestManifestBuilder:
         assert "music" in manifest
 
     def test_missing_beat_fails(self, tmp_path):
-        """Timing map has a beat not present in media_plan; expect exit 1."""
+        """Timing map total exceeds plan total; expect exit 1 (timeline mismatch).
+
+        UCI-02: The cardinality check (beat in timing_map but not in plan) was
+        removed because it breaks on split children. The timeline total check
+        remains as the correct validation.
+        """
         clip_path = tmp_path / "clips" / "B001.mp4"
         _make_clip(clip_path)
 
@@ -91,19 +98,20 @@ class TestManifestBuilder:
 
         rc, stdout, stderr = _run(tmp_path)
         assert rc == 1
-        assert "B002" in stderr
-        assert "missing" in stderr.lower()
+        assert "Timeline mismatch" in stderr
 
-    def test_duplicate_beat_fails(self, tmp_path):
-        """Media plan has duplicate beat_id; expect exit 1."""
+    def test_duplicate_clip_id_fails(self, tmp_path):
+        """Media plan has duplicate clip_id; expect exit 1."""
         clip_path = tmp_path / "clips" / "B001.mp4"
         _make_clip(clip_path)
 
         beats_plan = [
-            {"beat_id": "B001", "segment_id": "001", "output_path": "clips/B001.mp4",
-             "audio_policy": "strip", "narration_text": "a"},
-            {"beat_id": "B001", "segment_id": "001", "output_path": "clips/B001.mp4",
-             "audio_policy": "strip", "narration_text": "b"},
+            {"beat_id": "B001", "clip_id": "proj::B001::s0", "segment_id": "001",
+             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "a",
+             "required_start_sec": 0.0, "required_end_sec": 2.5},
+            {"beat_id": "B001", "clip_id": "proj::B001::s0", "segment_id": "001",
+             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "b",
+             "required_start_sec": 2.5, "required_end_sec": 5.0},
         ]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
         _write_fixtures(tmp_path, beats_plan, beats_timing, total_duration=5.0)

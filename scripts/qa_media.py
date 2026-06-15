@@ -117,7 +117,7 @@ def lipsync_checks(beat, media_path, info, base):
                 beat.setdefault("_qa", {})["duration_match"] = matched
 
     # c. clip video duration >= slice duration — OR clamped to LIPSYNC_MAX_DUR
-    # (Seedance max is 10s; longer speech beats render at max and assembly trims
+    # (Seedance max is 15s; longer speech beats render at max and assembly trims
     # via T8 baked-audio; the video being shorter than the slice is expected).
     slice_dur = None
     if slice_info.get("start_sec") is not None and slice_info.get("end_sec") is not None:

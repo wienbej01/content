@@ -36,7 +36,7 @@ def test_technical_prompt_does_not_block_on_duration():
     block_start = text.index("BLOCKING conditions")
     block_section = text[block_start:]
     # Old blocking bullets removed
-    assert "hero beat > 10s" not in block_section
+    assert "hero beat > 15s" not in block_section
     assert "b-roll beat > 6.5s" not in block_section
     assert "must split" not in block_section.split("DO NOT block")[0]
     # DO NOT block instruction covers duration

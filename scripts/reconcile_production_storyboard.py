@@ -33,6 +33,9 @@ FRAME_TOLERANCE = 0.042
 BROLL_SLOT_MAX = 6.0
 
 
+MIN_BEAT_SEC_DEFAULT = 0.1
+
+
 def _load_constraints():
     """Load lipsync render rules from constraints.json."""
     data = json.loads(CONSTRAINTS_PATH.read_text())
@@ -41,6 +44,7 @@ def _load_constraints():
     return {
         "max_clip_sec": rules.get("max_clip_duration_sec", 15.0),
         "min_clip_sec": rules.get("min_clip_duration_sec", 4.0),
+        "min_beat_sec": float(rules.get("min_beat_duration_sec", MIN_BEAT_SEC_DEFAULT)),
         "reroute_target": reroute.get("unsplittable_hero_target", "hero_cutaway"),
         "broll_slot_max": reroute.get("broll_slot_max_sec", BROLL_SLOT_MAX),
     }
@@ -271,6 +275,59 @@ def _base_from_creative(beat: dict) -> dict:
     return base
 
 
+def _merge_phantom_beats(beats: list[dict], min_beat_sec: float) -> tuple[list[dict], list[str]]:
+    """Merge sub-frame phantom beats into neighbors. Returns (cleaned_beats, log_entries)."""
+    log = []
+    if not beats:
+        return beats, log
+    # Identify phantom indices
+    phantom_idxs = {i for i, b in enumerate(beats) if b["audio_duration_sec"] < min_beat_sec}
+    if not phantom_idxs:
+        return beats, log
+    merged_into = {}  # phantom_idx -> target_idx
+    for i in sorted(phantom_idxs):
+        target = i - 1 if i > 0 else i + 1
+        if target < 0 or target >= len(beats):
+            continue
+        # Don't merge into another phantom that hasn't been resolved yet
+        while target in phantom_idxs and target != i:
+            target = target - 1 if i > 0 else target + 1
+            if target < 0 or target >= len(beats):
+                break
+        if target < 0 or target >= len(beats) or target in phantom_idxs:
+            continue
+        merged_into[i] = target
+    # Apply merges: extend target beat to cover phantom's interval and append narration
+    for pidx, tidx in merged_into.items():
+        phantom = beats[pidx]
+        target = beats[tidx]
+        # Extend timing
+        new_start = min(target["audio_start_sec"], phantom["audio_start_sec"])
+        new_end = max(target["audio_end_sec"], phantom["audio_end_sec"])
+        target["audio_start_sec"] = round(new_start, 3)
+        target["audio_end_sec"] = round(new_end, 3)
+        target["audio_duration_sec"] = round(new_end - new_start, 3)
+        # Append narration
+        ptext = phantom.get("narration_text", "").strip()
+        if ptext:
+            existing = target.get("narration_text", "").strip()
+            target["narration_text"] = f"{existing} {ptext}".strip() if existing else ptext
+        # Rebuild coverage plan
+        target["coverage_plan"] = _make_coverage_plan(
+            target["audio_start_sec"], target["audio_end_sec"],
+            target["audio_duration_sec"], target.get("treatment", "broll"),
+            target.get("model", "kling3_0"),
+            15.0,  # max_clip fallback; will be rechecked later
+        )
+        log.append(
+            f"PHANTOM_BEAT: {phantom['beat_id']} {phantom['audio_duration_sec']}s "
+            f"merged into {target['beat_id']}"
+        )
+    # Remove phantoms that were merged
+    result = [b for i, b in enumerate(beats) if i not in merged_into]
+    return result, log
+
+
 def reconcile(storyboard: dict, timing_map: dict, constraints: dict,
               audio_path: str = None) -> tuple[dict, list[str]]:
     """
@@ -484,6 +541,12 @@ def reconcile(storyboard: dict, timing_map: dict, constraints: dict,
                     f"coverage_plan has {len(prod_beat['coverage_plan'])} slots"
                 )
             production_beats.append(prod_beat)
+
+    # Step 4b: Merge phantom sub-frame beats
+    min_beat_sec = constraints.get("min_beat_sec", MIN_BEAT_SEC_DEFAULT)
+    production_beats, phantom_log = _merge_phantom_beats(production_beats, min_beat_sec)
+    for entry in phantom_log:
+        issues.append(entry)
 
     # Build production storyboard
     production_storyboard = {

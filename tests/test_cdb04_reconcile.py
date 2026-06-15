@@ -76,9 +76,10 @@ def test_deficit_when_children_short(tmp_path):
 
     from reconcile_duration import reconcile
     rows, failures, total_deficit = reconcile(str(proj))
-    assert len(failures) == 1
-    assert failures[0][0] == "B011"
-    assert failures[0][1] > 0
+    assert len(failures) == 2  # UCI-03: per-clip failures (B011a deficit=2, B011b deficit=3)
+    failure_ids = {f[0] for f in failures}
+    assert "test_proj::B011a::s0" in failure_ids
+    assert "test_proj::B011b::s1" in failure_ids
     assert total_deficit > 0.25
 
 
@@ -107,8 +108,10 @@ def test_missing_slot_detected(tmp_path):
     from reconcile_duration import reconcile
     rows, failures, total_deficit = reconcile(str(proj))
     assert len(failures) == 1
-    assert failures[0][0] == "B005"
-    assert rows[0][4] == "SLOT_MISSING"
+    assert failures[0][0] == "test_proj::B005b::s1"  # UCI-03: keyed by clip_id
+    # Find the SLOT_MISSING row
+    missing_rows = [r for r in rows if r[4] == "SLOT_MISSING"]
+    assert len(missing_rows) == 1
 
 
 def test_single_beat_no_split(tmp_path):

@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from narrative_speed import measure as measure_pace
 from generate_music import generate as gen_music, write_wav
 from gates import require_gates  # noqa: E402
+import clip_db  # noqa: E402
 
 
 def run(cmd, label=""):
@@ -990,6 +991,36 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
     errors = validate_manifest(manifest, base)
     if errors:
         raise ValueError("Manifest validation failed:\n  " + "\n  ".join(errors))
+
+    # --- UCI-04: resolve clip paths from DB and assert all valid ---
+    segments = manifest.get("segments", [])
+    has_clip_ids = any(seg.get("clip_id") for seg in segments)
+    if has_clip_ids:
+        clip_db.init_db()
+        project_id = manifest.get("id") or manifest_path.parent.name
+        # Check if DB has clips for this project (skip gate if none registered)
+        db_clips = clip_db.list_clips(project_id)
+        if db_clips:
+            # Resolve media paths from the clip DB (golden truth)
+            for seg in segments:
+                cid = seg.get("clip_id")
+                if cid:
+                    db_path = clip_db.get_path(cid)
+                    if db_path:
+                        seg["media"] = db_path
+            # Gate: all clips must be valid before muxing
+            ok, problems = clip_db.assert_all_valid(project_id)
+            if not ok:
+                lines = [f"  {p['clip_id']}: status={p.get('status','?')} reason={p.get('status_reason') or p.get('reason','')}"
+                         for p in problems]
+                raise RuntimeError(
+                    "UCI-04 assembly gate FAILED — clips not valid:\n" + "\n".join(lines))
+        else:
+            import warnings
+            warnings.warn("UCI-04: clip_ids present but no clips registered in DB — skipping gate (transitional)")
+    else:
+        import warnings
+        warnings.warn("UCI-04: no clip_ids in manifest — skipping DB path resolution (legacy mode)")
 
     # Apply CLI music overrides (after validation, before assembly)
     if no_music:

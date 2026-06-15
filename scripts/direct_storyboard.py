@@ -281,8 +281,8 @@ def validate_director_output(beats, source_text):
         dur = b.get("duration_target_sec") or b.get("est_duration_sec") or 0
         if st.startswith("broll") and dur > 6.5:
             errors.append(f"{bid}: b-roll {dur}s exceeds 6s (split)")
-        if st.startswith("hero") and dur > 10.5:
-            errors.append(f"{bid}: hero {dur}s exceeds 10s (Seedance limit)")
+        if st.startswith("hero") and dur > 15.5:
+            errors.append(f"{bid}: hero {dur}s exceeds 15s (Seedance limit)")
         if st == "hero_lipsync" and dur < 4:
             errors.append(f"{bid}: hero_lipsync {dur}s below 4s (Seedance minimum)")
 

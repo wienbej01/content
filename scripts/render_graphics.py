@@ -186,6 +186,83 @@ def render_spec(spec, output_path):
     return output_path
 
 
+def render_local_graphic_media(media_plan_path, project_dir):
+    """Render local_graphic MEDIA beats (their visual IS a graphic) to their canonical
+    output_path, and mark them valid in the clip DB.
+
+    Distinct from render_batch (which renders OVERLAY PNGs composited onto video beats).
+    These are beats where model/asset_type == local_graphic — the beat's entire visual is
+    a rendered card. Without this, such beats stay status='ordered' forever (no producer)
+    and the golden-truth gate correctly blocks assembly.
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    plan = json.loads(Path(media_plan_path).read_text())
+    project_id = plan.get("project_id", Path(project_dir).name)
+    rendered = []
+    try:
+        import clip_db
+        clip_db.init_db()
+    except Exception:
+        clip_db = None
+
+    for beat in plan.get("beats", []):
+        is_local = (beat.get("model") == "local_graphic"
+                    or beat.get("asset_type") == "local_graphic")
+        if not is_local:
+            continue
+        beat_id = beat.get("beat_id", beat.get("id", "unknown"))
+        slot_id = beat.get("coverage_slot_id")
+        out_path = beat.get("output_path")
+        if not out_path:
+            continue
+        abs_out = Path(out_path)
+        if not abs_out.is_absolute():
+            abs_out = Path(__file__).resolve().parent.parent / out_path
+        # Render the beat's graphic card. Prefer an explicit graphic spec; else build a
+        # branded card from the beat's text/visual_brief.
+        graphics_list = beat.get("graphics") or ([beat["graphic"]] if beat.get("graphic") else [])
+        spec = None
+        if graphics_list:
+            g = graphics_list[0]
+            spec = {**g}
+            layout = g.get("layout") or g.get("type")
+            if layout not in RENDERERS:
+                layout = "key_line"   # default for missing/unknown layout
+            spec["layout"] = layout
+            if not spec.get("text"):
+                spec["text"] = (beat.get("graphic_text") or beat.get("visual_brief")
+                                or beat.get("narration_text") or beat_id)[:120]
+        else:
+            # Build a default key_line card from the beat's text content
+            text = (beat.get("graphic_text") or beat.get("visual_brief")
+                    or beat.get("narration_text") or beat_id)
+            spec = {"layout": "key_line", "text": text[:120]}
+        # Render as PNG at the canonical media path (assemble holds it for the duration).
+        png_path = abs_out.with_suffix(".png")
+        png_path.parent.mkdir(parents=True, exist_ok=True)
+        render_spec(spec, png_path)
+        rendered.append(str(png_path))
+        print(f"  ✓ local_graphic media {beat_id}{('/'+slot_id) if slot_id else ''} → {png_path.name}")
+
+        # Mark valid in the clip DB so the golden-truth gate passes.
+        if clip_db and beat.get("clip_id"):
+            cid = beat["clip_id"]
+            try:
+                import hashlib
+                sha = hashlib.sha256(png_path.read_bytes()).hexdigest()
+                clip_db.record_generated(cid, actual_dur_sec=beat.get("required_duration_sec")
+                                         or beat.get("duration_target_sec") or 0.0,
+                                         actual_width=1920, actual_height=1080,
+                                         actual_has_audio=False, actual_sha256=sha)
+                clip_db.mark_valid(cid, validated_by="render_graphics")
+                clip_db.log_access(cid, "render_graphics", "generate", f"rendered local_graphic → {png_path.name}")
+            except Exception as e:
+                print(f"  ⚠ clip_db update failed for {beat_id}: {e}", file=sys.stderr)
+    print(f"  Rendered {len(rendered)} local_graphic media file(s)")
+    return rendered
+
+
 def render_batch(media_plan_path, project_dir):
     """Render all beats with graphic.required=true from a media plan."""
     plan = json.loads(Path(media_plan_path).read_text())
@@ -230,7 +307,8 @@ def main(argv=None):
     elif args.batch:
         if not args.project_dir:
             ap.error("--project-dir required with --batch")
-        render_batch(args.batch, args.project_dir)
+        render_local_graphic_media(args.batch, args.project_dir)  # MEDIA beats (visual IS a graphic)
+        render_batch(args.batch, args.project_dir)                # OVERLAY PNGs onto video beats
         return 0
     else:
         ap.error("Provide --spec or --batch")

@@ -128,7 +128,7 @@ def test_missing_graphics_rejected():
 
 def test_model_limit_still_exceeded():
     """LLM output still has audio_duration_sec > model_max → rejected, marked REPAIR_FAILED."""
-    beat = _repair_beat(start=80.0, end=95.0)  # 15s, exceeds 10s max
+    beat = _repair_beat(start=80.0, end=95.0)  # 18s, exceeds 15s max
 
     def bad_llm(_prompt):
         return [{
@@ -136,7 +136,7 @@ def test_model_limit_still_exceeded():
             "source_beat_id": "B008",
             "audio_start_sec": 80.0,
             "audio_end_sec": 95.0,
-            "audio_duration_sec": 15.0,  # still exceeds 10s
+            "audio_duration_sec": 18.0,  # still exceeds 15s
             "narration_text": beat["narration_text"],
             "treatment": "hero_lipsync",
             "model": "seedance_2_0",

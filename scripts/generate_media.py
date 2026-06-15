@@ -965,7 +965,7 @@ def _generate_beat_clip(beat, out_path, dry_run=False, audio_path=None):
                 f"{beat['beat_id']}: hero_lipsync requires a narration audio slice "
                 f"(audio_path={audio_path!r}). Compile with audio_timing wired (T3).")
         # Trim the slice to the render duration when the audio is longer than the
-        # requested clip (e.g. 16s speech → 10s clamped render). Seedance rejects
+        # requested clip (e.g. 16s speech → 15s clamped render). Seedance rejects
         # lipsync jobs where audio duration > video duration.
         import subprocess as _sp
         audio_for_api = audio_path

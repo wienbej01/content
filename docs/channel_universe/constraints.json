@@ -190,7 +190,9 @@
     "lead_in_reason": "200ms closed-mouth lead-in at slice start",
     "on_sub_min_beat": "pad slice with room tone to min_clip_duration_sec; if still shorter than speech, merge with adjacent hero beat (render_group) instead",
     "max_clip_duration_sec": 15,
-    "max_clip_duration_reason": "Seedance 2.0 generates clips up to 15 seconds per shot (source: higgsfield.ai/seedance/2.0). Beats exceeding 15s must be split or rerouted."
+    "max_clip_duration_reason": "Seedance 2.0 generates clips up to 15 seconds per shot (source: higgsfield.ai/seedance/2.0). Beats exceeding 15s must be split or rerouted.",
+    "min_beat_duration_sec": 0.1,
+    "min_beat_duration_reason": "Beats shorter than ~2.4 frames (0.1s at 24fps) are phantom artifacts from TTS timing. They cannot produce a renderable clip and must be merged into an adjacent beat."
   },
   "crop_safety": {
     "master_format": "16:9",

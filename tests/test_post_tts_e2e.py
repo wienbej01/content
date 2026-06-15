@@ -52,7 +52,7 @@ def _beat(bid, narration, shot_type="hero_lipsync", lipsync=True, model="seedanc
 
 
 class TestSimpleLipsyncFitsOneClip:
-    """Test 1: Beat B001 with 8s narration fits in 10s Seedance limit."""
+    """Test 1: Beat B001 with 8s narration fits in 15s Seedance limit."""
 
     def test_single_clip_coverage(self):
         sb = _sb([_beat("B001", "A clear sentence about productivity.")])

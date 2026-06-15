@@ -170,19 +170,31 @@ def compile_beat(beat, constraints, routing):
     # in generated_video beats — these produce pseudo-text artefacts.
     tsp = constraints.get("text_surface_policy", {})
     tsp_banned = tsp.get("banned_terms", [])
+    # text_policy values that indicate no readable text is requested
+    _NO_READABLE_TEXT_POLICIES = frozenset((
+        "none", "soft_focus_only", "out_of_focus", "no_readable_text", "background",
+    ))
     if asset_type in tsp.get("banned_for_asset_types", []):
         check_text = (beat.get("visual_brief", "") + " " + positive).lower()
         for term in tsp_banned:
             if term in check_text:
                 # Reroute to local_graphic if shot_type allows it
                 if shot_type in LOCAL_SHOT_TYPES or shot_type.startswith("broll"):
-                    asset_type = "local_graphic"
-                    model = "local_graphic"
-                    beat["asset_type"] = asset_type
-                    beat["model"] = model
-                    warnings.append(
-                        f"TEXT_SURFACE_POLICY: beat {bid} rerouted to local_graphic "
-                        f"(visual_brief contains '{term}')")
+                    beat_text_policy = (beat.get("text_policy") or "").strip().lower()
+                    if beat_text_policy in _NO_READABLE_TEXT_POLICIES and beat_text_policy:
+                        # Beat explicitly declares no readable text — neutralize, don't reroute
+                        negative = f"{negative}, no {term}, no readable text" if negative else f"no {term}, no readable text"
+                        warnings.append(
+                            f"TEXT_SURFACE_POLICY: beat {bid} broll neutralized "
+                            f"'{term}' in negative_prompt (text_policy={beat_text_policy}, no readable text requested)")
+                    else:
+                        asset_type = "local_graphic"
+                        model = "local_graphic"
+                        beat["asset_type"] = asset_type
+                        beat["model"] = model
+                        warnings.append(
+                            f"TEXT_SURFACE_POLICY: beat {bid} rerouted to local_graphic "
+                            f"(visual_brief contains '{term}')")
                 elif shot_type == "hero_cutaway":
                     # hero_cutaway is continuous-VO b-roll-style; neutralize
                     # the banned term in negative_prompt, do NOT hard-error.
@@ -682,6 +694,7 @@ def _expand_coverage_slots(entry, beat_input, constraints, routing):
         if is_local:
             usd, cred = 0.0, 0.0
             slot_model = "local_graphic"
+            slot_asset_type = "local_graphic"   # keep model+asset_type consistent (no orphan beat)
         else:
             usd, cred = cost_for(slot_model, 1, routing)
 
@@ -714,6 +727,23 @@ def compile_plan(storyboard, constraints, routing, project_dir=None, db_path=Non
         plan_beats.extend(expanded)
         all_errors.extend(errs)
         plan_warnings.extend(beat_warns)
+
+    # STRUCTURAL GUARD: model and asset_type must be consistent so every beat has an
+    # owning producer. A beat with model=local_graphic but asset_type=generated_video
+    # (or vice-versa) is an ORPHAN — generate_media skips it (model=local_graphic) AND
+    # render_graphics skips it (asset_type=generated_video) → never produced. Fail closed.
+    for b in plan_beats:
+        bid = b.get("beat_id", "?")
+        slot = b.get("coverage_slot_id", "")
+        model = b.get("model")
+        atype = b.get("asset_type")
+        model_is_local = (model == "local_graphic")
+        atype_is_local = (atype == "local_graphic" or atype in LOCAL_SHOT_TYPES)
+        if model_is_local != atype_is_local:
+            all_errors.append(
+                f"ORPHAN_BEAT: {bid}{('/'+slot) if slot else ''} has model={model!r} but "
+                f"asset_type={atype!r} — inconsistent producer. Both must be local_graphic "
+                f"or both non-local. No step would generate this beat.")
 
     # PST-06: verify production storyboard traceability — every beat must have source_beat_id.
     if storyboard.get("reconciled_from") or storyboard.get("production"):

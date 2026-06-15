@@ -35,7 +35,7 @@ def _load_lipsync_limits():
         rules = json.loads(CONSTRAINTS_PATH.read_text()).get("lipsync_render_rules", {})
         return (rules.get("min_clip_duration_sec", 4),
                 rules.get("max_clip_duration_sec", 15))
-    return 4, 10
+    return 4, 15
 
 
 def _sha(path):

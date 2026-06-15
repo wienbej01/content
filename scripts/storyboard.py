@@ -604,7 +604,7 @@ def route(script: dict, constraints: dict, wps: float = DEFAULT_WPS) -> dict:
             shot_type = choose_shot_type(triggers, act, order,
                                          raw_beats[-1]["shot_type"] if raw_beats else None, 0.0)
 
-            # Per-shot-type max duration (§3.2): hero_lipsync ≤10s (render limit),
+            # Per-shot-type max duration (§3.2): hero_lipsync ≤15s (render limit),
             # hero_cutaway ≤15s, b-roll ≤12s, kinetic ≤3s.
             if shot_type == "hero_lipsync":
                 max_sec = LIPSYNC_RENDER_MAX_SEC

@@ -72,97 +72,109 @@ def _has_clip_db_rows(project_id):
 
 
 def _reconcile_via_db(project_dir, timing, plan, project_id):
-    """Reconcile using clip_db.coverage_for_beat (resolves parent→children)."""
+    """Reconcile using clip_db — keyed by clip_id, no silent drops.
+
+    Iterates ALL clips in the DB for this project (not the stale timing map).
+    Each clip carries its own required interval. A count guard ensures every
+    DB clip is evaluated — any silent drop is a hard failure.
+    """
     import clip_db
 
-    plan_beats = {b["beat_id"]: b for b in plan.get("beats", [])}
+    all_db_clips = clip_db.list_clips(project_id)
     rows = []
     failures = []
     total_deficit = 0.0
+    evaluated_clip_ids = set()
 
-    for tb in timing["beats"]:
-        beat_id = tb["beat_id"]
-        required = tb["end"] - tb["start"]
+    for clip in all_db_clips:
+        clip_id = clip["clip_id"]
+        beat_id = clip.get("production_beat_id") or clip.get("source_beat_id")
+        required = clip["required_dur_sec"]
+        asset_type = clip.get("asset_type", "generated_video")
 
-        # Check if this is a local_graphic in the plan (exact duration, no clip needed)
-        pb = plan_beats.get(beat_id)
-        if pb and pb.get("asset_type") == "local_graphic":
-            rows.append((beat_id, required, required, 0.0, "OK", "local_graphic", pb.get("output_path", "")))
+        evaluated_clip_ids.add(clip_id)
+
+        # local_graphic: exact duration, no clip file needed
+        if asset_type == "local_graphic":
+            rows.append((clip_id, required, required, 0.0, "OK", "local_graphic", clip.get("output_path", "")))
             continue
 
-        cov = clip_db.coverage_for_beat(project_id, beat_id)
-
-        if not cov["slots"]:
-            # No clips in DB for this beat — check plan for local_graphic children
-            rows.append((beat_id, required, 0.0, required, "MISSING_PLAN", "unknown", ""))
-            failures.append((beat_id, required))
+        actual = clip.get("actual_dur_sec")
+        if not actual or clip.get("status") not in ("generated", "valid"):
+            rows.append((clip_id, required, 0.0, required, "SLOT_MISSING", asset_type, clip.get("output_path", "")))
+            failures.append((clip_id, required))
             total_deficit += required
             continue
 
-        available = cov["available"]
-        deficit = max(0.0, required - available)
-
-        if not cov["all_present"]:
-            status = "SLOT_MISSING"
-            rows.append((beat_id, required, available, deficit if deficit > 0 else required, status, "generated_video", ""))
-            failures.append((beat_id, deficit if deficit > 0 else required))
-            total_deficit += deficit if deficit > 0 else required
-        elif deficit > TOLERANCE:
-            status = "INSUFFICIENT"
-            rows.append((beat_id, required, available, deficit, status, "generated_video", ""))
-            failures.append((beat_id, deficit))
+        deficit = max(0.0, required - actual)
+        if deficit > TOLERANCE:
+            rows.append((clip_id, required, actual, deficit, "INSUFFICIENT", asset_type, clip.get("output_path", "")))
+            failures.append((clip_id, deficit))
             total_deficit += deficit
         else:
-            rows.append((beat_id, required, available, deficit, "OK", "generated_video", ""))
+            rows.append((clip_id, required, actual, deficit, "OK", asset_type, clip.get("output_path", "")))
             total_deficit += deficit
+
+    # UCI-03 COUNT GUARD: every DB clip must have been evaluated (no silent drops)
+    all_db_clip_ids = {c["clip_id"] for c in all_db_clips}
+    dropped = all_db_clip_ids - evaluated_clip_ids
+    if dropped:
+        raise RuntimeError(
+            f"RECONCILE GUARD FAILED: {len(dropped)} clip(s) silently dropped from "
+            f"reconciliation: {sorted(dropped)}"
+        )
 
     return rows, failures, total_deficit
 
 
 def _reconcile_via_ffprobe(project_dir, timing, plan):
-    """Legacy fallback: reconcile using direct ffprobe of plan output_paths."""
-    plan_beats = {b["beat_id"]: b for b in plan.get("beats", [])}
+    """Legacy fallback: reconcile per-clip using ffprobe of plan output_paths.
+
+    Iterates plan beats keyed by clip_id (or beat_id for legacy). Does NOT
+    collapse multiple clips sharing a beat_id into one dict entry.
+    """
     rows = []
     failures = []
     total_deficit = 0.0
 
-    for tb in timing["beats"]:
-        beat_id = tb["beat_id"]
-        required = tb["end"] - tb["start"]
-        pb = plan_beats.get(beat_id)
+    for b in plan.get("beats", []):
+        clip_id = b.get("clip_id") or b.get("beat_id")
+        required = b.get("required_end_sec", 0) - b.get("required_start_sec", 0)
+        if required <= 0:
+            # Fallback: try timing map
+            timing_by_id = {t["beat_id"]: t for t in timing.get("beats", [])}
+            t = timing_by_id.get(b["beat_id"])
+            if t:
+                required = t["end"] - t["start"]
+            else:
+                required = 0.0
 
-        if not pb:
-            rows.append((beat_id, required, 0.0, required, "MISSING_PLAN", "unknown", ""))
-            failures.append((beat_id, required))
-            total_deficit += required
-            continue
-
-        asset_type = pb.get("asset_type", "")
-        output_path = pb.get("output_path", "")
+        asset_type = b.get("asset_type", "")
+        output_path = b.get("output_path", "")
 
         if asset_type == "local_graphic":
-            rows.append((beat_id, required, required, 0.0, "OK", asset_type, output_path))
+            rows.append((clip_id, required, required, 0.0, "OK", asset_type, output_path))
             continue
 
         full_path = ROOT / output_path if output_path else None
         if not full_path or not full_path.exists():
-            rows.append((beat_id, required, 0.0, required, "FILE_MISSING", asset_type, output_path))
-            failures.append((beat_id, required))
+            rows.append((clip_id, required, 0.0, required, "FILE_MISSING", asset_type, output_path))
+            failures.append((clip_id, required))
             total_deficit += required
             continue
 
         actual = probe_duration(full_path)
         if actual is None:
-            rows.append((beat_id, required, 0.0, required, "PROBE_FAIL", asset_type, output_path))
-            failures.append((beat_id, required))
+            rows.append((clip_id, required, 0.0, required, "PROBE_FAIL", asset_type, output_path))
+            failures.append((clip_id, required))
             total_deficit += required
             continue
 
         deficit = max(0.0, required - actual)
         status = "OK" if deficit <= TOLERANCE else "INSUFFICIENT"
-        rows.append((beat_id, required, actual, deficit, status, asset_type, output_path))
+        rows.append((clip_id, required, actual, deficit, status, asset_type, output_path))
         if deficit > TOLERANCE:
-            failures.append((beat_id, deficit))
+            failures.append((clip_id, deficit))
         total_deficit += deficit
 
     return rows, failures, total_deficit

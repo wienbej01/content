@@ -131,7 +131,7 @@ def _beat(beat_id, narration, shot_type="hero_lipsync", lipsync=True, model="see
 
 def test_reconcile_uses_measured_split(audio_with_silence):
     """Reconcile with audio fixture splits at measured boundary (provenance recorded)."""
-    # 12s lipsync beat > 10s max → needs split; audio has silence at ~5.25s
+    # 17.5s lipsync beat > 15s max → needs split; audio has silence at ~5.25s
     narration = "First sentence here. Second sentence follows after silence."
     sb = _storyboard([_beat("B001", narration)])
     tm = _timing_map([{"beat_id": "B001", "start": 0.0, "end": 17.5, "duration": 17.5}], total=17.5)
