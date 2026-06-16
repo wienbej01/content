@@ -96,8 +96,9 @@ def slice_hero_from_master(project_dir):
         trailing_silence = pad_needed - leading_silence
         
         # Ensure we don't exceed master bounds (though speech bounds should already be valid)
+        master_duration = bt.get("total_duration", float("inf"))
         slice_start = max(0.0, speech_start - leading_silence)
-        slice_end = min(bt["total_duration"], speech_end + trailing_silence)
+        slice_end = min(master_duration, speech_end + trailing_silence)
         padded_len = round(slice_end - slice_start, 3)
 
         slice_path = slices_dir / f"{bid}.mp3"
@@ -125,6 +126,8 @@ def slice_hero_from_master(project_dir):
             "leading_silence_sec": round(leading_silence, 3),
             "trailing_silence_sec": round(trailing_silence, 3),
             "master_sha256": parent_sha,
+            "master_start_sec": round(slice_start, 3),  # Backward compatibility
+            "master_end_sec": round(slice_end, 3),      # Backward compatibility
             "parent_mp3_sha256": parent_sha,
             "parent_mp3": "narration/continuous.mp3",
         }

@@ -459,15 +459,30 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
             raise ValueError(
                 f"keep_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
                 f"length {media_dur:.3f}s — slice/clip mismatch.")
-        # Re-encode with brand scale/crop/grade; STRIP audio (-an), no atempo,
-        # no speed (lipsync timing is sacred). Master narration will be mixed globally.
+        
+        # 1. Create muted video
+        muted = tmp / f"seg_{idx}_muted.mp4"
         run(["ffmpeg", "-y", "-i", str(media),
              "-vf", f"{scale_crop},{grade}",
              "-t", f"{out_dur:.3f}",
              "-map", "0:v", "-an",  # LB-202: Strip provider audio
              "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
-             "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
-             "-pix_fmt", "yuv420p", str(dst)], f"seg_{idx}_lipsync")
+             "-pix_fmt", "yuv420p", str(muted)], f"seg_{idx}_lipsync_muted")
+        
+        # 2. Overlay master narration spine
+        audio_src = seg.get("audio")
+        if audio_src:
+            audio_path = resolve(base, audio_src)
+            run(["ffmpeg", "-y", "-i", str(muted), "-i", str(audio_path),
+                 "-af", "aresample=48000", "-t", f"{out_dur:.3f}",
+                 "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+                 "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                 str(dst)], f"seg_{idx}_lipsync")
+        else:
+            # Fallback: if no audio source is provided, just use the muted video
+            # (This shouldn't happen in a correct LB-202 manifest)
+            run(["ffmpeg", "-y", "-i", str(muted), "-c", "copy", str(dst)], f"seg_{idx}_lipsync_fallback")
+            
         return dst
 
     # PHASE 5: multi-shot visual bed — concatenate distinct shots to cover narration,

@@ -235,10 +235,12 @@ def _make_video_with_tone(path, freq, dur, w=1280, h=720, color="navy"):
 
 
 def _make_silent_video(path, dur, w=1280, h=720, color="black"):
+    """Create a video with a silent audio stream to allow proper mixing."""
     subprocess.run(
         ["ffmpeg", "-y", "-f", "lavfi",
          "-i", f"color=c={color}:size={w}x{h}:rate=24:duration={dur}",
-         "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)],
+         "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path)],
         capture_output=True, check=True)
 
 
@@ -266,14 +268,14 @@ def _probe_dur(path):
 
 def _build_lipsync_project(td, *, speech_len=2.0, clip_pad=3.0,
                            tamper_slice=False, lipsync_color="navy"):
-    """Create a 2-segment project: [lipsync hero (1000Hz baked), voiceover (300Hz overlay)].
+    """Create a 2-segment project: [lipsync hero (master narration), voiceover (master narration)].
     Returns (manifest_path, base_dir, slice_path)."""
     base = Path(td)
     nar = base / "narration"
     slices = nar / "slices"
     slices.mkdir(parents=True)
 
-    # Hero lipsync clip — padded to clip_pad seconds, baked 1000Hz tone
+    # Hero lipsync clip — padded to clip_pad seconds, baked 1000Hz tone (which will be stripped)
     hero = base / "hero.mp4"
     _make_video_with_tone(hero, 1000, clip_pad, color=lipsync_color)
 
@@ -287,17 +289,22 @@ def _build_lipsync_project(td, *, speech_len=2.0, clip_pad=3.0,
     if tamper_slice:
         slice_sha = "0" * 64  # provenance will not match the live file
 
-    # Voiceover segment — muted video + separate 300Hz narration
+    # Master narration spine (300Hz) — used for ALL segments under LB-202
+    master_narration = nar / "continuous.mp3"
+    _make_tone_audio(master_narration, 300, 5.0)  # 5.0s total master narration
+
+    # Voiceover segment — muted video (audio will come from master narration)
+    # Duration must match the master narration to avoid freeze-frame limits
     vo_vid = base / "vo.mp4"
-    _make_silent_video(vo_vid, 2.5)
-    vo_audio = nar / "002_vo.mp3"
-    _make_tone_audio(vo_audio, 300, 2.0)
+    _make_silent_video(vo_vid, 5.0)  # Match 5.0s master narration
 
     manifest = {
         "id": "lipsync_fixture",
+        "audio": "narration/continuous.mp3",  # LB-202: Global master narration spine
         "segments": [
             {
                 "media": "hero.mp4",
+                "audio": "narration/continuous.mp3",  # LB-202: Explicitly link master spine
                 "audio_policy": "keep_lipsync",
                 "speech_len_sec": speech_len,
                 "lipsync_provenance": {
@@ -307,7 +314,7 @@ def _build_lipsync_project(td, *, speech_len=2.0, clip_pad=3.0,
                     "parent_mp3_sha256": parent_sha,
                 },
             },
-            {"media": "vo.mp4", "audio": "narration/002_vo.mp3", "words": 6},
+            {"media": "vo.mp4", "audio": "narration/continuous.mp3", "words": 6},  # Audio comes from master spine
         ],
         "pacing": {"reference": 1, "baseline_speed": 1.0},
         "music": {"enabled": False},
@@ -320,8 +327,8 @@ def _build_lipsync_project(td, *, speech_len=2.0, clip_pad=3.0,
     return mpath, base, slice_path
 
 
-def test_lipsync_span_uses_baked_audio():
-    """The hero span in the assembled output carries its OWN 1000Hz baked tone."""
+def test_lipsync_span_has_master_narration_not_baked_audio():
+    """LB-202: The hero span must NOT carry its baked tone; it uses the master spine."""
     asm = _load_assemble()
     with tempfile.TemporaryDirectory() as td:
         mpath, base, _ = _build_lipsync_project(td)
@@ -329,17 +336,14 @@ def test_lipsync_span_uses_baked_audio():
         final = out["formats"]["16x9"]["path"]
         # Hero span is first; probe 0.3..1.5s of the assembled output.
         e1000 = _band_energy(final, 0.3, 1.5, 1000)
-        assert e1000 > -45.0, f"baked 1000Hz tone missing on lipsync span (E={e1000:.1f}dB)"
-    print("  ✓ lipsync span carries baked audio (1000Hz present)")
+        # Baked 1000Hz tone should be stripped (or very low due to noise floor/filter skirt)
+        # A full-volume tone would be > -20dB; < -35dB indicates successful stripping.
+        assert e1000 < -35.0, f"baked 1000Hz tone should be stripped on lipsync span (E={e1000:.1f}dB)"
+    print("  ✓ lipsync span has baked audio stripped (LB-202)")
 
 
-def test_no_narration_overlay_on_lipsync_span():
-    """The hero span must NOT contain the 300Hz narration tone (no overlay/echo).
-
-    Mechanically: the 300Hz energy on the lipsync span must be far lower than the
-    300Hz energy on the actual voiceover span (where narration legitimately plays).
-    A leak/overlay would raise the lipsync-span 300Hz energy toward the voiceover level.
-    """
+def test_lipsync_span_has_master_narration_overlay():
+    """LB-202: The hero span MUST contain the master narration overlay (no echo, just master)."""
     asm = _load_assemble()
     with tempfile.TemporaryDirectory() as td:
         mpath, base, _ = _build_lipsync_project(td)
@@ -348,20 +352,16 @@ def test_no_narration_overlay_on_lipsync_span():
         total = _probe_dur(final)
         e300_lip = _band_energy(final, 0.3, 1.5, 300)          # lipsync span
         e300_vo = _band_energy(final, total - 1.5, total - 0.4, 300)  # voiceover span
-        e1000_lip = _band_energy(final, 0.3, 1.5, 1000)
-        assert e1000_lip > -45.0, "baked tone should be present on lipsync span"
-        # Narration on lipsync span must be far below where narration actually plays.
-        # If the master narration had been overlaid on the lipsync clip (the bug),
-        # the 300Hz energy on the lipsync span would rise to ~the voiceover level.
-        # Here it is ~14dB lower — only the 1000Hz tone's filter skirt remains.
-        assert e300_lip < e300_vo - 10.0, (
-            f"300Hz narration on lipsync span (E={e300_lip:.1f}dB) is not clearly "
-            f"below the voiceover span (E={e300_vo:.1f}dB) — overlay leaked onto lipsync")
-        # And the baked 1000Hz tone dominates the 300Hz residual on the lipsync span.
-        assert e1000_lip > e300_lip + 8.0, (
-            f"on the lipsync span the baked 1000Hz tone (E={e1000_lip:.1f}dB) does not "
-            f"dominate the 300Hz residual (E={e300_lip:.1f}dB)")
-    print("  ✓ no narration overlay on lipsync span")
+        
+        # Master narration (300Hz) MUST be present on the lipsync span
+        assert e300_lip > -45.0, f"master narration 300Hz missing on lipsync span (E={e300_lip:.1f}dB)"
+        
+        # The 300Hz energy on the lipsync span should be similar to the voiceover span
+        # (since both are using the same master narration spine)
+        assert abs(e300_lip - e300_vo) < 15.0, (
+            f"300Hz narration on lipsync span (E={e300_lip:.1f}dB) differs too much "
+            f"from voiceover span (E={e300_vo:.1f}dB) — master spine not applied correctly")
+    print("  ✓ lipsync span has master narration overlay (LB-202)")
 
 
 def test_voiceover_spans_still_overlay_narration():

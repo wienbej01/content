@@ -46,7 +46,10 @@ class TestTTSArtifact:
         script_doc = save_document_revision(prod["id"], "script", {"text": "hello"}, db_path=db)
         art = record_tts_artifact(
             prod["id"], audio_file, script_doc["id"],
-            {"voice_id": "james", "stability": 0.5},
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
             db_path=db,
         )
         assert art["kind"] == "tts_master"
@@ -54,13 +57,34 @@ class TestTTSArtifact:
 
     def test_missing_audio_file_raises(self, db, prod):
         with pytest.raises(FileNotFoundError):
-            record_tts_artifact(prod["id"], "/nonexistent/audio.mp3", "rev_id", {}, db_path=db)
+            record_tts_artifact(
+                prod["id"], "/nonexistent/audio.mp3", "rev_id",
+                voice_id="james",
+                model="eleven_v3",
+                voice_settings={"stability": 0.5},
+                request_fingerprint="test_fingerprint_123",
+                db_path=db
+            )
 
     def test_idempotent(self, db, prod, audio_file):
         from stage_runner import save_document_revision
         script_doc = save_document_revision(prod["id"], "script", {"text": "hello"}, db_path=db)
-        art1 = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
-        art2 = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art1 = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
+        art2 = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
         assert art1["id"] == art2["id"]
 
 
@@ -68,7 +92,14 @@ class TestTimingSpans:
     def test_commit_from_map(self, db, prod, audio_file):
         from stage_runner import save_document_revision
         script_doc = save_document_revision(prod["id"], "script", {"text": "test"}, db_path=db)
-        art = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
 
         timing_map = [
             {"label": "B001", "start_ms": 0, "end_ms": 3000, "narration_text": "Hello"},
@@ -82,7 +113,14 @@ class TestTimingSpans:
     def test_sec_to_ms_conversion(self, db, prod, audio_file):
         from stage_runner import save_document_revision
         script_doc = save_document_revision(prod["id"], "script", {"text": "test"}, db_path=db)
-        art = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
         timing_map = [{"label": "B001", "start_sec": 0.0, "end_sec": 3.5}]
         spans = commit_timing_spans_from_map(prod["id"], art["id"], timing_map, db_path=db)
         assert spans[0]["start_ms"] == 0
@@ -97,7 +135,14 @@ class TestStoryboardReconciliation:
     def test_reconcile_matches_by_label(self, db, prod, audio_file):
         from stage_runner import save_document_revision
         script_doc = save_document_revision(prod["id"], "script", {"text": "test"}, db_path=db)
-        art = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
         save_storyboard(prod["id"], {
             "beats": [
                 {"label": "B001", "shot_type": "lipsync", "narration_text": "A"},
@@ -122,7 +167,14 @@ class TestRenderPlan:
         from stage_runner import save_document_revision
         from production_repo import commit_timeline_spans
         script_doc = save_document_revision(prod["id"], "script", {"text": "test"}, db_path=db)
-        art = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
         spans = commit_timing_spans_from_map(prod["id"], art["id"], [
             {"label": "B001", "start_ms": 0, "end_ms": 4000},
         ], db_path=db)
@@ -142,7 +194,14 @@ class TestBudget:
     def test_request_spend_approval(self, db, prod, audio_file):
         from stage_runner import save_document_revision
         script_doc = save_document_revision(prod["id"], "script", {"text": "test"}, db_path=db)
-        art = record_tts_artifact(prod["id"], audio_file, script_doc["id"], {}, db_path=db)
+        art = record_tts_artifact(
+            prod["id"], audio_file, script_doc["id"],
+            voice_id="james",
+            model="eleven_v3",
+            voice_settings={"stability": 0.5},
+            request_fingerprint="test_fingerprint_123",
+            db_path=db,
+        )
         spans = commit_timing_spans_from_map(prod["id"], art["id"], [
             {"label": "B001", "start_ms": 0, "end_ms": 4000},
         ], db_path=db)

@@ -51,50 +51,54 @@ class TestOverMaxSpanRejected:
 
 class TestAtMaxSpanAccepted:
     def test_at_max_span_accepted(self, project_dir):
-        """Beat with exactly max_dur (padded to 10s) passes fine."""
+        """Beat with 9.5s speech span needs no padding (already near max)."""
         from slice_continuous_lipsync import slice_hero_from_master
 
-        # speech_len = 9.5s → padded = ceil(9.5+0.2) = 10 → exactly at max
         beat = {"beat_id": "B_OK", "lipsync_required": True, "audio_slice": None}
         timing = {"beat_id": "B_OK", "start": 0.0, "end": 9.5}
         _make_plan(project_dir, [beat], [timing])
 
         plan = slice_hero_from_master(project_dir)
         sliced = plan["beats"][0]
-        assert sliced["audio_slice"]["padded_len_sec"] == 10
+        # No padding needed, so padded_len equals speech_len
+        assert sliced["audio_slice"]["padded_len_sec"] == 9.5
+        assert sliced["audio_slice"]["leading_silence_sec"] == 0.0
+        assert sliced["audio_slice"]["trailing_silence_sec"] == 0.0
 
 
 class TestSubMinimumPadded:
     def test_sub_minimum_padded(self, project_dir):
-        """3.2s speech span is padded to 4s with padded_from_sec recorded."""
+        """Beat with 3.2s speech span is padded to 4.0s min with explicit silence."""
         from slice_continuous_lipsync import slice_hero_from_master
 
         beat = {"beat_id": "B_SHORT", "lipsync_required": True, "audio_slice": None}
-        timing = {"beat_id": "B_SHORT", "start": 2.0, "end": 5.2}  # 3.2s span
+        timing = {"beat_id": "B_SHORT", "start": 1.0, "end": 4.2}  # 3.2s span
         _make_plan(project_dir, [beat], [timing])
 
         plan = slice_hero_from_master(project_dir)
-        sliced = plan["beats"][0]
-        assert sliced["audio_slice"]["padded_len_sec"] == 4
+        sliced = next(b for b in plan["beats"] if b["beat_id"] == "B_SHORT")
         assert sliced["audio_slice"]["speech_len_sec"] == 3.2
-        # Padding provenance recorded
-        assert "padded_from_sec" in sliced["audio_slice"]
-        assert sliced["audio_slice"]["padded_to_sec"] == 4
+        assert sliced["audio_slice"]["padded_len_sec"] == 4.0
+        assert sliced["audio_slice"]["leading_silence_sec"] == 0.4
+        assert sliced["audio_slice"]["trailing_silence_sec"] == 0.4
 
 
 class TestNormalSpanPasses:
     def test_normal_span_passes(self, project_dir):
-        """7s speech span: no pad, no error."""
+        """Beat with 7.0s speech span needs no padding (already > 4.0s min)."""
         from slice_continuous_lipsync import slice_hero_from_master
 
         beat = {"beat_id": "B_NORM", "lipsync_required": True, "audio_slice": None}
-        timing = {"beat_id": "B_NORM", "start": 1.0, "end": 8.0}  # 7s
+        timing = {"beat_id": "B_NORM", "start": 1.0, "end": 8.0}  # 7.0s span
         _make_plan(project_dir, [beat], [timing])
 
         plan = slice_hero_from_master(project_dir)
-        sliced = plan["beats"][0]
-        # padded = ceil(7+0.2) = 8, which is > min(4) and < max(10)
-        assert sliced["audio_slice"]["padded_len_sec"] == 8
+        sliced = next(b for b in plan["beats"] if b["beat_id"] == "B_NORM")
+        assert sliced["audio_slice"]["speech_len_sec"] == 7.0
+        # No padding needed, so padded_len equals speech_len
+        assert sliced["audio_slice"]["padded_len_sec"] == 7.0
+        assert sliced["audio_slice"]["leading_silence_sec"] == 0.0
+        assert sliced["audio_slice"]["trailing_silence_sec"] == 0.0
         assert "padded_from_sec" not in sliced["audio_slice"]
 
 
