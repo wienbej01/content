@@ -18,6 +18,10 @@ assets/reference/
 
 # Database
 db/
+!db/
+db/*
+!db/migrations/
+!db/migrations/*.sql
 
 # Temp / raw
 content/

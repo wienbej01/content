@@ -31,9 +31,9 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS clips (
     clip_id            TEXT PRIMARY KEY,
     project_id         TEXT NOT NULL,
-    source_beat_id     TEXT NOT NULL,
-    production_beat_id TEXT NOT NULL,
-    slot_id            TEXT,
+    source_beat_id     TEXT NOT NULL,         -- creative_beat_id (storyboard parent)
+    production_beat_id TEXT NOT NULL,         -- post-split child (e.g., B005a)
+    slot_id            TEXT,                  -- post-expansion slot (e.g., B004-s0)
     split_index        INTEGER,
     split_total        INTEGER,
     output_path        TEXT NOT NULL,
@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS clips (
     actual_sha256      TEXT,
     plan_sha256        TEXT,
     upstream_sha256    TEXT,
+    render_unit_id     TEXT,                  -- ALN-B1: Explicit physical clip/slot identity
+    timeline_span_id   TEXT,                  -- ALN-B1: Explicit post-TTS interval identity
     created_at         TEXT NOT NULL,
     created_by_step    TEXT,
     generated_at       TEXT,
@@ -158,6 +160,13 @@ def _row_to_dict(row):
     return dict(row)
 
 
+def _mirror_clip(clip):
+    """Dual-write current clip truth into the unified production ledger."""
+    if clip:
+        import production_db
+        production_db.import_legacy_clip(clip["project_id"], clip)
+
+
 # --- Ordering authority ---
 
 def order_clip(project_id, source_beat_id, production_beat_id, segment_id, asset_type, model,
@@ -196,7 +205,9 @@ def order_clip(project_id, source_beat_id, production_beat_id, segment_id, asset
     log_access(cid, created_by_step, "order", detail=f"path={opath}", db_path=db_path)
     row = conn.execute("SELECT * FROM clips WHERE clip_id=?", (cid,)).fetchone()
     conn.close()
-    return _row_to_dict(row)
+    result = _row_to_dict(row)
+    _mirror_clip(result)
+    return result
 
 
 def order_clips(project_id, plan_beats, created_by_step='compile_media_plan', db_path=None):
@@ -283,6 +294,7 @@ def record_generated(clip_id, actual_dur_sec, actual_width, actual_height, actua
     conn.commit()
     log_access(clip_id, generated_by_step, "generate", db_path=db_path)
     conn.close()
+    _mirror_clip(get_clip(clip_id, db_path=db_path))
 
 
 def verify_clip_file(clip, root=None):
@@ -316,12 +328,26 @@ def mark_valid(clip_id, validated_by='qa_media', db_path=None):
         conn.commit()
         log_access(clip_id, "system", "invalidate", detail=reason, db_path=db_path)
         conn.close()
+        updated = get_clip(clip_id, db_path=db_path)
+        _mirror_clip(updated)
+        import production_db
+        production_db.mirror_clip_validation(
+            updated["project_id"], clip_id, "fail", "system", evidence={"error": reason}
+        )
         raise FileNotFoundError(f"mark_valid refused for {clip_id}: {reason}")
     now = _now()
     conn.execute("UPDATE clips SET status='valid', last_validated_at=? WHERE clip_id=?", (now, clip_id))
     conn.commit()
     log_access(clip_id, validated_by, "validate", db_path=db_path)
     conn.close()
+    updated = get_clip(clip_id, db_path=db_path)
+    _mirror_clip(updated)
+    import production_db
+    production_db.mirror_clip_validation(
+        updated["project_id"], clip_id, "pass", validated_by,
+        evidence={"actual_sha256": updated.get("actual_sha256"),
+                  "output_path": updated.get("output_path")},
+    )
 
 
 def mark_failed(clip_id, error, db_path=None):
@@ -331,6 +357,12 @@ def mark_failed(clip_id, error, db_path=None):
     conn.commit()
     log_access(clip_id, "system", "invalidate", detail=error, db_path=db_path)
     conn.close()
+    updated = get_clip(clip_id, db_path=db_path)
+    _mirror_clip(updated)
+    import production_db
+    production_db.mirror_clip_validation(
+        updated["project_id"], clip_id, "fail", "system", evidence={"error": error}
+    )
 
 
 def mark_stale(clip_id, reason, db_path=None):
@@ -342,6 +374,7 @@ def mark_stale(clip_id, reason, db_path=None):
     conn.commit()
     log_access(clip_id, "system", "invalidate", detail=reason, db_path=db_path)
     conn.close()
+    _mirror_clip(get_clip(clip_id, db_path=db_path))
 
 
 # --- Interactive change-request loop ---
@@ -359,6 +392,12 @@ def request_change(clip_id, requested_by, target_step, change_type, reason, db_p
     conn.commit()
     log_access(clip_id, requested_by, "invalidate", detail=f"change_request: {change_type} -> {target_step}", db_path=db_path)
     conn.close()
+    updated = get_clip(clip_id, db_path=db_path)
+    _mirror_clip(updated)
+    import production_db
+    production_db.mirror_change_request(
+        updated["project_id"], clip_id, change_type, requested_by, target_step, reason
+    )
 
 
 def open_change_requests(project_id, target_step=None, db_path=None):
@@ -393,6 +432,12 @@ def resolve_change(clip_id, resolved_by, outcome, db_path=None):
     conn.commit()
     log_access(clip_id, resolved_by, "validate", detail=f"resolved: {outcome}", db_path=db_path)
     conn.close()
+    updated = get_clip(clip_id, db_path=db_path)
+    _mirror_clip(updated)
+    import production_db
+    production_db.resolve_mirrored_changes(
+        updated["project_id"], clip_id, resolved_by, outcome
+    )
 
 
 def apply_human_override(clip_id, decision, note, db_path=None):
@@ -403,6 +448,7 @@ def apply_human_override(clip_id, decision, note, db_path=None):
     conn.commit()
     log_access(clip_id, "human", "validate", detail=f"override: {decision} — {note}", db_path=db_path)
     conn.close()
+    _mirror_clip(get_clip(clip_id, db_path=db_path))
 
 
 def assert_all_valid(project_id, db_path=None):

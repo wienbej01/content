@@ -174,6 +174,23 @@ def compile_beat(beat, constraints, routing):
     _NO_READABLE_TEXT_POLICIES = frozenset((
         "none", "soft_focus_only", "out_of_focus", "no_readable_text", "background",
     ))
+    # Inference (2026-06-16): a b-roll brief that EXPLICITLY states its text is
+    # unreadable / out of focus / illegible declares no-readable-text intent even
+    # when the authoring stage left text_policy unset. Honour that intent so the
+    # beat NEUTRALIZES (stays as footage) instead of being rerouted to a blank
+    # local_graphic. We only INFER when text_policy is unset/empty — an explicit
+    # policy (e.g. 'post_overlay', meaning legible text IS added) is never overridden.
+    _explicit_unreadable = (
+        "out of focus", "out-of-focus", "unreadable", "illegible",
+        "no readable", "not readable", "deliberately blurred", "text blurred",
+    )
+    if shot_type.startswith("broll") and not (beat.get("text_policy") or "").strip():
+        _brief_l = (beat.get("visual_brief", "") + " " + beat.get("visual_description", "")).lower()
+        if any(p in _brief_l for p in _explicit_unreadable):
+            beat["text_policy"] = "out_of_focus"
+            warnings.append(
+                f"TEXT_SURFACE_POLICY: beat {bid} text_policy inferred 'out_of_focus' "
+                f"(brief explicitly states unreadable/out-of-focus text)")
     if asset_type in tsp.get("banned_for_asset_types", []):
         check_text = (beat.get("visual_brief", "") + " " + positive).lower()
         for term in tsp_banned:
@@ -831,6 +848,9 @@ def compile_plan(storyboard, constraints, routing, project_dir=None, db_path=Non
             # DB-authoritative path and clip_id written back into plan beat
             b["output_path"] = row["output_path"]
             b["clip_id"] = row["clip_id"]
+            b["required_start_sec"] = row["required_start_sec"]
+            b["required_end_sec"] = row["required_end_sec"]
+            b["required_dur_sec"] = row["required_dur_sec"]
 
     total_usd = round(sum(b["cost"]["est_usd"] for b in plan_beats), 2)
     total_cred = round(sum(b["cost"]["est_credits"] for b in plan_beats), 1)

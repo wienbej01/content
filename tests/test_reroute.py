@@ -69,7 +69,43 @@ class TestRerouteSlotsWithinLimit:
         beat = result["beats"][0]
 
         for slot in beat["coverage_plan"]:
-            assert slot["required_duration_sec"] <= BROLL_SLOT_MAX + FRAME_TOLERANCE
+            assert slot["required_duration_sec"] <= CONSTRAINTS["broll_slot_max"] + FRAME_TOLERANCE
+
+
+class TestBrollSlotMaxCoversModelMinimum:
+    """REGRESSION (2026-06-16): b-roll coverage slots must be sized at or below the
+    b-roll model's RELIABLE (guaranteed-minimum) clip duration, so every slot is
+    fully covered even when the model returns its shortest output. B005 failed QA
+    because broll_slot_max=6.0 sized 5.40s slots that kling3_0's 5.04s minimum
+    clip could not cover."""
+
+    COVERAGE_TOL = 0.25  # qa_media coverage-deficit tolerance
+
+    def _broll_model_reliable_sec(self):
+        import yaml
+        routing = yaml.safe_load((ROOT / "configs" / "james" / "model_routing.yaml").read_text())
+        broll_logical = routing.get("model_id_map", {}).get("environment_broll", "kling3_0")
+        costs = routing.get("costs", {})
+        for key in (broll_logical, "kling3_0"):
+            if key in costs and "reliable_clip_sec" in costs[key]:
+                return float(costs[key]["reliable_clip_sec"])
+        pytest.skip("b-roll model reliable_clip_sec not configured")
+
+    def test_configured_slot_max_within_model_minimum(self):
+        constraints_path = ROOT / "docs" / "channel_universe" / "constraints.json"
+        slot_max = float(json.loads(constraints_path.read_text())
+                         .get("reroute_policy", {}).get("broll_slot_max_sec", BROLL_SLOT_MAX))
+        reliable = self._broll_model_reliable_sec()
+        assert slot_max <= reliable + self.COVERAGE_TOL, (
+            f"broll_slot_max_sec={slot_max}s exceeds the b-roll model's reliable "
+            f"clip duration {reliable}s — multi-slot beats will be under-covered "
+            f"when the model returns its minimum output (the B005 failure mode)")
+
+    def test_code_default_within_model_minimum(self):
+        reliable = self._broll_model_reliable_sec()
+        assert BROLL_SLOT_MAX <= reliable + self.COVERAGE_TOL, (
+            f"BROLL_SLOT_MAX default {BROLL_SLOT_MAX}s exceeds model reliable "
+            f"{reliable}s — slots can be under-covered")
 
 
 class TestRerouteCoversFullInterval:

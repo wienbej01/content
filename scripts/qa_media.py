@@ -371,8 +371,16 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
             media_path = resolve(base, unit["media"])
             entry = {"id": uid, "segment_id": sid, "audio_mode": mode,
                      "media_path": str(media_path), "issues": []}
-            # CDB-05: Attach clip_id if this beat is in the DB
-            if uid in _clip_id_map:
+            # CDB-05: Attach clip_id. Prefer the beat's OWN clip_id, which is
+            # correct per-slot for multi-slot/coverage beats (e.g. B009-s0..s3 all
+            # share production_beat_id "B009"). The beat_id→clip_id map collapses
+            # those to a single entry and mis-tags every slot with one clip_id, so
+            # it is only a fallback for legacy plans without an embedded clip_id.
+            if seg.get("clip_id"):
+                entry["clip_id"] = seg["clip_id"]
+            elif unit.get("clip_id"):
+                entry["clip_id"] = unit["clip_id"]
+            elif uid in _clip_id_map:
                 entry["clip_id"] = _clip_id_map[uid]
 
             if not media_path or not media_path.exists():
@@ -464,33 +472,70 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
                 all_pass = False
             results.append(entry)
 
-    # Coverage-deficit check: compare clip duration vs timing-map requirement
+    # Coverage-deficit check: compare TOTAL clip duration per beat vs timing-map
+    # requirement. Multi-slot/coverage beats (e.g. hero_cutaway split into s0..sN)
+    # tile one beat across several clips, so durations must be summed per beat_id
+    # before comparing to the requirement — checking each slot individually against
+    # the whole-beat requirement produces false COVERAGE_DEFICIT failures.
     timing_map = _load_timing_map(pid, base)
     if timing_map:
         tm_lookup = {b["beat_id"]: b for b in timing_map.get("beats", [])}
+        dur_by_beat = {}
+        entries_by_beat = {}
         for entry in results:
             bid = entry.get("id")
-            if bid and bid in tm_lookup and entry.get("duration"):
-                req = tm_lookup[bid]["end"] - tm_lookup[bid]["start"]
-                actual = entry["duration"]
-                deficit = req - actual
-                if deficit > 0.25:
-                    entry["issues"].append(
-                        f"COVERAGE_DEFICIT: beat {bid} has {actual:.3f}s visual "
-                        f"but needs {req:.3f}s (deficit {deficit:.3f}s)")
-                    entry["status"] = "FAIL"
-                    all_pass = False
+            if bid and entry.get("duration"):
+                dur_by_beat[bid] = dur_by_beat.get(bid, 0.0) + entry["duration"]
+                entries_by_beat.setdefault(bid, []).append(entry)
+        for bid, total in dur_by_beat.items():
+            if bid not in tm_lookup:
+                continue
+            req = tm_lookup[bid]["end"] - tm_lookup[bid]["start"]
+            deficit = req - total
+            if deficit > 0.25:
+                n = len(entries_by_beat[bid])
+                across = f" across {n} clips" if n > 1 else ""
+                # Flag once, on the first clip of the beat.
+                entries_by_beat[bid][0]["issues"].append(
+                    f"COVERAGE_DEFICIT: beat {bid} has {total:.3f}s total visual{across} "
+                    f"but needs {req:.3f}s (deficit {deficit:.3f}s)")
+                entries_by_beat[bid][0]["status"] = "FAIL"
+                all_pass = False
 
     # --- CDB-05: Interactive clip_db integration ---
-    # For each beat with a clip_id, mark valid or raise change requests.
+    # Best-effort mirroring of QA outcomes into the clip ledger. This must never
+    # abort the QA report itself: if clip_db is unavailable, uninitialised, or a
+    # clip is not registered, log a warning and continue. The report's clip_id
+    # fields are assigned independently above and remain valid regardless.
     try:
         import clip_db
-        if pid:
-            for entry in results:
-                clip_id = entry.get("clip_id")
-                if not clip_id:
-                    continue
+    except ImportError:
+        clip_db = None
+    if clip_db and pid:
+        # Only attempt DB writes for clips actually present in the ledger.
+        try:
+            known_clip_ids = {c["clip_id"] for c in clip_db.list_clips(pid)}
+        except Exception as e:
+            known_clip_ids = set()
+            print(f"  WARNING: clip_db not queryable ({e}); skipping ledger mirror",
+                  file=sys.stderr)
+        for entry in results:
+            clip_id = entry.get("clip_id")
+            if not clip_id or clip_id not in known_clip_ids:
+                continue
+            try:
                 if entry.get("status") == "PASS":
+                    # Resolve any stale open change requests before re-validating:
+                    # a clip that now passes QA (e.g. after a regenerate, or after a
+                    # QA-logic fix) must not retain dangling open requests that would
+                    # block build_manifest's golden-truth gate.
+                    try:
+                        if clip_db.open_change_requests(pid):
+                            clip_db.resolve_change(
+                                clip_id, resolved_by='qa_media',
+                                outcome='passed_requalification')
+                    except Exception:
+                        pass
                     clip_db.mark_valid(clip_id, validated_by='qa_media')
                 else:
                     for issue in entry.get("issues", []):
@@ -499,8 +544,9 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
                             clip_id, requested_by='qa_media',
                             target_step=target_step,
                             change_type=change_type, reason=issue)
-    except ImportError:
-        pass  # clip_db not available — legacy mode
+            except Exception as e:
+                print(f"  WARNING: clip_db mirror failed for {clip_id}: {e}",
+                      file=sys.stderr)
 
     # Aggregate consistency: ensure passed bool agrees with per-row statuses
     row_pass = all(r.get("status", "").upper() == "PASS" for r in results)

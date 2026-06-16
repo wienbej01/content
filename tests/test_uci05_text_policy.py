@@ -93,6 +93,40 @@ class TestReadableTextStillRerouted:
         assert entry["asset_type"] == "local_graphic"
 
 
+class TestUnreadableBriefInfersPolicy:
+    """REGRESSION (2026-06-16): a broll beat with NO text_policy whose brief
+    EXPLICITLY states the text is unreadable/out-of-focus/illegible must infer
+    a no-readable-text policy and NEUTRALIZE (stay footage) — not reroute to a
+    blank local_graphic (which renders a near-black frozen frame failing final QA).
+    This is the using_ai_to_help_memory_retention_short B003/B005/B007 failure."""
+
+    @pytest.mark.parametrize("brief", [
+        "University library, a chat interface glows on the laptop screen — text deliberately out of focus and unreadable.",
+        "A hand writes in a dark-cover notebook. Notebook text is intentionally illegible. No faces in frame.",
+        "Professional writing in a notebook, lips moving as they recall. Notebook text unreadable, no readable screens.",
+    ])
+    def test_explicit_unreadable_brief_neutralizes(self, brief):
+        beat = _make_beat("B003", "broll_environment", brief, text_policy=None)
+        entry, errors, warnings = C.compile_beat(beat, _constraints(), _routing())
+        assert entry["asset_type"] == "generated_video", \
+            f"explicit-unreadable broll must stay footage, got {entry['asset_type']}"
+        assert entry["model"] != "local_graphic"
+        rerouted = [w for w in warnings if "rerouted to local_graphic" in w]
+        assert not rerouted, f"must NOT reroute to local_graphic: {warnings}"
+
+    def test_genuinely_readable_brief_still_reroutes(self):
+        """Guard: the inference must NOT fire for briefs that genuinely need legible
+        text — those must still reroute per UCI-05."""
+        beat = _make_beat(
+            "B010", "broll_tactical",
+            "laptop screen showing a financial dashboard with readable text",
+            text_policy=None,
+        )
+        entry, errors, warnings = C.compile_beat(beat, _constraints(), _routing())
+        assert entry["asset_type"] == "local_graphic", \
+            "a brief needing legible text must still reroute (UCI-05 intent preserved)"
+
+
 class TestHeroUnaffected:
     """Hero beats with out_of_focus text_policy still use existing neutralization (no change)."""
 

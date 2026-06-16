@@ -129,6 +129,18 @@ def record_gate(project_id: str, gate: str, status: str, artifact_path=None,
         entry["extra"] = extra
     data["gates"][gate] = entry
     _write_ledger(project_id, data)
+    from production_db import mirror_approval
+    mirror_approval(
+        project_id,
+        gate,
+        status,
+        artifact_path=artifact_path,
+        artifact_sha256=entry["artifact_sha256"],
+        forced=forced,
+        actor=approved_by,
+        decision_note=(extra or {}).get("note") if extra else None,
+        legacy_payload=entry,
+    )
     return entry
 
 
@@ -188,6 +200,18 @@ def require_gates(project_id: str, gate_names, artifact_hashes: dict | None = No
             continue
         reason = _stale(entry, artifact_hashes)
         if reason:
+            from production_db import mirror_approval
+            mirror_approval(
+                project_id,
+                gate,
+                "stale",
+                artifact_path=entry.get("artifact_path"),
+                artifact_sha256=entry.get("artifact_sha256"),
+                forced=entry.get("forced", False),
+                actor=entry.get("approved_by"),
+                decision_note=reason,
+                legacy_payload=entry,
+            )
             problems.append(
                 f"  ✗ {reason}\n"
                 f"    re-run: {GATE_COMMANDS.get(gate, '(re-approve this gate)')}")

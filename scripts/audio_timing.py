@@ -153,7 +153,7 @@ def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_T
         start = round(snapped[i], 3)
         end = round(snapped[i + 1], 3)
         beat_timings.append({
-            "beat_id": b["beat_id"],
+            "label": b.get("label") or b["beat_id"],
             "start": start,
             "end": end,
             "duration": round(end - start, 3),

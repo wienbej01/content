@@ -331,7 +331,7 @@ def test_storyboard_timing_map_emitted():
         result = at.build_storyboard_timing_map(str(audio), beats)
         assert result["beat_count"] == 3
         assert len(result["beats"]) == 3
-        assert result["beats"][0]["beat_id"] == "B001"
+        assert result["beats"][0]["label"] == "B001"
         assert result["beats"][0]["start"] == 0.0
         assert result["beats"][-1]["end"] == result["total_duration"]
         # Monotonically increasing

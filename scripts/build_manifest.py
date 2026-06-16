@@ -121,6 +121,7 @@ def build(project_dir, allow_missing=False, format_str=None):
 
     # --- CDB-06: Golden-truth gate — all clips must be valid ---
     project_id = plan.get("project_id", project_dir.name)
+    clips_by_id = {}
     try:
         import clip_db
         try:
@@ -128,6 +129,7 @@ def build(project_dir, allow_missing=False, format_str=None):
         except Exception:
             clips = []  # table missing — legacy project
         if clips:
+            clips_by_id = {clip["clip_id"]: clip for clip in clips}
             ok, problems = clip_db.assert_all_valid(project_id)
             if not ok:
                 lines = ["Clip DB golden-truth gate FAILED — cannot build manifest:"]
@@ -177,56 +179,63 @@ def build(project_dir, allow_missing=False, format_str=None):
     for b in plan_beats:
         bid = b["beat_id"]
         clip_id = b.get("clip_id") or bid  # fallback for legacy plans
+        db_clip = clips_by_id.get(clip_id)
         if not b.get("clip_id"):
             warnings.append(f"Beat {bid}: no clip_id — using beat_id as key (legacy)")
 
-        # Per-clip timing from plan row (UCI-01: NOT from beat_timing_map)
-        has_per_clip_timing = ("required_start_sec" in b and "required_end_sec" in b
+        # The clip DB owns the timeline contract. The media plan is a serialized
+        # handoff and is used only when no DB row exists (legacy projects).
+        if db_clip:
+            timing_in = db_clip["required_start_sec"]
+            timing_out = db_clip["required_end_sec"]
+        else:
+            has_per_clip_timing = ("required_start_sec" in b and "required_end_sec" in b
                                and b["required_start_sec"] is not None
                                and b["required_end_sec"] is not None)
-        if has_per_clip_timing:
-            timing_in = b["required_start_sec"]
-            timing_out = b["required_end_sec"]
-        else:
-            # Fallback to beat_timing_map for legacy plans
-            timing = timing_by_id.get(bid)
-            if not timing:
-                # UCI-02: split children inherit timing from parent (source_beat_id)
-                source = b.get("source_beat_id")
-                parent_timing = timing_by_id.get(source) if source and source != bid else None
-                if parent_timing:
-                    # Distribute parent timing among siblings proportionally
-                    siblings = [sb for sb in plan_beats if sb.get("source_beat_id") == source
-                                and sb["beat_id"] != source]
-                    if not siblings:
-                        siblings = [b]
-                    total_target = sum(sb.get("duration_target_sec", 0) for sb in siblings) or 1.0
-                    parent_start = parent_timing["start"]
-                    parent_dur = parent_timing["end"] - parent_timing["start"]
-                    offset = 0.0
-                    for sb in siblings:
-                        frac = (sb.get("duration_target_sec", 0) / total_target) * parent_dur
-                        if sb["beat_id"] == bid:
-                            timing_in = parent_start + offset
-                            timing_out = parent_start + offset + frac
-                            break
-                        offset += frac
+            if has_per_clip_timing:
+                timing_in = b["required_start_sec"]
+                timing_out = b["required_end_sec"]
+            else:
+                # Fallback to beat_timing_map for legacy plans
+                timing = timing_by_id.get(bid)
+                if not timing:
+                    # UCI-02: split children inherit timing from parent (source_beat_id)
+                    source = b.get("source_beat_id")
+                    parent_timing = timing_by_id.get(source) if source and source != bid else None
+                    if parent_timing:
+                        # Distribute parent timing among siblings proportionally
+                        siblings = [sb for sb in plan_beats if sb.get("source_beat_id") == source
+                                    and sb["beat_id"] != source]
+                        if not siblings:
+                            siblings = [b]
+                        total_target = sum(sb.get("duration_target_sec", 0) for sb in siblings) or 1.0
+                        parent_start = parent_timing["start"]
+                        parent_dur = parent_timing["end"] - parent_timing["start"]
+                        offset = 0.0
+                        for sb in siblings:
+                            frac = (sb.get("duration_target_sec", 0) / total_target) * parent_dur
+                            if sb["beat_id"] == bid:
+                                timing_in = parent_start + offset
+                                timing_out = parent_start + offset + frac
+                                break
+                            offset += frac
+                        else:
+                            errors.append(f"Clip {clip_id} (beat {bid}): split child not found in siblings")
+                            continue
                     else:
-                        errors.append(f"Clip {clip_id} (beat {bid}): split child not found in siblings")
+                        errors.append(f"Clip {clip_id} (beat {bid}): no per-clip timing and not in timing_map")
                         continue
                 else:
-                    errors.append(f"Clip {clip_id} (beat {bid}): no per-clip timing and not in timing_map")
-                    continue
-            else:
-                timing_in = timing["start"]
-                timing_out = timing["end"]
+                    timing_in = timing["start"]
+                    timing_out = timing["end"]
 
         duration = timing_out - timing_in
 
-        media_path_rel = b.get("output_path", "")
+        media_path_rel = db_clip["output_path"] if db_clip else b.get("output_path", "")
         # local_graphic media beats are rendered to a .png (render_graphics step), not .mp4.
-        is_local_graphic = (b.get("model") == "local_graphic"
-                            or b.get("asset_type") == "local_graphic")
+        asset_type = db_clip["asset_type"] if db_clip else b.get("asset_type", "generated_video")
+        audio_policy = db_clip["audio_policy"] if db_clip else b.get("audio_policy", "strip")
+        is_local_graphic = (b.get("model") == "local_graphic" or asset_type == "local_graphic")
         if is_local_graphic and media_path_rel.endswith(".mp4"):
             media_path_rel = media_path_rel[:-4] + ".png"
         media_path = None
@@ -248,23 +257,23 @@ def build(project_dir, allow_missing=False, format_str=None):
         seg = {
             "clip_id": clip_id,
             "id": clip_id,
-            "source_beat_id": bid,
+            "source_beat_id": (db_clip["source_beat_id"] if db_clip else b.get("source_beat_id", bid)),
             "segment_id": b.get("segment_id"),
             "media": media_path_rel,
             "media_sha256": media_sha,
             "timing_in": timing_in,
             "timing_out": timing_out,
             "duration_required": round(duration, 6),
-            "audio_policy": b.get("audio_policy", "strip"),
+            "audio_policy": audio_policy,
             # Carry the authoritative asset_type so assemble derives behaviour from the
             # DB/plan contract, not from re-inferring it from the media file extension.
-            "asset_type": b.get("asset_type", "generated_video"),
+            "asset_type": asset_type,
         }
 
         # Lipsync provenance
         if b.get("lipsync_required") and b.get("audio_slice"):
             seg["audio_policy"] = "keep_lipsync"
-            seg["speech_len_sec"] = b["audio_slice"]["speech_len_sec"]
+            seg["speech_len_sec"] = (db_clip.get("speech_len_sec") if db_clip else None) or b["audio_slice"]["speech_len_sec"]
             seg["lipsync_provenance"] = {
                 "slice_sha256": b["audio_slice"].get("slice_sha256"),
                 "parent_mp3_sha256": b["audio_slice"].get("parent_mp3_sha256"),

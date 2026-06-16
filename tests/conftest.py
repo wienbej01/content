@@ -1,4 +1,4 @@
-"""Global test fixtures — redirect clip_db to temp path so tests never pollute db/clips.db."""
+"""Global test fixtures — isolate runtime databases from the real workspace."""
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +23,21 @@ def _isolate_clip_db(tmp_path, monkeypatch):
     monkeypatch.setenv("CLIP_DB_PATH", db_file)
     yield
     clip_db._db_path_override = None
+
+
+@pytest.fixture(autouse=True)
+def _isolate_production_db(tmp_path, monkeypatch):
+    """Every test gets an independent unified production ledger."""
+    db_file = str(tmp_path / "test_production.db")
+    monkeypatch.setenv("PRODUCTION_DB_PATH", db_file)
+    try:
+        import production_db
+        production_db._db_path_override = db_file
+    except ImportError:
+        production_db = None
+    yield
+    if production_db is not None:
+        production_db._db_path_override = None
 
 
 def make_clip_file(clip, content=b"FAKE_MEDIA"):

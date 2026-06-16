@@ -206,5 +206,31 @@ def test_sliceless_compile_clean_error_not_crash(C, sb, tmp_path):
     print("  ✓ sliceless compile yields clean warning, no AttributeError")
 
 
+def test_compile_serializes_db_authoritative_timing(C, sb, monkeypatch):
+    """The media plan handoff carries the exact timing returned by clip_db."""
+    import clip_db
+
+    storyboard = json.loads(json.dumps(sb))
+    storyboard["project_id"] = "timing_writeback_test"
+    storyboard["beats"] = [storyboard["beats"][0]]
+
+    def fake_order_clip(**kwargs):
+        return {
+            "clip_id": "timing_writeback_test::B001::whole",
+            "output_path": "assets/media/timing_writeback_test/001/B001.mp4",
+            "required_start_sec": 1.25,
+            "required_end_sec": 4.75,
+            "required_dur_sec": 3.5,
+        }
+
+    monkeypatch.setattr(clip_db, "order_clip", fake_order_clip)
+    plan, _errors = C.compile_plan(storyboard, C.load_constraints(), C.load_routing())
+
+    beat = plan["beats"][0]
+    assert beat["required_start_sec"] == 1.25
+    assert beat["required_end_sec"] == 4.75
+    assert beat["required_dur_sec"] == 3.5
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

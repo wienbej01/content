@@ -104,21 +104,30 @@ def test_container_exceeds_video_fails(tmp_path):
     assert "CONTAINER_MISMATCH" in issues_text or "LENGTH_MISMATCH" in issues_text
 
 
-@pytest.mark.skipif(not DEFECTIVE_MP4.exists(), reason="Audited MP4 not present")
-def test_existing_defective_mp4_fails(tmp_path):
-    """The actual audited defective MP4 must fail with correct durations."""
+def test_large_mismatch_defective_mp4_fails(tmp_path):
+    """Synthetic defective MP4 with large audio/video mismatch must fail.
+    
+    Note: The original real-world audited MP4 was repaired and overwritten.
+    This test uses a synthetic fixture to ensure the ~63s mismatch failure
+    mode remains covered as a regression test.
+    """
+    mp4 = tmp_path / "synthetic_defective.mp4"
+    # Create a file with ~83s video and ~146s audio (~63s mismatch)
+    _make_mismatch(mp4, video_sec=83, audio_sec=146)
+    
     report_path = tmp_path / "report.json"
-    r = _run_qa(DEFECTIVE_MP4, ["--output", str(report_path)])
+    r = _run_qa(mp4, ["--output", str(report_path)])
     assert r.returncode == 1, f"Expected fail on defective MP4, got:\n{r.stdout}"
     report = json.loads(report_path.read_text())
     assert report["status"] == "fail"
-    # Video should be ~83.333s (NOT 146.6s)
+    
+    # Video should be ~83s
     assert report["video_duration"] is not None
     assert 80 < report["video_duration"] < 90, f"video_duration={report['video_duration']}"
-    # Audio should be ~146.6s
+    # Audio should be ~146s
     assert report["audio_duration"] is not None
     assert 143 < report["audio_duration"] < 150, f"audio_duration={report['audio_duration']}"
-    # Mismatch ~63.267s
+    # Mismatch ~63s
     mismatch = report["audio_duration"] - report["video_duration"]
     assert 60 < mismatch < 67, f"mismatch={mismatch:.1f}s"
     # Issues mention mismatch

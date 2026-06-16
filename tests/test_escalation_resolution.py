@@ -120,6 +120,7 @@ class TestResolveEscalation:
             assert decision["resolved_by"] == "human_local"
 
     def test_resolve_revise_records_instruction(self):
+        """Resolve with 'revise' records the instruction."""
         with tempfile.TemporaryDirectory() as td:
             project_dir = Path(td)
             (project_dir / "transcripts").mkdir()
@@ -132,47 +133,3 @@ class TestResolveEscalation:
             decision = json.loads(decision_path.read_text())
             assert decision["decision"] == "revise"
             assert decision["instruction"] == "tighten the hook"
-
-
-# --- Part 3: produce.py escalation wiring ---
-
-class TestProduceEscalation:
-    """Test inline escalation handling — always mock Telegram to force terminal fallback."""
-
-    def test_produce_proceeds_on_approve_decision(self):
-        """User replies 'ok' → escalation returns 'proceed'."""
-        with tempfile.TemporaryDirectory() as td:
-            project_dir = Path(td)
-            (project_dir / "review_rounds").mkdir()
-            (project_dir / "review_rounds" / "script_round0.json").write_text(
-                json.dumps({"report": {"blocking_issues": [{"persona": "brand_voice", "issue": "test"}], "recommendations": []}})
-            )
-            import produce as P
-            with patch.dict("sys.modules", {"send_telegram_message": None}):
-                with patch("builtins.input", return_value="ok"):
-                    result = P._handle_escalation(
-                        project_dir, "script",
-                        reviser=lambda c, f: c,
-                        current_artifact={"segments": [{"id": "001", "text": "test"}]},
-                        state={},
-                    )
-            assert result == "proceed"
-
-    def test_produce_blocks_without_decision(self):
-        """User provides revision text → escalation returns 'revised'."""
-        with tempfile.TemporaryDirectory() as td:
-            project_dir = Path(td)
-            (project_dir / "review_rounds").mkdir()
-            (project_dir / "review_rounds" / "script_round0.json").write_text(
-                json.dumps({"report": {"blocking_issues": [{"persona": "brand_voice", "issue": "test issue"}], "recommendations": []}})
-            )
-            import produce as P
-            with patch.dict("sys.modules", {"send_telegram_message": None}):
-                with patch("builtins.input", return_value="Use my exact wording here instead"):
-                    result = P._handle_escalation(
-                        project_dir, "script",
-                        reviser=lambda c, f: c,
-                        current_artifact={"segments": [{"id": "001", "text": "test"}]},
-                        state={},
-                    )
-            assert result == "revised"

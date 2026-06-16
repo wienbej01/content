@@ -437,6 +437,98 @@ def test_coverage_sufficient_passes():
     print("  ✓ coverage sufficient (10s clip, 9.5s required) → PASS")
 
 
+def test_multislot_coverage_aggregates_per_beat():
+    """REGRESSION: a beat split into coverage slots (e.g. hero_cutaway B009-s0..s3)
+    must have its slot durations SUMMED before the timing-map coverage comparison.
+    Each slot is shorter than the whole-beat requirement, but together they cover it.
+    Before the fix, each ~6s slot was compared against the whole 23s beat requirement,
+    producing a false COVERAGE_DEFICIT on every slot."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        # 4 slot clips, ~6s each = 24s total, covering a 23.4s beat.
+        slots = []
+        for i in range(4):
+            c = td / f"B009_s{i}.mp4"
+            _make_clip(c, duration=6, audio=False)
+            slots.append(c)
+        proj = td / "Videos" / "Projects" / "multislot"
+        nar = proj / "narration"
+        nar.mkdir(parents=True)
+        # Timing map carries ONE whole-beat requirement for B009 (23.4s).
+        timing = {"beats": [{"beat_id": "B009", "start": 0.0, "end": 23.4}],
+                  "total_duration": 23.4, "beat_count": 1}
+        (nar / "beat_timing_map.json").write_text(json.dumps(timing))
+        # 4 separate plan beats, all beat_id B009 (the overloaded-identity case),
+        # each with its OWN clip_id and a per-slot required window.
+        beats = []
+        for i, c in enumerate(slots):
+            beats.append({
+                "beat_id": "B009", "shot_type": "hero_cutaway",
+                "audio_mode": "generated_tts", "output_path": str(c),
+                "clip_id": f"multislot::B009::B009-s{i}",
+                "required_start_sec": round(i * 5.85, 3),
+                "required_end_sec": round((i + 1) * 5.85, 3),
+            })
+        plan = {"project_id": "multislot", "defaults": {"format": "mp3"}, "beats": beats}
+        pp = td / "media_plan.json"
+        pp.write_text(json.dumps(plan))
+        import scripts.qa_media as qm
+        orig_root = qm.ROOT
+        qm.ROOT = td
+        try:
+            results, ok = qm.run_qa(str(pp))
+        finally:
+            qm.ROOT = orig_root
+    assert ok, f"4×6s slots (24s) covering a 23.4s beat should PASS, got {results}"
+    assert all("COVERAGE_DEFICIT" not in i for r in results for i in r.get("issues", [])), \
+        f"no slot should report COVERAGE_DEFICIT, got {results}"
+    # Each slot keeps its OWN clip_id (no collision onto the last slot).
+    cids = {r.get("clip_id") for r in results}
+    assert cids == {f"multislot::B009::B009-s{i}" for i in range(4)}, \
+        f"each slot must keep its own clip_id, got {cids}"
+    print("  ✓ multi-slot beat: durations aggregate per-beat, clip_ids distinct → PASS")
+
+
+def test_multislot_coverage_deficit_still_caught():
+    """The aggregation fix must NOT mask a genuine deficit: if the summed slot
+    durations are still short of the requirement, COVERAGE_DEFICIT must fire."""
+    qa = _load()
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        # 2 slots × 4s = 8s total, but the beat needs 20s → genuine deficit.
+        slots = []
+        for i in range(2):
+            c = td / f"B009_s{i}.mp4"
+            _make_clip(c, duration=4, audio=False)
+            slots.append(c)
+        proj = td / "Videos" / "Projects" / "multislotdef"
+        nar = proj / "narration"
+        nar.mkdir(parents=True)
+        timing = {"beats": [{"beat_id": "B009", "start": 0.0, "end": 20.0}],
+                  "total_duration": 20.0, "beat_count": 1}
+        (nar / "beat_timing_map.json").write_text(json.dumps(timing))
+        beats = [{
+            "beat_id": "B009", "shot_type": "hero_cutaway",
+            "audio_mode": "generated_tts", "output_path": str(c),
+            "clip_id": f"multislotdef::B009::B009-s{i}",
+        } for i, c in enumerate(slots)]
+        plan = {"project_id": "multislotdef", "defaults": {"format": "mp3"}, "beats": beats}
+        pp = td / "media_plan.json"
+        pp.write_text(json.dumps(plan))
+        import scripts.qa_media as qm
+        orig_root = qm.ROOT
+        qm.ROOT = td
+        try:
+            results, ok = qm.run_qa(str(pp))
+        finally:
+            qm.ROOT = orig_root
+    assert not ok, "8s total across 2 slots vs 20s requirement should FAIL"
+    assert any("COVERAGE_DEFICIT" in i for r in results for i in r.get("issues", [])), \
+        f"genuine aggregate deficit must still fire COVERAGE_DEFICIT, got {results}"
+    print("  ✓ multi-slot genuine deficit (8s vs 20s) still caught → FAIL")
+
+
 def test_aggregate_cannot_disagree_with_rows():
     """If any row is FAIL, overall passed must be False — enforced by aggregate check."""
     qa = _load()

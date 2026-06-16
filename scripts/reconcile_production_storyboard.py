@@ -30,7 +30,13 @@ from production_storyboard import validate_production_storyboard
 
 CONSTRAINTS_PATH = ROOT / "docs" / "channel_universe" / "constraints.json"
 FRAME_TOLERANCE = 0.042
-BROLL_SLOT_MAX = 6.0
+# Maximum duration of a single b-roll coverage slot. Set to the b-roll model's
+# reliable (guaranteed-minimum) clip duration so that (a) beats at or under it stay
+# a SINGLE clip (no wasted spend) and (b) longer beats split into slots that the
+# model's shortest output still fully covers. kling3_0 returns ~5.0s at minimum
+# (configs/james/model_routing.yaml: reliable_clip_sec). Overridden by
+# constraints.json reroute_policy.broll_slot_max_sec.
+BROLL_SLOT_MAX = 5.0
 
 
 MIN_BEAT_SEC_DEFAULT = 0.1

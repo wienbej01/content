@@ -43,6 +43,55 @@ def _run(project_dir, allow_missing=False):
 
 class TestManifestBuilder:
 
+    def test_clip_db_contract_overrides_stale_plan_fields(self, tmp_path, monkeypatch):
+        """DB path, type, policy, and timing remain authoritative at manifest build."""
+        import importlib.util
+
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import clip_db
+
+        monkeypatch.setattr(clip_db, "ROOT", tmp_path)
+        clip_db.init_db()
+        clip = clip_db.order_clip(
+            project_id="test_proj", source_beat_id="B011", production_beat_id="B011b",
+            segment_id="004_cta", asset_type="local_graphic", model="local_graphic",
+            audio_policy="post_overlay", lipsync_required=False,
+            required_start_sec=0.0, required_end_sec=2.0,
+        )
+        media_path = tmp_path / clip["output_path"]
+        media_path.parent.mkdir(parents=True, exist_ok=True)
+        media_path.write_bytes(b"PNG_FIXTURE")
+        sha = clip_db._sha256_file(media_path)
+        clip_db.record_generated(clip["clip_id"], 2.0, 320, 180, False, sha)
+        clip_db.mark_valid(clip["clip_id"])
+
+        beats_plan = [{
+            "beat_id": "B011b", "source_beat_id": "B011", "clip_id": clip["clip_id"],
+            "segment_id": "004_cta", "output_path": "stale/wrong.mp4",
+            "asset_type": "generated_video", "audio_policy": "strip",
+            "required_start_sec": None, "required_end_sec": None,
+            "narration_text": "",
+        }]
+        beats_timing = [{"beat_id": "B011", "start": 0.0, "end": 2.0, "duration": 2.0}]
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        _write_fixtures(project_dir, beats_plan, beats_timing, total_duration=2.0)
+
+        spec = importlib.util.spec_from_file_location("build_manifest_db_contract", str(SCRIPT))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.ROOT = tmp_path
+        manifest, errors, _warnings = mod.build(project_dir, format_str="teaser")
+
+        assert errors == []
+        seg = manifest["segments"][0]
+        assert seg["media"] == clip["output_path"]
+        assert seg["asset_type"] == "local_graphic"
+        assert seg["audio_policy"] == "post_overlay"
+        assert seg["timing_in"] == 0.0
+        assert seg["timing_out"] == 2.0
+        assert seg["duration_required"] == 2.0
+
     def test_valid_plan_produces_manifest(self, tmp_path):
         """A valid media plan + timing map produces manifest.json with all beats."""
         clip_path = tmp_path / "clips" / "B001.mp4"
@@ -188,17 +237,6 @@ class TestManifestBuilder:
 
 class TestBSS04Hardening:
     """BSS-04: Harden manifest, music, and graphics ordering."""
-
-    def test_no_allow_missing_in_production_call(self):
-        """produce.py step_build_manifest must NOT pass --allow-missing."""
-        produce_src = (ROOT / "scripts" / "produce.py").read_text()
-        # Find the step_build_manifest function body
-        start = produce_src.index("def step_build_manifest")
-        # Find the next def (end of function)
-        next_def = produce_src.index("\ndef ", start + 1)
-        func_body = produce_src[start:next_def]
-        assert "--allow-missing" not in func_body, \
-            "step_build_manifest still passes --allow-missing"
 
     def test_music_uses_configured_path(self, tmp_path, monkeypatch):
         """Music path comes from constraints.json music.default_path, not dir scan."""

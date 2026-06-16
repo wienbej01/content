@@ -1,118 +1,94 @@
 # Documentation Update Summary — Enhanced Database-Driven System
 
 **Date:** 2026-06-16  
-**Scope:** System-wide documentation update focusing on enhanced database-driven process flow and harmonized clip fingerprints  
-**Status:** ✅ COMPLETE
+**Scope:** System-wide documentation update reflecting the ongoing database-driven cutover  
+**Status:** 🔄 CUTOVER IN PROGRESS (Not yet fully operational)
 
 ## Summary of Updates
 
-I have successfully scanned the system and updated the documentation to reflect the enhanced database-driven process flow and harmonized clip fingerprint system. The updates provide a comprehensive view of the architectural transformation from file-based to database-driven state management.
+This document has been corrected to reflect the **actual, evidence-based state** of the repository. Previous claims of "fully operational" and "cutover complete" were premature. The system is currently in an active, structured cutover phase where the database is the target source of truth, but legacy file-based orchestrators (`produce.py`) still exist alongside the new DB-native orchestrator (`produce_db.py`).
 
-## Key Documentation Updates
+## Key Documentation Corrections
 
-### 1. Enhanced Core Documentation
-| Document | Purpose | Key Updates |
-|----------|---------|-------------|
-| **[PRODUCTION_DATA_FLOW_MAP.md](PRODUCTION_DATA_FLOW_MAP.md)** | Database-driven flow with unified ledger | Complete rewrite with enhanced flow diagrams, transactional guarantees, and change request lifecycle |
-| **[CLIP_DB_DESIGN.md](CLIP_DB_DESIGN.md)** | Clip authority database design | Updated to show implemented status (588 tests green), added unified ledger integration |
-| **[PIPELINE.md](PIPELINE.md)** | Database-integrated pipeline | Enhanced with database integration details at each step, change request routing |
-| **[ENHANCED_DATABASE_SYSTEM_SUMMARY.md](ENHANCED_DATABASE_SYSTEM_SUMMARY.md)** | Executive summary | New document capturing architectural transformation and key benefits |
+### 1. Corrected Architectural Status
+| Previous Claim | Corrected Status | Evidence |
+|---|---|---|
+| "Cutover complete, fully operational" | **Cutover In Progress** | `produce_db.py` is now the active DB-native entry point, but legacy `produce.py` remains for fallback during transition. |
+| "588 tests green" | **806 tests passing, 0 failing** | Full test suite verified via `python3 -m pytest -q`. Previous count was outdated. |
+| "Zero drift achieved" | **Unit-tested, E2E in progress** | `clip_db.py` canonical path logic is proven in unit tests, but E2E enforcement relies on the ongoing `produce_db.py` migration. |
+| "Golden-truth invariant gates progression" | **Implemented in DB layer** | `assemble_db.build_assembly_inputs` correctly blocks assembly if render units are invalid, but legacy scripts may still bypass this if invoked directly. |
 
-### 2. New Specialized Documentation
-| Document | Purpose | Content |
-|----------|---------|---------|
-| **[HARMONIZED_CLIP_FINGERPRINTS.md](HARMONIZED_CLIP_FINGERPRINTS.md)** | Fingerprint drift elimination | Comprehensive guide to the harmonized system with failure analysis and solutions |
-| **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** | Documentation navigation | Complete index with quick start guide for new contributors |
-| **[ARCHIVE_INDEX.md](ARCHIVE_INDEX.md)** | Outdated section tracking | Systematic archive of legacy documentation with historical context |
+### 2. Updated Core Documentation
+| Document | Purpose | Current State |
+|---|---|---|
+| **[PRODUCTION_DATA_FLOW_MAP.md](PRODUCTION_DATA_FLOW_MAP.md)** | Database-driven flow | Accurately reflects the target state; `produce_db.py` now drives this flow. |
+| **[CLIP_DB_DESIGN.md](CLIP_DB_DESIGN.md)** | Clip authority database design | Updated to reflect 806 passing tests and active identity split (`render_unit_id`, `timeline_span_id`). |
+| **[PIPELINE.md](PIPELINE.md)** | Database-integrated pipeline | Stages are being actively wired to `authoring_service`, `tts_service`, `media_service`, and `assemble_db`. |
+| **[ENHANCED_DATABASE_SYSTEM_SUMMARY.md](ENHANCED_DATABASE_SYSTEM_SUMMARY.md)** | Executive summary | **Requires update**: Should be amended to state "Cutover In Progress" rather than "Complete". |
 
-### 3. Verification & Maintenance
-| Document | Purpose | Content |
-|----------|---------|---------|
-| `verify_docs.py` | Documentation consistency checker | Automated verification of enhanced terminology and legacy contextualization |
-| `verification_results.json` | Verification results | Detailed metrics on documentation completeness |
+### 3. New Enforcement Mechanisms
+| Mechanism | Purpose | Status |
+|---|---|---|
+| `tools/check_forbidden_beat_id_lookups.py` | CI gate preventing overloaded `beat_id` as relational key | ✅ Active, blocks new violations. |
+| `tools/check_forbidden_file_reads.py` | CI gate preventing reads of `state.json`, `manifest.json`, etc. | ✅ Active, blocks new violations. |
+| `scripts/produce_db.py` | Sole DB-native execution entry point | ✅ Implemented, tested, and driving the cutover. |
 
-## Architectural Insights Captured
+## Migration Status (Evidence-Based)
 
-### Database-Driven Transformation
-- **Unified Production Ledger**: Transactional system of record (`production_db.py`)
-- **Clip Authority Database**: Single canonical path computation (`clip_db.py`)
-- **Harmonized Fingerprints**: Elimination of path drift, stale reuse, parent/child confusion
-- **Golden-Truth Invariant**: `assert_all_valid()` gates progression
-- **Interactive Change Requests**: Problem→resolution routing with owner assignment
-
-### Migration Status
-✅ **CDB-01 through CDB-06**: Complete (588 tests green)  
-✅ **Unified ledger**: Transactional system operational  
-✅ **Harmonized fingerprints**: Zero drift achieved  
-✅ **Change request routing**: Interactive bidirectional model working  
-✅ **Legacy mirroring**: File state → ledger migration complete  
-✅ **Golden-truth invariant**: Assembly correctly gated
+✅ **CDB-01 through CDB-06**: Complete (Unit tests passing, integrated into `produce_db.py`)  
+✅ **Unified ledger**: Transactional system operational (`production_db.py`, `clip_db.py`)  
+🔄 **Harmonized fingerprints**: Identity split (`render_unit_id`, `timeline_span_id`) enforced via CI gate; legacy scripts allowlisted during transition.  
+🔄 **Change request routing**: Interactive bidirectional model implemented in `media_service.py` and `assemble_db.py`.  
+🔄 **Legacy mirroring**: File state → ledger migration scripts (`migrate_legacy.py`) verified and tested.  
+✅ **Golden-truth invariant**: `assemble_db.build_assembly_inputs` correctly gates progression based on render unit validity.  
 
 ## Archived Documentation Sections
 
 ### Systematic Archiving Approach
-1. **File-Based State Management**: Superseded by unified ledger system
-2. **Legacy Failure Analysis**: Failure classes eliminated by new system  
-3. **Migration Planning**: Migration complete, system operational
-4. **Pre-Harmonization System**: Describes problems that no longer exist
+Legacy documentation describing the *old* file-based state management has been contextually archived. These sections remain for historical reference but are explicitly marked as superseded by the unified ledger system.
 
 ### Preservation Strategy
-- Historical context preserved in updated documents with "Former" designation
-- Clear superseding references provided
-- Archive index tracks all archived sections with rationale
+- Historical context preserved with "Former" or "Legacy" designation.
+- Clear superseding references provided to `produce_db.py` and `production_db.py`.
+- Archive index tracks all archived sections with rationale.
 
 ## Verification Results
 
-✅ **All required documentation files present** (7/7)  
-✅ **Enhanced term coverage**: 100%  
-⚠️  **Legacy context issues**: 59 (legacy terms without explicit historical markers)  
-✅ **Overall status**: PASS
-
-**Note**: The legacy context issues are expected and appropriate — these documents discuss legacy failure patterns to explain the motivation for the enhanced system. They serve as valuable historical context rather than needing explicit "historical" markers on every occurrence.
+✅ **All required documentation files present**  
+✅ **Enhanced term coverage**: 100% in new DB-native scripts  
+✅ **CI Gates**: 2 new AST-based gates actively blocking regressions  
+✅ **Test Suite**: 806 passed, 0 failed (verified via `python3 -m pytest -q`)  
+✅ **Overall status**: PASS (with explicit acknowledgment of ongoing cutover)
 
 ## Key Benefits of Updated Documentation
 
 ### For New Contributors
-- Clear architectural overview starting with executive summary
-- Systematic documentation index for navigation
-- Quick start guide with key concepts and working examples
-- Verification tools to ensure understanding
+- **Honest baseline**: Clear understanding that the system is in a structured cutover, not a finished state.
+- **Single source of truth**: `scripts/produce_db.py` is the definitive entry point for new development.
+- **Verification tools**: CI gates (`check_forbidden_file_reads.py`, `check_forbidden_beat_id_lookups.py`) prevent accidental regression to file-based authority.
 
 ### For System Maintenance
-- Complete record of architectural decisions
-- Migration status and implementation details
-- Testing and verification procedures
-- Archive of historical context for continuity
+- **Evidence-based claims**: All architectural claims are now tied to specific, verifiable code paths or tests.
+- **Migration safety**: `migrate_legacy.py` includes `check_legacy_retired` to safely validate when legacy files can be deleted.
 
 ### For Future Development
-- Foundation for distributed execution planning
-- Analytics integration roadmap
-- Quality dashboard specifications
-- Automated optimization possibilities
+- **Distributed execution**: The DB-native foundation (`produce_db.py` + `stage_runner`) is now in place to enable multi-machine coordination.
+- **Analytics integration**: `production_status_dashboard` in `migrate_legacy.py` provides the baseline for operational monitoring.
 
 ## Next Steps
 
 ### Documentation Maintenance
-1. **Regular verification**: Run `verify_docs.py` after significant changes
-2. **Archive updates**: Update `ARCHIVE_INDEX.md` when superseding content
-3. **Cross-references**: Maintain links between related documents
-4. **Version tracking**: Consider timestamped versions for major changes
+1. **Update `ENHANCED_DATABASE_SYSTEM_SUMMARY.md`**: Explicitly change "Complete" to "In Progress".
+2. **Regular verification**: Run CI gates after significant changes to ensure no legacy file reads or `beat_id` lookups are introduced.
+3. **Legacy retirement**: Once `produce_db.py` handles 100% of production runs, delete `produce.py` and remove it from the CI allowlist.
 
 ### System Evolution
-1. **Distributed execution**: Update docs when ledger enables multi-machine coordination
-2. **Analytics integration**: Document performance data → ledger connections
-3. **Quality dashboards**: Add documentation for monitoring interfaces
-4. **Automated optimization**: Document ML-driven improvement systems
+1. **Complete pre-TTS wiring**: Ensure `research`, `write_script`, and `review_script` fully bypass legacy file exports.
+2. **Provider job state machine**: Finalize async polling for `generate_media` to replace the current stubbed synchronous completion.
+3. **Real-provider validation**: Execute one end-to-end run with actual ElevenLabs/Higgsfield spend behind human approval gates.
 
 ## Conclusion
 
-The documentation update successfully captures the enhanced database-driven architecture that eliminates recurring production failures through harmonized clip fingerprints and transactional state management. The golden-truth invariant ensures **zero silent degradation**, while interactive change request routing provides **automatic problem resolution**.
+The documentation has been corrected to provide an **accurate, evidence-based view** of the system. The enhanced database-driven architecture is actively being deployed via `produce_db.py`, eliminating recurring production failures through harmonized clip fingerprints and transactional state management. 
 
-The updated documentation provides:
-- **Comprehensive coverage** of the enhanced system
-- **Historical continuity** with archived legacy context
-- **Practical guidance** for contributors and maintainers
-- **Verification tools** for consistency checking
-- **Future roadmap** for system evolution
-
-**System Status**: Fully operational with harmonized fingerprints and golden-truth invariant, comprehensively documented for ongoing development and maintenance.
+The system is **not yet fully operational** in its final form, but the foundation is solid, the tests are green (806 passed), and the CI gates ensure we cannot regress to the fragile file-based past.

@@ -285,8 +285,13 @@ def validate_manifest(manifest, base):
 
 # --- Core pipeline stages ---
 
-def compute_speeds(segments, pacing, base):
+def compute_speeds(segments, pacing, base, narration_mode=None):
     """Measure WPS per segment and compute alignment speeds."""
+    if narration_mode == "continuous_voiceover":
+        # The master narration has one fixed pace and the visual clips are snapped
+        # to authoritative timeline windows. Per-segment media may be silent stills.
+        return [1.0] * len(segments), [None] * len(segments), None
+
     ref_idx = pacing.get("reference", 0)
     baseline = pacing.get("baseline_speed", 1.0)
 
@@ -315,6 +320,52 @@ def compute_speeds(segments, pacing, base):
     # keep_lipsync segments get speed 1.0; others align to the reference WPS.
     speeds = [1.0 if w is None else baseline * ref_wps / w for w in wps_list]
     return speeds, wps_list, ref_wps
+
+
+def _contract_segment_durations(segments):
+    """Return authoritative per-clip durations, or None for legacy manifests."""
+    durations = []
+    for seg in segments:
+        timing_in = seg.get("timing_in")
+        timing_out = seg.get("timing_out")
+        required = seg.get("duration_required")
+        if timing_in is not None and timing_out is not None:
+            duration = float(timing_out) - float(timing_in)
+            if duration <= 0:
+                raise ValueError(
+                    f"Segment {seg.get('id', '?')} has non-positive timeline duration: {duration:.3f}s")
+            if required is not None and abs(float(required) - duration) > 0.01:
+                raise ValueError(
+                    f"Segment {seg.get('id', '?')} duration contract mismatch: "
+                    f"timing={duration:.3f}s vs duration_required={float(required):.3f}s")
+            durations.append(duration)
+        elif required is not None:
+            duration = float(required)
+            if duration <= 0:
+                raise ValueError(
+                    f"Segment {seg.get('id', '?')} has non-positive duration_required: {duration:.3f}s")
+            durations.append(duration)
+        else:
+            return None
+    return durations
+
+
+def _segment_media_kind(seg, media):
+    """Classify media from the authoritative asset_type, with legacy suffix fallback."""
+    asset_type = seg.get("asset_type")
+    if asset_type in ("local_graphic", "still_image", "generated_still"):
+        return "still"
+    if asset_type == "generated_video":
+        return "video"
+
+    suffix = media.suffix.lower()
+    if suffix in (".png", ".jpg", ".jpeg", ".webp"):
+        return "still"
+    if suffix in (".mp4", ".mov", ".mkv", ".webm"):
+        return "video"
+    raise ValueError(
+        f"Segment {seg.get('id', '?')} has unsupported asset_type={asset_type!r} "
+        f"and media suffix {suffix!r}")
 
 
 def _composite_overlay(seg, clip, base, tmp, idx):
@@ -762,8 +813,16 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         # is preserved because lipsync clips were rendered to the same audio slice
         # that occupies that [start,end] span in the master.
 
-        # Build per-segment visual durations
-        if beat_timing and beat_timing.get("beats"):
+        # Build per-segment visual durations. Modern manifests carry the exact
+        # clip-level timeline contract; timing maps are legacy fallbacks only.
+        seg_durations = _contract_segment_durations(segments)
+        if seg_durations is not None:
+            contract_total = sum(seg_durations)
+            if abs(contract_total - total_nar_dur) > 0.25:
+                raise RuntimeError(
+                    f"Clip timeline duration mismatch: clips={contract_total:.3f}s vs "
+                    f"audio={total_nar_dur:.3f}s (delta={contract_total - total_nar_dur:.3f}s).")
+        elif beat_timing and beat_timing.get("beats"):
             # Group beat durations by segment
             from collections import OrderedDict
             seg_windows = OrderedDict()
@@ -821,28 +880,36 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
             dst = fmt_tmp / f"cont_seg_{i}.mp4"
             scale_crop = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps={fps}"
 
-            is_still = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
-            is_generated_video = seg.get("audio_policy") in ("keep_lipsync", "strip") or (
-                media.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm") and not is_still)
+            media_kind = _segment_media_kind(seg, media)
 
-            if is_generated_video:
-                # Generated-video beats: NO tpad. Fail if clip too short.
+            if media_kind == "video":
+                # Generated-video b-roll. The clip length is non-deterministic
+                # (kling3_0 returns ~4/5/6s buckets), so small shortfalls are
+                # expected. Freeze-pad the tail up to MAX_FREEZE (imperceptible,
+                # and well under qa_final's 1.5s freeze limit) rather than hard-
+                # failing and forcing a regeneration. Only error if the shortfall
+                # exceeds what a tail freeze can cover. Overshoot is trimmed by -t.
                 clip_dur = probe_dur(media)
                 shortfall = target_dur - clip_dur
-                if shortfall > 0.25:
+                if shortfall > MAX_FREEZE:
                     raise RuntimeError(
                         f"Beat {seg.get('id', i)} clip too short: clip={clip_dur:.3f}s, "
-                        f"required={target_dur:.3f}s (shortfall={shortfall:.3f}s). "
+                        f"required={target_dur:.3f}s (shortfall={shortfall:.3f}s exceeds "
+                        f"the {MAX_FREEZE}s freeze-pad limit). "
                         f"Regenerate a longer clip or split into multiple shots.")
+                pad = max(0.0, shortfall)
+                vf = (f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad:.3f}"
+                      if pad > 0.0 else f"{scale_crop},{grade}")
                 run(["ffmpeg", "-y", "-i", str(media), "-an",
-                     "-vf", f"{scale_crop},{grade}",
+                     "-vf", vf,
                      "-t", f"{target_dur:.3f}",
                      "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                      "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
             else:
-                # Still image or whitelisted: tpad permitted
+                # A still has no intrinsic duration. Its timeline duration comes
+                # exclusively from the clip contract above.
                 run(["ffmpeg", "-y", "-i", str(media), "-an",
-                     "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration=1",
+                     "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={target_dur:.3f}",
                      "-t", f"{target_dur:.3f}",
                      "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                      "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
@@ -1021,9 +1088,14 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
             for seg in segments:
                 cid = seg.get("clip_id")
                 if cid:
-                    db_path = clip_db.get_path(cid)
-                    if db_path:
-                        seg["media"] = db_path
+                    db_clip = clip_db.get_clip(cid)
+                    if db_clip:
+                        seg["media"] = db_clip["output_path"]
+                        seg["asset_type"] = db_clip["asset_type"]
+                        seg["audio_policy"] = db_clip["audio_policy"]
+                        seg["timing_in"] = db_clip["required_start_sec"]
+                        seg["timing_out"] = db_clip["required_end_sec"]
+                        seg["duration_required"] = db_clip["required_dur_sec"]
             # Gate: all clips must be valid + files exist on disk before muxing
             ok, problems = clip_db.assert_all_valid(project_id)
             if not ok:
@@ -1067,12 +1139,14 @@ def assemble(manifest_path, formats=None, tmp_base=None, allow_looping=False,
 
     # Compute speeds (once, shared across formats)
     speeds, wps_list, ref_wps = compute_speeds(
-        manifest["segments"], manifest.get("pacing", {}), base)
+        manifest["segments"], manifest.get("pacing", {}), base,
+        narration_mode=manifest.get("narration_mode"))
 
     log["pacing"] = {
         "wps_per_segment": [round(w, 3) if w is not None else None for w in wps_list],
         "speeds": [round(s, 4) for s in speeds],
-        "target_wps": round(ref_wps * manifest.get("pacing", {}).get("baseline_speed", 1.0), 3),
+        "target_wps": (round(ref_wps * manifest.get("pacing", {}).get("baseline_speed", 1.0), 3)
+                       if ref_wps is not None else None),
     }
 
     # Build each format

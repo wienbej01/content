@@ -89,6 +89,7 @@ def test_slot_clip_path_includes_slot_id(tmp_db):
 
 def test_can_reuse_false_when_file_missing(tmp_db):
     clip = _order_basic(tmp_db)
+    (clip_db.ROOT / clip["output_path"]).unlink(missing_ok=True)
     # Record generated attrs but file doesn't exist
     clip_db.record_generated(clip["clip_id"], 5.0, 1920, 1080, True, "abc123", db_path=tmp_db)
     ok, reason = clip_db.can_reuse(clip["clip_id"], db_path=tmp_db)

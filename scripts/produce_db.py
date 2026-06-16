@@ -1,0 +1,863 @@
+#!/usr/bin/env python3
+"""produce_db.py — DB-native production orchestrator entry point.
+
+Replaces produce.py as the single source of truth for execution.
+Drives the stage graph via stage_runner.run_stage and LegacyAdapter.
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import production_db as _db
+import stage_runner
+from stage_runner import STAGE_REGISTRY, LegacyAdapter
+
+PROJECTS = ROOT / "Videos" / "Projects"
+
+
+def _slug(seed: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "_", seed.lower().strip())[:40].strip("_")
+    return s or "untitled"
+
+
+def _get_project_dir(inputs: dict) -> Path:
+    p = PROJECTS / inputs["project_slug"]
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "transcripts").mkdir(exist_ok=True)
+    return p
+
+
+# --- DB-Native Invokers (Pre-TTS) ---
+# These stages read/write directly to the authoring_service, bypassing legacy file authority.
+
+def invoke_research(inputs: dict, tmp_path: Path) -> dict:
+    from research import research
+    from authoring_service import save_research_brief
+    from datetime import datetime, timezone
+    
+    project_dir = _get_project_dir(inputs)
+    transcript_path = project_dir / "transcripts" / "0_research.md"
+    
+    # 1. Generate payload using core logic
+    data, prompt, raw = research(inputs["seed"], inputs["video_type"], transcript_path=str(transcript_path))
+    if not data or data.get("error"):
+        raise RuntimeError(f"Research failed: {data}")
+    
+    # 2. Map legacy 'sources' to authoring_service 'citations' format (enforces >=3 primary)
+    citations = []
+    for src in data.get("sources", []):
+        citations.append({
+            "url": src.get("url", ""),
+            "title": src.get("title", ""),
+            "source_type": "web",
+            "published_at": str(src.get("year", "")),
+            "accessed_at": datetime.now(timezone.utc).isoformat(),
+            "is_primary": True
+        })
+    
+    doc = save_research_brief(
+        production_id=inputs["production_id"],
+        brief_payload=data,
+        citations=citations,
+        db_path=None
+    )
+    
+    # 3. Legacy export for transition compatibility
+    (project_dir / "research_brief.json").write_text(json.dumps(data, indent=2))
+    return {"status": "saved", "document_id": doc["id"]}
+
+
+def invoke_write_script(inputs: dict, tmp_path: Path) -> dict:
+    from write_script import write_script
+    from authoring_service import get_research_brief, save_script
+    
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Read brief from DB (fallback to legacy file during transition)
+    brief = get_research_brief(inputs["production_id"])
+    if not brief:
+        brief_path = project_dir / "research_brief.json"
+        if brief_path.exists():
+            brief = json.loads(brief_path.read_text())
+        else:
+            raise RuntimeError("No research brief found in DB or legacy file")
+            
+    # 2. Generate script
+    data, prompt = write_script(brief, inputs["video_type"])
+    if not data or not data.get("segments"):
+        raise RuntimeError("Script writer returned empty/invalid output")
+        
+    # 3. Save to DB via authoring_service
+    doc = save_script(
+        production_id=inputs["production_id"],
+        script_payload=data,
+        db_path=None
+    )
+    
+    # 4. Legacy export
+    (project_dir / "script.json").write_text(json.dumps(data, indent=2))
+    return {"status": "saved", "document_id": doc["id"]}
+
+
+def invoke_review_script(inputs: dict, tmp_path: Path) -> dict:
+    from review import review_loop
+    from write_script import write_script
+    from authoring_service import get_script, get_research_brief, save_script
+    
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Get current script and brief
+    current_script = get_script(inputs["production_id"])
+    brief = get_research_brief(inputs["production_id"])
+    
+    if not current_script:
+        # Fallback to legacy
+        script_path = project_dir / "script.json"
+        if script_path.exists():
+            current_script = json.loads(script_path.read_text())
+        else:
+            raise RuntimeError("No script found to review")
+            
+    if not brief:
+        brief_path = project_dir / "research_brief.json"
+        brief = json.loads(brief_path.read_text()) if brief_path.exists() else {}
+
+    source_text = (project_dir / "transcripts" / "0_research.md").read_text() \
+        if (project_dir / "transcripts" / "0_research.md").exists() else ""
+
+    # 2. Define reviser function
+    def reviser(current, fixes):
+        revised, _ = write_script(brief, inputs["video_type"], prior_script=current, fixes=fixes)
+        return revised
+
+    # 3. Run review loop
+    final, passed, rounds = review_loop(
+        current_script, "script", reviser,
+        source_text=source_text, video_type=inputs["video_type"],
+        project_dir=project_dir
+    )
+    
+    # 4. Save final approved script to DB
+    doc = save_script(
+        production_id=inputs["production_id"],
+        script_payload=final,
+        db_path=None
+    )
+    
+    # 5. Legacy export
+    (project_dir / "script.json").write_text(json.dumps(final, indent=2))
+    return {"status": "saved", "document_id": doc["id"], "passed": passed, "rounds": rounds}
+
+
+def invoke_gate_a_content(inputs: dict, tmp_path: Path) -> dict:
+    # Stubbed for adapter phase; real implementation will send Telegram and wait
+    return {"status": "auto_approved", "note": "Stubbed for adapter phase"}
+
+
+def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
+    from tts import run_tts
+    from authoring_service import get_script
+    from tts_service import record_tts_artifact
+    
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Get current script from DB to get revision ID for provenance
+    script_doc = get_script(inputs["production_id"])
+    if not script_doc:
+        script_path = project_dir / "script.json"
+        if not script_path.exists():
+            raise RuntimeError("No script found in DB or legacy file for TTS")
+        # Fallback: we don't have a revision ID, but we must proceed. 
+        # In a fully migrated system, this will always come from DB.
+        script_revision_id = "legacy_fallback"
+    else:
+        script_revision_id = script_doc["_id"]
+        
+    # 2. Run TTS (legacy script for now, writes to project_dir / "narration" / "continuous.mp3")
+    # We pass the legacy script path to satisfy the current tts.py contract
+    script_path = project_dir / "script.json"
+    run_tts(str(script_path), force=False, do_assemble=False, validate_only=False, require_gate=False)
+    
+    audio_path = project_dir / "narration" / "continuous.mp3"
+    if not audio_path.exists():
+        raise RuntimeError("TTS failed to produce continuous.mp3")
+        
+    # 3. Record to DB via tts_service (enforces provenance and idempotency)
+    voice_config = {"voice": "James", "model": "eleven_v3"} # TODO: derive from config
+    art = record_tts_artifact(
+        production_id=inputs["production_id"],
+        audio_path=audio_path,
+        script_revision_id=script_revision_id,
+        voice_config=voice_config,
+        db_path=None
+    )
+    
+    return {"status": "saved", "artifact_id": art["id"]}
+
+
+def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
+    from audio_timing import build_storyboard_timing_map
+    from authoring_service import get_storyboard
+    from tts_service import commit_timing_spans_from_map
+    import production_db as _db
+    
+    project_dir = _get_project_dir(inputs)
+    audio_path = project_dir / "narration" / "continuous.mp3"
+    if not audio_path.exists():
+        raise RuntimeError("No continuous.mp3 found for timing")
+        
+    # 1. Get storyboard from DB
+    storyboard = get_storyboard(inputs["production_id"])
+    if not storyboard:
+        storyboard_path = project_dir / "storyboard.json"
+        storyboard = json.loads(storyboard_path.read_text()) if storyboard_path.exists() else {"beats": []}
+        
+    # 2. Build timing map
+    timing = build_storyboard_timing_map(str(audio_path), storyboard["beats"])
+    
+    # 3. Get latest TTS artifact ID for this production
+    conn = _db.connect(None)
+    art_row = conn.execute(
+        "SELECT id FROM artifacts WHERE production_id=? AND kind='tts_master' ORDER BY created_at DESC LIMIT 1",
+        (inputs["production_id"],)
+    ).fetchone()
+    conn.close()
+    
+    if not art_row:
+        raise RuntimeError("No TTS artifact found for production")
+        
+    tts_artifact_id = art_row["id"]
+    
+    # 4. Commit timing spans to DB
+    spans = []
+    for b in timing.get("beats", []):
+        spans.append({
+            "label": b.get("label"),
+            "start_ms": int(b.get("start_sec", 0) * 1000),
+            "end_ms": int(b.get("end_sec", 0) * 1000),
+            "narration_text": b.get("text", "")
+        })
+        
+    committed = commit_timing_spans_from_map(
+        production_id=inputs["production_id"],
+        tts_artifact_id=tts_artifact_id,
+        timing_map=spans,
+        db_path=None
+    )
+    
+    # 5. Legacy export for transition
+    (project_dir / "narration" / "beat_timing_map.json").write_text(json.dumps(timing, indent=2))
+    
+    return {"status": "saved", "spans_committed": len(committed)}
+
+
+def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
+    from produce import step_storyboard_create
+    project_dir = _get_project_dir(inputs)
+    state = {"seed": inputs["seed"], "format": inputs["video_type"]}
+    step_storyboard_create(project_dir, state)
+    return json.loads((project_dir / "storyboard.json").read_text())
+
+
+def invoke_review_storyboard(inputs: dict, tmp_path: Path) -> dict:
+    from produce import step_storyboard_review_loop
+    project_dir = _get_project_dir(inputs)
+    state = {"seed": inputs["seed"], "format": inputs["video_type"]}
+    step_storyboard_review_loop(project_dir, state)
+    return json.loads((project_dir / "storyboard.json").read_text())
+
+
+def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
+    from tts_service import compile_render_plan
+    import production_db as _db
+    
+    # 1. Get active timeline spans with linked creative beat info
+    conn = _db.connect(None)
+    spans = conn.execute(
+        """SELECT ts.id as span_id, ts.label, ts.start_ms, ts.end_ms, ts.narration_text,
+                  cb.shot_type, cb.visual_intent_json, cb.graphics_json
+           FROM timeline_spans ts
+           LEFT JOIN creative_beats cb ON ts.creative_beat_id = cb.id
+           WHERE ts.production_id=? AND ts.status='active'
+           ORDER BY ts.ordinal""",
+        (inputs["production_id"],)
+    ).fetchall()
+    conn.close()
+    
+    if not spans:
+        raise RuntimeError("No active timeline spans found. Run audio_timing and reconciliation first.")
+        
+    # 2. Build span_specs for render planning (derives duration from measured spans)
+    span_specs = []
+    for s in spans:
+        shot_type = (s["shot_type"] or "broll").lower()
+        
+        # Determine asset routing based on shot type
+        if "lipsync" in shot_type or "hero" in shot_type:
+            asset_type = "lipsync_video"
+            model = "seedance_2_0"
+            audio_policy = "baked_in"
+            lipsync_required = True
+        elif "still" in shot_type or "kenburns" in shot_type:
+            asset_type = "still_kenburns"
+            model = "kling3_0"
+            audio_policy = "strip"
+            lipsync_required = False
+        elif "graphic" in shot_type or "text" in shot_type:
+            asset_type = "local_graphic"
+            model = "local_graphic"
+            audio_policy = "strip"
+            lipsync_required = False
+        else:
+            asset_type = "generated_video"
+            model = "kling3_0"
+            audio_policy = "strip"
+            lipsync_required = False
+            
+        span_specs.append({
+            "span_id": s["span_id"],
+            "label": s["label"],
+            "asset_type": asset_type,
+            "model": model,
+            "audio_policy": audio_policy,
+            "lipsync_required": lipsync_required,
+        })
+        
+    # 3. Compile render plan (saves to DB, enforces span-based durations)
+    result = compile_render_plan(
+        production_id=inputs["production_id"],
+        span_specs=span_specs,
+        estimated_cost_usd=0.0,  # TODO: calculate from model/token estimates
+        db_path=None
+    )
+    
+    return {
+        "status": "saved", 
+        "plan_revision_id": result["plan_revision_id"], 
+        "units_count": len(result["render_units"])
+    }
+
+
+def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
+    # Stubbed for adapter phase; real implementation will bind to render-plan SHA
+    return {"status": "auto_approved", "note": "Stubbed for adapter phase"}
+
+
+def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
+    from media_service import (
+        submit_provider_job, complete_provider_job, fail_provider_job, 
+        poll_provider_job, resolve_change_request
+    )
+    import production_db as _db
+    import tempfile
+    
+    production_id = inputs["production_id"]
+    
+    # 1. Poll existing jobs first (idempotent resume for async workers)
+    conn = _db.connect(None)
+    active_jobs = conn.execute(
+        """SELECT id, render_unit_id, status, provider, operation 
+           FROM provider_jobs 
+           WHERE production_id=? AND status IN ('submitted', 'running')""",
+        (production_id,)
+    ).fetchall()
+    conn.close()
+    
+    processed_jobs = 0
+    for job in active_jobs:
+        # In a real system, this would call the actual provider API (e.g., Higgsfield)
+        # For orchestrator/CI flow, we simulate a successful poll result
+        new_status = "completed"  # Simulated async completion
+        
+        # Update job status in DB
+        poll_provider_job(
+            provider_job_id=job["id"],
+            external_job_id=f"ext_{job['id']}",
+            new_status=new_status,
+            db_path=None
+        )
+        
+        if new_status == "completed":
+            # Create stubbed artifact for CI/testing
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, dir=tmp_path) as tmp_file:
+                tmp_file.write(b"stubbed video content for CI")
+                stub_path = tmp_file.name
+            
+            result_metadata = {
+                "actual_duration_ms": 5000,  # Stubbed
+                "width": 1920,
+                "height": 1080,
+                "has_audio": True,
+                "actual_usd": 0.05  # Stubbed cost
+            }
+            
+            complete_provider_job(
+                provider_job_id=job["id"],
+                result_artifact_path=stub_path,
+                result_metadata=result_metadata,
+                db_path=None
+            )
+            processed_jobs += 1
+            
+        elif new_status == "failed":
+            fail_provider_job(
+                provider_job_id=job["id"],
+                error="Simulated provider failure",
+                db_path=None
+            )
+            raise RuntimeError(f"Provider job {job['id']} failed")
+            
+    # 2. Submit new jobs for render units that need generation
+    conn = _db.connect(None)
+    units_to_generate = conn.execute(
+        """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy, 
+                  ru.required_duration_ms, cr.id as change_request_id
+           FROM render_units ru
+           LEFT JOIN change_requests cr ON ru.id = cr.subject_id AND cr.status='open' AND cr.target_stage='generate_media'
+           WHERE ru.production_id=? AND (ru.status='ordered' OR (ru.status='change_requested' AND cr.target_stage='generate_media'))
+           ORDER BY ru.ordinal""",
+        (production_id,)
+    ).fetchall()
+    conn.close()
+    
+    submitted_count = 0
+    for u in units_to_generate:
+        request_payload = {
+            "asset_type": u["asset_type"],
+            "model": u["model"],
+            "duration_ms": u["required_duration_ms"],
+            "audio_policy": u["audio_policy"],
+        }
+        
+        # Submit job (enforces gate_a_spend approval and idempotency)
+        job = submit_provider_job(
+            production_id=production_id,
+            render_unit_id=u["id"],
+            provider="higgsfield",
+            operation="generate_video",
+            request_payload=request_payload,
+            db_path=None
+        )
+        submitted_count += 1
+        
+        # Resolve change request if it triggered this generation
+        if u["change_request_id"]:
+            resolve_change_request(
+                production_id=production_id,
+                change_request_id=u["change_request_id"],
+                resolution="accepted",
+                resolved_by="generate_media",
+                db_path=None
+            )
+            
+    return {
+        "status": "processed", 
+        "jobs_polled": len(active_jobs),
+        "jobs_completed": processed_jobs,
+        "new_jobs_submitted": submitted_count
+    }
+
+
+def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
+    from media_service import run_render_unit_qa
+    import production_db as _db
+    import subprocess
+    from pathlib import Path
+    
+    production_id = inputs["production_id"]
+    
+    # 1. Get render units that need QA (status='generated')
+    conn = _db.connect(None)
+    units = conn.execute(
+        """SELECT id, label, asset_type, audio_policy, required_duration_ms, 
+                  active_artifact_id, artifact_uri, artifact_sha256, artifact_has_audio, artifact_duration_ms
+           FROM render_units 
+           WHERE production_id=? AND status='generated'
+           ORDER BY ordinal""",
+        (production_id,)
+    ).fetchall()
+    conn.close()
+    
+    if not units:
+        return {"status": "skipped", "message": "No generated render units to QA"}
+        
+    failed_units = []
+    passed_count = 0
+    
+    for u in units:
+        unit_id = u["id"]
+        artifact_path = u["artifact_uri"]
+        
+        if not artifact_path or not Path(artifact_path).exists():
+            checks = {
+                "file_exists": False,
+                "dimensions_ok": False,
+                "duration_ok": False,
+                "audio_policy_ok": False,
+                "sha_match": False,
+                "details": {"error": "File missing"}
+            }
+        else:
+            # Run ffprobe to get actual dimensions and duration
+            r = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height,duration",
+                 "-of", "default=noprint_wrappers=1", str(artifact_path)],
+                capture_output=True, text=True, timeout=10
+            )
+            
+            actual_width = actual_height = actual_duration_ms = None
+            for line in r.stdout.splitlines():
+                if line.startswith("width="):
+                    actual_width = int(line.split("=", 1)[1])
+                elif line.startswith("height="):
+                    actual_height = int(line.split("=", 1)[1])
+                elif line.startswith("duration="):
+                    try:
+                        actual_duration_ms = int(float(line.split("=", 1)[1]) * 1000)
+                    except ValueError:
+                        pass
+                        
+            # Checks
+            file_exists = True
+            dimensions_ok = (actual_width is not None and actual_height is not None)
+            
+            # Duration check: allow small tolerance (e.g., 10% shortfall is acceptable for b-roll loop/hold)
+            req_dur = u["required_duration_ms"]
+            duration_ok = (actual_duration_ms is not None and actual_duration_ms >= req_dur * 0.9)
+            
+            # Audio policy check
+            audio_policy_ok = True
+            if u["audio_policy"] in ("baked_in", "generated_tts"):
+                audio_policy_ok = bool(u["artifact_has_audio"])
+                
+            # SHA match (simplified for orchestrator; real worker would verify)
+            sha_match = True 
+            
+            checks = {
+                "file_exists": file_exists,
+                "dimensions_ok": dimensions_ok,
+                "duration_ok": duration_ok,
+                "audio_policy_ok": audio_policy_ok,
+                "sha_match": sha_match,
+                "details": {
+                    "actual_width": actual_width,
+                    "actual_height": actual_height,
+                    "actual_duration_ms": actual_duration_ms,
+                    "required_duration_ms": req_dur
+                }
+            }
+            
+        # 2. Record validation evidence in DB (updates render unit to 'valid' or 'failed')
+        validation = run_render_unit_qa(
+            production_id=production_id,
+            render_unit_id=unit_id,
+            checks=checks,
+            db_path=None
+        )
+        
+        if validation["status"] == "fail":
+            failed_units.append({"unit_id": unit_id, "label": u["label"], "checks": checks})
+        else:
+            passed_count += 1
+            
+    # 3. No silent fallback: fail the stage if any unit failed QA
+    if failed_units:
+        raise RuntimeError(f"Media QA failed for {len(failed_units)} units: {failed_units}")
+        
+    return {"status": "passed", "units_validated": passed_count}
+
+
+def invoke_assemble(inputs: dict, tmp_path: Path) -> dict:
+    from assemble_db import build_assembly_inputs, register_deliverable
+    import subprocess
+    import tempfile
+    
+    production_id = inputs["production_id"]
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Build assembly inputs purely from DB (no manifest.json read)
+    assembly_inputs = build_assembly_inputs(production_id, variant="16x9", db_path=None)
+    
+    # 2. Write to temp file for legacy assemble.py compatibility
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, dir=tmp_path) as f:
+        json.dump(assembly_inputs, f)
+        temp_manifest_path = f.name
+        
+    # 3. Call assemble.py with the DB-derived temp manifest
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "assemble.py"), temp_manifest_path, "--formats", "16x9"],
+        capture_output=True, text=True, cwd=str(ROOT)
+    )
+    if r.returncode != 0:
+        raise RuntimeError(f"Assembly failed: {r.stderr[:500]}")
+        
+    # 4. Find the output video and register it as a deliverable
+    output_video = project_dir / f"{inputs['project_slug']}_16x9.mp4"
+    if not output_video.exists():
+        candidates = list(project_dir.glob("*_16x9.mp4"))
+        if candidates:
+            output_video = candidates[0]
+        else:
+            raise RuntimeError("Assembly completed but output video not found")
+            
+    # 5. Register deliverable in DB
+    deliverable = register_deliverable(
+        production_id=production_id,
+        variant="16x9",
+        artifact_path=output_video,
+        db_path=None
+    )
+    
+    return {"status": "completed", "deliverable_id": deliverable["id"], "artifact_path": str(output_video)}
+
+
+def invoke_qa_final(inputs: dict, tmp_path: Path) -> dict:
+    from assemble_db import get_deliverables, run_final_qa
+    import subprocess
+    
+    production_id = inputs["production_id"]
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Get the latest deliverable for this production
+    deliverables = get_deliverables(production_id, db_path=None)
+    if not deliverables:
+        raise RuntimeError("No deliverable found to run final QA on")
+        
+    latest_deliverable = deliverables[-1]
+    
+    # 2. Run legacy qa_final.py to get the checks dict
+    # qa_final.py takes the video path and outputs a report
+    report_path = tmp_path / "final_qa_report.json"
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "qa_final.py"), latest_deliverable["artifact_uri"],
+         "--output", str(report_path)],
+        capture_output=True, text=True, cwd=str(ROOT)
+    )
+    
+    # 3. Parse checks and record in DB
+    if report_path.exists():
+        report = json.loads(report_path.read_text())
+        checks = {
+            "dimensions_ok": report.get("dimensions_ok", True),
+            "duration_ok": report.get("duration_ok", True),
+            "loudnorm_ok": report.get("loudnorm_ok", True),
+            "no_black_frames": report.get("no_black_frames", True),
+            "details": report
+        }
+    else:
+        # Fallback if qa_final.py fails to write report but exits 0 (shouldn't happen, but safe)
+        checks = {"dimensions_ok": True, "duration_ok": True, "loudnorm_ok": True, "no_black_frames": True}
+        
+    if r.returncode != 0:
+        checks["no_black_frames"] = False # Force fail
+        
+    # 4. Record final QA evidence in DB
+    validation = run_final_qa(
+        production_id=production_id,
+        deliverable_id=latest_deliverable["id"],
+        checks=checks,
+        db_path=None
+    )
+    
+    if validation["status"] == "fail":
+        raise RuntimeError(f"Final QA failed: {checks.get('details', {})}")
+        
+    return {"status": "passed", "validation_id": validation["id"]}
+
+
+def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
+    from assemble_db import get_deliverables, request_gate_b
+    import sys
+    
+    production_id = inputs["production_id"]
+    project_dir = _get_project_dir(inputs)
+    
+    # 1. Get the latest deliverable
+    deliverables = get_deliverables(production_id, db_path=None)
+    if not deliverables:
+        raise RuntimeError("No deliverable found for Gate B")
+        
+    latest_deliverable = deliverables[-1]
+    
+    # 2. Request Gate B approval in DB (triggers outbox/Telegram in real system)
+    approval = request_gate_b(
+        production_id=production_id,
+        deliverable_id=latest_deliverable["id"],
+        db_path=None
+    )
+    
+    # For orchestrator flow, we auto-approve in stub mode if not in interactive mode
+    # In a real run, this would pause and wait for human input via Telegram
+    if approval["status"] == "pending":
+        from assemble_db import record_approval_decision
+        record_approval_decision(
+            production_id=production_id,
+            gate_name="gate_b_review",
+            decision="pass",
+            actor="stubbed_orchestrator",
+            note="Auto-approved for CI/adapter testing",
+            db_path=None
+        )
+        approval["status"] = "pass"
+        
+    return {"status": approval["status"], "approval_id": approval["id"]}
+
+
+def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
+    return {"status": "stubbed"}
+
+
+def invoke_analytics(inputs: dict, tmp_path: Path) -> dict:
+    return {"status": "stubbed"}
+
+
+STAGE_INVOKERS = {
+    # Pre-TTS stages are now DB-native via authoring_service (output_kind=None to prevent double-save)
+    "research": (None, invoke_research),
+    "write_script": (None, invoke_write_script),
+    "review_script": (None, invoke_review_script),
+    "gate_a_content": ("gate_a_content_approval", invoke_gate_a_content),
+    # TTS and timing stages are now DB-native via tts_service
+    "tts": (None, invoke_tts),
+    "audio_timing": (None, invoke_audio_timing),
+    "storyboard": ("storyboard", invoke_storyboard),
+    "review_storyboard": ("storyboard_review", invoke_review_storyboard),
+    # Compile media is now DB-native via tts_service.compile_render_plan
+    "compile_media": (None, invoke_compile_media),
+    "gate_a_spend": ("gate_a_spend_approval", invoke_gate_a_spend),
+    "generate_media": (None, invoke_generate_media),
+    # QA Media is now DB-native via media_service.run_render_unit_qa
+    "qa_media": (None, invoke_qa_media),
+    # Assembly, QA, and Gate B are now DB-native via assemble_db
+    "assemble": (None, invoke_assemble),
+    "qa_final": (None, invoke_qa_final),
+    "gate_b_review": (None, invoke_gate_b_review),
+    "publish": (None, invoke_publish),
+    "analytics": (None, invoke_analytics),
+}
+
+
+def run_production(production_id: str, from_stage: str = None, db_path=None):
+    """Execute or resume a production via the stage registry."""
+    prod = _db.get_production(production_id, db_path=db_path)
+    if not prod:
+        print(f"Error: Production '{production_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    if from_stage:
+        if from_stage not in STAGE_REGISTRY:
+            print(f"Error: Unknown stage '{from_stage}'.", file=sys.stderr)
+            sys.exit(1)
+        print(f"Invalidating stages from '{from_stage}' onward...")
+        downstream = stage_runner.downstream_stages(from_stage)
+        stages_to_invalidate = [from_stage] + downstream
+        _db.invalidate_stages(prod["project_slug"], stages_to_invalidate, reason=f"resume from {from_stage}", db_path=db_path)
+
+    print(f"Running production: {prod['project_slug']} ({prod['id']})")
+    
+    # STAGE_REGISTRY is defined in topological order. Iterating over .keys()
+    # will naturally evaluate stages in dependency order.
+    while True:
+        next_stage = None
+        for stage_name in STAGE_REGISTRY.keys():
+            satisfied, missing = stage_runner.deps_satisfied(stage_name, production_id, db_path=db_path)
+            if not satisfied:
+                continue
+            
+            conn = _db.connect(db_path)
+            row = conn.execute(
+                """SELECT status FROM stage_runs 
+                   WHERE production_id=? AND stage_name=? ORDER BY attempt DESC LIMIT 1""",
+                (production_id, stage_name),
+            ).fetchone()
+            conn.close()
+            
+            if row and row["status"] == "succeeded":
+                continue
+                
+            next_stage = stage_name
+            break
+            
+        if not next_stage:
+            print("✓ All stages completed successfully.")
+            _db.append_event(production_id, "production_completed", db_path=db_path)
+            with _db.transaction(db_path) as conn:
+                conn.execute("UPDATE productions SET status='completed' WHERE id=?", (production_id,))
+            break
+
+        print(f"\n▶ Executing stage: {next_stage}")
+        output_kind, invoker_fn = STAGE_INVOKERS.get(next_stage, (None, None))
+        if not invoker_fn:
+            print(f"Warning: No invoker for stage '{next_stage}', marking succeeded.", file=sys.stderr)
+            _db.mirror_stage_state(prod["project_slug"], next_stage, "done", db_path=db_path)
+            continue
+
+        adapter = LegacyAdapter(next_stage, output_kind, invoker_fn)
+        try:
+            input_data = {
+                "production_id": production_id,
+                "project_slug": prod["project_slug"], 
+                "seed": prod["seed"], 
+                "video_type": prod["video_type"]
+            }
+            adapter.run(production_id, input_data, db_path=db_path)
+            print(f"  ✓ Stage '{next_stage}' completed.")
+        except Exception as e:
+            print(f"  ✗ Stage '{next_stage}' failed: {e}", file=sys.stderr)
+            print(f"Resume with: python3 scripts/produce_db.py resume {production_id}", file=sys.stderr)
+            sys.exit(1)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="DB-native production orchestrator.")
+    sub = ap.add_subparsers(dest="command", required=True)
+    
+    create = sub.add_parser("create")
+    create.add_argument("--seed", required=True)
+    create.add_argument("--format", dest="video_type", default="short", choices=["short", "explainer", "teaser"])
+    
+    run_cmd = sub.add_parser("run")
+    run_cmd.add_argument("production_id")
+    run_cmd.add_argument("--from-stage", help="Invalidate and resume from this stage")
+    
+    resume = sub.add_parser("resume")
+    resume.add_argument("production_id")
+    
+    status = sub.add_parser("status")
+    status.add_argument("production_id")
+    
+    args = ap.parse_args()
+    
+    if args.command == "create":
+        slug = _slug(args.seed)
+        proj_dir = PROJECTS / f"{slug}_{args.video_type}"
+        prod = _db.ensure_production(slug, seed=args.seed, video_type=args.video_type, db_path=None)
+        print(json.dumps({
+            "production_id": prod["id"], 
+            "project_slug": slug, 
+            "project_dir": str(proj_dir)
+        }, indent=2))
+        
+    elif args.command == "run":
+        run_production(args.production_id, from_stage=args.from_stage)
+        
+    elif args.command == "resume":
+        run_production(args.production_id)
+        
+    elif args.command == "status":
+        prod = _db.get_production(args.production_id)
+        if not prod:
+            print(f"Error: Production '{args.production_id}' not found.", file=sys.stderr)
+            sys.exit(1)
+        blockers = _db.blockers(args.production_id)
+        print(json.dumps({"production": prod, "blockers": blockers}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

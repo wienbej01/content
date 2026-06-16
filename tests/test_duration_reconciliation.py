@@ -106,7 +106,10 @@ def test_local_graphic_coverage(tmp_path):
 
 
 def test_total_deficit_accumulates(tmp_path):
-    """Multiple beats each with small deficit → total > 0.25s → exit 1."""
+    """Per-clip policy (2026-06-16): independent small b-roll deficits are absorbed
+    by the assembler at each position and must NOT hard-fail by summing. Three b-roll
+    beats each ~0.2s short (< 0.5s b-roll tolerance) now PASS — previously the summed
+    ~0.6s wrongly failed and triggered needless regeneration (whack-a-mole)."""
     proj = _setup_project(
         tmp_path,
         [
@@ -115,36 +118,50 @@ def test_total_deficit_accumulates(tmp_path):
             {"beat_id": "B003", "start": 10.4, "end": 15.6},
         ],
         [
-            {"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video", "_test_duration": 5.0},
-            {"beat_id": "B002", "output_path": "B002.mp4", "asset_type": "generated_video", "_test_duration": 5.0},
-            {"beat_id": "B003", "output_path": "B003.mp4", "asset_type": "generated_video", "_test_duration": 5.0},
+            {"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
+            {"beat_id": "B002", "output_path": "B002.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
+            {"beat_id": "B003", "output_path": "B003.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
         ]
     )
     rc, stdout, _ = _run(proj)
-    # Each beat requires 5.2s, clip is ~5.0s, deficit ~0.2s per beat
-    # Total deficit ~0.6s > 0.25s → fails
-    assert rc == 1
-    assert "deficit" in stdout.lower()
+    # Each beat ~0.2s short, within the 0.5s b-roll tolerance → assembler covers → pass.
+    assert rc == 0, f"small independent b-roll deficits should pass, stdout={stdout}"
 
 
-def test_audited_project_fails():
-    """Run against the REAL audited project dir; expect exit 1 and total ~63s."""
+def test_broll_large_deficit_still_fails(tmp_path):
+    """A b-roll clip short by MORE than the assembler can freeze-cover (>0.5s) still fails."""
+    proj = _setup_project(
+        tmp_path,
+        [{"beat_id": "B001", "start": 0.0, "end": 7.0}],
+        [{"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video",
+          "audio_policy": "strip", "_test_duration": 5.0}],  # 2.0s deficit > 0.5s
+    )
+    rc, stdout, _ = _run(proj)
+    assert rc == 1, f"a 2.0s b-roll deficit exceeds freeze coverage and must fail, stdout={stdout}"
+
+
+def test_lipsync_small_deficit_still_fails(tmp_path):
+    """Lipsync stays STRICT: a 0.4s deficit (under the b-roll tolerance but over the
+    0.25s lipsync tolerance) must still fail — baked audio cannot be freeze-padded."""
+    proj = _setup_project(
+        tmp_path,
+        [{"beat_id": "B001", "start": 0.0, "end": 5.4}],
+        [{"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video",
+          "audio_policy": "keep_lipsync", "lipsync_required": True, "_test_duration": 5.0}],  # 0.4s deficit
+    )
+    rc, stdout, _ = _run(proj)
+    assert rc == 1, f"lipsync deficit > 0.25s must fail (strict), stdout={stdout}"
+
+
+def test_audited_project_reconcile_passes():
+    """Run against the REAL audited project dir; expect it to PASS after repair.
+    
+    Note: This project historically had a ~63s deficit and was used to verify
+    the failure gate. It has since been successfully repaired and regenerated.
+    This test now verifies that the repaired project correctly passes reconciliation.
+    """
     if not AUDITED_PROJECT.is_dir():
         pytest.skip("Audited project not available")
     rc, stdout, _ = _run(AUDITED_PROJECT)
-    assert rc == 1
-    # Check total deficit is approximately 63s
-    assert "Total deficit:" in stdout
-    # Extract the total deficit number
-    for line in stdout.splitlines():
-        if "Total deficit:" in line:
-            # Parse e.g. "  Total deficit: 63.266s (tolerance: 0.25s)"
-            import re
-            m = re.search(r"Total deficit:\s*([\d.]+)", line)
-            if m:
-                total = float(m.group(1))
-                assert 55.0 < total < 80.0, f"Expected ~63-71s deficit, got {total}s"
-                break
-    else:
-        # Check if deficit is printed in the summary line
-        assert "63" in stdout or "6" in stdout
+    assert rc == 0, f"Expected repaired project to pass, got:\n{stdout}"
+    assert "All beats have sufficient visual coverage" in stdout
