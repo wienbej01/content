@@ -49,29 +49,101 @@ def _sha256_file(path: Path) -> str:
 def _probe_media(path: Path) -> dict:
     """ffprobe a media file. Returns {} on any error (non-media files)."""
     try:
-        result = subprocess.run(
-            [
-                "ffprobe", "-v", "quiet", "-print_format", "json",
-                "-show_streams", "-show_format", str(path),
-            ],
-            capture_output=True, text=True, timeout=30,
-        )
-        if result.returncode != 0:
-            return {}
-        data = json.loads(result.stdout)
-        streams = data.get("streams", [])
-        video = next((s for s in streams if s.get("codec_type") == "video"), None)
-        audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
-        fmt = data.get("format", {})
-        duration_ms = int(float(fmt.get("duration", 0)) * 1000) or None
-        return {
-            "duration_ms": duration_ms,
-            "width": int(video["width"]) if video else None,
-            "height": int(video["height"]) if video else None,
-            "has_audio": 1 if audio else 0,
-        }
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(path)],
+            capture_output=True, text=True, check=True
+        ).stdout
+        return json.loads(out)
     except Exception:
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Sprint 1: Policy-Aware Repository Validation (Ticket LB-102)
+# ---------------------------------------------------------------------------
+
+VALID_AUDIO_POLICIES = {
+    "HERO_SYNC_LOCKED",
+    "BROLL_FLEX",
+    "BROLL_SYNCED_ACTION",
+    "AMBIENCE_OR_SFX",
+    "MUSIC_BED",
+    "SILENT_GRAPHIC",
+}
+
+VALID_FINAL_AUDIO_SOURCES = {"master_narration", "provider_audio", "none"}
+VALID_PROVIDER_AUDIO_USAGES = {"diagnostic_only", "final_mix", "discarded"}
+
+VALID_TEXT_POLICIES = {
+    "NO_VISIBLE_TEXT",
+    "UNREADABLE_BACKGROUND",
+    "POST_COMPOSITE",
+    "REAL_SCREEN_CAPTURE",
+    "DETERMINISTIC_GRAPHIC",
+}
+
+
+class PolicyValidationError(ValueError):
+    """Raised when a render unit violates audio or text policy constraints."""
+    pass
+
+
+def validate_audio_policy(render_unit: dict) -> None:
+    """Validate that the render unit has a valid audio policy and consistent audio fields."""
+    policy = render_unit.get("audio_policy")
+    if not policy or policy not in VALID_AUDIO_POLICIES:
+        raise PolicyValidationError(f"Invalid or missing audio_policy: {policy}")
+    
+    final_audio = render_unit.get("final_audio_source")
+    if final_audio and final_audio not in VALID_FINAL_AUDIO_SOURCES:
+        raise PolicyValidationError(f"Invalid final_audio_source: {final_audio}")
+        
+    provider_usage = render_unit.get("provider_audio_usage")
+    if provider_usage and provider_usage not in VALID_PROVIDER_AUDIO_USAGES:
+        raise PolicyValidationError(f"Invalid provider_audio_usage: {provider_usage}")
+        
+    # Enforce invariant: HERO_SYNC_LOCKED must use master_narration
+    if policy == "HERO_SYNC_LOCKED":
+        if final_audio != "master_narration":
+            raise PolicyValidationError("HERO_SYNC_LOCKED requires final_audio_source='master_narration'")
+        if provider_usage != "diagnostic_only":
+            raise PolicyValidationError("HERO_SYNC_LOCKED requires provider_audio_usage='diagnostic_only'")
+
+
+def validate_text_policy(render_unit: dict) -> None:
+    """Validate that the render unit has a valid text policy if it bears text."""
+    text_policy = render_unit.get("text_policy")
+    if text_policy and text_policy not in VALID_TEXT_POLICIES:
+        raise PolicyValidationError(f"Invalid text_policy: {text_policy}")
+    
+    # Enforce invariant: POST_COMPOSITE requires a replacement asset spec
+    if text_policy == "POST_COMPOSITE" and not render_unit.get("replacement_asset_spec"):
+        raise PolicyValidationError("POST_COMPOSITE text_policy requires a replacement_asset_spec")
+        
+    # Enforce invariant: REAL_SCREEN_CAPTURE requires a source artifact
+    if text_policy == "REAL_SCREEN_CAPTURE" and not render_unit.get("source_artifact_id"):
+        raise PolicyValidationError("REAL_SCREEN_CAPTURE text_policy requires a source_artifact_id")
+
+
+def validate_temporal_edit_policy(render_unit: dict, operation: str) -> None:
+    """Validate that the requested temporal edit is permitted for this render unit."""
+    policy = render_unit.get("audio_policy")
+    if policy == "HERO_SYNC_LOCKED":
+        forbidden = {"setpts", "speed_change", "interpolation", "loop", "reverse", "freeze_extension", "atempo", "trim_through_speech"}
+        if operation in forbidden:
+            raise PolicyValidationError(
+                f"BLOCKED: HERO_TEMPORAL_EDIT_FORBIDDEN\n"
+                f"render_unit_id={render_unit.get('id')}\n"
+                f"operation={operation}\n"
+                f"reason: HERO_SYNC_LOCKED units forbid all temporal transformations."
+            )
+
+
+def validate_render_unit(render_unit: dict) -> None:
+    """Master validation function for a render unit before any repository write."""
+    validate_audio_policy(render_unit)
+    validate_text_policy(render_unit)
+    # Temporal edit validation is context-dependent and called during assembly/QA
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from artifact_fingerprint import write_fingerprint
+from qa_lipsync import run_lipsync_qa
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # Default dimensions by scope (--scope flag).
@@ -426,6 +429,18 @@ def run_qa(script_path, selected_segment=None, scope="source", record_gate=False
             if hero:
                 entry["audio_mode"] = "hero_lipsync"
                 entry["issues"].extend(lipsync_checks(seg, media_path, info, base))
+                
+                # LB-204: Integrate run_lipsync_qa and enforce fail-closed behavior
+                expected_dur_ms = int(seg.get("speech_len_sec", 0) * 1000) or int(info.get("duration", 0) * 1000)
+                qa_result = run_lipsync_qa(media_path, expected_duration_ms=expected_dur_ms, is_hero_lipsync=True)
+                
+                if qa_result["status"] == "fail":
+                    for issue in qa_result["issues"]:
+                        if issue not in entry["issues"]:
+                            entry["issues"].append(f"QA_LIPSYNC_FAIL: {issue}")
+                    # Ensure fail-closed: explicitly mark as FAIL if not already
+                    entry["status"] = "FAIL"
+                    all_pass = False
 
             # Crop-safety structural check. constraints.json requires James to be
             # center-safe (a_roll_rules / crop_safety.james_must_be_center_safe). We

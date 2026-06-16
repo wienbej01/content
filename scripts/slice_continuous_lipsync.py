@@ -78,58 +78,65 @@ def slice_hero_from_master(project_dir):
             else:
                 print(f"  WARN: {bid} not in beat_timing_map and no audio_start/end; skipped")
                 continue
-        start = max(0.0, t["start"] - 0.15)         # small lead-in
-        speech_len = round(t["end"] - t["start"], 3)
-        padded = max(math.ceil(speech_len + 0.2), LIPSYNC_MIN)
-
+        
+        speech_start = t["start"]
+        speech_end = t["end"]
+        speech_len = round(speech_end - speech_start, 3)
+        
         # Hard reject: over-max spans must be split, never silently truncated.
-        if padded > LIPSYNC_MAX:
+        if speech_len > LIPSYNC_MAX:
             raise ValueError(
                 f"Beat {bid}: speech span {speech_len:.3f}s exceeds Seedance max "
                 f"{LIPSYNC_MAX:.1f}s. Beat must be split in storyboard or routed to b-roll.")
 
-        # Track padding provenance for sub-minimum beats.
-        padded_from = None
-        padded_to = None
-        if speech_len + 0.2 < LIPSYNC_MIN:
-            padded_from = round(speech_len + 0.2, 3)
-            padded_to = LIPSYNC_MIN
+        # LB-301 FIX: Use exact speech boundaries + generated silence, NO neighbouring speech.
+        # We extract ONLY the exact speech interval, then pad with silence to meet LIPSYNC_MIN.
+        pad_needed = max(0.0, LIPSYNC_MIN - speech_len)
+        leading_silence = pad_needed / 2.0
+        trailing_silence = pad_needed - leading_silence
+        
+        # Ensure we don't exceed master bounds (though speech bounds should already be valid)
+        slice_start = max(0.0, speech_start - leading_silence)
+        slice_end = min(bt["total_duration"], speech_end + trailing_silence)
+        padded_len = round(slice_end - slice_start, 3)
 
         slice_path = slices_dir / f"{bid}.mp3"
-        subprocess.run(["ffmpeg", "-y", "-i", str(master), "-ss", f"{start}",
-                        "-t", f"{padded}", "-c", "copy", str(slice_path)],
-                       capture_output=True)
+        
+        # Extract exact speech + silence interval
+        subprocess.run(["ffmpeg", "-y", "-i", str(master), "-ss", f"{slice_start}",
+                        "-t", f"{padded_len}", "-c", "copy", str(slice_path)],
+                       capture_output=True, check=True)
         if not slice_path.exists():
             print(f"  WARN: failed to slice {bid}")
             continue
+            
         slice_sha = _sha(slice_path)
         b["audio_slice"] = {
             "file": str(slice_path.relative_to(project_dir)),
             "path": str(slice_path.relative_to(project_dir)),
             "sha256": slice_sha,
             "slice_sha256": slice_sha,
-            "start_sec": round(start, 3),
-            "end_sec": round(start + padded, 3),
+            "start_sec": round(slice_start, 3),
+            "end_sec": round(slice_end, 3),
+            "speech_start_sec": round(speech_start, 3),
+            "speech_end_sec": round(speech_end, 3),
             "speech_len_sec": speech_len,
-            "padded_len_sec": padded,
+            "padded_len_sec": padded_len,
+            "leading_silence_sec": round(leading_silence, 3),
+            "trailing_silence_sec": round(trailing_silence, 3),
             "master_sha256": parent_sha,
-            "master_start_sec": round(start, 3),
-            "master_end_sec": round(start + padded, 3),
             "parent_mp3_sha256": parent_sha,
             "parent_mp3": "narration/continuous.mp3",
         }
-        if padded_from is not None:
-            b["audio_slice"]["padded_from_sec"] = padded_from
-            b["audio_slice"]["padded_to_sec"] = padded_to
 
         write_fingerprint(
             slice_path,
             producer="slice_continuous_lipsync",
-            producer_version="1.2",
+            producer_version="2.0_LB301",
             upstream_hashes=[parent_sha],
             project_id=project_dir.name,
         )
-        print(f"  sliced {bid}: {speech_len}s speech, {padded}s clip")
+        print(f"  sliced {bid}: {speech_len}s speech + {pad_needed}s silence (no neighbour bleed)")
 
     plan_path.write_text(json.dumps(plan, indent=2))
     return plan

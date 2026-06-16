@@ -29,30 +29,94 @@ def record_tts_artifact(
     production_id: str,
     audio_path: str | Path,
     script_revision_id: str,
-    voice_config: dict,
+    voice_id: str,
+    model: str,
+    voice_settings: dict,
+    request_fingerprint: str,
+    provider_request_id: Optional[str] = None,
+    actual_cost_usd: float = 0.0,
     stage_run_id: Optional[str] = None,
     db_path=None,
 ) -> dict:
-    """Register the master TTS audio file and record voice provenance.
+    """Register the master TTS audio file and record full voice provenance (LB-200).
 
-    Returns the artifact row.  Subsequent calls with the same (audio_path, sha256)
-    are idempotent.
+    Reuse rule: Returns existing artifact if script_revision_id, voice_id, model,
+    voice_settings, and request_fingerprint exactly match an active record, and the
+    stored bytes exist with a matching checksum.
+
+    Returns the artifact row.
     """
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    
+    # 1. Check for exact fingerprint match to enable idempotent reuse
+    existing = conn.execute(
+        """SELECT dr.id, dr.payload_json, a.id as artifact_id, a.uri, a.sha256
+           FROM document_revisions dr
+           JOIN artifacts a ON dr.payload_json LIKE '%"artifact_id":"' || a.id || '"%'
+           WHERE dr.production_id=? AND dr.kind='tts_artifact' AND dr.status='active'
+           ORDER BY dr.revision DESC LIMIT 1""",
+        (production_id,)
+    ).fetchone()
+    
+    if existing:
+        payload = json.loads(existing["payload_json"])
+        if (payload.get("script_revision_id") == script_revision_id and
+            payload.get("voice_id") == voice_id and
+            payload.get("model") == model and
+            payload.get("voice_settings") == voice_settings and
+            payload.get("request_fingerprint") == request_fingerprint):
+            
+            # Verify stored bytes exist and checksum matches
+            art_path = Path(existing["uri"])
+            if art_path.exists() and _repo._sha256_file(art_path) == existing["sha256"]:
+                conn.close()
+                # Return existing artifact dict
+                return {
+                    "id": existing["artifact_id"],
+                    "uri": existing["uri"],
+                    "sha256": existing["sha256"],
+                    "reused": True
+                }
+
+    conn.close()
+
+    # 2. No match or checksum failed: register as new immutable artifact
     audio_path = Path(audio_path)
     if not audio_path.exists():
         raise FileNotFoundError(f"TTS audio not found: {audio_path}")
+
+    # Probe media for sample rate, channels, sample count, duration
+    media_info = _repo._probe_media(audio_path)
+    fmt = media_info.get("format", {})
+    streams = media_info.get("streams", [])
+    audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), {})
+    
+    duration_ms = int(float(fmt.get("duration", 0)) * 1000) if fmt.get("duration") else None
+    sample_rate = int(audio_stream.get("sample_rate", 0)) or None
+    channels = int(audio_stream.get("channels", 0)) or None
+    sample_count = int(audio_stream.get("nb_samples", 0)) or None
 
     art = _repo.register_artifact(
         production_id, audio_path, "tts_master",
         stage_run_id=stage_run_id,
         extra_metadata={
             "script_revision_id": script_revision_id,
-            "voice_config": voice_config,
+            "voice_id": voice_id,
+            "model": model,
+            "voice_settings": voice_settings,
+            "request_fingerprint": request_fingerprint,
+            "provider_request_id": provider_request_id,
+            "sample_rate": sample_rate,
+            "channels": channels,
+            "sample_count": sample_count,
+            "duration_ms": duration_ms,
+            "actual_cost_usd": actual_cost_usd,
         },
         db_path=db_path,
     )
 
-    # Record a document with TTS provenance (enables invalidation when voice config changes)
+    # Record a document with full TTS provenance (enables invalidation when any param changes)
     save_document_revision(
         production_id, "tts_artifact",
         {
@@ -60,14 +124,21 @@ def record_tts_artifact(
             "audio_uri": art["uri"],
             "sha256": art["sha256"],
             "script_revision_id": script_revision_id,
-            "voice_config": voice_config,
+            "voice_id": voice_id,
+            "model": model,
+            "voice_settings": voice_settings,
+            "request_fingerprint": request_fingerprint,
+            "provider_request_id": provider_request_id,
+            "duration_ms": duration_ms,
         },
         stage_run_id=stage_run_id,
         db_path=db_path,
     )
+    
     # Link script → tts dependency
     _link_document_dependency(production_id, "tts_artifact", "script", db_path=db_path)
 
+    art["reused"] = False
     return art
 
 

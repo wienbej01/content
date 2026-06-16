@@ -403,6 +403,34 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     """Normalize one segment: scale/crop, speed, grade, optional lower-third.
     When narration is longer than the video, hold the last frame (premium 'linger')
     instead of looping — unless allow_looping=True."""
+    
+    # LB-001: Hero temporal-edit fail-closed guard
+    is_hero_lipsync = seg.get("audio_policy") == "keep_lipsync" or seg.get("lipsync_required")
+    if is_hero_lipsync:
+        if abs(speed - 1.0) > 1e-3:
+            raise ValueError(
+                f"BLOCKED: HERO_TEMPORAL_EDIT_FORBIDDEN\n"
+                f"render_unit_id={seg.get('clip_id', 'unknown')}\n"
+                f"operation=speed_change (speed={speed})\n"
+                f"source=assemble.py:process_segment\n"
+                f"reason: Hero lipsync clips must not be retimed.")
+        if allow_looping:
+            raise ValueError(
+                f"BLOCKED: HERO_TEMPORAL_EDIT_FORBIDDEN\n"
+                f"render_unit_id={seg.get('clip_id', 'unknown')}\n"
+                f"operation=looping\n"
+                f"source=assemble.py:process_segment\n"
+                f"reason: Hero lipsync clips must not be looped.")
+        if seg.get("trim_end") and seg.get("speech_len_sec"):
+            # Prevent arbitrary trim through active speech
+            if seg["trim_end"] < seg["speech_len_sec"] - 0.1:
+                raise ValueError(
+                    f"BLOCKED: HERO_TEMPORAL_EDIT_FORBIDDEN\n"
+                    f"render_unit_id={seg.get('clip_id', 'unknown')}\n"
+                    f"operation=trim_through_speech (trim_end={seg['trim_end']}, speech_len={seg['speech_len_sec']})\n"
+                    f"source=assemble.py:process_segment\n"
+                    f"reason: Hero lipsync clips must not be trimmed through active speech.")
+
     media = resolve(base, seg["media"])
     trim_end = seg.get("trim_end")
     lower_third = resolve(base, seg.get("lower_third"))
@@ -418,12 +446,11 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
 
     is_image = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
 
-    # --- keep_lipsync span: use the clip's OWN baked audio verbatim ---------
-    # Hero lipsync clips carry mouth-synced audio. We must never overlay the
-    # master narration (echo) and never strip the audio (silent mouth). Trim to
-    # the clip's true speech length (clips were padded to integer seconds for
-    # seedance). Provenance is verified by the caller before this point.
-    if seg.get("audio_policy") == KEEP_LIPSYNC:
+    # --- LB-202: Hero lipsync span: STRIP provider audio, use master spine ---
+    # Hero lipsync clips are generated using the master narration. To prevent
+    # audio artifacts, drift, or duplication, we MUST strip the provider's baked
+    # audio (-an) and rely exclusively on the master narration spine in the final mix.
+    if seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("audio_policy") == KEEP_LIPSYNC:
         speech_len = seg.get("speech_len_sec")
         media_dur = probe_dur(media)
         # Trim to true speech length when known; else keep full clip.
@@ -432,12 +459,12 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
             raise ValueError(
                 f"keep_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
                 f"length {media_dur:.3f}s — slice/clip mismatch.")
-        # Re-encode with brand scale/crop/grade; KEEP original audio (0:a), no atempo,
-        # no speed (lipsync timing is sacred), no narration overlay.
+        # Re-encode with brand scale/crop/grade; STRIP audio (-an), no atempo,
+        # no speed (lipsync timing is sacred). Master narration will be mixed globally.
         run(["ffmpeg", "-y", "-i", str(media),
              "-vf", f"{scale_crop},{grade}",
              "-t", f"{out_dur:.3f}",
-             "-map", "0:v", "-map", "0:a",
+             "-map", "0:v", "-an",  # LB-202: Strip provider audio
              "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
              "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
              "-pix_fmt", "yuv420p", str(dst)], f"seg_{idx}_lipsync")
@@ -488,10 +515,10 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
                 if is_lip:
                     speech_len = float(sh.get("speech_len_sec") or 0) or probe_dur(sp)
                     clip_dur = min(speech_len, probe_dur(sp))
-                    # Keep baked audio, trim to speech_len
+                    # LB-202: Keep visual, STRIP baked provider audio. Master narration will be mixed globally.
                     run(["ffmpeg", "-y", "-i", str(sp),
                          "-vf", f"{scale_crop},{grade}", "-t", f"{clip_dur:.3f}",
-                         "-map", "0:v", "-map", "0:a",
+                         "-map", "0:v", "-an",  # LB-202: Strip provider audio
                          "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                          "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
                          "-pix_fmt", "yuv420p", str(sdst)], f"seg_{idx}_shot{j}_lip")
