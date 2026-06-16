@@ -143,7 +143,54 @@ def validate_render_unit(render_unit: dict) -> None:
     """Master validation function for a render unit before any repository write."""
     validate_audio_policy(render_unit)
     validate_text_policy(render_unit)
+    validate_hero_slicing_intervals(render_unit)
     # Temporal edit validation is context-dependent and called during assembly/QA
+
+
+def validate_hero_slicing_intervals(render_unit: dict) -> None:
+    """Validate hero slicing intervals (Ticket LB-300)."""
+    # Only apply strict checks if this is a hero lipsync unit
+    if render_unit.get("audio_policy") != "HERO_SYNC_LOCKED":
+        return
+
+    speech_start = render_unit.get("speech_start_sample")
+    speech_end = render_unit.get("speech_end_sample")
+    gen_start = render_unit.get("generation_start_sample")
+    gen_end = render_unit.get("generation_end_sample")
+    visible_start = render_unit.get("visible_start_sample")
+    visible_end = render_unit.get("visible_end_sample")
+    master_dur = render_unit.get("master_duration_samples")
+
+    if None in (speech_start, speech_end, gen_start, gen_end):
+        # If any core interval is missing, we can't validate, but it's required for HERO_SYNC_LOCKED
+        raise PolicyValidationError("HERO_SYNC_LOCKED units require speech and generation sample intervals")
+
+    # Rule: generation may exceed speech only through silence (handled by leading/trailing silence)
+    lead_silence = render_unit.get("leading_silence_samples", 0) or 0
+    trail_silence = render_unit.get("trailing_silence_samples", 0) or 0
+    
+    expected_gen_start = speech_start - lead_silence
+    expected_gen_end = speech_end + trail_silence
+    
+    if gen_start != expected_gen_start or gen_end != expected_gen_end:
+        raise PolicyValidationError(
+            f"Generation interval [{gen_start}, {gen_end}] does not match speech [{speech_start}, {speech_end}] "
+            f"plus silence [{lead_silence}, {trail_silence}]"
+        )
+
+    # Rule: visible intervals may be shorter than generation intervals
+    if visible_start is not None and visible_end is not None:
+        if visible_start < gen_start or visible_end > gen_end:
+            raise PolicyValidationError(
+                f"Visible interval [{visible_start}, {visible_end}] exceeds generation interval [{gen_start}, {gen_end}]"
+            )
+
+    # Rule: all intervals remain within master bounds
+    if master_dur is not None:
+        if gen_end > master_dur:
+            raise PolicyValidationError(
+                f"Generation end {gen_end} exceeds master duration {master_dur}"
+            )
 
 
 # ---------------------------------------------------------------------------
