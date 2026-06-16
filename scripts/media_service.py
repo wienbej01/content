@@ -122,6 +122,74 @@ def poll_provider_job(
         ).fetchone())
 
 
+def _extract_and_register_diagnostic_audio(
+    production_id: str,
+    video_path: str | Path,
+    source_slice_artifact_id: Optional[str],
+    provider_job_id: str,
+    db_path=None,
+) -> Optional[dict]:
+    """
+    LB-401: Probe returned container, extract audio if present, and register as diagnostic-only.
+    Returns the registered artifact dict if audio was found and extracted, else None.
+    """
+    import subprocess
+    import json
+    from pathlib import Path
+    
+    video_path = Path(video_path)
+    if not video_path.exists():
+        return None
+        
+    # 1. Probe returned container for audio stream
+    probe_cmd = [
+        "ffprobe", "-v", "error", "-select_streams", "a:0",
+        "-show_entries", "stream=codec_type",
+        "-of", "json", str(video_path)
+    ]
+    result = subprocess.run(probe_cmd, capture_output=True, text=True)
+    try:
+        probe_data = json.loads(result.stdout)
+        has_audio = bool(probe_data.get("streams"))
+    except json.JSONDecodeError:
+        has_audio = False
+        
+    if not has_audio:
+        return None
+        
+    # 2. Extract returned audio as a separate optional artifact
+    audio_path = video_path.with_suffix(".diagnostic_audio.wav")
+    extract_cmd = [
+        "ffmpeg", "-y", "-i", str(video_path),
+        "-vn", "-c:a", "pcm_s16le", "-ar", "48000", "-ac", "1",
+        str(audio_path)
+    ]
+    subprocess.run(extract_cmd, capture_output=True, check=True)
+    
+    if not audio_path.exists():
+        return None
+        
+    # 3. Register audio artifact with diagnostic-only tags
+    diagnostic_metadata = {
+        "eligible_for_final_narration": False,
+        "usage_policy": "diagnostic_only",
+        "source_slice_artifact_id": source_slice_artifact_id,
+        "provider_job_id": provider_job_id,
+        "extracted_from_video": str(video_path.name),
+    }
+    
+    art = _repo.register_artifact(
+        production_id,
+        audio_path,
+        kind="provider_diagnostic_audio",
+        provider_job_id=provider_job_id,
+        extra_metadata=diagnostic_metadata,
+        db_path=db_path,
+    )
+    
+    return art
+
+
 def complete_provider_job(
     provider_job_id: str,
     result_artifact_path: str | Path,
@@ -135,6 +203,7 @@ def complete_provider_job(
     2. Links the artifact to the render unit.
     3. Records the provider job response.
     4. Appends a cost event if actual_usd is in result_metadata.
+    5. (LB-401) Extracts and registers any embedded audio as diagnostic-only.
     """
     _db.migrate(db_path)
     conn = _db.connect(db_path)
@@ -150,6 +219,16 @@ def complete_provider_job(
         kind="generated_media",
         provider_job_id=provider_job_id,
         extra_metadata=result_metadata or {},
+        db_path=db_path,
+    )
+
+    # LB-401: Extract and register provider-returned audio as diagnostic-only
+    source_slice_id = (result_metadata or {}).get("source_slice_artifact_id")
+    _extract_and_register_diagnostic_audio(
+        production_id=job["production_id"],
+        video_path=result_artifact_path,
+        source_slice_artifact_id=source_slice_id,
+        provider_job_id=provider_job_id,
         db_path=db_path,
     )
 

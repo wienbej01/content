@@ -95,6 +95,16 @@ class TestMasterValidation:
             "final_audio_source": "master_narration",
             "provider_audio_usage": "diagnostic_only",
             "text_policy": "NO_VISIBLE_TEXT",
+            # Required fields for HERO_SYNC_LOCKED validation (LB-300)
+            "speech_start_sample": 48000,
+            "speech_end_sample": 96000,
+            "generation_start_sample": 43200,
+            "generation_end_sample": 100800,
+            "visible_start_sample": 48000,
+            "visible_end_sample": 96000,
+            "leading_silence_samples": 4800,
+            "trailing_silence_samples": 4800,
+            "master_duration_samples": 150000,
         }
         validate_render_unit(ru)  # Should not raise
 
