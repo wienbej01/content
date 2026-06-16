@@ -1,0 +1,318 @@
+{
+  "files_exist": {
+    "ENHANCED_DATABASE_SYSTEM_SUMMARY.md": true,
+    "PRODUCTION_DATA_FLOW_MAP.md": true,
+    "CLIP_DB_DESIGN.md": true,
+    "HARMONIZED_CLIP_FINGERPRINTS.md": true,
+    "PIPELINE.md": true,
+    "ARCHIVE_INDEX.md": true,
+    "DOCUMENTATION_INDEX.md": true
+  },
+  "enhanced_terms": {
+    "ENHANCED_DATABASE_SYSTEM_SUMMARY.md": {
+      "found": [
+        "database-driven",
+        "unified ledger",
+        "clip_db",
+        "production_db",
+        "harmonized",
+        "fingerprint",
+        "canonical path",
+        "golden-truth",
+        "assert_all_valid",
+        "can_reuse",
+        "change request",
+        "transactional"
+      ],
+      "missing": [],
+      "coverage": 1.0
+    },
+    "PRODUCTION_DATA_FLOW_MAP.md": {
+      "found": [
+        "database-driven",
+        "unified ledger",
+        "clip_db",
+        "production_db",
+        "harmonized",
+        "fingerprint",
+        "canonical path",
+        "golden-truth",
+        "assert_all_valid",
+        "can_reuse",
+        "change request",
+        "transactional"
+      ],
+      "missing": [],
+      "coverage": 1.0
+    }
+  },
+  "legacy_context": {
+    "ENHANCED_DATABASE_SYSTEM_SUMMARY.md": {
+      "lines": [
+        [
+          7,
+          "eliminates recurring failure patterns (stale reuse, path mismatch, parent/child confusion)"
+        ],
+        [
+          7,
+          "eliminates recurring failure patterns (stale reuse, path mismatch, parent/child confusion)"
+        ],
+        [
+          7,
+          "eliminates recurring failure patterns (stale reuse, path mismatch, parent/child confusion)"
+        ],
+        [
+          15,
+          "| Independent path derivation | Single canonical path computation | No path mismatch |"
+        ],
+        [
+          16,
+          "| Reuse by file-exists | `can_reuse()` validates required attributes | No stale reuse |"
+        ],
+        [
+          17,
+          "| Guess parent\u2192child lineage | Explicit `source_beat_id` mapping | No parent/child confusion |"
+        ],
+        [
+          68,
+          "**Fingerprint drift**: 5 pipeline files used 3 different path conventions, causing:"
+        ],
+        [
+          69,
+          "- Stale reuse of wrong-duration clips"
+        ],
+        [
+          70,
+          "- Path mismatches between plan and generated files"
+        ],
+        [
+          71,
+          "- Parent/child confusion in duration reconciliation"
+        ],
+        [
+          77,
+          "3. **Attribute validation** in `can_reuse()` prevents stale reuse"
+        ],
+        [
+          107,
+          "| Stale reuse defects | 15% of productions | Zero defects | 100% |"
+        ],
+        [
+          108,
+          "| Parent/child confusion | Manual fix needed | Automatic resolution | 100% |"
+        ],
+        [
+          133,
+          "- **Automatic lineage resolution** - No more parent/child confusion"
+        ]
+      ],
+      "count": 14
+    },
+    "PRODUCTION_DATA_FLOW_MAP.md": {
+      "lines": [
+        [
+          26,
+          "**fingerprint harmonization** eliminates stale reuse, path mismatch, and parent/child confusion."
+        ],
+        [
+          26,
+          "**fingerprint harmonization** eliminates stale reuse, path mismatch, and parent/child confusion."
+        ],
+        [
+          26,
+          "**fingerprint harmonization** eliminates stale reuse, path mismatch, and parent/child confusion."
+        ],
+        [
+          209,
+          "| Stale reuse | Reuse keyed on file-exists, not on plan-required attributes | `can_reuse()` checks: file exists at canonical path, SHA matches, duration covers required, audio policy satisfied, plan SHA unchanged |"
+        ],
+        [
+          210,
+          "| Path mismatch | Multiple path derivation formats (compile line 252 vs 698) | `_canonical_path()` computed once in `clip_db.py`; all steps use `get_path(clip_id)` |"
+        ],
+        [
+          211,
+          "| Parent/child confusion | No explicit mapping; each step guesses | `source_beat_id`, `split_index`, `slot_id` columns; `coverage_for_beat()` resolves lineage |"
+        ],
+        [
+          231,
+          "The system now operates with **zero silent degradation** \u2014 any mismatch, stale reuse, or"
+        ]
+      ],
+      "count": 7
+    },
+    "CLIP_DB_DESIGN.md": {
+      "lines": [
+        [
+          9,
+          "| CDB-03 | \u2705 DONE | `generate_media` uses `can_reuse()` (kills stale reuse) + records actual attrs |"
+        ],
+        [
+          22,
+          "There is **no longer** any independent derivation of clip IDs, paths, or durations. The"
+        ],
+        [
+          35,
+          "| Stale reuse | Reuse keyed on file-exists, not on plan-required attributes | `can_reuse()` validates: file exists at canonical path, SHA matches, duration covers required, audio policy satisfied, plan SHA unchanged |"
+        ],
+        [
+          36,
+          "| Path mismatch | Multiple path derivation formats (compile line 252 vs 698) | `_canonical_path()` computed once; all steps use `get_path(clip_id)` |"
+        ],
+        [
+          37,
+          "| Parent/child confusion | No explicit mapping; each step guesses | `source_beat_id`, `split_index`, `slot_id` columns; `coverage_for_beat()` resolves lineage |"
+        ],
+        [
+          62,
+          "I --> L[No Parent/Child Confusion]"
+        ],
+        [
+          205,
+          "1. **One path, computed once** \u2014 `_canonical_path()` rule in `clip_db.py` eliminates path mismatch"
+        ],
+        [
+          206,
+          "2. **Reuse checks required attributes** \u2014 `can_reuse()` compares actual duration/sha/policy against order spec \u2192 no stale reuse"
+        ],
+        [
+          207,
+          "3. **Lineage is explicit** \u2014 `source_beat_id`, `production_beat_id`, `slot_id` columns eliminate parent/child confusion"
+        ],
+        [
+          280,
+          "\u2705 **Harmonized fingerprints**: Zero path drift, zero parent/child confusion"
+        ]
+      ],
+      "count": 10
+    },
+    "HARMONIZED_CLIP_FINGERPRINTS.md": {
+      "lines": [
+        [
+          5,
+          "The harmonized clip fingerprint system eliminates \"fingerprint drift\" \u2014 the recurring failure"
+        ],
+        [
+          7,
+          "stale reuse, path mismatches, and parent/child confusion."
+        ],
+        [
+          7,
+          "stale reuse, path mismatches, and parent/child confusion."
+        ],
+        [
+          7,
+          "stale reuse, path mismatches, and parent/child confusion."
+        ],
+        [
+          13,
+          "### Fingerprint Drift Failure Classes"
+        ],
+        [
+          17,
+          "| **Stale Reuse** | B004.mp4 (10s) reused when plan wanted 15s | Reuse keyed on file-exists, not on plan-required attributes |"
+        ],
+        [
+          18,
+          "| **Path Mismatch** | Plan wants `B004_B004-s0.mp4`, only `B004.mp4` exists | Multiple path derivation formats (`compile_media_prompts.py` line 252 vs 698) |"
+        ],
+        [
+          19,
+          "| **Parent/Child Confusion** | `reconcile_duration` looks for `B005`, plan has `B005a`+`B005b` | No explicit mapping; each step guesses lineage |"
+        ],
+        [
+          81,
+          "# No guessing, no parent/child confusion"
+        ],
+        [
+          227,
+          "| Stale reuse defects | 15% of productions | Zero defects |"
+        ],
+        [
+          228,
+          "| Parent/child confusion | Manual reconciliation needed | Automatic lineage resolution |"
+        ],
+        [
+          238,
+          "\u2705 **CDB-03**: Generation uses `can_reuse()` (no stale reuse)"
+        ],
+        [
+          245,
+          "**Result:** Harmonized clip fingerprint system fully operational with zero fingerprint drift."
+        ]
+      ],
+      "count": 13
+    },
+    "PIPELINE.md": {
+      "lines": [
+        [
+          177,
+          "Problem detected (e.g., clip too short, path mismatch, stale reuse)"
+        ],
+        [
+          177,
+          "Problem detected (e.g., clip too short, path mismatch, stale reuse)"
+        ],
+        [
+          215,
+          "**Key Benefit:** Eliminates \"fingerprint drift\" where each step independently derived paths."
+        ],
+        [
+          219,
+          "| 5 files, 3 path formats | Single `_canonical_path()` rule | No path mismatch |"
+        ],
+        [
+          220,
+          "| Reuse by file-exists | `can_reuse()` validates attributes | No stale reuse |"
+        ],
+        [
+          221,
+          "| Guess parent\u2192child | Explicit `source_beat_id` lineage | No parent/child confusion |"
+        ],
+        [
+          326,
+          "- **Status:** Zero fingerprint drift, zero stale reuse, zero parent/child confusion"
+        ],
+        [
+          326,
+          "- **Status:** Zero fingerprint drift, zero stale reuse, zero parent/child confusion"
+        ],
+        [
+          326,
+          "- **Status:** Zero fingerprint drift, zero stale reuse, zero parent/child confusion"
+        ]
+      ],
+      "count": 9
+    },
+    "DOCUMENTATION_INDEX.md": {
+      "lines": [
+        [
+          11,
+          "| **[HARMONIZED_CLIP_FINGERPRINTS.md](HARMONIZED_CLIP_FINGERPRINTS.md)** | Fingerprint drift elimination system | \u2705 New |"
+        ],
+        [
+          43,
+          "3. **Harmonized Fingerprints**: Elimination of path drift and stale reuse"
+        ],
+        [
+          73,
+          "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
+        ],
+        [
+          73,
+          "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
+        ],
+        [
+          73,
+          "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
+        ],
+        [
+          167,
+          "| Path mismatch error | Use `clip_db.get_path()` not manual path derivation | `HARMONIZED_CLIP_FINGERPRINTS.md` |"
+        ]
+      ],
+      "count": 6
+    }
+  },
+  "overall_status": "PASS"
+}

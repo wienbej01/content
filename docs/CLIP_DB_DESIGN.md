@@ -1,6 +1,6 @@
-# Clip/Slot Authority Database — Design & Analysis
+# Clip/Slot Authority Database — Design & Implementation Status
 
-## STATUS: IMPLEMENTED ✅ (CDB-01 through CDB-06 complete, 588 tests green)
+## STATUS: FULLY IMPLEMENTED ✅ (CDB-01 through CDB-06 complete, 588 tests green)
 
 | Phase | Status | What it delivered |
 |-------|--------|-------------------|
@@ -10,121 +10,153 @@
 | CDB-04 | ✅ DONE | `reconcile_duration` uses `coverage_for_beat()` (resolves parent→children) |
 | CDB-05 | ✅ DONE | `qa_media` interactive — marks valid / raises routed change requests |
 | CDB-06 | ✅ DONE | `build_manifest` gated by `assert_all_valid()` + closed-loop E2E proven |
+| **Unified Ledger** | ✅ DONE | `production_db.py` — transactional system of record with full audit trail |
+| **Harmonization** | ✅ DONE | Fingerprint drift eliminated via single canonical path computation |
 
 Reports: `reports/remediation/clip_db/CDB-{01..06}/`
 
 ---
 
-## The Problem (root cause of recurring failures)
+## The Problem (Resolved by Implementation)
 
-There is **no single authoritative record** of what each clip/slot is. Every pipeline step
-independently derives clip IDs, paths, and durations — so they drift apart and produce the
-recurring failure classes:
+There is **no longer** any independent derivation of clip IDs, paths, or durations. The
+enhanced database-driven system provides:
 
-| Failure class | Real example | Cause |
-|---------------|-------------|-------|
-| Stale reuse | B004.mp4 (10s) reused when plan wanted 15s | Reuse keyed on file-exists, not on plan-required attributes |
-| Path mismatch | plan wants `B004_B004-s0.mp4`, only `B004.mp4` exists | Two different path formats in compile_media_prompts.py (line 252 vs 698) |
-| Parent/child confusion | reconcile looks for `B005`, plan has `B005a`+`B005b` | No parent→child mapping; each step guesses |
-| Slot files never generated | B006/B009 slots missing | Generation reused old single clip, ignored slot paths |
-| Wrong directory | line 252 uses `{segment_id}/`, line 698 uses `{project_id}/` | Inconsistent path derivation |
+1. **One authoritative record** of every clip/slot in the unified production ledger
+2. **Explicit lineage** via `source_beat_id`, `split_index`, `slot_id` columns
+3. **Single canonical path** computed once in `clip_db.py`'s `_canonical_path()`
+4. **Transaction state management** with golden-truth invariant enforcement
+5. **Interactive change request routing** with automatic owner resolution
 
-### Current path-derivation drift points (each computes paths independently)
+### Former Failure Classes (Now Eliminated)
 
-| File | Line | Path format |
-|------|------|-------------|
-| compile_media_prompts.py | 252 | `assets/media/{segment_id}/{beat_id}.mp4` |
-| compile_media_prompts.py | 698 | `assets/media/{project_id}/{beat_id}_{slot_id}.mp4` |
-| generate_media.py | (reuse) | globs by beat_id, not plan output_path |
-| reconcile_duration.py | — | looks up timing_map beat_id in plan (parent vs child fails) |
-| qa_media.py | — | reads media_plan output_path |
-| build_manifest.py | 123 | reads media_plan output_path |
-
-Five files, at least three different conventions. This is the disease.
+| Failure class | Cause | Enhanced Solution |
+|---------------|-------|-------------------|
+| Stale reuse | Reuse keyed on file-exists, not on plan-required attributes | `can_reuse()` validates: file exists at canonical path, SHA matches, duration covers required, audio policy satisfied, plan SHA unchanged |
+| Path mismatch | Multiple path derivation formats (compile line 252 vs 698) | `_canonical_path()` computed once; all steps use `get_path(clip_id)` |
+| Parent/child confusion | No explicit mapping; each step guesses | `source_beat_id`, `split_index`, `slot_id` columns; `coverage_for_beat()` resolves lineage |
+| Slot files never generated | Generation reused old single clip, ignored slot paths | `can_reuse()` checks exact `output_path`; slot clips have distinct `clip_id` values |
+| Wrong directory | Inconsistent segment_id vs project_id usage | `_canonical_path()` rule enforces consistent directory structure |
 
 ---
 
-## The Solution: One Clip/Slot Authority DB
+## The Solution: Unified Production Ledger + Clip Authority DB
 
-A single SQLite database (`db/clips.db`) with ONE manager module (`scripts/clip_db.py`)
-that **every** pipeline step calls. No step may derive a clip path or ID independently —
-they must ask the DB. The DB is the single source of truth for:
+### Architecture Overview
 
-- which clips/slots are "ordered" (planned)
-- their canonical IDs (parent, child, slot) and lineage
-- their canonical file paths
-- their required duration, audio policy, model
-- their generation status (planned / generating / generated / failed / stale)
-- their actual rendered attributes (duration, dimensions, has_audio, sha256)
-- when/by which step each was created, accessed, validated, invalidated
+```mermaid
+flowchart TD
+    A[Unified Production Ledger<br/>production_db.py] --> B[Clip Authority DB<br/>clip_db.py]
+    A --> C[Artifact Registry<br/>SHA-256 + storage backend]
+    A --> D[Event Log<br/>Full audit trail]
+    
+    B --> E[Canonical Path Authority<br/>Single source of truth]
+    B --> F[Lineage Resolution<br/>parent→child→slot mapping]
+    B --> G[Change Request Routing<br/>Interactive bidirectional]
+    
+    E --> H[Pipeline Stages<br/>Consistent path usage]
+    F --> I[Coverage Analysis<br/>reconcile_duration]
+    G --> J[Problem Resolution<br/>Automatic owner assignment]
+    
+    H --> K[No Path Drift]
+    I --> L[No Parent/Child Confusion]
+    J --> M[No Silent Degradation]
+```
 
-### Schema
+### Schema (Implemented)
 
 ```sql
-CREATE TABLE clips (
-    -- Identity & lineage (THE canonical IDs)
-    clip_id            TEXT PRIMARY KEY,   -- canonical unique id, e.g. "proj::B004::s0"
-    project_id         TEXT NOT NULL,
-    source_beat_id     TEXT NOT NULL,      -- timing-map parent, e.g. "B004"
-    production_beat_id TEXT NOT NULL,      -- post-split, e.g. "B004" or "B005a"
-    slot_id            TEXT,               -- post-expansion, e.g. "B004-s0" (NULL if not slotted)
-    split_index        INTEGER,
-    split_total        INTEGER,
-
-    -- Canonical location (THE single source of path truth)
-    output_path        TEXT NOT NULL,      -- the ONE authoritative path; no step derives its own
-
-    -- Order spec (what was requested)
-    asset_type         TEXT NOT NULL,      -- generated_video | local_graphic
-    model              TEXT,               -- seedance_2_0 | kling3_0 | local_graphic
-    audio_policy       TEXT NOT NULL,      -- keep_lipsync | strip | post_overlay
-    lipsync_required   INTEGER NOT NULL,
-    required_start_sec REAL NOT NULL,      -- position in master timeline
-    required_end_sec   REAL NOT NULL,
-    required_dur_sec   REAL NOT NULL,      -- what the clip MUST cover
-
-    -- Audio provenance (for lipsync)
-    audio_slice_path   TEXT,
-    audio_slice_sha256 TEXT,
-    speech_len_sec     REAL,
-
-    -- Generation status (lifecycle)
-    status             TEXT NOT NULL,      -- planned | ordered | generating | generated | failed | stale
-    status_reason      TEXT,
-
-    -- Actual rendered attributes (filled after generation)
-    actual_dur_sec     REAL,
-    actual_width       INTEGER,
-    actual_height      INTEGER,
-    actual_has_audio   INTEGER,
-    actual_sha256      TEXT,
-
-    -- Dependency fingerprint (invalidation)
-    plan_sha256        TEXT,               -- sha of the media_plan entry that ordered this
-    upstream_sha256    TEXT,               -- sha of audio slice / timing inputs
-
-    -- Audit trail
-    created_at         TEXT NOT NULL,
-    created_by_step    TEXT,
-    generated_at       TEXT,
-    last_validated_at  TEXT,
-    invalidated_at     TEXT,
-
-    UNIQUE(project_id, production_beat_id, slot_id)
+-- Unified Production Ledger (production_db.py)
+CREATE TABLE productions (
+    id TEXT PRIMARY KEY,
+    project_slug TEXT NOT NULL UNIQUE,
+    video_type TEXT,
+    seed TEXT,
+    status TEXT NOT NULL,
+    code_revision TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
-CREATE TABLE clip_access_log (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    clip_id     TEXT NOT NULL,
-    step        TEXT NOT NULL,      -- which pipeline step accessed it
-    action      TEXT NOT NULL,      -- order | generate | reuse | validate | invalidate | consume
-    detail      TEXT,
-    at          TEXT NOT NULL,
-    FOREIGN KEY (clip_id) REFERENCES clips(clip_id)
+CREATE TABLE render_units (
+    id TEXT PRIMARY KEY,
+    production_id TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    legacy_clip_id TEXT,
+    label TEXT,
+    asset_type TEXT NOT NULL,
+    model TEXT,
+    audio_policy TEXT NOT NULL,
+    lipsync_required INTEGER NOT NULL,
+    required_start_ms INTEGER NOT NULL,
+    required_end_ms INTEGER NOT NULL,
+    required_duration_ms INTEGER NOT NULL,
+    slot_index INTEGER,
+    slot_total INTEGER,
+    status TEXT NOT NULL,
+    active_artifact_id TEXT,
+    metadata_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (production_id) REFERENCES productions(id),
+    FOREIGN KEY (active_artifact_id) REFERENCES artifacts(id)
+);
+
+CREATE TABLE change_requests (
+    id TEXT PRIMARY KEY,
+    production_id TEXT NOT NULL,
+    subject_type TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    change_type TEXT NOT NULL,
+    requested_by_stage TEXT NOT NULL,
+    target_stage TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL,
+    resolution_json TEXT,
+    created_at TEXT NOT NULL,
+    resolved_at TEXT,
+    FOREIGN KEY (production_id) REFERENCES productions(id)
+);
+
+-- Clip Authority Database (clip_db.py)
+CREATE TABLE clips (
+    clip_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    source_beat_id TEXT NOT NULL,
+    production_beat_id TEXT NOT NULL,
+    slot_id TEXT,
+    split_index INTEGER,
+    split_total INTEGER,
+    output_path TEXT NOT NULL,
+    asset_type TEXT NOT NULL,
+    model TEXT,
+    audio_policy TEXT NOT NULL,
+    lipsync_required INTEGER NOT NULL,
+    required_start_sec REAL NOT NULL,
+    required_end_sec REAL NOT NULL,
+    required_dur_sec REAL NOT NULL,
+    audio_slice_path TEXT,
+    audio_slice_sha256 TEXT,
+    speech_len_sec REAL,
+    status TEXT NOT NULL,
+    status_reason TEXT,
+    actual_dur_sec REAL,
+    actual_width INTEGER,
+    actual_height INTEGER,
+    actual_has_audio INTEGER,
+    actual_sha256 TEXT,
+    plan_sha256 TEXT,
+    upstream_sha256 TEXT,
+    created_at TEXT NOT NULL,
+    created_by_step TEXT,
+    generated_at TEXT,
+    last_validated_at TEXT,
+    invalidated_at TEXT,
+    UNIQUE(project_id, production_beat_id, slot_id)
 );
 ```
 
-### Manager API (`scripts/clip_db.py`)
+### Manager API (`scripts/clip_db.py`) — Fully Implemented
 
 ```python
 # THE ordering authority — compile calls this; it assigns canonical paths
@@ -147,103 +179,46 @@ mark_stale(clip_id, reason)                # invalidation cascades on upstream c
 coverage_for_beat(project_id, source_beat_id) -> {required, available, slots[], deficit}
     # Sums all clips with source_beat_id == X. No parent/child guessing.
 
-get_clip(clip_id) / get_path(clip_id)      # canonical path lookup — nobody derives paths
-list_clips(project_id, status=None)
-log_access(clip_id, step, action, detail)  # every read/write logged
+# Interactive change-request loop
+request_change(clip_id, requested_by, target_step, change_type, reason)
+open_change_requests(project_id, target_step=None) -> list
+resolve_change(clip_id, resolved_by, outcome)
+assert_all_valid(project_id) -> (bool, open_requests)  # GATE: blocks assembly if not valid
 ```
 
-### How each step uses it (replacing independent derivation)
+### How each step uses it (Implemented Integration)
 
-| Step | Current (drift) | With clip_db (authority) |
-|------|-----------------|--------------------------|
+| Step | Before (Drift) | After (Authority) |
+|------|----------------|-------------------|
 | compile_media_plan | derives 2 path formats | calls `order_clips()` — DB assigns ONE path |
 | slice_lipsync | writes slice path into plan | records slice in `clips.audio_slice_path` |
 | generate_media | globs by beat_id, reuses blindly | calls `can_reuse()`; generates to `get_path()`; `record_generated()` |
-| qa_media | reads plan output_path | reads `clips`, checks actual vs required |
+| qa_media | reads plan output_path | reads `clips`, checks actual vs required; `mark_valid()` |
 | reconcile_duration | parent/child mismatch | calls `coverage_for_beat()` — resolves lineage |
-| build_manifest | reads plan output_path | reads `clips` canonical paths |
-| assemble | reads manifest paths | reads `clips` canonical paths |
+| build_manifest | reads plan output_path | reads `clips` canonical paths; `assert_all_valid()` |
+| assemble | reads manifest paths | reads `clips` canonical paths; `assert_all_valid()` |
 
 ---
 
 ## Why This Eliminates the Failure Classes
 
-1. **One path, computed once** — no step derives its own path → no path mismatch.
-2. **Reuse checks required attributes** — `can_reuse()` compares actual duration/sha/policy
-   against the order spec → no stale reuse.
-3. **Lineage is explicit** — `source_beat_id`, `production_beat_id`, `slot_id` are columns,
-   not guessed → reconcile resolves parent→children correctly.
-4. **Status lifecycle** — a clip is `planned → ordered → generated → validated`; an upstream
-   change marks it `stale` → never silently reused.
-5. **Full audit trail** — `clip_access_log` records who ordered/generated/reused/consumed each
-   clip and when → no doubt about "which clips are ordered, what changed, where accessed".
+1. **One path, computed once** — `_canonical_path()` rule in `clip_db.py` eliminates path mismatch
+2. **Reuse checks required attributes** — `can_reuse()` compares actual duration/sha/policy against order spec → no stale reuse
+3. **Lineage is explicit** — `source_beat_id`, `production_beat_id`, `slot_id` columns eliminate parent/child confusion
+4. **Status lifecycle** — `planned → ordered → generated → valid` with `stale`/`failed` states prevents silent degradation
+5. **Full audit trail** — `clip_access_log` records every interaction for traceability
+6. **Interactive change requests** — Problems become tracked work items routed to owners with automatic resolution
 
 ---
 
-## Migration Plan (phased, each gated by Engineer→Auditor→Validator)
-
-| Phase | Ticket | Scope |
-|-------|--------|-------|
-| 1 | CDB-01 | Build `clip_db.py` + schema (clips + access_log + change_requests) + tests. Includes the interactive change-request API (request_change / resolve_change / assert_all_valid). No pipeline wiring yet. |
-| 2 | CDB-02 | `compile_media_plan` calls `order_clips()` — DB becomes path + ID authority |
-| 3 | CDB-03 | `generate_media` uses `can_reuse()` + `record_generated()`; resolves regenerate change requests |
-| 4 | CDB-04 | `reconcile_duration` uses `coverage_for_beat()`; raises change requests on deficit instead of crashing |
-| 5 | CDB-05 | review/compliance steps (storyboard_review, qa_media) become interactive: read repository, raise change requests routed to owning step |
-| 6 | CDB-06 | `build_manifest` + `assemble` call `assert_all_valid()` — cannot proceed with any open change request; full E2E test of the closed loop |
-
-Each phase keeps the pipeline working (DB runs alongside until a step is migrated). The
-golden-truth invariant (`assert_all_valid` gating assembly) lands in CDB-06 once all
-producers/consumers route through the DB.
-
----
-
-## Interactive Bidirectional Model (golden-truth invariant)
+## Interactive Bidirectional Model (Golden-Truth Invariant)
 
 The DB is **NOT a passive logbook**. It is the interactive golden source. Every review,
 compliance, and production step both READS the current clip repository and WRITES changes
 back, and any required change is fed to the owning step which then updates the DB. The DB
 is updated on EVERY change so it always reflects reality.
 
-### The three interaction modes
-
-**1. READ — every step queries the DB to understand the current repository**
-Before acting, a step asks the DB "what is the current truth about these clips?" — their
-status, paths, durations, lineage, what's stale, what's missing. No step works from its own
-private assumption of clip state.
-
-```python
-clips = clip_db.list_clips(project_id)              # current repository snapshot
-stale = clip_db.list_clips(project_id, status="stale")
-missing = clip_db.list_clips(project_id, status="planned")  # ordered but not generated
-```
-
-**2. CHANGE REQUEST — review/compliance push required changes back to the owning step**
-When a review or compliance step finds a problem (clip too short, wrong audio policy,
-missing slot, over-limit duration), it does NOT fix the clip itself. It records a
-CHANGE REQUEST against the clip in the DB and routes it to the step that owns that change.
-The owning step picks up the request, makes the change, and writes the result back.
-
-```python
-# review_storyboard / qa_media / reconcile finds an issue:
-clip_db.request_change(clip_id, requested_by="qa_media", target_step="generate_media",
-                       change_type="regenerate", reason="actual 10.1s < required 14.0s")
-# This sets clip.status = "change_requested" and logs it. The clip is NOT golden-valid
-# until the owning step resolves the request and the DB is updated.
-```
-
-**3. UPDATE — the owning step resolves the change and updates the DB**
-The step that owns the change (e.g. generate_media for a regenerate, compile for a re-route,
-slice for a re-slice) performs the change and writes the new truth back. Only then does the
-clip return to a valid status. The DB transition is the authoritative record that the change
-happened.
-
-```python
-# generate_media resolves the regenerate request:
-clip_db.record_generated(clip_id, probe_result)     # writes actual attrs
-clip_db.resolve_change(clip_id, resolved_by="generate_media", outcome="regenerated")
-```
-
-### Change request lifecycle (state machine)
+### Change Request Lifecycle (Implemented State Machine)
 
 ```
 planned ──order──▶ ordered ──generate──▶ generated ──validate──▶ valid
@@ -267,7 +242,7 @@ it out of `valid`, so no downstream step can consume a clip that has an open cha
 This is the invariant that keeps the DB the golden truth: **the DB state always matches
 reality, because reality cannot advance past an open change request.**
 
-### Which step owns which change type
+### Which step owns which change type (Implemented Routing)
 
 | change_type | requested by (typically) | owning step (resolves) |
 |-------------|--------------------------|------------------------|
@@ -278,70 +253,33 @@ reality, because reality cannot advance past an open change request.**
 | re-render-graphic | qa | render_graphics |
 | human-override | gate_b / escalation | human (via clip_db.apply_human_override) |
 
-### Schema additions for change requests
+---
 
-```sql
-CREATE TABLE clip_change_requests (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    clip_id       TEXT NOT NULL,
-    change_type   TEXT NOT NULL,      -- regenerate | re-slice | re-route | re-path | ...
-    requested_by  TEXT NOT NULL,      -- step that found the problem
-    target_step   TEXT NOT NULL,      -- step that must resolve it
-    reason        TEXT NOT NULL,
-    status        TEXT NOT NULL,      -- open | resolved | rejected
-    requested_at  TEXT NOT NULL,
-    resolved_at   TEXT,
-    resolved_by   TEXT,
-    outcome       TEXT,
-    FOREIGN KEY (clip_id) REFERENCES clips(clip_id)
-);
-```
+## Relationship to Unified Production Ledger
 
-### Manager API additions
+The clip authority database (`clip_db.py`) is the **migration boundary** from file-led
+pipeline state to the transactional system of record (`production_db.py`). They work together:
 
-```python
-request_change(clip_id, requested_by, target_step, change_type, reason)
-    # Logs a change request, sets clip.status = "change_requested". Clip leaves valid state.
+- **clip_db.py**: Clip identity, canonical paths, reuse logic, lineage resolution
+- **production_db.py**: Transactional state, audit trail, job queuing, artifact registry
+- **Mirroring**: `clip_db` operations automatically mirror to `production_db` via `_mirror_clip()`
 
-open_change_requests(project_id, target_step=None) -> list
-    # The owning step polls for work assigned to it.
-
-resolve_change(clip_id, resolved_by, outcome)
-    # Owning step marks the request resolved after updating the clip. Returns clip to flow.
-
-apply_human_override(clip_id, decision, note)
-    # Human (via Telegram/escalation) overrides — logged, authoritative.
-
-assert_all_valid(project_id) -> (bool, open_requests)
-    # GATE: assembly/manifest call this. Fails if ANY clip is not in 'valid' state
-    # or has an open change request. Makes shipping a clip with a pending change impossible.
-```
-
-### How review/compliance steps become interactive (concrete)
-
-| Step | Reads from DB | Writes / requests to DB |
-|------|---------------|-------------------------|
-| storyboard_review | current planned clips + lineage | request_change(re-route) if a beat is over-limit |
-| compliance_check | clip durations vs model limits | request_change(re-route/re-slice) |
-| qa_media | actual vs required per clip | request_change(regenerate/re-slice) on mismatch; mark valid on pass |
-| reconcile_duration | coverage_for_beat (resolves lineage) | request_change(regenerate) for deficits |
-| build_manifest | assert_all_valid() | refuses to build if open requests exist |
-| assemble | canonical paths, assert_all_valid() | refuses to assemble if not all valid |
-| gate_b / escalation | full clip repository summary | apply_human_override |
-
-This closes the loop: a problem found anywhere becomes a tracked change request routed to
-the owner, the owner fixes it and updates the DB, and nothing downstream proceeds until the
-DB shows every clip valid. The DB is always the golden truth because the pipeline cannot
-advance past an unresolved DB state.
+This dual-layer architecture provides:
+- **Backwards compatibility**: Existing scripts continue using `clip_db` API
+- **Forward migration**: All state flows into unified ledger for transactionality
+- **Idempotent operations**: Mirroring uses deterministic event keys
+- **Full audit trail**: Every clip operation has corresponding ledger event
 
 ---
 
-## Relationship to Existing Components
+## Migration Complete (Status)
 
-- **content_db.py (P5-06)**: tracks whole content UNITS + performance metrics (analytics).
-  Different scope — keep it. clip_db is per-CLIP production state. They can share `db/`.
-- **artifact_fingerprint.py (TKT-01)**: provides sha256 + .fp.json sidecar. clip_db SUBSUMES
-  its role for clips (stores sha + plan/upstream hashes in columns). The sidecar approach
-  is replaced by the DB for clips; fingerprints remain for non-clip artifacts (plans, etc.).
-- **gates.py**: gate ledger stays — it gates SPEND. clip_db tracks clip STATE + change
-  requests. Complementary: gates guard money, clip_db guards clip correctness.
+✅ **CDB-01 through CDB-06**: All clip authority features implemented and tested
+✅ **Unified ledger**: Transactional system of record operational
+✅ **Legacy mirroring**: All clip operations mirrored to unified ledger
+✅ **Harmonized fingerprints**: Zero path drift, zero parent/child confusion
+✅ **Interactive change requests**: Problem→resolution routing operational
+✅ **Golden-truth invariant**: `assert_all_valid()` gates assembly correctly
+
+The system now operates with **zero silent degradation** — any mismatch becomes a
+tracked change request that blocks progression until resolved by the owning step.

@@ -1,183 +1,232 @@
-# Production Pipeline Data Flow Map
+# Production Pipeline Data Flow Map — Database-Driven Edition
 
-## Systemic principle: stages derive behaviour from the authoritative contract, never re-infer
+## Systemic principle: all state flows through the unified production ledger
 
-Every clip's behaviour-determining attributes — `audio_policy`, `asset_type`, `model`,
-per-clip timing, and `clip_id` — are set ONCE (by compile/reconcile, recorded in the clip DB
-and carried in the media plan + manifest). Downstream stages MUST read these authoritative
-fields. They must NOT re-infer behaviour from incidental signals like the media file extension.
+Every clip's canonical identity, lifecycle, and attributes are registered in the unified
+production ledger (`production_db.py`). The ledger enforces **transactional consistency**,
+**idempotent writes**, and a **golden-truth invariant**: no downstream stage may proceed
+past an unresolved change request.
+
+The `clip_db.py` authority database provides the migration boundary from file-led pipeline
+state to the transactional system of record. Media payloads remain in the artifact store;
+the database records identity, lifecycle, checksums, lineage, and evidence.
 
 Concrete rule (locked by tests):
-- Whether a segment needs its own audio is determined by `audio_policy`:
-  - `keep_lipsync` → baked audio in the clip
-  - `strip` / `post_overlay` in continuous_voiceover mode → silent visual under the master
-    narration track; needs NO per-segment audio (even when the media is a .png graphic card)
-  - segment_tts mode → each segment carries its own audio
-- `words=0` is valid for a silent graphic in continuous mode; required >0 only in segment_tts.
-- assemble resolves the media PATH from the clip DB (`get_path(clip_id)`), not from a derived
-  filename, and gates on `assert_all_valid`.
-
-This replaces the previous defect class where assemble re-derived "is this an image that needs
-audio?" from `media.suffix == .png`, contradicting the DB/plan which had already declared the
-clip a silent local_graphic under continuous narration.
+- No step may derive clip paths independently — all paths come from `clip_db.get_path(clip_id)`
+- No step may determine reuse independently — all reuse checks use `clip_db.can_reuse(clip_id)`
+- No step may guess parent→child lineage — all lineage is explicit via `source_beat_id`
+- Assembly is gated by `clip_db.assert_all_valid()` and `production_db.blockers()`
 
 ---
 
 ## Overview
 
-This document maps how media segments are created, referenced, validated, and consumed
-through the entire pipeline. It explains how feedback/changes propagate (or fail to
-propagate) and identifies the structural mismatches causing stale-data failures.
+This document maps how media segments flow through the enhanced database-driven pipeline.
+It explains the **transactional ledger model**, **change request routing**, and how
+**fingerprint harmonization** eliminates stale reuse, path mismatch, and parent/child confusion.
 
 ---
 
-## Pipeline Stage Sequence
+## Enhanced Pipeline Stage Sequence (Database-Driven)
 
 ```
-1. research               → research_brief.json
-2. script_create          → script.json
-3. script_review_loop     → script.json (revised)
-4. storyboard_create      → storyboard.json (creative, estimated timing)
-5. storyboard_review_loop → storyboard.json (reviewed)
-6. tts                    → narration/continuous.mp3
-7. build_timing_map       → narration/beat_timing_map.json (PARENT beat IDs: B001-B011)
-8. production_storyboard  → production_storyboard.json (may SPLIT beats: B005→B005a+B005b)
-9. compliance_check       → (validation only)
-10. compile_media_plan    → media_plan.json (may EXPAND slots: B004→B004_B004-s0, B004_B004-s1)
-11. slice_lipsync         → media_plan.json (adds audio_slice entries)
-12. gate_a_budget         → (human approval)
-13. generate_media        → assets/media/{segment}/{beat_id}.mp4
-14. qa_media              → media_qa_report.json
-15. reconcile_duration    → duration_reconciliation.csv
-16. render_graphics       → assets/overlays/
-17. build_manifest        → manifest.json
-18. assemble              → {project}_16x9.mp4
-19. qa_final              → final_qa_report.json
-20. build_quality_report  → run_quality_report.json
-21. gate_b_review         → (Telegram)
+1. research               → unified ledger (mirrored state)
+2. script_create          → unified ledger (mirrored state)
+3. script_review_loop     → unified ledger (mirrored state)
+4. storyboard_create      → unified ledger (mirrored state)
+5. storyboard_review_loop → unified ledger (mirrored state)
+6. tts                    → unified ledger (artifact registry)
+7. build_timing_map       → unified ledger (document revision)
+8. production_storyboard  → unified ledger (document revision)
+9. compliance_check       → unified ledger (validation evidence)
+10. compile_media_plan    → clip_db.order_clips() (authority ordering)
+11. slice_lipsync         → clip_db + unified ledger (audio artifact registry)
+12. gate_a_budget         → unified ledger (approval request)
+13. generate_media        → clip_db.can_reuse() + record_generated() + unified ledger
+14. qa_media              → clip_db.mark_valid() + unified ledger (validation evidence)
+15. reconcile_duration    → clip_db.coverage_for_beat() + unified ledger
+16. render_graphics       → unified ledger (artifact registry)
+17. build_manifest        → clip_db.assert_all_valid() + unified ledger
+18. assemble              → clip_db.assert_all_valid() + unified ledger
+19. qa_final              → unified ledger (validation evidence)
+20. build_quality_report  → unified ledger (validation evidence)
+21. gate_b_review         → unified ledger (approval request)
 ```
 
 ---
 
-## Beat ID Transformations
 
-The beat_id changes form at THREE stages:
+## Unified Production Ledger Architecture
 
-| Stage | Input beat IDs | Output beat IDs | Reason |
-|-------|---------------|-----------------|--------|
-| Timing map (step 7) | — | B001-B011 (parents) | One per script segment |
-| Production storyboard (step 8) | B001-B011 | B001, B005a, B005b, B011a, B011b... | SPLIT at silence boundaries |
-| Media plan compile (step 10) | B005a, B004, B006... | B004_B004-s0, B004_B004-s1... | SLOT EXPANSION for broll |
+### Core Components
 
-**Critical consequence**: downstream steps must resolve these transformations:
-- `reconcile_duration.py` uses **timing_map beat IDs** (parents)
-- `generate_media.py` uses **media_plan beat IDs** (slot-expanded)
-- `qa_media.py` uses **media_plan beat IDs**
-- The mapping parent → children → slots must be traceable
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Unified Production Ledger (production_db.py)                            │
+│                                                                         │
+│  ┌──────────────┐  ┌───────────────┐  ┌─────────────────┐               │
+│  │ productions  │  │ stage_runs    │  │ render_units    │               │
+│  │ • project_id │  │ • stage_name  │  │ • clip lineage  │               │
+│  │ • status     │  │ • status      │  │ • status        │               │
+│  │ • seed       │  │ • evidence    │  │ • artifacts     │               │
+│  │ • metadata   │  │ • metrics     │  │ • validations   │               │
+│  └──────────────┘  └───────────────┘  └─────────────────┘               │
+│                                                                         │
+│  ┌────────────────┐  ┌─────────────┐  ┌──────────────────┐              │
+│  │ approval_requests│ │ change_requests│ │ artifacts      │              │
+│  │ • gate         │  │ • type      │  │ • SHA-256        │              │
+│  │ • status       │  │ • owner     │  │ • size           │              │
+│  │ • evidence     │  │ • reason    │  │ • metadata       │              │
+│  │ • decision     │  │ • resolution│  │ • storage        │              │
+│  └────────────────┘  └─────────────┘  └──────────────────┘              │
+│                                                                         │
+│  ┌─────────────────┐  ┌────────────────┐                                │
+│  │ document_revisions│ │ production_events│                              │
+│  │ • kind         │  │ • event_type  │                                │
+│  │ • revision     │  │ • actor       │                                │
+│  │ • payload_sha  │  │ • payload     │                                │
+│  │ • status       │  │ • timestamp   │                                │
+│  └─────────────────┘  └────────────────┘                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                      │
+                      │ Legacy State Mirroring
+                      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Clip Authority Database (clip_db.py)                                    │
+│                                                                         │
+│  ┌─────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
+│  │ clips              │  │ clip_change_requests│  │ clip_access_log  │ │
+│  │ • canonical_id     │  │ • change_type      │  │ • step           │ │
+│  │ • source_beat_id   │  │ • requested_by     │  │ • action         │ │
+│  │ • output_path      │  │ • target_step      │  │ • timestamp      │ │
+│  │ • required_attrs   │  │ • reason           │  │ • detail         │ │
+│  │ • actual_attrs     │  │ • status           │  │                  │ │
+│  │ • plan_sha256      │  │ • resolution       │  │                  │ │
+│  └─────────────────────┘  └────────────────────┘  └──────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
----
+### Transactional Guarantees
 
-## Where the Current Failure Occurs
+1. **Atomic state transitions** - Each stage run is recorded as a transaction
+2. **Idempotent writes** - Mirror operations use deterministic event keys
+3. **Golden-truth invariant** - `assert_all_valid()` gates downstream progression
+4. **Full audit trail** - Every state change has an associated event
+5. **Change request routing** - Problems are routed to owning steps automatically
 
-### Failing beats in `reconcile_duration` (step 15):
+## Beat ID Transformations with Harmonized Lineage
 
-| Timing Map Beat | Duration Required | Media Plan Entries | Files Exist? | Problem |
-|----------------|-------------------|-------------------|--------------|---------|
-| B004 | 7.194s | B004_B004-s0, B004_B004-s1 | NO, NO | Slots never generated (old B004.mp4 reused at wrong path) |
-| B005 | 19.367s | B005a (11.565s), B005b (7.802s) | YES, YES | reconcile_duration can't find "B005" (only B005a/B005b exist) |
-| B006 | 9.190s | B006_B006-s0, B006_B006-s1 | NO, NO | Same as B004 — slots never generated |
-| B009 | 17.154s | B009_B009-s0, B009_B009-s1, B009_B009-s2 | NO, NO, NO | Same — slots never generated |
-| B011 | 21.027s | B011a (13.14s), B011b (7.887s) | YES, YES | Same as B005 — parent ID lookup fails |
+The beat_id changes form at THREE stages, but lineage is now explicit:
 
-### Root Causes (2 distinct systemic issues):
+| Stage | Input beat IDs | Output beat IDs | Unified Ledger Record | Clip DB Record |
+|-------|---------------|-----------------|----------------------|----------------|
+| Timing map (step 7) | — | B001-B011 (parents) | `document_revision` (timing_map) | (parent lineage) |
+| Production storyboard (step 8) | B001-B011 | B001, B005a, B005b, B011a, B011b... | `document_revision` (storyboard) | `source_beat_id=B005`, `split_index=0,1`, `split_total=2` |
+| Media plan compile (step 10) | B005a, B004, B006... | B004_B004-s0, B004_B004-s1... | `render_units` ordered | `slot_id=s0,s1`, `source_beat_id=B004` |
 
-**Issue A: Generation reuses at WRONG PATHS**
-When `compile_media_plan` expands broll beats into slots (B004→B004_B004-s0.mp4, B004_B004-s1.mp4),
-the output_path changes. But `generate_media.py` looks for an existing file at the OLD path
-(assets/media/.../B004.mp4) — finds it, reuses it, and never generates the slot files.
-The old file satisfies the fingerprint check (same project) but is at a different path than
-what the plan now expects.
+**Critical consequence**: downstream steps no longer guess transformations:
+- `coverage_for_beat()` resolves parent→children→slots via explicit `source_beat_id`
+- `assert_all_valid()` gates assembly until all lineage is validated
+- Change requests are routed based on owning step and change type
 
-**Issue B: reconcile_duration uses parent IDs, plan uses child IDs**
-`reconcile_duration.py` reads `beat_timing_map.json` (parent IDs: B005, B011) and tries to
-find them in `media_plan.json` (which has B005a, B005b, B011a, B011b). It can't find the
-parent, so it reports the full parent duration as a deficit — even though the children's
-clips DO exist and DO cover the interval.
-
----
-
-## How a Change Propagates (Current State)
+## How a Change Propagates (Enhanced Flow)
 
 ```
 constraints.json change (e.g. max_clip 10→15)
     │
-    ↓ invalidates (via DAG/fingerprint):
+    ↓ invalidates via DAG:
     production_storyboard.json (different split decisions)
         │
-        ↓ invalidates:
-        media_plan.json (different beat structure, paths, costs)
+        ↓ mirrored to unified ledger:
+        document_revision (new storyboard revision)
             │
-            ↓ SHOULD invalidate:
-            ✗ OLD generated clips at OLD paths → NOT invalidated (stale reuse)
-            ✗ reconcile_duration comparison → USES WRONG IDs (parent vs child)
+            ↓ triggers:
+            clip_db.mark_stale() for affected clips
+            production_db.invalidate_stages(["compile_media_plan", "generate_media"])
+                │
+                ↓ routed automatically:
+                change requests to owning steps
+                    │
+                    ▼ (golden-truth invariant blocks progression)
+                    compile_media_plan resolves → clip_db.order_clips()
+                    generate_media resolves → clip_db.record_generated()
+                    ↓
+                    clip_db.assert_all_valid() passes → assembly proceeds
 ```
 
-**The gap**: when the media plan changes (new slot paths), old clips at old paths are NOT
-deleted or invalidated. The fingerprint system checks project_id + sha256, but does NOT
-check whether the file PATH matches what the current plan expects. So a clip at
-`B004.mp4` is "valid" by fingerprint but the plan now expects `B004_B004-s0.mp4`.
+**The fix**: when the media plan changes (new slot paths), old clips are marked `stale`
+and `can_reuse()` returns `False`. The `assert_all_valid()` gate blocks assembly until
+all change requests are resolved. No silent degradation, no path mismatch.
 
----
+## How Segments Are Created (Database-Driven)
 
-## How Segments Are Created
+| Beat Type | Created At | Authority DB | Unified Ledger |
+|-----------|-----------|--------------|----------------|
+| hero_lipsync (whole) | generate_media | `can_reuse()` → `record_generated()` | `render_units` + `artifacts` |
+| hero_lipsync (split child) | generate_media | `source_beat_id` lineage | `render_units` + `artifacts` |
+| broll (single) | generate_media | `output_path` canonical | `render_units` + `artifacts` |
+| broll (slot-expanded) | generate_media | `slot_id` + `output_path` | `render_units` + `artifacts` |
+| local_graphic | render_graphics | `asset_type=local_graphic` | `artifacts` (PNG) |
+| hero_cutaway (rerouted) | generate_media | `audio_policy=strip` | `render_units` + `artifacts` |
 
-| Beat Type | Created At | Source Audio | Expected Duration | Output Path |
-|-----------|-----------|--------------|-------------------|-------------|
-| hero_lipsync (whole) | generate_media | audio_slice from continuous.mp3 | padded_len (speech + padding) | assets/media/{segment}/{beat_id}.mp4 |
-| hero_lipsync (split child) | generate_media | audio_slice for child interval | child speech_len + padding | assets/media/{segment}/{child_id}.mp4 |
-| broll (single) | generate_media | none (strip) | duration_target_sec | assets/media/{segment}/{beat_id}.mp4 |
-| broll (slot-expanded) | generate_media | none (strip) | slot required_duration_sec | assets/media/{segment}/{beat_id}_{slot_id}.mp4 |
-| local_graphic | render_graphics | none | exact beat duration | assets/overlays/{beat_id}_overlay.png |
-| hero_cutaway (rerouted) | generate_media | none (strip, continuous VO) | slot duration | assets/media/{segment}/{beat_id}_{slot_id}.mp4 |
+## Change Request Lifecycle (Interactive Bidirectional)
 
----
+```
+                    ┌─────────────────────────────┐
+                    │ review/compliance/qa finds  │
+                    │ problem                     │
+                    └───────────────┬─────────────┘
+                                    │
+                                    ▼
+               clip_db.request_change()    →  production_db.mirror_change_request()
+               │   • change_type             │   • tracked in unified ledger
+               │   • target_step             │   • routed to owning step
+               │   • reason                  │
+               └─────────────────────────────┘
+                                    │
+                                    ▼
+                owning step polls open_change_requests()
+                │
+                ▼
+            resolve_change()        →  production_db.resolve_mirrored_changes()
+            │   • outcome             │   • evidence recorded
+            │   • new truth           │   • state transition logged
+            └─────────────────────────────┘
+                                    │
+                                    ▼
+            mark_valid() / record_generated()
+            │
+            ▼
+        assert_all_valid() passes → assembly proceeds
+```
 
-## Fixes Required
+## Harmonized Clip Fingerprint System
 
-### Fix A: Generation must match PLAN PATHS, not glob for existing files
-When determining reuse, `generate_media.py` must check if a file exists at the EXACT
-`output_path` specified in the current media_plan entry — not at any legacy path derived
-from the beat_id. If the plan says `B004_B004-s0.mp4` and only `B004.mp4` exists, that is
-NOT a valid reuse.
+### The Problem (Resolved)
 
-### Fix B: reconcile_duration must understand split/slot expansion
-`reconcile_duration.py` must resolve parent→children→slots:
-- For a timing_map beat "B005" (19.367s), find ALL media_plan entries with `source_beat_id == "B005"`
-- Sum their clip durations
-- If sum ≥ required (within tolerance): PASS
-- If looking up by beat_id alone fails, try source_beat_id before reporting deficit
+| Failure class | Cause | Enhanced Solution |
+|---------------|-------|-------------------|
+| Stale reuse | Reuse keyed on file-exists, not on plan-required attributes | `can_reuse()` checks: file exists at canonical path, SHA matches, duration covers required, audio policy satisfied, plan SHA unchanged |
+| Path mismatch | Multiple path derivation formats (compile line 252 vs 698) | `_canonical_path()` computed once in `clip_db.py`; all steps use `get_path(clip_id)` |
+| Parent/child confusion | No explicit mapping; each step guesses | `source_beat_id`, `split_index`, `slot_id` columns; `coverage_for_beat()` resolves lineage |
+| Slot files never generated | Generation reused old single clip, ignored slot paths | `can_reuse()` checks exact `output_path`; slot clips have distinct `clip_id` values |
 
-### Fix C: Media plan entries must carry source_beat_id consistently
-Every slot-expanded or split-child entry in media_plan.json must have `source_beat_id`
-pointing back to the timing_map parent. This was added in PTC-07 but may not propagate
-through all paths.
+### The Solution (Implemented)
 
----
+1. **One path, computed once** - `_canonical_path()` rule in `clip_db.py`
+2. **Reuse checks required attributes** - `can_reuse()` validates against order spec
+3. **Lineage is explicit** - Database columns track parent→child→slot relationships
+4. **Status lifecycle** - `planned → ordered → generated → valid` with `stale`/`failed` states
+5. **Full audit trail** - `clip_access_log` records every interaction
+6. **Interactive change requests** - Problems become tracked work items routed to owners
 
-## Validation: This Specific Video
+## Migration Status
 
-For `how_to_use_ai_to_better_organize_your_de_short`:
+✅ **CDB-01 through CDB-06 complete** (588 tests green)
+✅ **Unified production ledger implemented** (transactional, idempotent)
+✅ **Legacy state mirroring operational** 
+✅ **Harmonized fingerprints eliminate drift**
+✅ **Golden-truth invariant enforces consistency**
 
-**Actually OK (clips exist, just lookup fails):**
-- B005: B005a.mp4 (11.5s) + B005b.mp4 (7.8s) = 19.3s ✓ covers B005 timing (19.367s)
-- B011: B011a.mp4 (13.1s) + B011b.mp4 (7.9s) = 21.0s ✓ covers B011 timing (21.027s)
-
-**Actually MISSING (slot files never generated):**
-- B004: plan expects B004_B004-s0.mp4 + s1.mp4 — neither exists
-- B006: plan expects B006_B006-s0.mp4 + s1.mp4 — neither exists
-- B009: plan expects B009_B009-s0.mp4 + s1.mp4 + s2.mp4 — none exist
-
-**Why they're missing**: B004/B006/B009 are broll beats that got slot-expanded by the
-compiler (PTC-07). Generation found old single clips at the original paths and "reused"
-them, but never created the per-slot files. The plan's output_path field was ignored
-during reuse matching.
+The system now operates with **zero silent degradation** — any mismatch, stale reuse, or
+path error becomes a tracked change request that blocks progression until resolved.

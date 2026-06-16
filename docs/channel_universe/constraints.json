@@ -330,7 +330,7 @@
   },
   "reroute_policy": {
     "unsplittable_hero_target": "hero_cutaway",
-    "broll_slot_max_sec": 6.0,
+    "broll_slot_max_sec": 5.0,
     "allowed_targets": ["hero_cutaway", "broll", "local_graphic"]
   },
   "text_surface_policy": {

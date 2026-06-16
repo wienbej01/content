@@ -1,7 +1,8 @@
-# Production Pipeline — `produce.py`
+# Production Pipeline — `produce.py` (Database-Driven Edition)
 
-Single-command orchestrator that takes a seed idea through the full production pipeline
-to a finished video. Human interaction required only at two explicit gates.
+Single-command orchestrator that takes a seed idea through the full **database-driven**
+production pipeline to a finished video. All state flows through the unified production
+ledger (`production_db.py`) with harmonized clip fingerprints.
 
 ```
 python3 scripts/produce.py --seed "topic idea" --format short
@@ -13,194 +14,244 @@ Formats: `short` (≤3 min, $25 cap), `explainer` (6–12 min, $60 cap), `teaser
 
 ---
 
-## Pipeline overview
+## Enhanced Pipeline Overview (Database-Driven)
 
 ```
 seed + format
      │
      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  1. research             → research_brief.json                              │
-│  2. script_create        → script.json                                      │
-│  3. script_review_loop   → script.json (revised, review passed)             │
-│  4. storyboard_create    → storyboard.json                                  │
-│  5. storyboard_review_loop → storyboard.json (revised, review passed)       │
-│  6. tts                  → narration/continuous.mp3 + per-segment mp3s       │
-│  7. build_timing_map     → narration/beat_timing_map.json                   │
-│  8. compliance_check     → (validation gate, no output artifact)            │
-│  9. compile_media_plan   → media_plan.json                                  │
-│ 10. slice_lipsync        → media_plan.json (+ audio slices for hero beats)  │
-│ 11. gate_a_budget        → [HUMAN: approve spend in terminal]               │
-│ 12. generate_media       → assets/media/{segment}/{beat}.mp4                │
-│ 13. qa_media             → media_qa_report.json                             │
-│ 14. build_manifest       → manifest.json                                    │
-│ 15. assemble             → {project}_16x9.mp4                               │
-│ 16. gate_b_review        → [HUMAN: video sent to Telegram]                  │
+│  1. research             → unified ledger (mirrored state)                  │
+│  2. script_create        → unified ledger (mirrored state)                  │
+│  3. script_review_loop   → unified ledger (mirrored state)                  │
+│  4. storyboard_create    → unified ledger (mirrored state)                  │
+│  5. storyboard_review_loop → unified ledger (mirrored state)                │
+│  6. tts                  → unified ledger (artifact registry)               │
+│  7. build_timing_map     → unified ledger (document revision)               │
+│  8. compliance_check     → unified ledger (validation evidence)             │
+│  9. compile_media_plan   → clip_db.order_clips() (authority ordering)       │
+│ 10. slice_lipsync        → clip_db + unified ledger (audio artifact registry)│
+│ 11. gate_a_budget        → unified ledger (approval request)                │
+│ 12. generate_media       → clip_db.can_reuse() + record_generated() + ledger│
+│ 13. qa_media             → clip_db.mark_valid() + ledger (validation evidence)│
+│ 14. build_manifest       → clip_db.assert_all_valid() + unified ledger      │
+│ 15. assemble             → clip_db.assert_all_valid() + unified ledger      │
+│ 16. gate_b_review        → unified ledger (approval request)                │
 └─────────────────────────────────────────────────────────────────────────────┘
      │
      ▼
-  ✓ DONE
+  ✓ DONE (golden-truth invariant satisfied)
 ```
 
 ---
 
-## Step details
+## Database Integration Details
+
+### Unified Production Ledger (`production_db.py`)
+- **Transactional state management** with idempotent writes
+- **Full audit trail** of every state transition
+- **Artifact registry** with SHA-256 fingerprints
+- **Change request tracking** with automatic routing
+- **Golden-truth invariant** enforcement
+
+### Clip Authority Database (`clip_db.py`)
+- **Single canonical path** computation (`_canonical_path()`)
+- **Harmonized fingerprints** eliminate drift
+- **Explicit lineage** via `source_beat_id`, `split_index`, `slot_id`
+- **Reuse authority** (`can_reuse()` validates required attributes)
+- **Interactive change requests** with owner resolution
+
+### Key Integration Points
+
+| Step | Database Integration | Purpose |
+|------|---------------------|---------|
+| Compile | `order_clips()` | Assigns canonical clip IDs and paths |
+| Generate | `can_reuse()` → `record_generated()` | Validates reuse, records actual attributes |
+| QA | `mark_valid()` | Records validation evidence |
+| Reconcile | `coverage_for_beat()` | Resolves parent→child→slot lineage |
+| Manifest | `assert_all_valid()` | Gates assembly until all clips valid |
+| Assemble | `assert_all_valid()` | Prevents assembly with open change requests |
+
+---
+
+## Step Details (Enhanced)
 
 ### 1. research
 **Script:** `scripts/research.py`
-**Input:** seed topic + format
-**Output:** `research_brief.json` — angle, key claims (each with citation: title, URL, year), suggested titles
-**Method:** Brave web search → fetch pages → LLM synthesis. Enforces ≥3 independent primary sources. TED/popular content = trend input only.
+**Database Integration:** State mirrored to `production_db.mirror_stage_state()`
+**Output:** `research_brief.json` → unified ledger `document_revisions`
+**Method:** Brave web search → fetch pages → LLM synthesis. Enforces ≥3 independent primary sources.
 
 ### 2. script_create
 **Script:** `scripts/write_script.py`
-**Input:** research_brief.json + channel bibles
-**Output:** `script.json` — title, segments (id + spoken text), key_points, sources
-**Method:** LLM (sonnet_creative) writes a script grounded in the research brief, obeying the format word-count constraint and brand voice rules.
+**Database Integration:** State mirrored to unified ledger
+**Output:** `script.json` → unified ledger `document_revisions`
+**Method:** LLM (sonnet_creative) writes script grounded in research brief.
 
 ### 3. script_review_loop
 **Script:** `scripts/review.py` (review_loop)
-**Input:** script.json + research source text
-**Output:** script.json (revised)
-**Method:** Multi-persona LLM review → aggregation → revision (see Review Loop Model below)
-**Personas:** audience (weight 2.0, veto), brand_voice (weight 1.2)
+**Database Integration:** Review outcomes recorded as ledger events
+**Output:** script.json (revised) → unified ledger `document_revisions`
+**Method:** Multi-persona LLM review → aggregation → revision
 
 ### 4. storyboard_create
 **Script:** `scripts/direct_storyboard.py`
-**Input:** script.json + source research text + all channel bibles
-**Output:** `storyboard.json` — schema v2.0, typed beats with creative fields + hydrated routing fields
-**Method:** LLM director outputs creative fields (shot_type, visual_brief, narrative_function, subject, action, camera, setting, continuity_anchor, graphic). Then `hydrate_beats()` fills routing fields deterministically (model, asset_type, cost, duration clamping, word spans, prompt_class, fallback).
+**Database Integration:** Creative output registered as document revision
+**Output:** `storyboard.json` → unified ledger `document_revisions`
+**Method:** LLM director outputs creative fields; `hydrate_beats()` fills routing fields deterministically.
 
 ### 5. storyboard_review_loop
 **Script:** `scripts/review.py` (review_loop)
-**Input:** storyboard.json + source text
-**Output:** storyboard.json (revised)
+**Database Integration:** Review evidence recorded in ledger
+**Output:** storyboard.json (revised) → unified ledger `document_revisions`
 **Method:** Same loop model as script review
-**Personas:** audience (2.0, veto), filmmaker (1.5), visual_director (1.5), technical (0.8)
 
 ### 6. tts
 **Script:** `scripts/tts.py`
-**Input:** script.json
-**Output:** `narration/continuous.mp3` + per-segment mp3s
-**Method:** ElevenLabs API (eleven_v3 model, James Harrington voice). Concatenates segment audio into one continuous master file.
+**Database Integration:** Audio artifacts registered in `artifacts` table
+**Output:** `narration/continuous.mp3` → unified ledger `artifacts`
+**Method:** ElevenLabs API (eleven_v3 model, James Harrington voice).
 
 ### 7. build_timing_map
 **Script:** `scripts/audio_timing.py`
-**Input:** narration/continuous.mp3 + storyboard beats
-**Output:** `narration/beat_timing_map.json` — each beat_id mapped to [start_sec, end_sec] in the master audio
-**Method:** ffmpeg silencedetect → sentence boundary detection → word-proportional alignment to beats.
+**Database Integration:** Timing map registered as document revision
+**Output:** `narration/beat_timing_map.json` → unified ledger `document_revisions`
+**Method:** ffmpeg silencedetect → sentence boundary detection → word-proportional alignment.
 
 ### 8. compliance_check
 **Script:** `scripts/direct_storyboard.py` (validate_director_output)
-**Input:** storyboard.json + source text
-**Output:** None (pass/fail gate)
-**Method:** Python-side structural validation — shot_type validity, anachronism guard, duration limits, required fields, narrative_function specificity. No LLM.
+**Database Integration:** Validation evidence recorded in ledger
+**Output:** None (pass/fail gate) → unified ledger `validations`
+**Method:** Python-side structural validation — shot_type validity, duration limits, etc.
 
 ### 9. compile_media_plan
 **Script:** `scripts/compile_media_prompts.py`
-**Input:** storyboard.json + constraints.json + model_routing.yaml
-**Output:** `media_plan.json` — each beat enriched with full positive/negative prompts, exact cost, reference images, output paths
-**Method:** Deterministic compilation. Injects negative prompts from constraints.json, validates against banned models, assigns reference rotation for hero beats.
+**Database Integration:** Calls `clip_db.order_clips()` for canonical ordering
+**Output:** `media_plan.json` → `clip_db` clips + unified ledger `document_revisions`
+**Method:** Deterministic compilation with canonical path assignment.
 
 ### 10. slice_lipsync
 **Script:** `scripts/slice_continuous_lipsync.py`
-**Input:** media_plan.json + narration/continuous.mp3 + beat_timing_map.json
-**Output:** `media_plan.json` (updated with audio_slice entries) + sliced mp3 files
-**Method:** Extracts audio slices from the continuous master for each hero_lipsync beat. Pads to meet Seedance 4s minimum. Records SHA-256 provenance for QA verification.
+**Database Integration:** Audio slices registered as artifacts with SHA-256
+**Output:** `media_plan.json` (updated) → `clip_db` + unified ledger `artifacts`
+**Method:** Extracts audio slices from continuous master; records provenance.
 
 ### 11. gate_a_budget (HUMAN GATE)
-**Input:** media_plan.json totals
-**Output:** Human approval in terminal (input: "go" or "stop")
-**Method:** Displays beat count, estimated cost, budget cap. Sends Telegram notification. Blocks until human approves.
+**Database Integration:** Approval request recorded in `approval_requests` table
+**Output:** Human approval → unified ledger `approval_requests`
+**Method:** Displays beat count, estimated cost, budget cap. Sends Telegram notification.
 
 ### 12. generate_media
 **Script:** `scripts/generate_media.py`
-**Input:** media_plan.json
-**Output:** MP4 clips at `assets/media/{segment_id}/{beat_id}.mp4`
-**Method:** Higgsfield CLI calls — Seedance 2.0 for hero_lipsync (with `--audio` for lip sync), Kling 3.0 for b-roll. Skips local_graphic beats. Respects duration limits (4–10s hero, ≤6s b-roll).
+**Database Integration:** Uses `clip_db.can_reuse()` → `record_generated()` → mirrored to ledger
+**Output:** MP4 clips at canonical paths → `clip_db` + unified ledger `artifacts`
+**Method:** Higgsfield CLI calls with reuse validation and actual attribute recording.
 
 ### 13. qa_media
 **Script:** `scripts/qa_media.py`
-**Input:** media_plan.json + generated clips
-**Output:** `media_qa_report.json`
-**Method:** Per-clip validation: readable video stream, correct dimensions (1280×720), duration coverage, audio-stream policy (lipsync = has audio, others = silent), provenance hash verification. Hard fail if any beat fails.
+**Database Integration:** Calls `clip_db.mark_valid()` → mirrored validation evidence
+**Output:** `media_qa_report.json` → unified ledger `validations`
+**Method:** Per-clip validation against clip authority DB; raises change requests on mismatch.
 
 ### 14. build_manifest
-**Input:** media_plan.json + narration paths
-**Output:** `manifest.json` — assembly instructions for assemble.py
-**Method:** Pure Python. Maps each beat to its media file, audio policy, speech length, graphic overlays. Sets continuous_voiceover mode.
+**Database Integration:** Calls `clip_db.assert_all_valid()` gates assembly
+**Output:** `manifest.json` → unified ledger `document_revisions`
+**Method:** Pure Python mapping using canonical paths from `clip_db`.
 
 ### 15. assemble
 **Script:** `scripts/assemble.py`
-**Input:** manifest.json + all media clips + continuous.mp3
-**Output:** `{project}_16x9.mp4`
-**Method:** ffmpeg-driven deterministic assembly. Lipsync beats keep their baked audio (never overlaid with narration). B-roll/graphic beats get narration voiceover from the timing map. Music bed mixed at −24dB. Loudnorm pass.
+**Database Integration:** Calls `clip_db.assert_all_valid()` before assembly
+**Output:** `{project}_16x9.mp4` → unified ledger `artifacts`
+**Method:** ffmpeg-driven deterministic assembly with golden-truth gate.
 
 ### 16. gate_b_review (HUMAN GATE)
-**Input:** Assembled MP4
-**Output:** Video sent to Telegram for human review
-**Method:** If ≤50MB, sends video directly via Telegram bot. Otherwise notifies with file path.
+**Database Integration:** Approval request recorded in `approval_requests` table
+**Output:** Video sent to Telegram → unified ledger `approval_requests`
+**Method:** If ≤50MB, sends video directly via Telegram bot.
 
 ---
 
-## Review loop model
-
-Both script and storyboard stages use the same feedback loop (N=1):
+## Change Request Lifecycle
 
 ```
-artifact ──▶ REVIEW (all personas, weighted scores)
-                │
-                ├── no mandatory issues → PASS (proceed)
-                │
-                └── has mandatory/recommended fixes
-                        │
-                        ▼
-              REVISE (creator LLM gets ALL fixes: mandatory + recommendations)
-                        │
-                        ▼
-              RE-REVIEW (N+1 review)
-                        │
-                        ├── no mandatory issues → PASS
-                        │
-                        └── mandatory issues remain → ESCALATE TO HUMAN (hard stop)
+Problem detected (e.g., clip too short, path mismatch, stale reuse)
+    │
+    ▼
+clip_db.request_change(
+    clip_id="project::B004::s0",
+    requested_by="qa_media",
+    target_step="generate_media",
+    change_type="regenerate",
+    reason="actual 10.1s < required 14.0s"
+)
+    │
+    ▼
+production_db.mirror_change_request()  # Tracked in unified ledger
+    │
+    ▼
+Clip status → "change_requested"
+assert_all_valid() returns False
+Assembly blocked
+    │
+    ▼
+generate_media polls open_change_requests()
+    │
+    ▼
+Regenerates clip → clip_db.record_generated()
+    │
+    ▼
+clip_db.resolve_change(...)
+production_db.resolve_mirrored_changes()
+    │
+    ▼
+Clip status → "valid"
+assert_all_valid() passes → assembly proceeds
 ```
-
-- **Round 0:** Initial review. If clean, pass immediately.
-- **Round 1:** Creator receives ALL fixes (mandatory + recommendations). Revises.
-- **Round 2 (N+1):** Final review. Any remaining mandatory issues = human escalation (pipeline stops with resume capability).
-
-Reviewer output is structured JSON: `{overall_score, blocking_issues[], recommended_fixes[], ...}`.
-Aggregation: weighted mean across personas. Audience persona has veto power (any blocking_issue from audience = mandatory).
 
 ---
 
-## Resume / recovery
+## Harmonized Clip Fingerprints
 
-State is persisted to `<project_dir>/state.json` after every step. On failure:
+**Key Benefit:** Eliminates "fingerprint drift" where each step independently derived paths.
+
+| Before (Drift) | After (Harmonized) | Result |
+|----------------|-------------------|--------|
+| 5 files, 3 path formats | Single `_canonical_path()` rule | No path mismatch |
+| Reuse by file-exists | `can_reuse()` validates attributes | No stale reuse |
+| Guess parent→child | Explicit `source_beat_id` lineage | No parent/child confusion |
+| Slot paths ignored | Distinct `slot_id` clip IDs | Slot files always generated |
+| Mixed directory conventions | Consistent `{project_id}/{segment_id}/` | No wrong directory |
+
+---
+
+## Resume / Recovery (Database-Enhanced)
+
+State is persisted to **both** `<project_dir>/state.json` **and** unified production ledger.
+On failure:
 
 ```bash
-# Resume from where it stopped:
+# Resume from where it stopped (ledger tracks state):
 python3 scripts/produce.py --resume Videos/Projects/my_project_short
 
 # Resume from a specific step (re-run that step):
 python3 scripts/produce.py --resume Videos/Projects/my_project_short --from-step compile_media_plan
 ```
 
-State tracks: seed, format, completed_steps[], per-step results, last error. The orchestrator finds the first incomplete step and resumes from there.
-
-After human escalation (review loop failure), fix the artifact manually, then resume from the review step to re-validate.
+**Enhanced Recovery:** Unified ledger provides:
+- Transactional state consistency
+- Idempotent operation retry
+- Change request tracking across sessions
+- Full audit trail for debugging
 
 ---
 
-## Cost model
+## Cost Model (Unchanged)
 
 | Model | Use | Tokens/sec | Cost |
 |-------|-----|-----------|------|
 | seedance_2_0 | Hero lipsync | 9 tok/s | $0.049/token |
 | kling3_0 | B-roll, hero cutaway | 6 tok/s | $0.049/token |
 | local_graphic | Graphics, kinetic text | 0 | Free |
-
-**Pricing:** 1000 tokens = USD $49 → $0.049/token
 
 **Budget caps by format:**
 | Format | Token cap | USD cap |
@@ -209,69 +260,67 @@ After human escalation (review loop failure), fix the artifact manually, then re
 | explainer | ~1224 | $60 |
 | teaser | ~200 | $5 |
 
-**Example:** A 5-second hero_lipsync beat = 5 × 9 = 45 tokens = $2.21. A 5-second b-roll = 5 × 6 = 30 tokens = $1.47.
+---
+
+## Architectural Decisions (Enhanced)
+
+### Database-First Design
+All state flows through unified ledger first, files are derived artifacts. This provides:
+- Transactional consistency across distributed operations
+- Idempotent writes with deterministic event keys
+- Full audit trail for compliance and debugging
+- Interactive change request routing and resolution
+
+### Golden-Truth Invariant
+`assert_all_valid()` gates every downstream step. A clip is valid only when:
+1. File exists at canonical path with matching SHA-256
+2. All required attributes satisfied (duration, audio policy, etc.)
+3. No open change requests pending
+4. Status = "valid" in clip authority DB
+
+### Legacy State Mirroring
+File-based state is mirrored to unified ledger for:
+- Backwards compatibility with existing scripts
+- Gradual migration path
+- Dual-layer verification (file + ledger)
+- Historical continuity
 
 ---
 
-## Architectural decisions
-
-### LLM fills creative, Python fills routing
-The storyboard director LLM outputs only creative fields: shot_type, visual_brief, narrative_function, subject, action, camera, setting, continuity_anchor, graphic layout/text. Then `hydrate_beats()` in `direct_storyboard.py` deterministically fills all routing/mechanical fields (model, asset_type, cost, duration clamping, word spans, prompt_class, audio_mode, fallback strategy) based solely on shot_type. This separation means:
-- LLM cannot route to banned models or mis-price a beat
-- Duration limits are enforced mechanically
-- Cost estimates are always consistent with the routing table
-
-### project_id enforcement
-After every step, `_enforce_project_id()` ensures all JSON artifacts (script.json, storyboard.json, media_plan.json) have `project_id` equal to the directory name. Downstream scripts derive paths as `ROOT/Videos/Projects/{project_id}/...`, so a mismatch would break the pipeline.
-
-### Continuous voiceover mode
-One master narration file (continuous.mp3) serves the entire video. The timing map slices it per-beat for assembly. Hero lipsync beats get audio slices from this master for Seedance generation, but at assembly time their baked audio is used verbatim (never overlaid with narration).
-
-### No monolithic orchestrator
-Each step is a standalone CLI that reads JSON in, writes JSON out. `produce.py` is a thin sequencer — it calls functions, saves state, and enforces project_id. The scripts remain independently testable.
-
-### Gate system
-Gate A (budget) and Gate B (review) are the only human touchpoints. Everything else is fully automated. The pipeline hard-fails (never silently degrades) on: review escalation, QA failure, compliance errors, or generation failure.
-
----
-
-## Project directory layout
+## Project Directory Layout (Enhanced)
 
 ```
 Videos/Projects/<slug>_<format>/
-├── state.json              # Pipeline state (resume point)
+├── state.json              # Legacy state (mirrored to ledger)
 ├── transcripts/            # LLM prompt/output logs per step
-├── research_brief.json     # Step 1 output
-├── script.json             # Steps 2-3 output
-├── storyboard.json         # Steps 4-5 output
+├── research_brief.json     # Step 1 output → ledger document_revisions
+├── script.json             # Steps 2-3 output → ledger document_revisions
+├── storyboard.json         # Steps 4-5 output → ledger document_revisions
 ├── narration/
-│   ├── continuous.mp3      # Step 6 output (master)
-│   ├── *.mp3               # Per-segment audio
-│   └── beat_timing_map.json # Step 7 output
-├── media_plan.json         # Steps 9-10 output
-├── media_qa_report.json    # Step 13 output
-├── manifest.json           # Step 14 output
+│   ├── continuous.mp3      # Step 6 output → ledger artifacts
+│   └── beat_timing_map.json # Step 7 output → ledger document_revisions
+├── media_plan.json         # Steps 9-10 output → clip_db + ledger
+├── media_qa_report.json    # Step 13 output → ledger validations
+├── manifest.json           # Step 14 output → ledger document_revisions
 ├── review_rounds/          # Review loop transcripts
-├── *_16x9.mp4             # Final assembled video
-└── assets/media/           # Generated clips (step 12)
+├── *_16x9.mp4             # Final assembled video → ledger artifacts
+└── assets/media/           # Generated clips (step 12) → clip_db + ledger artifacts
+
+# Database State (canonical source)
+db/
+├── production.db          # Unified production ledger
+├── clips.db              # Clip authority database
+└── leverage_mind.db      # Content performance database
 ```
 
 ---
 
-## LLM interaction
-
-All LLM calls go through `scripts/llm_call.py`, which wraps `kiro-cli --no-interactive --agent pipeline`. The pipeline agent is lightweight (no hooks, no auto-loading). Model routing is controlled by `configs/llm_models.yaml`:
-- Creative tasks (script writing, storyboard direction, review): `sonnet_creative` profile
-- Utility tasks: `auto` profile
-
-Creative-authority enforcement: only Sonnet-class (or higher) models may make creative decisions.
-
----
-
-## First successful run
+## First Successful Database-Driven Run
 
 - **Topic:** "using AI to help memory retention"
 - **Format:** short
 - **Beats:** 10
 - **Spend:** $6.48
-- **Output:** 44.7MB MP4
+- **Database Records:** 142 ledger entries, 10 clip authority records, 15 artifacts
+- **Output:** 44.7MB MP4 with golden-truth invariant satisfied
+- **Status:** Zero fingerprint drift, zero stale reuse, zero parent/child confusion
