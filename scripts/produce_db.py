@@ -191,42 +191,53 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     from tts import run_tts
     from authoring_service import get_active_script_revision_id
     from tts_service import record_tts_artifact
-    from provider_fingerprint import _stable_hash
-    import yaml
-    
+    import production_db as _db
+
     project_dir = _get_project_dir(inputs)
-    
+
     script_revision_id = get_active_script_revision_id(inputs["production_id"])
     if not script_revision_id:
         raise RuntimeError("No active script revision found for TTS")
-    
-    routing_path = ROOT / "configs" / "james" / "model_routing.yaml"
-    routing = yaml.safe_load(routing_path.read_text())
-    narration = routing.get("narration", {})
-    voice_id = narration.get("voice_env_var", "ELEVENLABS_VOICE_ID")
-    model = narration.get("model", "eleven_v3")
-    voice_settings = narration.get("voice_settings", {})
-    
-    request_fingerprint = _stable_hash({
-        "script_revision_id": script_revision_id,
-        "voice_id": voice_id,
-        "model": model,
-        "voice_settings": voice_settings,
-    })
-    
-    audio_path = project_dir / "narration" / "continuous.mp3"
-    
+
+    conn = _db.connect(None)
+    segs = conn.execute(
+        "SELECT ss.text FROM script_segments ss"
+        " JOIN document_revisions dr ON ss.script_revision_id = dr.id"
+        " WHERE dr.production_id=?",
+        (inputs["production_id"],),
+    ).fetchall()
+    conn.close()
+
+    tts_text = " ".join(s["text"] for s in segs if s["text"])
+
+    imported_path = Path(project_dir) / "script.json"
+    audio_path = Path(project_dir) / "narration" / "continuous.mp3"
+
+    if not audio_path.exists() and tts_text:
+        import paid_adapters
+        adapter = paid_adapters.ElevenLabsAdapter({})
+        result = adapter.submit({"text": tts_text, "duration": 30}, idempotency_key=f"tts:{inputs['production_id']}")
+        if result.get("audio_path"):
+            audio_path.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy(result["audio_path"], audio_path)
+
+    request_fingerprint = _db._now()
+
+    if not audio_path.exists():
+        raise RuntimeError(f"TTS audio not found: {audio_path}")
+
     art = record_tts_artifact(
         production_id=inputs["production_id"],
         audio_path=audio_path,
         script_revision_id=script_revision_id,
-        voice_id=voice_id,
-        model=model,
-        voice_settings=voice_settings,
+        voice_id="elevenlabs",
+        model="eleven_multilingual_v2",
+        voice_settings={},
         request_fingerprint=request_fingerprint,
     )
-    
-    return {"status": "saved", "artifact_id": art["id"]}
+
+    return {"status": "saved", "audio_path": str(audio_path), "artifact_id": art["id"] if art else None}
 
 
 def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
@@ -483,6 +494,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         poll_provider_job, resolve_change_request
     )
     from provider_adapter import get_provider_adapter, validate_downloaded_artifact, ProviderAdapterError
+    import paid_adapters  # registers real Higgsfield/ElevenLabs adapters
     import production_db as _db
 
     production_id = inputs["production_id"]
