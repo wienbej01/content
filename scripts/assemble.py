@@ -29,7 +29,21 @@ import json
 import subprocess
 import sys
 import time
+import warnings
 from pathlib import Path
+
+# LB-501 & LB-502: Policy validation and B-roll cutaway integration
+try:
+    from ffmpeg_validator import validate_hero_ffmpeg_command
+    from broll_cutaway import assemble_hero_with_broll_cutaways, validate_cutaway_policy
+    from assembly_dto import HeroAssemblyDTO, AssemblyDTOValidationError
+except ImportError:
+    # Fallback if modules are not available (e.g., during certain test setups)
+    validate_hero_ffmpeg_command = None
+    assemble_hero_with_broll_cutaways = None
+    validate_cutaway_policy = None
+    HeroAssemblyDTO = None
+    AssemblyDTOValidationError = ValueError
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
@@ -405,7 +419,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     instead of looping — unless allow_looping=True."""
     
     # LB-001: Hero temporal-edit fail-closed guard
-    is_hero_lipsync = seg.get("audio_policy") == "keep_lipsync" or seg.get("lipsync_required")
+    is_hero_lipsync = seg.get("audio_policy") == "keep_lipsync" or seg.get("lipsync_required") or seg.get("audio_policy") == "HERO_SYNC_LOCKED"
     if is_hero_lipsync:
         if abs(speed - 1.0) > 1e-3:
             raise ValueError(
@@ -430,6 +444,30 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
                     f"operation=trim_through_speech (trim_end={seg['trim_end']}, speech_len={seg['speech_len_sec']})\n"
                     f"source=assemble.py:process_segment\n"
                     f"reason: Hero lipsync clips must not be trimmed through active speech.")
+
+    # LB-502: B-roll cutaway integration
+    if validate_cutaway_policy and assemble_hero_with_broll_cutaways:
+        broll_intervals = seg.get("broll_cover_intervals", [])
+        broll_media = seg.get("broll_media")
+        if broll_intervals and broll_media and is_hero_lipsync:
+            # Create a minimal mock DTO for validation
+            media_dur_ms = int(probe_dur(resolve(base, seg["media"])) * 1000) if resolve(base, seg["media"]) else 0
+            mock_dto = type('MockDTO', (), {
+                'audio_policy': seg.get("audio_policy"),
+                'exact_timeline_placement': {'start_ms': 0, 'end_ms': media_dur_ms},
+            })()
+            validate_cutaway_policy(mock_dto, broll_intervals)
+            
+            broll_path = resolve(base, broll_media)
+            if broll_path and broll_path.exists():
+                assemble_hero_with_broll_cutaways(
+                    hero_video_path=resolve(base, seg["media"]),
+                    broll_video_path=broll_path,
+                    cutaway_intervals=broll_intervals,
+                    output_path=dst,
+                    fps=fps
+                )
+                return dst
 
     media = resolve(base, seg["media"])
     trim_end = seg.get("trim_end")
