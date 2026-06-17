@@ -62,16 +62,9 @@ def run(cmd, label=""):
     return r
 
 
-TAIL_PAD = 0.25   # seconds appended after narration ends (prevents last-word cut-off)
-MAX_FREEZE = 0.5  # max held-frame duration before requiring multiple shots (PHASE 5)
-
-# Audio policy for a segment. "keep_lipsync" means the clip carries its own baked
-# lipsync audio (from a seedance hero render) and the master narration must NEVER be
-# overlaid on it (that would mute the mouth-synced audio / cause echo). Any other
-# value (or absence) means the segment is a voiceover/graphic span that takes a
-# separate narration track overlaid on muted visuals — the existing behavior.
-KEEP_LIPSYNC = "keep_lipsync"
-LIPSYNC_TIMING_TOL = 0.25  # ±s allowed between a baked span's true length and its slice
+TAIL_PAD = 0.25
+MAX_FREEZE = 0.5
+LIPSYNC_TIMING_TOL = 0.25
 
 
 def file_sha256(path):
@@ -114,7 +107,7 @@ def audio_stream_sha256(path):
 
 
 def validate_lipsync_provenance(seg, base):
-    """Re-verify a keep_lipsync segment's baked-audio provenance against the
+    """Re-verify a hero_lipsync segment's baked-audio provenance against the
     media plan's recorded slice hashes. Returns a list of problem strings
     (empty == clean). Assembly MUST fail if this returns problems.
 
@@ -127,7 +120,7 @@ def validate_lipsync_provenance(seg, base):
     if not prov:
         # Old manifests without provenance: warn but don't block
         import sys
-        print(f"WARNING: keep_lipsync segment {seg.get('id','?')!r} has no "
+        print(f"WARNING: hero_lipsync segment {seg.get('id','?')!r} has no "
               f"lipsync_provenance — skipping provenance check.", file=sys.stderr)
         return []
     problems = []
@@ -136,7 +129,7 @@ def validate_lipsync_provenance(seg, base):
     if expected_slice:
         if not slice_file or not slice_file.exists():
             problems.append(
-                f"keep_lipsync segment {seg.get('id','?')!r}: slice file missing "
+                f"hero_lipsync segment {seg.get('id','?')!r}: slice file missing "
                 f"({prov.get('slice_file') or prov.get('file')}) — provenance unverifiable.")
         else:
             live = file_sha256(slice_file)
@@ -212,7 +205,7 @@ def validate_manifest(manifest, base):
 
     for i, seg in enumerate(segments):
         prefix = f"segments[{i}]"
-        is_lipsync = seg.get("audio_policy") == "keep_lipsync"
+        is_lipsync = seg.get("audio_policy") == "HERO_SYNC_LOCKED"
         if "media" not in seg:
             errors.append(f"{prefix}: missing 'media'")
         else:
@@ -221,14 +214,14 @@ def validate_manifest(manifest, base):
                 errors.append(f"{prefix}.media: file not found: {media}")
 
         if is_lipsync:
-            # keep_lipsync spans carry their own baked audio; 'words'/'audio' are
+            # hero_lipsync spans carry their own baked audio; 'words'/'audio' are
             # not required. speech_len_sec is needed to trim to true speech length.
             if "speech_len_sec" not in seg:
-                errors.append(f"{prefix}: audio_policy=keep_lipsync requires 'speech_len_sec'")
+                errors.append(f"{prefix}: audio_policy=hero_lipsync requires 'speech_len_sec'")
             elif not isinstance(seg["speech_len_sec"], (int, float)) or seg["speech_len_sec"] <= 0:
                 errors.append(f"{prefix}.speech_len_sec: must be > 0, got {seg['speech_len_sec']}")
             if "lipsync_provenance" not in seg:
-                errors.append(f"{prefix}: audio_policy=keep_lipsync requires 'lipsync_provenance' "
+                errors.append(f"{prefix}: audio_policy=hero_lipsync requires 'lipsync_provenance' "
                               f"(slice_sha256/parent_mp3_sha256 from the media plan)")
             continue
 
@@ -268,12 +261,12 @@ def validate_manifest(manifest, base):
 
         # Whether a segment needs its OWN audio is determined by the authoritative
         # audio_policy from the DB/plan — NOT re-inferred from the media file extension.
-        #   keep_lipsync → handled above (baked audio)
+        #   hero_lipsync → handled above (baked audio)
         #   strip / post_overlay (continuous mode) → silent visual under master narration; no per-seg audio
         #   segment_tts (non-continuous) → an image segment needs its own audio
         is_image = seg.get("media", "").lower().split(".")[-1] in ("png", "jpg", "jpeg", "webp")
         policy = seg.get("audio_policy", "strip")
-        silent_under_master = is_continuous and policy in ("strip", "post_overlay")
+        silent_under_master = is_continuous and policy in ("BROLL_FLEX", "strip", "post_overlay")
         if is_image and not audio and not silent_under_master:
             errors.append(f"{prefix}: image media requires 'audio' field "
                           f"(audio_policy={policy!r}, continuous={is_continuous})")
@@ -311,9 +304,9 @@ def compute_speeds(segments, pacing, base, narration_mode=None):
 
     wps_list = []
     for seg in segments:
-        # keep_lipsync spans run at native speed (lipsync timing is sacred); skip
+        # hero_lipsync spans run at native speed (lipsync timing is sacred); skip
         # WPS measurement (they may have no 'words'/'audio'). Use a sentinel WPS.
-        if seg.get("audio_policy") == "keep_lipsync":
+        if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
             wps_list.append(None)
             continue
         # Measure narration audio for WPS — use separate audio if provided (generated_tts),
@@ -331,7 +324,7 @@ def compute_speeds(segments, pacing, base, narration_mode=None):
     # All-lipsync or all-None: everything runs at 1.0 (continuous mode snaps to timing map)
     if ref_wps is None:
         return [1.0] * len(segments), wps_list, 1.0
-    # keep_lipsync segments get speed 1.0; others align to the reference WPS.
+    # hero_lipsync segments get speed 1.0; others align to the reference WPS.
     speeds = [1.0 if w is None else baseline * ref_wps / w for w in wps_list]
     return speeds, wps_list, ref_wps
 
@@ -419,7 +412,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     instead of looping — unless allow_looping=True."""
     
     # LB-001: Hero temporal-edit fail-closed guard
-    is_hero_lipsync = seg.get("audio_policy") == "keep_lipsync" or seg.get("lipsync_required") or seg.get("audio_policy") == "HERO_SYNC_LOCKED"
+    is_hero_lipsync = seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("lipsync_required") or seg.get("audio_policy") == "HERO_SYNC_LOCKED"
     if is_hero_lipsync:
         if abs(speed - 1.0) > 1e-3:
             raise ValueError(
@@ -488,14 +481,14 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     # Hero lipsync clips are generated using the master narration. To prevent
     # audio artifacts, drift, or duplication, we MUST strip the provider's baked
     # audio (-an) and rely exclusively on the master narration spine in the final mix.
-    if seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("audio_policy") == KEEP_LIPSYNC:
+    if seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("audio_policy") == "HERO_SYNC_LOCKED":
         speech_len = seg.get("speech_len_sec")
         media_dur = probe_dur(media)
         # Trim to true speech length when known; else keep full clip.
         out_dur = float(speech_len) if speech_len else media_dur
         if out_dur > media_dur + 0.05:
             raise ValueError(
-                f"keep_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
+                f"hero_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
                 f"length {media_dur:.3f}s — slice/clip mismatch.")
         
         # 1. Create muted video
@@ -528,12 +521,12 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     shots = seg.get("shots")
     audio_src = seg.get("audio")
     if shots and audio_src:
-        # If ANY shot is keep_lipsync, we cannot use a single narration overlay for
+        # If ANY shot is hero_lipsync, we cannot use a single narration overlay for
         # the whole bed — lipsync shots must keep their baked audio. Instead, process
-        # each shot individually: lipsync shots via the keep_lipsync path (baked audio,
+        # each shot individually: lipsync shots via the hero_lipsync path (baked audio,
         # trimmed to speech_len_sec); voiceover shots via a proportional narration slice.
         has_lipsync = any(
-            isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC
+            isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED"
             for sh in shots)
 
         audio_path = resolve(base, audio_src)
@@ -548,20 +541,20 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
             # speech_len_sec would under-allocate narration time to the voiceover shots.
             actual_lipsync_dur = 0.0
             for sh in shots:
-                if isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC:
+                if isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED":
                     sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
                     speech_len = float(sh.get("speech_len_sec") or 0)
                     clip_dur = probe_dur(sp) or speech_len
                     actual_lipsync_dur += min(speech_len, clip_dur) if speech_len else clip_dur
             vo_shots = [sh for sh in shots
-                        if not (isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC)]
+                        if not (isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED")]
             n_vo = len(vo_shots)
             vo_nar_dur = max(0.0, total_nar_dur - actual_lipsync_dur)
             per_vo = (vo_nar_dur / n_vo) if n_vo else 0.0
             nar_offset = 0.0  # current position in narration mp3
 
             for j, sh in enumerate(shots):
-                is_lip = isinstance(sh, dict) and sh.get("audio_policy") == KEEP_LIPSYNC
+                is_lip = isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED"
                 sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
                 sdst = tmp / f"seg_{idx}_shot{j}.mp4"
 
@@ -1030,16 +1023,16 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         # 1. Process segments
         norm_clips = []
         for i, seg in enumerate(segments):
-            # keep_lipsync spans: verify baked-audio provenance BEFORE assembling.
+            # hero_lipsync spans: verify baked-audio provenance BEFORE assembling.
             # A tampered slice hash (or missing provenance) must kill assembly.
-            if seg.get("audio_policy") == KEEP_LIPSYNC:
+            if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
                 prov_problems = validate_lipsync_provenance(seg, base)
                 if prov_problems:
                     raise ValueError(
                         "Lipsync provenance check failed — refusing to assemble:\n  "
                         + "\n  ".join(prov_problems))
             clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
-            if seg.get("audio_policy") == KEEP_LIPSYNC:
+            if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
                 # Baked-audio span: assert the assembled clip's audio matches the
                 # clip's own baked audio and the true speech length within ±0.25s.
                 seg_dur = probe_dur(clip)
@@ -1047,7 +1040,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
                 if speech_len is not None:
                     if abs(seg_dur - float(speech_len)) > LIPSYNC_TIMING_TOL:
                         raise ValueError(
-                            f"keep_lipsync segment {seg.get('id','?')}: assembled span "
+                            f"hero_lipsync segment {seg.get('id','?')}: assembled span "
                             f"{seg_dur:.3f}s vs true speech_len {float(speech_len):.3f}s "
                             f"exceeds ±{LIPSYNC_TIMING_TOL}s.")
                 norm_clips.append(clip)

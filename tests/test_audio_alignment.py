@@ -173,7 +173,7 @@ def test_reconcile_no_measured_boundary_marks_repair(continuous_tone):
     assert len(beats) == 1
     assert beats[0]["needs_repair"] is False
     assert beats[0]["treatment"] == "hero_cutaway"
-    assert beats[0]["audio_policy"] == "strip"
+    assert beats[0]["audio_policy"] == "BROLL_FLEX"
     # Should NOT have split children with word-proportional timing
     assert beats[0].get("split_total") is None or beats[0].get("split_total", 1) == 1
 

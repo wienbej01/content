@@ -21,7 +21,7 @@ def _order(project_id, beat_id, segment_id="S01", dur=5.0, lipsync=False):
         production_beat_id=beat_id, segment_id=segment_id,
         asset_type="generated_video",
         model="seedance_2_0" if lipsync else "kling3_0",
-        audio_policy="keep_lipsync" if lipsync else "strip",
+        audio_policy="keep_lipsync" if lipsync else "BROLL_FLEX",
         lipsync_required=int(lipsync),
         required_start_sec=0.0, required_end_sec=dur, slot_id=None,
     )
@@ -40,7 +40,7 @@ def _fixtures(tmp_path, project_id="proj01", beats=None):
     """Write minimal plan + timing for build_manifest."""
     if beats is None:
         beats = [{"beat_id": "B001", "segment_id": "S01",
-                  "output_path": "clips/B001.mp4", "audio_policy": "strip",
+                  "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
                   "narration_text": "test"}]
     plan = {"project_id": project_id, "beats": beats}
     (tmp_path / "media_plan.json").write_text(json.dumps(plan))

@@ -16,7 +16,7 @@ def _get_base_fingerprint_inputs():
         "prompt": "A man speaking directly to camera",
         "reference_hashes": ["ref_hash_1", "ref_hash_2"],
         "model": "seedance_2_0",
-        "requested_duration_sec": 5.0,
+        "requested_duration_samples": 5.0,
         "aspect_ratio": "16:9",
         "provider_params": {"motion_strength": 0.5},
         "code_revision": "v1.2.3",

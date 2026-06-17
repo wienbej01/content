@@ -27,7 +27,7 @@ def test_continuous_speed_alignment_never_measures_segment_media(monkeypatch, tm
 
     monkeypatch.setattr(assemble, "measure_pace", fail_measure)
     speeds, wps, target = assemble.compute_speeds(
-        [{"media": "card.png", "audio_policy": "strip", "words": 10}],
+        [{"media": "card.png", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "words": 10}],
         {"reference": 0, "baseline_speed": 1.0}, tmp_path,
         narration_mode="continuous_voiceover",
     )
@@ -58,7 +58,7 @@ def test_continuous_local_graphic_uses_clip_timing_not_png_probe_or_parent_map(t
             "id": "proj::B001::whole",
             "media": png.name,
             "asset_type": "local_graphic",
-            "audio_policy": "strip",
+            "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "words": 0,
             "timing_in": 0.0,
             "timing_out": duration,

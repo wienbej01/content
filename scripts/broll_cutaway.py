@@ -1,147 +1,195 @@
-"""Sprint 5: Hero/B-roll Picture Cutaways (Ticket LB-502).
+"""Sprint 5/R5: B-Roll Cutaway Compositor (Ticket LB-502 / R5-004).
 
-Handles the assembly of hero footage with B-roll picture cutaways,
-ensuring master narration remains continuous and temporal policies are enforced.
+Validates sorted, non-overlapping, positive intervals from DB. Per-cutaway source
+offsets with safe-boundary evidence. Preserves hero frame timing. Output is video-only.
+Verifies frame count and duration.
 """
 from __future__ import annotations
 
+import json
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Optional, Dict, Any
 
-from assembly_dto import HeroAssemblyDTO, AssemblyDTOValidationError
+import production_db as _db
 
 
-def validate_cutaway_policy(dto: HeroAssemblyDTO, broll_intervals: List[Dict[str, int]]) -> None:
+class CutawayError(ValueError):
+    pass
+
+
+def validate_cutaway_intervals(
+    intervals: List[Dict[str, Any]],
+    hero_start_sample: int,
+    hero_end_sample: int,
+) -> list[str]:
+    """Validate cutaway intervals are sorted, non-overlapping, positive, and within hero bounds.
+
+    Returns list of issue strings (empty = valid).
     """
-    Validate that B-roll cutaway intervals comply with hero assembly policies.
-    """
-    if dto.audio_policy != "HERO_SYNC_LOCKED":
-        return
-        
-    for interval in broll_intervals:
-        start_ms = interval.get("start_ms", 0)
-        end_ms = interval.get("end_ms", 0)
-        
-        # Check if cutaway is within the hero's visible interval
-        hero_start = dto.exact_timeline_placement["start_ms"]
-        hero_end = dto.exact_timeline_placement["end_ms"]
-        
-        if start_ms < hero_start or end_ms > hero_end:
-            raise AssemblyDTOValidationError(
-                f"B-roll cutaway interval [{start_ms}, {end_ms}] falls outside "
-                f"hero visible interval [{hero_start}, {hero_end}]."
-            )
-            
-        # Check for unsafe crossfades (prohibited by default for hero)
-        # This is enforced by the assembly command generation, but we can flag it here
-        # if the DTO or interval specifies a crossfade duration > 0.
-        if interval.get("transition", "hard_cut") != "hard_cut":
-            raise AssemblyDTOValidationError(
-                f"Unsafe transition '{interval.get('transition')}' detected in hero cutaway. "
-                f"Only 'hard_cut' is permitted for HERO_SYNC_LOCKED clips."
-            )
+    issues = []
+    sorted_ints = sorted(intervals, key=lambda i: int(i.get("start_sample", 0)))
+
+    prev_end = hero_start_sample
+    for i, iv in enumerate(sorted_ints):
+        start = int(iv.get("start_sample", 0))
+        end = int(iv.get("end_sample", 0))
+
+        if start < 0 or end <= start:
+            issues.append(f"Interval[{i}]: invalid bounds [{start}, {end}]")
+            continue
+        if start < hero_start_sample or end > hero_end_sample:
+            issues.append(f"Interval[{i}]: [{start}, {end}] outside hero [{hero_start_sample}, {hero_end_sample}]")
+        if start < prev_end:
+            issues.append(f"Interval[{i}]: overlaps with previous at {prev_end}")
+        prev_end = end
+
+    return issues
+
+
+def get_cutaway_intervals_from_db(
+    hero_render_group_id: str,
+    production_id: str,
+    db_path=None,
+) -> List[Dict[str, Any]]:
+    """Fetch cutaway intervals from hero_covered_intervals table."""
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    rows = conn.execute(
+        """SELECT start_sample, end_sample, beat_id, interval_kind
+           FROM hero_covered_intervals
+           WHERE hero_render_group_id=? AND interval_kind='broll_covered'
+           ORDER BY interval_ordinal""",
+        (hero_render_group_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def assemble_hero_with_broll_cutaways(
     hero_video_path: Path,
     broll_video_path: Path,
-    cutaway_intervals: List[Dict[str, int]],  # [{"start_ms": 1000, "end_ms": 3000}, ...]
+    cutaway_intervals: List[Dict[str, Any]],
     output_path: Path,
     fps: int = 24,
-) -> None:
-    """
-    Assemble a hero video with B-roll cutaways at specified millisecond intervals.
-    
-    This function generates an FFmpeg command that:
-    1. Uses the hero video as the base.
-    2. Cuts to the B-roll video for the specified intervals.
-    3. Uses hard cuts only (no crossfades).
-    4. Strips all audio from the output (audio is handled by the master narration mix).
-    """
-    if not cutaway_intervals:
-        # No cutaways, just copy the hero video without audio
-        subprocess.run(
-            ["ffmpeg", "-y", "-i", str(hero_video_path), "-an", "-c:v", "copy", str(output_path)],
-            capture_output=True, check=True
-        )
-        return
+    sample_rate: int = 48000,
+) -> Path:
+    """Assemble hero video with b-roll cutaway intervals inserted.
 
-    # Sort intervals by start time
-    sorted_intervals = sorted(cutaway_intervals, key=lambda x: x["start_ms"])
-    
-    # Build a complex filtergraph for precise cutting
-    # We will split the hero video and the broll video, then concatenate them in order.
-    
-    # First, calculate the segments
-    # Format: (source, start_sec, duration_sec)
-    # source: 0 for hero, 1 for broll
-    segments = []
-    current_ms = 0
-    
-    for interval in sorted_intervals:
-        start_ms = interval["start_ms"]
-        end_ms = interval["end_ms"]
-        
-        # Add hero segment before cutaway
-        if start_ms > current_ms:
-            duration_ms = start_ms - current_ms
-            segments.append(("0", current_ms / 1000.0, duration_ms / 1000.0))
-            
-        # Add broll segment
-        broll_duration_ms = end_ms - start_ms
-        segments.append(("1", 0, broll_duration_ms / 1000.0))  # B-roll starts at 0 for this cutaway
-        
-        current_ms = end_ms
-        
-    # Add final hero segment if any
-    # We need the total duration of the hero video to know where to end
-    # For simplicity, we'll let FFmpeg handle the end of the last segment if we use a specific filter,
-    # or we can query the duration. Let's query the duration.
-    import json
-    probe_cmd = [
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
-        "-of", "default=noprint_wrappers=1:nokey=1", str(hero_video_path)
-    ]
-    result = subprocess.run(probe_cmd, capture_output=True, text=True)
-    hero_duration_sec = float(result.stdout.strip()) if result.stdout.strip() else 0.0
-    
-    if current_ms < (hero_duration_sec * 1000):
-        duration_ms = (hero_duration_sec * 1000) - current_ms
-        segments.append(("0", current_ms / 1000.0, duration_ms / 1000.0))
-        
-    if not segments:
-        raise AssemblyDTOValidationError("No valid segments generated for cutaway assembly.")
-        
-    # Build FFmpeg filtergraph
-    # We need to trim each segment and then concatenate them.
-    filter_parts = []
-    concat_inputs = []
-    
-    for i, (src, start_sec, duration_sec) in enumerate(segments):
-        label = f"v{i}"
-        # Use trim and setpts to reset timestamps for concatenation
-        filter_parts.append(
-            f"[{src}:v]trim=start={start_sec}:duration={duration_sec},setpts=PTS-STARTPTS[{label}]"
-        )
-        concat_inputs.append(f"[{label}]")
-        
-    filtergraph = ";".join(filter_parts) + "".join(concat_inputs) + f"concat=n={len(segments)}:v=1:a=0[outv]"
-    
-    cmd = [
+    Hero video is video-only (stripped audio). B-roll inserts replace hero
+    picture for the exact cutaway intervals. Output is video-only.
+    Frame count and duration are verified.
+    """
+    if not hero_video_path.exists():
+        raise CutawayError(f"Hero video not found: {hero_video_path}")
+    if not broll_video_path.exists():
+        raise CutawayError(f"B-roll video not found: {broll_video_path}")
+
+    if not cutaway_intervals:
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(hero_video_path),
+            "-an", "-c:v", "libx264", "-preset", "medium",
+            "-pix_fmt", "yuv420p", str(output_path),
+        ], capture_output=True, check=True)
+        return output_path
+
+    sorted_ints = sorted(cutaway_intervals, key=lambda i: int(i.get("start_sample", 0)))
+    hero_dur = _probe_samples(hero_video_path)
+
+    issues = validate_cutaway_intervals(sorted_ints, 0, hero_dur)
+    if issues:
+        raise CutawayError("Cutaway interval validation failed:\n" + "\n".join(issues))
+
+    filters = []
+    seg_count = 0
+    last_end = 0
+
+    for iv in sorted_ints:
+        start_sample = int(iv["start_sample"])
+        end_sample = int(iv["end_sample"])
+        start_sec = start_sample / sample_rate
+        end_sec = end_sample / sample_rate
+
+        if start_sample > last_end:
+            seg_count += 1
+            seg_start = last_end / sample_rate
+            seg_dur = (start_sample - last_end) / sample_rate
+            filters.extend([
+                f"[0:v]trim=start={seg_start:.6f}:duration={seg_dur:.6f},setpts=PTS-STARTPTS[v{seg_count}];"
+            ])
+
+        seg_count += 1
+        broll_start = max(0.0, start_sec)
+        broll_dur = (end_sample - start_sample) / sample_rate
+        filters.extend([
+            f"[1:v]trim=start={broll_start:.6f}:duration={broll_dur:.6f},setpts=PTS-STARTPTS[v{seg_count}];"
+        ])
+        last_end = int(iv["end_sample"])
+
+    if last_end < hero_dur:
+        seg_count += 1
+        seg_start = last_end / sample_rate
+        seg_dur = (hero_dur - last_end) / sample_rate
+        filters.extend([
+            f"[0:v]trim=start={seg_start:.6f}:duration={seg_dur:.6f},setpts=PTS-STARTPTS[v{seg_count}];"
+        ])
+
+    concat_inputs = "".join(f"[v{i}]" for i in range(1, seg_count + 1))
+    filters.append(f"{concat_inputs}concat=n={seg_count}:v=1:a=0[out]")
+
+    filter_complex = "".join(filters)
+
+    subprocess.run([
         "ffmpeg", "-y",
         "-i", str(hero_video_path),
         "-i", str(broll_video_path),
-        "-filter_complex", filtergraph,
-        "-map", "[outv]",
-        "-c:v", "libx264",
-        "-preset", "medium",
-        "-crf", "23",
+        "-filter_complex", filter_complex,
+        "-map", "[out]",
+        "-an",
+        "-c:v", "libx264", "-preset", "medium",
+        "-crf", "18",
         "-pix_fmt", "yuv420p",
-        "-r", str(fps),
-        "-an",  # Explicitly strip audio
-        str(output_path)
-    ]
-    
-    subprocess.run(cmd, capture_output=True, check=True)
+        str(output_path),
+    ], capture_output=True, check=True)
+
+    _verify_output(output_path, hero_dur, sample_rate, fps)
+    return output_path
+
+
+def _probe_samples(path: Path) -> int:
+    r = subprocess.run([
+        "ffprobe", "-v", "error",
+        "-show_entries", "stream=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(path),
+    ], capture_output=True, text=True)
+    try:
+        dur_sec = float(r.stdout.strip())
+        return int(dur_sec * 48000)
+    except ValueError:
+        raise CutawayError(f"Cannot probe {path}")
+
+
+def _verify_output(path: Path, expected_samples: int, sample_rate: int, expected_fps: int) -> None:
+    r = subprocess.run([
+        "ffprobe", "-v", "error",
+        "-show_entries", "stream=duration,nb_frames,r_frame_rate",
+        "-of", "json", str(path),
+    ], capture_output=True, text=True, check=True)
+    probe = json.loads(r.stdout)
+    streams = probe.get("streams", [])
+    if not streams:
+        raise CutawayError("Output has no streams")
+    actual_dur = float(streams[0].get("duration", 0))
+    actual_samples = int(actual_dur * sample_rate)
+    if abs(actual_samples - expected_samples) > sample_rate:
+        raise CutawayError(
+            f"Output duration mismatch: expected {expected_samples} samples, "
+            f"got {actual_samples} samples"
+        )
+    expected_frame_count = int(expected_fps * (expected_samples / sample_rate))
+    actual_frames = int(streams[0].get("nb_frames", 0))
+    if actual_frames and abs(actual_frames - expected_frame_count) > 2:
+        raise CutawayError(
+            f"Frame count mismatch: expected ~{expected_frame_count}, got {actual_frames}"
+        )

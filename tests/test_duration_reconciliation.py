@@ -118,9 +118,9 @@ def test_total_deficit_accumulates(tmp_path):
             {"beat_id": "B003", "start": 10.4, "end": 15.6},
         ],
         [
-            {"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
-            {"beat_id": "B002", "output_path": "B002.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
-            {"beat_id": "B003", "output_path": "B003.mp4", "asset_type": "generated_video", "audio_policy": "strip", "_test_duration": 5.0},
+            {"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "_test_duration": 5.0},
+            {"beat_id": "B002", "output_path": "B002.mp4", "asset_type": "generated_video", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "_test_duration": 5.0},
+            {"beat_id": "B003", "output_path": "B003.mp4", "asset_type": "generated_video", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "_test_duration": 5.0},
         ]
     )
     rc, stdout, _ = _run(proj)
@@ -134,7 +134,7 @@ def test_broll_large_deficit_still_fails(tmp_path):
         tmp_path,
         [{"beat_id": "B001", "start": 0.0, "end": 7.0}],
         [{"beat_id": "B001", "output_path": "B001.mp4", "asset_type": "generated_video",
-          "audio_policy": "strip", "_test_duration": 5.0}],  # 2.0s deficit > 0.5s
+          "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "_test_duration": 5.0}],  # 2.0s deficit > 0.5s
     )
     rc, stdout, _ = _run(proj)
     assert rc == 1, f"a 2.0s b-roll deficit exceeds freeze coverage and must fail, stdout={stdout}"

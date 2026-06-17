@@ -54,13 +54,13 @@ class TestFullLoopDeficitThenFixed:
             project_id=project_id, source_beat_id="B001",
             production_beat_id="B001a", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=0.0, required_end_sec=7.0, slot_id=None)
         clip_db.order_clip(
             project_id=project_id, source_beat_id="B001",
             production_beat_id="B001b", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=7.0, required_end_sec=14.0, slot_id=None)
 
         cid_a = f"{project_id}::B001a::whole"
@@ -86,9 +86,9 @@ class TestFullLoopDeficitThenFixed:
         # Also verify via CLI
         beats = [
             {"beat_id": "B001a", "segment_id": "S01", "output_path": "clips/B001a.mp4",
-             "audio_policy": "strip", "narration_text": "test a"},
+             "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "test a"},
             {"beat_id": "B001b", "segment_id": "S01", "output_path": "clips/B001b.mp4",
-             "audio_policy": "strip", "narration_text": "test b"},
+             "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "test b"},
         ]
         _fixtures(tmp_path, project_id, beats)
         _make_clip(tmp_path / "clips" / "B001a.mp4", duration=7.0)

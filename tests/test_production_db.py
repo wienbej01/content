@@ -148,7 +148,7 @@ def test_import_legacy_clip_creates_render_unit_and_artifact(tmp_path, monkeypat
         "output_path": str(media),
         "asset_type": "generated_video",
         "model": "test",
-        "audio_policy": "strip",
+        "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
         "lipsync_required": 0,
         "required_start_sec": 1.0,
         "required_end_sec": 3.5,
@@ -312,7 +312,7 @@ def test_clip_lifecycle_dual_writes_render_validation_and_change(tmp_path):
     clip = clip_db.order_clip(
         project_id="clip_dual", source_beat_id="B001", production_beat_id="B001",
         segment_id="S001", asset_type="generated_video", model="test",
-        audio_policy="strip", lipsync_required=False,
+        audio_policy="BROLL_FLEX", lipsync_required=False,
         required_start_sec=0, required_end_sec=2,
     )
     conn = clip_db.get_db()

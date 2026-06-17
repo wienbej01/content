@@ -68,7 +68,7 @@ class TestManifestBuilder:
         beats_plan = [{
             "beat_id": "B011b", "source_beat_id": "B011", "clip_id": clip["clip_id"],
             "segment_id": "004_cta", "output_path": "stale/wrong.mp4",
-            "asset_type": "generated_video", "audio_policy": "strip",
+            "asset_type": "generated_video", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "required_start_sec": None, "required_end_sec": None,
             "narration_text": "",
         }]
@@ -100,7 +100,7 @@ class TestManifestBuilder:
 
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001_hook",
-            "output_path": rel_path, "audio_policy": "strip",
+            "output_path": rel_path, "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "hello world test",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -135,7 +135,7 @@ class TestManifestBuilder:
 
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001_hook",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "hello",
         }]
         # Timing map has B001 + B002, but plan only has B001
@@ -156,10 +156,10 @@ class TestManifestBuilder:
 
         beats_plan = [
             {"beat_id": "B001", "clip_id": "proj::B001::s0", "segment_id": "001",
-             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "a",
+             "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "a",
              "required_start_sec": 0.0, "required_end_sec": 2.5},
             {"beat_id": "B001", "clip_id": "proj::B001::s0", "segment_id": "001",
-             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "b",
+             "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "b",
              "required_start_sec": 2.5, "required_end_sec": 5.0},
         ]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -173,7 +173,7 @@ class TestManifestBuilder:
         """Media plan references nonexistent clip; expect exit 1 without --allow-missing."""
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001_hook",
-            "output_path": "nonexistent/B001.mp4", "audio_policy": "strip",
+            "output_path": "nonexistent/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "test words here",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -190,7 +190,7 @@ class TestManifestBuilder:
 
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "short beat",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -213,7 +213,7 @@ class TestManifestBuilder:
 
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001_hook",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "some words",
             "graphic": {"required": True, "type": "lower_third", "text": "Key Insight",
                         "asset_path": overlay_rel},
@@ -265,7 +265,7 @@ class TestBSS04Hardening:
         proj = tmp_path / "project"
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "test",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -304,7 +304,7 @@ class TestBSS04Hardening:
         proj = tmp_path / "project"
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "test",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -340,7 +340,7 @@ class TestBSS04Hardening:
         proj = tmp_path / "project"
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "test",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -371,7 +371,7 @@ class TestBSS04Hardening:
         proj = tmp_path / "project"
         beats_plan = [{
             "beat_id": "B001", "segment_id": "001",
-            "output_path": "clips/B001.mp4", "audio_policy": "strip",
+            "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "narration_text": "test",
         }]
         beats_timing = [{"beat_id": "B001", "start": 0.0, "end": 5.0, "duration": 5.0}]

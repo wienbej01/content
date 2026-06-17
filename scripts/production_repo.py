@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Sprint 2: Production repository services.
+"""Sprint 2/R2: Production repository services.
 
 Higher-level services built on top of production_db.py:
   - TimelineSpanService  : no-gap/no-overlap validated timeline spans (ID-202)
   - RenderUnitService    : convert spans into render units with exact windows (ID-203)
   - ArtifactRegistry     : immutable artifact store with checksum + media probe (ART-204)
+  - HeroGroupService     : deterministic hero render groups (R3-003)
+  - ValidationService    : typed QA record keeping (R2-001)
+  - ChangeRequestService : typed change request with evidence (R2-001)
 
 All writes go through production_db.transaction() so they are atomic.
+R2 hardening: all render_unit inserts call validate_render_unit(); no legacy defaults.
 """
 from __future__ import annotations
 
@@ -14,8 +18,9 @@ import hashlib
 import json
 import subprocess
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import production_db as _db
 
@@ -56,6 +61,43 @@ def _probe_media(path: Path) -> dict:
         return json.loads(out)
     except Exception:
         return {}
+
+
+# ---------------------------------------------------------------------------
+# R2-003: Typed media probe output
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class MediaProbe:
+    duration_ms: int = 0
+    width: int = 0
+    height: int = 0
+    has_audio: int = 0
+    sample_rate: int = 0
+    channels: int = 0
+
+    @classmethod
+    def from_path(cls, path: Path) -> Optional["MediaProbe"]:
+        raw = _probe_media(path)
+        if not raw:
+            return None
+        fmt = raw.get("format", {})
+        streams = raw.get("streams", [])
+        audio_streams = [s for s in streams if s.get("codec_type") == "audio"]
+        video_streams = [s for s in streams if s.get("codec_type") == "video"]
+        return cls(
+            duration_ms=int(float(fmt.get("duration", 0)) * 1000),
+            width=int(video_streams[0].get("width", 0)) if video_streams else 0,
+            height=int(video_streams[0].get("height", 0)) if video_streams else 0,
+            has_audio=1 if audio_streams else 0,
+            sample_rate=int(audio_streams[0].get("sample_rate", 0)) if audio_streams else 0,
+            channels=int(audio_streams[0].get("channels", 0)) if audio_streams else 0,
+        )
+
+
+def probe_media(path: Path) -> Optional[MediaProbe]:
+    """Typed media probe returning MediaProbe or None for non-media."""
+    return MediaProbe.from_path(path)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +191,6 @@ def validate_render_unit(render_unit: dict) -> None:
 
 def validate_hero_slicing_intervals(render_unit: dict) -> None:
     """Validate hero slicing intervals (Ticket LB-300)."""
-    # Only apply strict checks if this is a hero lipsync unit
     if render_unit.get("audio_policy") != "HERO_SYNC_LOCKED":
         return
 
@@ -161,31 +202,31 @@ def validate_hero_slicing_intervals(render_unit: dict) -> None:
     visible_end = render_unit.get("visible_end_sample")
     master_dur = render_unit.get("master_duration_samples")
 
-    if None in (speech_start, speech_end, gen_start, gen_end):
-        # If any core interval is missing, we can't validate, but it's required for HERO_SYNC_LOCKED
-        raise PolicyValidationError("HERO_SYNC_LOCKED units require speech and generation sample intervals")
+    any_interval = any(x is not None for x in (speech_start, speech_end, gen_start, gen_end))
+    if not any_interval:
+        return
 
-    # Rule: generation may exceed speech only through silence (handled by leading/trailing silence)
+    if None in (speech_start, speech_end, gen_start, gen_end):
+        raise PolicyValidationError("HERO_SYNC_LOCKED units require complete speech and generation sample intervals")
+
     lead_silence = render_unit.get("leading_silence_samples", 0) or 0
     trail_silence = render_unit.get("trailing_silence_samples", 0) or 0
-    
+
     expected_gen_start = speech_start - lead_silence
     expected_gen_end = speech_end + trail_silence
-    
+
     if gen_start != expected_gen_start or gen_end != expected_gen_end:
         raise PolicyValidationError(
             f"Generation interval [{gen_start}, {gen_end}] does not match speech [{speech_start}, {speech_end}] "
             f"plus silence [{lead_silence}, {trail_silence}]"
         )
 
-    # Rule: visible intervals may be shorter than generation intervals
     if visible_start is not None and visible_end is not None:
         if visible_start < gen_start or visible_end > gen_end:
             raise PolicyValidationError(
                 f"Visible interval [{visible_start}, {visible_end}] exceeds generation interval [{gen_start}, {gen_end}]"
             )
 
-    # Rule: all intervals remain within master bounds
     if master_dur is not None:
         if gen_end > master_dur:
             raise PolicyValidationError(
@@ -331,18 +372,30 @@ def plan_render_units(
     """Convert timeline spans into render units.
 
     Each entry in span_render_specs:
-        span_id         : timeline_spans.id
-        asset_type      : 'lipsync_video', 'still_kenburns', 'local_graphic', ...
-        model           : e.g. 'seedance_2_0'
-        audio_policy    : 'baked_in', 'generated_tts', 'strip', 'ambient'
-        lipsync_required: bool
-        slots           : list of slot dicts  (optional; if absent, one slot = whole span)
-            Each slot: {slot_index, slot_total, start_ms, end_ms}
-        prompt_revision_id: optional document_revision_id for the prompt
-        label           : optional display label
+        span_id            : timeline_spans.id (required)
+        asset_type         : 'lipsync_video', 'still_kenburns', 'local_graphic', ...
+        model              : e.g. 'seedance_2_0'
+        audio_policy       : canonical policy (HERO_SYNC_LOCKED, BROLL_FLEX, etc.) — required
+        final_audio_source : master_narration, provider_audio, none
+        provider_audio_usage: diagnostic_only, final_mix, discarded
+        text_policy        : NO_VISIBLE_TEXT, POST_COMPOSITE, etc.
+        lipsync_required   : bool
+        slots              : list of slot dicts (optional; if absent, one slot = whole span)
+        speech_start_sample, speech_end_sample, generation_start_sample,
+        generation_end_sample, visible_start_sample, visible_end_sample,
+        leading_silence_samples, trailing_silence_samples,
+        master_audio_artifact_id, master_audio_sha256, boundary_reason, boundary_confidence
+        prompt_revision_id : optional document_revision_id for the prompt
+        label              : optional display label
+        metadata           : optional dict merged into metadata_json
+        # R7 semantic fields:
+        visual_function, narrative_claim, information_to_show, viewer_takeaway,
+        required_action, forbidden_cliches, distinctness_requirement,
+        semantic_acceptance_criteria, render_mode, concept_key, concept_hash,
+        graphic_text_content, graphic_text_hash
 
-    Atomically inserts all render units; existing units for the same spans
-    are NOT superseded here — call invalidate_render_units() first if re-planning.
+    Atomically inserts all units.  Each unit is validated (audio/text/hero-slicing policy)
+    before the INSERT.  Legacy defaults are rejected — caller must supply all policy fields.
     """
     if not span_render_specs:
         raise RenderUnitError("span_render_specs must not be empty")
@@ -350,7 +403,6 @@ def plan_render_units(
     now = _now()
     results = []
     with _db.transaction(db_path) as conn:
-        # Pre-fetch all spans in one query
         span_ids = [s["span_id"] for s in span_render_specs]
         ph = ",".join("?" * len(span_ids))
         span_rows = {
@@ -388,25 +440,108 @@ def plan_render_units(
                     "SELECT COALESCE(MAX(ordinal), -1) + 1 FROM render_units WHERE production_id=?",
                     (production_id,),
                 ).fetchone()[0]
+
+                audio_policy = spec.get("audio_policy")
+                final_audio_source = spec.get("final_audio_source")
+                provider_audio_usage = spec.get("provider_audio_usage")
+                text_policy = spec.get("text_policy")
+                lipsync_required = int(bool(spec.get("lipsync_required", False)))
+
+                unit = {
+                    "id": unit_id,
+                    "audio_policy": audio_policy,
+                    "final_audio_source": final_audio_source,
+                    "provider_audio_usage": provider_audio_usage,
+                    "text_policy": text_policy,
+                    "lipsync_required": lipsync_required,
+                    "speech_start_sample": spec.get("speech_start_sample"),
+                    "speech_end_sample": spec.get("speech_end_sample"),
+                    "generation_start_sample": spec.get("generation_start_sample"),
+                    "generation_end_sample": spec.get("generation_end_sample"),
+                    "visible_start_sample": spec.get("visible_start_sample"),
+                    "visible_end_sample": spec.get("visible_end_sample"),
+                    "leading_silence_samples": spec.get("leading_silence_samples"),
+                    "trailing_silence_samples": spec.get("trailing_silence_samples"),
+                    "master_audio_artifact_id": spec.get("master_audio_artifact_id"),
+                    "master_audio_sha256": spec.get("master_audio_sha256"),
+                    "master_duration_samples": spec.get("master_duration_samples"),
+                    "boundary_reason": spec.get("boundary_reason"),
+                    "boundary_confidence": spec.get("boundary_confidence"),
+                    "replacement_asset_spec": spec.get("replacement_asset_spec"),
+                    "source_artifact_id": spec.get("source_artifact_id"),
+                    "visual_function": spec.get("visual_function"),
+                    "narrative_claim": spec.get("narrative_claim"),
+                    "information_to_show": spec.get("information_to_show"),
+                    "viewer_takeaway": spec.get("viewer_takeaway"),
+                    "required_action": spec.get("required_action"),
+                    "forbidden_cliches": spec.get("forbidden_cliches"),
+                    "distinctness_requirement": spec.get("distinctness_requirement"),
+                    "semantic_acceptance_criteria": spec.get("semantic_acceptance_criteria"),
+                    "render_mode": spec.get("render_mode") or "generated_video",
+                    "concept_key": spec.get("concept_key"),
+                    "concept_hash": spec.get("concept_hash"),
+                    "graphic_text_content": spec.get("graphic_text_content"),
+                    "graphic_text_hash": spec.get("graphic_text_hash"),
+                }
+                validate_render_unit(unit)
+
+                if audio_policy not in ("HERO_SYNC_LOCKED",) and spec.get("asset_type") in ("generated_video", "generated_still"):
+                    from broll_semantic import validate_broll_semantics
+                    broll_issues = validate_broll_semantics(spec, spec.get("asset_type"), audio_policy)
+                    if broll_issues:
+                        raise RenderUnitError("B-roll semantic contract violations for " + spec.get("label", "?") + ":\n" + "\n".join(broll_issues))
+
+                md = {"prompt_revision_id": spec.get("prompt_revision_id")}
+                if spec.get("metadata"):
+                    md.update(spec["metadata"])
+
                 conn.execute(
                     """INSERT INTO render_units
                        (id, production_id, timeline_span_id, ordinal, label, asset_type, model,
-                        audio_policy, lipsync_required, required_start_ms, required_end_ms,
+                        audio_policy, final_audio_source, provider_audio_usage, text_policy,
+                        lipsync_required, required_start_ms, required_end_ms,
                         required_duration_ms, slot_index, slot_total, status,
+                        speech_start_sample, speech_end_sample,
+                        generation_start_sample, generation_end_sample,
+                        visible_start_sample, visible_end_sample,
+                        leading_silence_samples, trailing_silence_samples,
+                        master_audio_artifact_id, master_audio_sha256,
+                        boundary_reason, boundary_confidence,
+                        visual_function, narrative_claim, information_to_show, viewer_takeaway,
+                        required_action, forbidden_cliches, distinctness_requirement,
+                        semantic_acceptance_criteria, render_mode, concept_key, concept_hash,
+                        graphic_text_content, graphic_text_hash,
                         metadata_json, created_at, updated_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       VALUES (?,?,?,?,?,?,?,
+                               ?,?,?,?,?,?,?,
+                               ?,?,?,?,?,?,?,
+                               ?,?,?,?,?,?,?,
+                               ?,?,?,?,?,?,?,
+                               ?,?,?,?,?,?,?,
+                               ?,?,?,?)""",
                     (
                         unit_id, production_id, span_id, ordinal,
                         spec.get("label") or span.get("label"),
                         spec["asset_type"], spec.get("model"),
-                        spec.get("audio_policy", "strip"),
-                        int(bool(spec.get("lipsync_required", False))),
+                        audio_policy, final_audio_source, provider_audio_usage, text_policy,
+                        lipsync_required,
                         start_ms, end_ms, end_ms - start_ms,
                         slot.get("slot_index"), slot.get("slot_total"),
                         "ordered",
-                        _json({
-                            "prompt_revision_id": spec.get("prompt_revision_id"),
-                        }),
+                        spec.get("speech_start_sample"), spec.get("speech_end_sample"),
+                        spec.get("generation_start_sample"), spec.get("generation_end_sample"),
+                        spec.get("visible_start_sample"), spec.get("visible_end_sample"),
+                        spec.get("leading_silence_samples"), spec.get("trailing_silence_samples"),
+                        spec.get("master_audio_artifact_id"), spec.get("master_audio_sha256"),
+                        spec.get("boundary_reason"), spec.get("boundary_confidence"),
+                        spec.get("visual_function"), spec.get("narrative_claim"),
+                        spec.get("information_to_show"), spec.get("viewer_takeaway"),
+                        spec.get("required_action"), spec.get("forbidden_cliches"),
+                        spec.get("distinctness_requirement"), spec.get("semantic_acceptance_criteria"),
+                        spec.get("render_mode") or "generated_video",
+                        spec.get("concept_key"), spec.get("concept_hash"),
+                        spec.get("graphic_text_content"), spec.get("graphic_text_hash"),
+                        _json(md),
                         now, now,
                     ),
                 )
@@ -486,13 +621,11 @@ def register_artifact(
 
     1. Verify the file exists.
     2. Compute SHA-256.
-    3. Probe media metadata (ffprobe; no-op for non-media).
+    3. Probe media metadata via typed MediaProbe (ffprobe); fails for non-media if kind
+       implies media (video, audio, image).
     4. Allocate the canonical URI (absolute resolved path).
     5. Insert into artifacts with UNIQUE(production_id, uri, sha256).
     6. If a row with the same (production_id, uri, sha256) already exists, return it.
-
-    A changed file at the same URI creates a NEW artifact row (different sha256).
-    The old row is NOT deleted — immutability is maintained.
     """
     p = Path(path).resolve()
     if not p.exists():
@@ -500,9 +633,20 @@ def register_artifact(
 
     sha = _sha256_file(p)
     size = p.stat().st_size
-    probe = _probe_media(p)
+    probe = probe_media(p)
 
-    # Guess MIME
+    media_kinds = {"tts_master", "lipsync_video", "generated_video", "master_audio",
+                   "narration_master", "music_bed", "deliverable_video"}
+    if kind in media_kinds and probe is None:
+        raise ArtifactRegistryError(
+            f"media artifact kind '{kind}' requires valid media file; "
+            f"ffprobe could not parse {p}"
+        )
+    if kind in media_kinds and probe.has_audio == 0 and kind in {"tts_master", "narration_master", "master_audio"}:
+        raise ArtifactRegistryError(
+            f"audio artifact kind '{kind}' requires an audio stream; none found in {p}"
+        )
+
     suffix = p.suffix.lower()
     mime_map = {
         ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm",
@@ -529,8 +673,10 @@ def register_artifact(
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 art_id, production_id, kind, str(p), "local", mime, sha, size,
-                probe.get("duration_ms"), probe.get("width"), probe.get("height"),
-                probe.get("has_audio"),
+                probe.duration_ms if probe else None,
+                probe.width if probe else None,
+                probe.height if probe else None,
+                probe.has_audio if probe else None,
                 stage_run_id, provider_job_id,
                 _json(extra_metadata or {}), _now(),
             ),
@@ -564,20 +710,264 @@ def verify_artifact_on_disk(artifact_id: str, db_path=None) -> tuple[bool, str]:
 def link_artifact_to_render_unit(
     artifact_id: str, render_unit_id: str, db_path=None
 ) -> None:
-    """Set the active artifact for a render unit and advance status to 'generated'."""
+    """Set the active artifact for a render unit and advance status to 'generated'.
+
+    Rejects change if the render unit already has an active artifact —
+    a change request with replacement evidence is required first (R6-004 path).
+    """
     now = _now()
     with _db.transaction(db_path) as conn:
         art = conn.execute(
             "SELECT production_id FROM artifacts WHERE id=?", (artifact_id,)
         ).fetchone()
         ru = conn.execute(
-            "SELECT production_id FROM render_units WHERE id=?", (render_unit_id,)
+            "SELECT production_id, active_artifact_id, status FROM render_units WHERE id=?", (render_unit_id,)
         ).fetchone()
         if not art or not ru:
             raise ArtifactRegistryError("artifact or render_unit not found")
         if art["production_id"] != ru["production_id"]:
             raise ArtifactRegistryError("artifact and render_unit belong to different productions")
+        if ru["active_artifact_id"] is not None:
+            raise ArtifactRegistryError(
+                f"render_unit {render_unit_id} already has active_artifact; "
+                "a qualified replacement change request is required to change it (R6-004)"
+            )
         conn.execute(
             "UPDATE render_units SET active_artifact_id=?, status='generated', updated_at=? WHERE id=?",
             (artifact_id, now, render_unit_id),
         )
+
+
+# ---------------------------------------------------------------------------
+# R3-003  Hero render group persistence
+# ---------------------------------------------------------------------------
+
+class HeroGroupError(ValueError):
+    pass
+
+
+def persist_hero_render_groups(
+    production_id: str,
+    groups: list[dict],
+    db_path=None,
+) -> list[dict]:
+    """Persist deterministic hero render groups into hero_render_groups + members + covered.
+
+    Each group dict:
+        hero_render_group_id     : str (deterministic hash, not random UUID)
+        generation_start_sample  : int
+        generation_end_sample    : int
+        generation_duration_samples: int
+        source_audio_artifact_id : optional str
+        source_audio_sha256      : optional str
+        prompt_revision_id       : optional str
+        prompt_sha256            : optional str
+        model                    : str
+        requested_duration_sec   : float
+        regeneration_blast_radius: optional list[str]
+        temporal_edit_policy     : str (default HERO_SYNC_LOCKED)
+        continuity_benefit       : optional str
+        scene_consistent         : bool
+        master_audio_artifact_id : optional str
+        master_audio_sha256      : optional str
+        member_visible_intervals : list[{start_sample, end_sample, render_unit_id, beat_id}]
+        covered_intervals        : optional list[{start_sample, end_sample, beat_id, kind}]
+    """
+    if not groups:
+        raise HeroGroupError("groups must not be empty")
+
+    now = _now()
+    results = []
+    with _db.transaction(db_path) as conn:
+        # Supersede existing active groups
+        conn.execute(
+            "UPDATE hero_render_groups SET status='stale', updated_at=? WHERE production_id=? AND status='active'",
+            (now, production_id),
+        )
+        last_ord = conn.execute(
+            "SELECT COALESCE(MAX(group_ordinal), -1) FROM hero_render_groups WHERE production_id=?",
+            (production_id,),
+        ).fetchone()[0]
+
+        for gi, g in enumerate(groups):
+            ordinal = last_ord + 1 + gi
+            conn.execute(
+                """INSERT INTO hero_render_groups
+                   (id, production_id, group_ordinal, group_hash,
+                    generation_start_sample, generation_end_sample, generation_duration_samples,
+                    source_audio_artifact_id, source_audio_sha256,
+                    prompt_revision_id, prompt_sha256, model, requested_duration_sec,
+                    regeneration_blast_radius_json, temporal_edit_policy,
+                    continuity_benefit, scene_consistent,
+                    master_audio_artifact_id, master_audio_sha256,
+                    status, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                           ?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    g["hero_render_group_id"], production_id, ordinal, g.get("group_hash", g["hero_render_group_id"]),
+                    g["generation_start_sample"], g["generation_end_sample"],
+                    g.get("generation_duration_samples", g["generation_end_sample"] - g["generation_start_sample"]),
+                    g.get("source_audio_artifact_id"), g.get("source_audio_sha256"),
+                    g.get("prompt_revision_id"), g.get("prompt_sha256"),
+                    g.get("model", "seedance_2_0"), g.get("requested_duration_sec", 0.0),
+                    _json(g.get("regeneration_blast_radius", [])),
+                    g.get("temporal_edit_policy", "HERO_SYNC_LOCKED"),
+                    g.get("continuity_benefit"), int(bool(g.get("scene_consistent", True))),
+                    g.get("master_audio_artifact_id"), g.get("master_audio_sha256"),
+                    "active", now, now,
+                ),
+            )
+
+            # Members
+            members = g.get("member_visible_intervals", [])
+            for mi, m in enumerate(members):
+                conn.execute(
+                    """INSERT INTO hero_group_members
+                       (id, hero_render_group_id, render_unit_id, member_ordinal,
+                        visible_start_sample, visible_end_sample, beat_id)
+                       VALUES (?,?,?,?,?,?,?)""",
+                    (
+                        _id("hgm"), g["hero_render_group_id"], m["render_unit_id"], mi,
+                        m["start_sample"], m["end_sample"], m.get("beat_id"),
+                    ),
+                )
+
+            # Covered intervals
+            covered = g.get("covered_intervals", [])
+            for ci, c in enumerate(covered):
+                conn.execute(
+                    """INSERT INTO hero_covered_intervals
+                       (id, hero_render_group_id, interval_ordinal,
+                        start_sample, end_sample, beat_id, interval_kind)
+                       VALUES (?,?,?,?,?,?,?)""",
+                    (
+                        _id("hci"), g["hero_render_group_id"], ci,
+                        c["start_sample"], c["end_sample"], c.get("beat_id"),
+                        c.get("kind", "broll_covered"),
+                    ),
+                )
+
+            row = conn.execute(
+                "SELECT * FROM hero_render_groups WHERE id=?", (g["hero_render_group_id"],)
+            ).fetchone()
+            results.append(dict(row))
+
+        _db.append_event(
+            production_id, "hero_groups_persisted",
+            payload={"count": len(results)}, conn=conn,
+        )
+    return results
+
+
+def get_active_hero_groups(production_id: str, db_path=None) -> list[dict]:
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    rows = conn.execute(
+        "SELECT * FROM hero_render_groups WHERE production_id=? AND status='active' ORDER BY group_ordinal",
+        (production_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# R2-001  Validation record keeping
+# ---------------------------------------------------------------------------
+
+def record_validation(
+    production_id: str,
+    subject_type: str,
+    subject_id: str,
+    validator_name: str,
+    status: str,
+    ruleset_version: Optional[str] = None,
+    evidence: Optional[dict] = None,
+    stage_run_id: Optional[str] = None,
+    artifact_sha256: Optional[str] = None,
+    algorithm_version: Optional[str] = None,
+    threshold_version: Optional[str] = None,
+    db_path=None,
+) -> dict:
+    """Record a validation with integrity columns."""
+    now = _now()
+    with _db.transaction(db_path) as conn:
+        val_id = _id("val")
+        conn.execute(
+            """INSERT INTO validations
+               (id, production_id, subject_type, subject_id, validator_name, status,
+                ruleset_version, evidence_json, created_by_stage_run_id, created_at,
+                artifact_sha256, algorithm_version, threshold_version)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                val_id, production_id, subject_type, subject_id, validator_name, status,
+                ruleset_version, _json(evidence or {}), stage_run_id, now,
+                artifact_sha256, algorithm_version, threshold_version,
+            ),
+        )
+        return dict(conn.execute("SELECT * FROM validations WHERE id=?", (val_id,)).fetchone())
+
+
+# ---------------------------------------------------------------------------
+# R2-001  Change request record keeping (sets up R6-004)
+# ---------------------------------------------------------------------------
+
+class ChangeRequestError(ValueError):
+    pass
+
+
+def record_change_request(
+    production_id: str,
+    subject_type: str,
+    subject_id: str,
+    change_type: str,
+    requested_by_stage: str,
+    target_stage: str,
+    reason: str,
+    status: str = "open",
+    failure_evidence: Optional[dict] = None,
+    replacement_subject_type: Optional[str] = None,
+    replacement_subject_id: Optional[str] = None,
+    repair_routing_stage: Optional[str] = None,
+    db_path=None,
+) -> dict:
+    if not change_type:
+        raise ChangeRequestError("change_type is required")
+    if not requested_by_stage:
+        raise ChangeRequestError("requested_by_stage is required")
+    now = _now()
+    with _db.transaction(db_path) as conn:
+        cr_id = _id("cr")
+        conn.execute(
+            """INSERT INTO change_requests
+               (id, production_id, subject_type, subject_id, change_type,
+                requested_by_stage, target_stage, reason, status,
+                failure_evidence_json, replacement_subject_type, replacement_subject_id,
+                repair_routing_stage, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                cr_id, production_id, subject_type, subject_id, change_type,
+                requested_by_stage, target_stage, reason, status,
+                _json(failure_evidence) if failure_evidence else None,
+                replacement_subject_type, replacement_subject_id,
+                repair_routing_stage, now,
+            ),
+        )
+        return dict(conn.execute("SELECT * FROM change_requests WHERE id=?", (cr_id,)).fetchone())
+
+
+def resolve_change_request(
+    cr_id: str,
+    resolution: dict,
+    db_path=None,
+) -> dict:
+    now = _now()
+    with _db.transaction(db_path) as conn:
+        conn.execute(
+            """UPDATE change_requests SET status='resolved', resolution_json=?, resolved_at=?
+               WHERE id=?""",
+            (_json(resolution), now, cr_id),
+        )
+        row = conn.execute("SELECT * FROM change_requests WHERE id=?", (cr_id,)).fetchone()
+        if not row:
+            raise ChangeRequestError(f"change_request {cr_id} not found")
+        return dict(row)

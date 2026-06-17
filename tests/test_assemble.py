@@ -480,7 +480,7 @@ def _build_continuous_project(td, beat_durations, clip_durations):
             "id": f"B{i+1:03d}",
             "segment_id": f"seg_{i}",
             "media": f"clip_{i}.mp4",
-            "audio_policy": "strip",
+            "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
             "words": 10,
         })
 

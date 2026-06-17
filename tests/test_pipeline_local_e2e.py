@@ -96,7 +96,7 @@ def pipeline_project(tmp_path):
                 "segment_id": "002_body",
                 "output_path": str(broll),
                 "asset_type": "generated_video",
-                "audio_policy": "strip",
+                "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
                 "narration_text": "three seconds of body content here today",
             },
         ],

@@ -28,3 +28,8 @@ content/
 .raw_*
 /tmp/
 ffmpeg2pass*
+
+# Database files (must not be tracked)
+*.db
+*.sqlite*
+!db/migrations/*.sql

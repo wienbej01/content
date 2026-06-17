@@ -50,7 +50,7 @@ def _order_clip(project_id, beat_id, segment_id="S01", required_dur=5.0, lipsync
         segment_id=segment_id,
         asset_type="generated_video",
         model="seedance_2_0" if lipsync else "kling3_0",
-        audio_policy="keep_lipsync" if lipsync else "strip",
+        audio_policy="keep_lipsync" if lipsync else "BROLL_FLEX",
         lipsync_required=int(lipsync),
         required_start_sec=0.0,
         required_end_sec=required_dur,

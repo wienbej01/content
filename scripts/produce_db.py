@@ -5,7 +5,9 @@ Replaces produce.py as the single source of truth for execution.
 Drives the stage graph via stage_runner.run_stage and LegacyAdapter.
 """
 import argparse
+import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -155,46 +157,73 @@ def invoke_review_script(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_gate_a_content(inputs: dict, tmp_path: Path) -> dict:
-    # Stubbed for adapter phase; real implementation will send Telegram and wait
-    return {"status": "auto_approved", "note": "Stubbed for adapter phase"}
+    from authoring_service import request_approval, is_approved, get_active_script_revision_id, get_storyboard
+    
+    script_rev = get_active_script_revision_id(inputs["production_id"]) or ""
+    storyboard = get_storyboard(inputs["production_id"])
+    sb_sha = storyboard.get("_sha256", "") if storyboard else ""
+    
+    approval = request_approval(
+        production_id=inputs["production_id"],
+        gate_name="gate_a_content",
+        subject_type="script+storyboard",
+        subject_sha256=f"script:{script_rev}|storyboard:{sb_sha}",
+    )
+    
+    if os.environ.get("YT_TEST_MODE") == "1":
+        from authoring_service import record_approval_decision
+        record_approval_decision(
+            production_id=inputs["production_id"],
+            gate_name="gate_a_content",
+            decision="pass",
+            actor="test_mode",
+            note="Auto-approved in YT_TEST_MODE",
+        )
+        return {"status": "pass", "approval_id": approval["id"], "test_mode": True}
+    
+    if not is_approved(inputs["production_id"], "gate_a_content"):
+        raise RuntimeError(f"gate_a_content pending approval. Use: python3 scripts/produce_db.py approve {inputs['production_id']} gate_a_content --pass")
+    
+    return {"status": "pass", "approval_id": approval["id"]}
 
 
 def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     from tts import run_tts
-    from authoring_service import get_script
+    from authoring_service import get_active_script_revision_id
     from tts_service import record_tts_artifact
+    from provider_fingerprint import _stable_hash
+    import yaml
     
     project_dir = _get_project_dir(inputs)
     
-    # 1. Get current script from DB to get revision ID for provenance
-    script_doc = get_script(inputs["production_id"])
-    if not script_doc:
-        script_path = project_dir / "script.json"
-        if not script_path.exists():
-            raise RuntimeError("No script found in DB or legacy file for TTS")
-        # Fallback: we don't have a revision ID, but we must proceed. 
-        # In a fully migrated system, this will always come from DB.
-        script_revision_id = "legacy_fallback"
-    else:
-        script_revision_id = script_doc["_id"]
-        
-    # 2. Run TTS (legacy script for now, writes to project_dir / "narration" / "continuous.mp3")
-    # We pass the legacy script path to satisfy the current tts.py contract
-    script_path = project_dir / "script.json"
-    run_tts(str(script_path), force=False, do_assemble=False, validate_only=False, require_gate=False)
+    script_revision_id = get_active_script_revision_id(inputs["production_id"])
+    if not script_revision_id:
+        raise RuntimeError("No active script revision found for TTS")
+    
+    routing_path = ROOT / "configs" / "james" / "model_routing.yaml"
+    routing = yaml.safe_load(routing_path.read_text())
+    narration = routing.get("narration", {})
+    voice_id = narration.get("voice_env_var", "ELEVENLABS_VOICE_ID")
+    model = narration.get("model", "eleven_v3")
+    voice_settings = narration.get("voice_settings", {})
+    
+    request_fingerprint = _stable_hash({
+        "script_revision_id": script_revision_id,
+        "voice_id": voice_id,
+        "model": model,
+        "voice_settings": voice_settings,
+    })
     
     audio_path = project_dir / "narration" / "continuous.mp3"
-    if not audio_path.exists():
-        raise RuntimeError("TTS failed to produce continuous.mp3")
-        
-    # 3. Record to DB via tts_service (enforces provenance and idempotency)
-    voice_config = {"voice": "James", "model": "eleven_v3"} # TODO: derive from config
+    
     art = record_tts_artifact(
         production_id=inputs["production_id"],
         audio_path=audio_path,
         script_revision_id=script_revision_id,
-        voice_config=voice_config,
-        db_path=None
+        voice_id=voice_id,
+        model=model,
+        voice_settings=voice_settings,
+        request_fingerprint=request_fingerprint,
     )
     
     return {"status": "saved", "artifact_id": art["id"]}
@@ -214,8 +243,7 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     # 1. Get storyboard from DB
     storyboard = get_storyboard(inputs["production_id"])
     if not storyboard:
-        storyboard_path = project_dir / "storyboard.json"
-        storyboard = json.loads(storyboard_path.read_text()) if storyboard_path.exists() else {"beats": []}
+        raise RuntimeError("No active storyboard found. Run storyboard and review_storyboard stages first.")
         
     # 2. Build timing map
     timing = build_storyboard_timing_map(str(audio_path), storyboard["beats"])
@@ -257,29 +285,87 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
-    from produce import step_storyboard_create
-    project_dir = _get_project_dir(inputs)
-    state = {"seed": inputs["seed"], "format": inputs["video_type"]}
-    step_storyboard_create(project_dir, state)
-    return json.loads((project_dir / "storyboard.json").read_text())
+    from authoring_service import get_script_segments, save_storyboard
+    
+    segments = get_script_segments(inputs["production_id"])
+    if not segments:
+        raise RuntimeError("No script segments found for storyboard derivation")
+    
+    beats = []
+    for i, seg in enumerate(segments):
+        label = seg.get("label") or f"B{i:03d}"
+        shot_type = _derive_shot_type(seg)
+        beats.append({
+            "label": label,
+            "narration_text": seg.get("text", ""),
+            "visual_intent": seg.get("visual_intent", {}),
+            "shot_type": shot_type,
+            "graphics": seg.get("graphics"),
+        })
+    
+    storyboard_payload = {"beats": beats}
+    doc = save_storyboard(
+        production_id=inputs["production_id"],
+        storyboard_payload=storyboard_payload,
+    )
+    return {"status": "saved", "document_id": doc["id"], "beats": len(beats)}
 
 
 def invoke_review_storyboard(inputs: dict, tmp_path: Path) -> dict:
-    from produce import step_storyboard_review_loop
-    project_dir = _get_project_dir(inputs)
-    state = {"seed": inputs["seed"], "format": inputs["video_type"]}
-    step_storyboard_review_loop(project_dir, state)
-    return json.loads((project_dir / "storyboard.json").read_text())
+    from authoring_service import get_storyboard, get_script_segments, save_storyboard
+    from review import review_loop
+    
+    storyboard = get_storyboard(inputs["production_id"])
+    if not storyboard:
+        return invoke_storyboard(inputs, tmp_path)
+    
+    segments = get_script_segments(inputs["production_id"])
+    
+    def reviser(current, fixes):
+        beats = current.get("beats", [])
+        for fix in (fixes or []):
+            idx = fix.get("index", -1)
+            if 0 <= idx < len(beats):
+                beats[idx].update(fix.get("changes", {}))
+        return {"beats": beats}
+    
+    final, passed, rounds = review_loop(storyboard, "storyboard", reviser, source_text="", video_type=inputs.get("video_type", "short"))
+    
+    doc = save_storyboard(
+        production_id=inputs["production_id"],
+        storyboard_payload=final,
+    )
+    return {"status": "saved", "document_id": doc["id"], "passed": passed, "rounds": rounds}
+
+
+def _derive_shot_type(seg: dict) -> str:
+    kind = (seg.get("shot_type") or seg.get("kind") or "").lower()
+    if kind in ("talking_head_hero", "talking_head_standard", "hero"):
+        return kind if kind else "talking_head_standard"
+    if kind in ("broll", "broll_environment", "broll_human"):
+        return kind
+    if seg.get("narration", True):
+        return "talking_head_standard"
+    return "broll_environment"
 
 
 def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
-    from tts_service import compile_render_plan
+    from tts_service import compile_render_plan, reconcile_storyboard_with_timing
     import production_db as _db
+    import yaml
     
-    # 1. Get active timeline spans with linked creative beat info
+    routing_path = ROOT / "configs" / "james" / "model_routing.yaml"
+    routing = yaml.safe_load(routing_path.read_text())
+    shot_routes = routing.get("shot_type_routes", {})
+    costs = routing.get("costs", {})
+    
+    reconcile = reconcile_storyboard_with_timing(inputs["production_id"])
+    if reconcile.get("unmatched"):
+        raise RuntimeError(f"Unmatched timeline spans: {reconcile['unmatched']}. Run storyboard and audio_timing first.")
+    
     conn = _db.connect(None)
     spans = conn.execute(
-        """SELECT ts.id as span_id, ts.label, ts.start_ms, ts.end_ms, ts.narration_text,
+        """SELECT ts.id as span_id, ts.label, ts.start_ms, ts.end_ms,
                   cb.shot_type, cb.visual_intent_json, cb.graphics_json
            FROM timeline_spans ts
            LEFT JOIN creative_beats cb ON ts.creative_beat_id = cb.id
@@ -290,132 +376,193 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     conn.close()
     
     if not spans:
-        raise RuntimeError("No active timeline spans found. Run audio_timing and reconciliation first.")
-        
-    # 2. Build span_specs for render planning (derives duration from measured spans)
+        raise RuntimeError("No active timeline spans found.")
+    
+    estimated_cost = 0.0
     span_specs = []
     for s in spans:
         shot_type = (s["shot_type"] or "broll").lower()
+        route = shot_routes.get(shot_type, {})
         
-        # Determine asset routing based on shot type
-        if "lipsync" in shot_type or "hero" in shot_type:
+        if route.get("requires_audio"):
             asset_type = "lipsync_video"
-            model = "seedance_2_0"
-            audio_policy = "baked_in"
-            lipsync_required = True
-        elif "still" in shot_type or "kenburns" in shot_type:
-            asset_type = "still_kenburns"
-            model = "kling3_0"
-            audio_policy = "strip"
-            lipsync_required = False
-        elif "graphic" in shot_type or "text" in shot_type:
-            asset_type = "local_graphic"
-            model = "local_graphic"
-            audio_policy = "strip"
-            lipsync_required = False
+            audio_policy = "HERO_SYNC_LOCKED"
+            final_audio_source = "master_narration"
+            provider_audio_usage = "diagnostic_only"
+        elif shot_type in ("still_kenburns", "local_graphic"):
+            asset_type = shot_type
+            audio_policy = "SILENT_GRAPHIC"
+            final_audio_source = "none"
+            provider_audio_usage = "discarded"
         else:
             asset_type = "generated_video"
-            model = "kling3_0"
-            audio_policy = "strip"
-            lipsync_required = False
-            
+            audio_policy = "BROLL_FLEX"
+            final_audio_source = "none"
+            provider_audio_usage = "discarded"
+
+        text_policy = route.get("text_policy", "NO_VISIBLE_TEXT")
+        
+        model_key = route.get("model", "kling3_0")
+        clip_cost = costs.get(model_key, {}).get("cost_per_clip_usd", 0.0)
+        estimated_cost += clip_cost
+        
         span_specs.append({
             "span_id": s["span_id"],
             "label": s["label"],
             "asset_type": asset_type,
-            "model": model,
+            "model": model_key,
             "audio_policy": audio_policy,
-            "lipsync_required": lipsync_required,
+            "final_audio_source": final_audio_source,
+            "provider_audio_usage": provider_audio_usage,
+            "text_policy": text_policy,
+            "lipsync_required": route.get("requires_audio", False),
         })
-        
-    # 3. Compile render plan (saves to DB, enforces span-based durations)
+    
     result = compile_render_plan(
         production_id=inputs["production_id"],
         span_specs=span_specs,
-        estimated_cost_usd=0.0,  # TODO: calculate from model/token estimates
+        estimated_cost_usd=round(estimated_cost, 2),
         db_path=None
     )
     
     return {
-        "status": "saved", 
-        "plan_revision_id": result["plan_revision_id"], 
-        "units_count": len(result["render_units"])
+        "status": "saved",
+        "plan_revision_id": result["plan_revision_id"],
+        "units_count": len(result["render_units"]),
+        "estimated_cost_usd": round(estimated_cost, 2),
     }
 
 
 def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
-    # Stubbed for adapter phase; real implementation will bind to render-plan SHA
-    return {"status": "auto_approved", "note": "Stubbed for adapter phase"}
+    from authoring_service import request_approval, is_approved
+    import production_db as _db
+    
+    conn = _db.connect(None)
+    plan = conn.execute(
+        """SELECT dr.payload_json FROM document_revisions dr
+           WHERE dr.production_id=? AND dr.kind='render_plan' AND dr.status='active'
+           ORDER BY dr.revision DESC LIMIT 1""",
+        (inputs["production_id"],)
+    ).fetchone()
+    conn.close()
+    
+    if not plan:
+        raise RuntimeError("No active render plan for spend approval")
+    
+    payload = json.loads(plan["payload_json"])
+    estimated_usd = payload.get("estimated_cost_usd", 0)
+    plan_sha = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
+    
+    approval = request_approval(
+        production_id=inputs["production_id"],
+        gate_name="gate_a_spend",
+        subject_type="render_plan",
+        subject_sha256=plan_sha,
+    )
+    
+    if os.environ.get("YT_TEST_MODE") == "1":
+        from authoring_service import record_approval_decision
+        record_approval_decision(
+            production_id=inputs["production_id"],
+            gate_name="gate_a_spend",
+            decision="pass",
+            actor="test_mode",
+            note=f"Auto-approved in YT_TEST_MODE (${estimated_usd})",
+        )
+        return {"status": "pass", "approval_id": approval["id"], "estimated_usd": estimated_usd, "test_mode": True}
+    
+    if not is_approved(inputs["production_id"], "gate_a_spend"):
+        raise RuntimeError(f"gate_a_spend pending approval. Use: python3 scripts/produce_db.py approve {inputs['production_id']} gate_a_spend --pass")
+    
+    return {"status": "pass", "approval_id": approval["id"], "estimated_usd": estimated_usd}
 
 
 def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     from media_service import (
-        submit_provider_job, complete_provider_job, fail_provider_job, 
+        submit_provider_job, complete_provider_job, fail_provider_job,
         poll_provider_job, resolve_change_request
     )
+    from provider_adapter import get_provider_adapter, validate_downloaded_artifact, ProviderAdapterError
     import production_db as _db
-    import tempfile
-    
+
     production_id = inputs["production_id"]
-    
-    # 1. Poll existing jobs first (idempotent resume for async workers)
+
+    # 1. Poll existing jobs first (idempotent resume)
     conn = _db.connect(None)
     active_jobs = conn.execute(
-        """SELECT id, render_unit_id, status, provider, operation 
-           FROM provider_jobs 
+        """SELECT id, render_unit_id, status, provider, operation, external_job_id
+           FROM provider_jobs
            WHERE production_id=? AND status IN ('submitted', 'running')""",
         (production_id,)
     ).fetchall()
     conn.close()
-    
+
     processed_jobs = 0
     for job in active_jobs:
-        # In a real system, this would call the actual provider API (e.g., Higgsfield)
-        # For orchestrator/CI flow, we simulate a successful poll result
-        new_status = "completed"  # Simulated async completion
-        
-        # Update job status in DB
+        adapter = get_provider_adapter(job["provider"])
+        try:
+            poll_result = adapter.poll(job["external_job_id"] or f"ext_{job['id']}")
+            new_status = poll_result.get("status", "completed")
+        except Exception as e:
+            fail_provider_job(
+                provider_job_id=job["id"],
+                error=f"Poll failed: {e}",
+                db_path=None
+            )
+            raise RuntimeError(f"Provider job {job['id']} polling failed: {e}")
+
         poll_provider_job(
             provider_job_id=job["id"],
-            external_job_id=f"ext_{job['id']}",
+            external_job_id=job.get("external_job_id") or f"ext_{job['id']}",
             new_status=new_status,
+            response_json=poll_result.get("raw_response"),
             db_path=None
         )
-        
+
         if new_status == "completed":
-            # Create stubbed artifact for CI/testing
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False, dir=tmp_path) as tmp_file:
-                tmp_file.write(b"stubbed video content for CI")
-                stub_path = tmp_file.name
-            
+            dl_dir = Path(tmp_path) / "downloads" / job["id"]
+            dl_dir.mkdir(parents=True, exist_ok=True)
+            output_path = dl_dir / f"{job['id']}.mp4"
+            try:
+                downloaded = adapter.download(job["external_job_id"] or f"ext_{job['id']}", output_path)
+                validation = validate_downloaded_artifact(downloaded)
+            except Exception as e:
+                fail_provider_job(
+                    provider_job_id=job["id"],
+                    error=f"Download/validate failed: {e}",
+                    db_path=None
+                )
+                raise RuntimeError(f"Provider job {job['id']} download failed: {e}")
+
             result_metadata = {
-                "actual_duration_ms": 5000,  # Stubbed
-                "width": 1920,
-                "height": 1080,
-                "has_audio": True,
-                "actual_usd": 0.05  # Stubbed cost
+                "actual_duration_ms": validation["duration_ms"],
+                "width": validation["width"],
+                "height": validation["height"],
+                "has_audio": validation["has_audio"],
+                "sha256": validation["sha256"],
+                "format_name": validation.get("format_name"),
+                "actual_usd": job.get("actual_usd", 0.05),
             }
-            
             complete_provider_job(
                 provider_job_id=job["id"],
-                result_artifact_path=stub_path,
+                result_artifact_path=downloaded,
                 result_metadata=result_metadata,
                 db_path=None
             )
             processed_jobs += 1
-            
+
         elif new_status == "failed":
             fail_provider_job(
                 provider_job_id=job["id"],
-                error="Simulated provider failure",
+                error=poll_result.get("error", "Provider returned failed status"),
                 db_path=None
             )
-            raise RuntimeError(f"Provider job {job['id']} failed")
-            
+            raise RuntimeError(f"Provider job {job['id']} failed: {poll_result.get('error', 'unknown')}")
+
     # 2. Submit new jobs for render units that need generation
     conn = _db.connect(None)
     units_to_generate = conn.execute(
-        """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy, 
+        """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy,
                   ru.required_duration_ms, cr.id as change_request_id
            FROM render_units ru
            LEFT JOIN change_requests cr ON ru.id = cr.subject_id AND cr.status='open' AND cr.target_stage='generate_media'
@@ -424,7 +571,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         (production_id,)
     ).fetchall()
     conn.close()
-    
+
     submitted_count = 0
     for u in units_to_generate:
         request_payload = {
@@ -433,8 +580,6 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             "duration_ms": u["required_duration_ms"],
             "audio_policy": u["audio_policy"],
         }
-        
-        # Submit job (enforces gate_a_spend approval and idempotency)
         job = submit_provider_job(
             production_id=production_id,
             render_unit_id=u["id"],
@@ -444,8 +589,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             db_path=None
         )
         submitted_count += 1
-        
-        # Resolve change request if it triggered this generation
+
         if u["change_request_id"]:
             resolve_change_request(
                 production_id=production_id,
@@ -454,9 +598,9 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 resolved_by="generate_media",
                 db_path=None
             )
-            
+
     return {
-        "status": "processed", 
+        "status": "processed",
         "jobs_polled": len(active_jobs),
         "jobs_completed": processed_jobs,
         "new_jobs_submitted": submitted_count
@@ -673,48 +817,157 @@ def invoke_qa_final(inputs: dict, tmp_path: Path) -> dict:
 
 def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
     from assemble_db import get_deliverables, request_gate_b
-    import sys
+    from authoring_service import record_approval_decision
     
     production_id = inputs["production_id"]
     project_dir = _get_project_dir(inputs)
     
-    # 1. Get the latest deliverable
     deliverables = get_deliverables(production_id, db_path=None)
     if not deliverables:
         raise RuntimeError("No deliverable found for Gate B")
-        
-    latest_deliverable = deliverables[-1]
     
-    # 2. Request Gate B approval in DB (triggers outbox/Telegram in real system)
+    latest = deliverables[-1]
+    
     approval = request_gate_b(
         production_id=production_id,
-        deliverable_id=latest_deliverable["id"],
+        deliverable_id=latest["id"],
         db_path=None
     )
     
-    # For orchestrator flow, we auto-approve in stub mode if not in interactive mode
-    # In a real run, this would pause and wait for human input via Telegram
-    if approval["status"] == "pending":
-        from assemble_db import record_approval_decision
+    if os.environ.get("YT_TEST_MODE") == "1":
         record_approval_decision(
             production_id=production_id,
             gate_name="gate_b_review",
             decision="pass",
-            actor="stubbed_orchestrator",
-            note="Auto-approved for CI/adapter testing",
-            db_path=None
+            actor="test_mode",
+            note="Auto-approved in YT_TEST_MODE",
         )
-        approval["status"] = "pass"
-        
+        return {"status": "pass", "approval_id": approval["id"], "test_mode": True}
+    
+    if approval["status"] == "pending":
+        raise RuntimeError(
+            f"gate_b_review pending approval. "
+            f"Use: python3 scripts/produce_db.py approve {production_id} gate_b_review --pass"
+        )
+    
     return {"status": approval["status"], "approval_id": approval["id"]}
 
 
 def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
-    return {"status": "stubbed"}
+    import production_db as _db
+
+    production_id = inputs["production_id"]
+    conn = _db.connect(None)
+
+    deliverables = conn.execute(
+        """SELECT id, uri, sha256, format_id, status
+           FROM deliverables
+           WHERE production_id=? AND status='valid'
+           ORDER BY created_at DESC""",
+        (production_id,),
+    ).fetchall()
+
+    if not deliverables:
+        deliverables = conn.execute(
+            """SELECT id, uri, sha256, format_id, status
+               FROM deliverables
+               WHERE production_id=?
+               ORDER BY created_at DESC LIMIT 1""",
+            (production_id,),
+        ).fetchall()
+
+    conn.close()
+
+    published = []
+    for d in deliverables:
+        if d["uri"]:
+            p = Path(d["uri"])
+            if not p.exists():
+                continue
+            published.append({
+                "deliverable_id": d["id"],
+                "uri": d["uri"],
+                "sha256": d["sha256"],
+                "format_id": d["format_id"],
+                "status": "published",
+            })
+            with _db.transaction(None) as conn:
+                conn.execute(
+                    "UPDATE deliverables SET status='published', updated_at=? WHERE id=?",
+                    (_db._now(), d["id"]),
+                )
+
+    if published:
+        _db.append_event(production_id, "published",
+                         payload={"deliverables": [p["deliverable_id"] for p in published]})
+        return {"status": "published", "deliverables": published}
+    return {"status": "no_deliverables", "deliverables": []}
 
 
 def invoke_analytics(inputs: dict, tmp_path: Path) -> dict:
-    return {"status": "stubbed"}
+    import production_db as _db
+
+    production_id = inputs["production_id"]
+    conn = _db.connect(None)
+
+    total_units = conn.execute(
+        "SELECT COUNT(*) as cnt FROM render_units WHERE production_id=?",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    generated = conn.execute(
+        "SELECT COUNT(*) as cnt FROM render_units WHERE production_id=? AND status='generated'",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    valid = conn.execute(
+        "SELECT COUNT(*) as cnt FROM render_units WHERE production_id=? AND status='valid'",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    artifacts = conn.execute(
+        "SELECT COUNT(*) as cnt FROM artifacts WHERE production_id=?",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    validations = conn.execute(
+        "SELECT COUNT(*) as cnt, SUM(CASE WHEN status='pass' THEN 1 ELSE 0 END) as passing"
+        " FROM validations WHERE production_id=?",
+        (production_id,),
+    ).fetchone()
+
+    change_requests = conn.execute(
+        "SELECT COUNT(*) as cnt FROM change_requests WHERE production_id=?",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    open_crs = conn.execute(
+        "SELECT COUNT(*) as cnt FROM change_requests WHERE production_id=? AND status='open'",
+        (production_id,),
+    ).fetchone()["cnt"]
+
+    stages = conn.execute(
+        "SELECT stage, status, created_at FROM production_stage_runs WHERE production_id=? ORDER BY created_at",
+        (production_id,),
+    ).fetchall()
+
+    conn.close()
+
+    analytics = {
+        "production_id": production_id,
+        "total_render_units": total_units,
+        "generated_units": generated,
+        "valid_units": valid,
+        "total_artifacts": artifacts,
+        "total_validations": validations["cnt"],
+        "passing_validations": validations["passing"],
+        "total_change_requests": change_requests,
+        "open_change_requests": open_crs,
+        "stages": [{"stage": s["stage"], "status": s["status"], "at": s["created_at"]} for s in stages],
+    }
+
+    _db.append_event(production_id, "analytics", payload=analytics)
+    return {"status": "recorded", "analytics": analytics}
 
 
 STAGE_INVOKERS = {
@@ -760,6 +1013,10 @@ def run_production(production_id: str, from_stage: str = None, db_path=None):
         _db.invalidate_stages(prod["project_slug"], stages_to_invalidate, reason=f"resume from {from_stage}", db_path=db_path)
 
     print(f"Running production: {prod['project_slug']} ({prod['id']})")
+    
+    if not os.environ.get("YT_TEST_MODE"):
+        from release_guard import require_production_ready
+        require_production_ready()
     
     # STAGE_REGISTRY is defined in topological order. Iterating over .keys()
     # will naturally evaluate stages in dependency order.
@@ -832,9 +1089,25 @@ def main():
     status = sub.add_parser("status")
     status.add_argument("production_id")
     
+    approve = sub.add_parser("approve")
+    approve.add_argument("production_id")
+    approve.add_argument("gate", choices=["gate_a_content", "gate_a_spend", "gate_b_review"])
+    approve.add_argument("--pass", dest="decision", action="store_const", const="pass", default="pass")
+    approve.add_argument("--fail", dest="decision", action="store_const", const="fail")
+    
     args = ap.parse_args()
     
-    if args.command == "create":
+    if args.command == "approve":
+        from authoring_service import record_approval_decision
+        result = record_approval_decision(
+            production_id=args.production_id,
+            gate_name=args.gate,
+            decision=args.decision,
+            actor="cli",
+            note=f"CLI decision: {args.decision}",
+        )
+        print(json.dumps(result, indent=2))
+    elif args.command == "create":
         slug = _slug(args.seed)
         proj_dir = PROJECTS / f"{slug}_{args.video_type}"
         prod = _db.ensure_production(slug, seed=args.seed, video_type=args.video_type, db_path=None)

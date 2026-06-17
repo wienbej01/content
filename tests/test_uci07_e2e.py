@@ -54,7 +54,7 @@ class TestSlotAndSplitFullChain:
                 project_id=project_id, source_beat_id="A001",
                 production_beat_id="A001", segment_id="S01",
                 asset_type="generated_video", model="kling3_0",
-                audio_policy="strip", lipsync_required=0,
+                audio_policy="BROLL_FLEX", lipsync_required=0,
                 required_start_sec=i * 3.0, required_end_sec=(i + 1) * 3.0,
                 slot_id=f"A001-s{i}")
 
@@ -63,14 +63,14 @@ class TestSlotAndSplitFullChain:
             project_id=project_id, source_beat_id="B002",
             production_beat_id="B002a", segment_id="S02",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=9.0, required_end_sec=13.0,
             split_index=0, split_total=2)
         clip_db.order_clip(
             project_id=project_id, source_beat_id="B002",
             production_beat_id="B002b", segment_id="S02",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=13.0, required_end_sec=17.0,
             split_index=1, split_total=2)
 
@@ -79,13 +79,13 @@ class TestSlotAndSplitFullChain:
             project_id=project_id, source_beat_id="C003",
             production_beat_id="C003", segment_id="S03",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=17.0, required_end_sec=21.0)
         clip_db.order_clip(
             project_id=project_id, source_beat_id="D004",
             production_beat_id="D004", segment_id="S04",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=21.0, required_end_sec=25.0)
 
         # Verify 7 distinct clip_ids
@@ -192,14 +192,14 @@ class TestFeedbackLoopKeyedOnClipId:
             project_id=project_id, source_beat_id="B003",
             production_beat_id="B003", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=0.0, required_end_sec=5.0,
             slot_id="B003-s0")
         clip_db.order_clip(
             project_id=project_id, source_beat_id="B003",
             production_beat_id="B003", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=5.0, required_end_sec=10.0,
             slot_id="B003-s1")
 
@@ -264,14 +264,14 @@ class TestSiblingSlotsIndependent:
             project_id=project_id, source_beat_id="B003",
             production_beat_id="B003", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=0.0, required_end_sec=5.0,
             slot_id="B003-s0")
         clip_db.order_clip(
             project_id=project_id, source_beat_id="B003",
             production_beat_id="B003", segment_id="S01",
             asset_type="generated_video", model="kling3_0",
-            audio_policy="strip", lipsync_required=0,
+            audio_policy="BROLL_FLEX", lipsync_required=0,
             required_start_sec=5.0, required_end_sec=10.0,
             slot_id="B003-s1")
 

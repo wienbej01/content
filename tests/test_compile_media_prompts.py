@@ -110,9 +110,9 @@ def test_lipsync_audio_policy(C, sb, project_dir):
     plan, _ = C.compile_plan(sb, C.load_constraints(), C.load_routing(), project_dir=project_dir)
     for b in plan["beats"]:
         if b["shot_type"] == "hero_lipsync":
-            assert b["audio_policy"] == "keep_lipsync"
+            assert b["audio_policy"] == "HERO_SYNC_LOCKED"
         elif b["asset_type"] in ("generated_video", "generated_still"):
-            assert b["audio_policy"] == "strip"
+            assert b["audio_policy"] == "BROLL_FLEX"
     print("  ✓ audio policy correct (lipsync keeps, generated strips)")
 
 

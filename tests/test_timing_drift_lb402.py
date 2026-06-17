@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from scripts.timing_drift import analyze_timing_drift, _get_audio_duration, _detect_speech_boundaries
+from scripts.timing_drift import analyze_timing_drift, _get_audio_duration, _detect_speech_energy
 
 
 def _make_silent_audio(path: Path, duration_sec: float):

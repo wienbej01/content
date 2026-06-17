@@ -66,7 +66,7 @@ class TestSlotExpansion:
                 "clip_id": f"proj::B003::B003-s{i}",
                 "segment_id": "002_myth",
                 "output_path": f"clips/B003-s{i}.mp4",
-                "audio_policy": "strip",
+                "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
                 "narration_text": f"slot {i}",
                 "required_start_sec": i * 3.0,
                 "required_end_sec": (i + 1) * 3.0,
@@ -97,10 +97,10 @@ class TestSplitChildren:
 
         beats_plan = [
             {"beat_id": "B011a", "clip_id": "proj::B011a::whole", "segment_id": "004_iter",
-             "output_path": "clips/B011a.mp4", "audio_policy": "strip", "narration_text": "part a",
+             "output_path": "clips/B011a.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "part a",
              "required_start_sec": 0.0, "required_end_sec": 4.0},
             {"beat_id": "B011b", "clip_id": "proj::B011b::whole", "segment_id": "004_iter",
-             "output_path": "clips/B011b.mp4", "audio_policy": "strip", "narration_text": "part b",
+             "output_path": "clips/B011b.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "part b",
              "required_start_sec": 4.0, "required_end_sec": 8.0},
         ]
         beats_timing = [
@@ -129,10 +129,10 @@ class TestDuplicateClipId:
 
         beats_plan = [
             {"beat_id": "B001", "clip_id": "proj::B001::whole", "segment_id": "001",
-             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "a",
+             "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "a",
              "required_start_sec": 0.0, "required_end_sec": 3.0},
             {"beat_id": "B002", "clip_id": "proj::B001::whole", "segment_id": "001",
-             "output_path": "clips/B001.mp4", "audio_policy": "strip", "narration_text": "b",
+             "output_path": "clips/B001.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "b",
              "required_start_sec": 3.0, "required_end_sec": 6.0},
         ]
         beats_timing = [
@@ -159,7 +159,7 @@ class TestSegmentFields:
 
         beats_plan = [{
             "beat_id": "B005", "clip_id": "proj::B005::whole", "segment_id": "003_reveal",
-            "output_path": "clips/B005.mp4", "audio_policy": "strip", "narration_text": "test",
+            "output_path": "clips/B005.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "test",
             "required_start_sec": 0.0, "required_end_sec": 5.0,
         }]
         beats_timing = [{"beat_id": "B005", "start": 0.0, "end": 5.0, "duration": 5.0}]
@@ -188,10 +188,10 @@ class TestPerClipTiming:
 
         beats_plan = [
             {"beat_id": "B003", "clip_id": "proj::B003::B003-s0", "segment_id": "002",
-             "output_path": "clips/B003-s0.mp4", "audio_policy": "strip", "narration_text": "a",
+             "output_path": "clips/B003-s0.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "a",
              "required_start_sec": 0.0, "required_end_sec": 4.0},
             {"beat_id": "B003", "clip_id": "proj::B003::B003-s1", "segment_id": "002",
-             "output_path": "clips/B003-s1.mp4", "audio_policy": "strip", "narration_text": "b",
+             "output_path": "clips/B003-s1.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "b",
              "required_start_sec": 4.0, "required_end_sec": 7.0},
         ]
         # Parent timing says 0–10 but per-clip says 0–4, 4–7
@@ -226,13 +226,13 @@ class TestSegmentOrdering:
 
         beats_plan = [
             {"beat_id": "B010", "clip_id": "proj::B010::whole", "segment_id": "004",
-             "output_path": "clips/late.mp4", "audio_policy": "strip", "narration_text": "z",
+             "output_path": "clips/late.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "z",
              "required_start_sec": 8.0, "required_end_sec": 12.0},
             {"beat_id": "B001", "clip_id": "proj::B001::whole", "segment_id": "001",
-             "output_path": "clips/early.mp4", "audio_policy": "strip", "narration_text": "a",
+             "output_path": "clips/early.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "a",
              "required_start_sec": 0.0, "required_end_sec": 4.0},
             {"beat_id": "B005", "clip_id": "proj::B005::whole", "segment_id": "003",
-             "output_path": "clips/mid.mp4", "audio_policy": "strip", "narration_text": "m",
+             "output_path": "clips/mid.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "narration_text": "m",
              "required_start_sec": 4.0, "required_end_sec": 8.0},
         ]
         beats_timing = [

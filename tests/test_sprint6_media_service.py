@@ -54,7 +54,7 @@ def render_unit(approved_prod, db):
     units = plan_render_units(
         approved_prod["id"],
         [{"span_id": spans[0]["id"], "asset_type": "lipsync_video", "model": "seedance_2_0",
-          "audio_policy": "baked_in", "lipsync_required": True}],
+          "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only", "lipsync_required": True}],
         db_path=db,
     )
     return units[0]

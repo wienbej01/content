@@ -44,7 +44,7 @@ def _order_clip(project_id, source_beat_id, production_beat_id, start, end, slot
         segment_id="S01",
         asset_type="generated_video",
         model="seedance_2_0",
-        audio_policy="strip",
+        audio_policy="BROLL_FLEX",
         lipsync_required=0,
         required_start_sec=start,
         required_end_sec=end,

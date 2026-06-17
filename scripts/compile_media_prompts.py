@@ -156,9 +156,9 @@ def compile_beat(beat, constraints, routing):
     # Vagueness lint (§5.2 #4) — evaluated against the composed prompt below.
     # Audio policy from scene type.
     if shot_type == "hero_lipsync":
-        audio_policy = "keep_lipsync"
+        audio_policy = "HERO_SYNC_LOCKED"
     elif asset_type in ("generated_video", "generated_still"):
-        audio_policy = "strip"
+        audio_policy = "BROLL_FLEX"
     else:
         audio_policy = "post_overlay"
 

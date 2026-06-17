@@ -42,7 +42,7 @@ def write_manifest(tmp, music_cfg, fmt="explainer"):
         "format": fmt,
         "narration_mode": "continuous_voiceover",
         "continuous_audio": "narration.mp3",
-        "segments": [{"id": "seg_0", "media": "clip.mp4", "audio_policy": "strip", "words": 10}],
+        "segments": [{"id": "seg_0", "media": "clip.mp4", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "words": 10}],
         "music": music_cfg,
         "render": {"fps": 24, "crf": 28},
         "output": {"directory": "out", "prefix": "test"},

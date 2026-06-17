@@ -17,7 +17,7 @@ def _order(project_id, beat_id, segment_id="S01", asset_type="generated_video", 
         project_id=project_id, source_beat_id=beat_id,
         production_beat_id=beat_id, segment_id=segment_id,
         asset_type=asset_type, model="kling3_0",
-        audio_policy="strip", lipsync_required=0,
+        audio_policy="BROLL_FLEX", lipsync_required=0,
         required_start_sec=0.0, required_end_sec=5.0,
         slot_id=slot_id, db_path=db_path)
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "idx": true,
+  "permission": {
+    "lsp": "allow",
+    "edit": {
+      "**": "allow"
+    },
+    "bash": "allow",
+    "read": "allow"
+  }
+}

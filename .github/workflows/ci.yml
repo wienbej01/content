@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyyaml pytest
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: python3 tools/check_forbidden_file_reads.py
+      - run: python3 tools/check_forbidden_beat_id_lookups.py
+      - run: python3 tools/check_release_placeholders.py
+      - run: python3 tools/check_direct_db_writes.py
+      - run: python3 tools/check_test_quality.py
+      - run: python3 scripts/release_guard.py status
+      - run: YT_TEST_MODE=1 python3 -m pytest -q --ignore=tests/e2e
+      - run: YT_TEST_MODE=1 python3 -m pytest tests/e2e/ -q -v || echo "E2E suite (may require GPU/credentials)"

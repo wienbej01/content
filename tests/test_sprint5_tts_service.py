@@ -33,8 +33,13 @@ def prod(db):
 
 @pytest.fixture
 def audio_file(tmp_path):
+    import subprocess
     p = tmp_path / "narration.mp3"
-    p.write_bytes(b"fake audio data " * 100)
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=1:sample_rate=44100",
+        "-q:a", "9", str(p),
+    ], capture_output=True, check=True)
     return p
 
 
@@ -182,7 +187,7 @@ class TestRenderPlan:
             "span_id": spans[0]["id"],
             "asset_type": "lipsync_video",
             "model": "seedance_2_0",
-            "audio_policy": "baked_in",
+            "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only",
         }]
         plan = compile_render_plan(prod["id"], span_specs, estimated_cost_usd=5.0, db_path=db)
         assert len(plan["render_units"]) == 1
@@ -208,6 +213,7 @@ class TestBudget:
         plan = compile_render_plan(prod["id"], [{
             "span_id": spans[0]["id"],
             "asset_type": "lipsync_video",
+            "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only",
         }], estimated_cost_usd=10.0, db_path=db)
         ar = request_spend_approval(prod["id"], plan["plan_revision_id"], 10.0, db_path=db)
         assert ar["status"] == "pending"

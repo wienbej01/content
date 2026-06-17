@@ -577,6 +577,20 @@ def import_legacy_clip(project_slug, clip, db_path=None):
                                metadata={"legacy_clip_id": clip.get("clip_id")}, db_path=db_path) \
         if full_path.is_file() else None
     now = _now()
+    raw_policy = clip.get("audio_policy") or "strip"
+    policy_map = {
+        "baked_in": "HERO_SYNC_LOCKED", "generated_tts": "HERO_SYNC_LOCKED",
+        "strip": "BROLL_FLEX", "ambient": "AMBIENCE_OR_SFX",
+        "narration_overlay": "BROLL_FLEX", "silent": "SILENT_GRAPHIC",
+        "HERO_SYNC_LOCKED": "HERO_SYNC_LOCKED", "BROLL_FLEX": "BROLL_FLEX",
+        "BROLL_SYNCED_ACTION": "BROLL_SYNCED_ACTION",
+        "AMBIENCE_OR_SFX": "AMBIENCE_OR_SFX", "MUSIC_BED": "MUSIC_BED",
+        "SILENT_GRAPHIC": "SILENT_GRAPHIC",
+    }
+    audio_policy = policy_map.get(raw_policy, "BROLL_FLEX")
+    is_hero = audio_policy == "HERO_SYNC_LOCKED"
+    final_audio = "master_narration" if is_hero else "none"
+    provider_usage = "diagnostic_only" if is_hero else "discarded"
     with transaction(db_path) as conn:
         existing = conn.execute(
             "SELECT * FROM render_units WHERE legacy_clip_id=?", (clip.get("clip_id"),)
@@ -589,15 +603,19 @@ def import_legacy_clip(project_slug, clip, db_path=None):
         conn.execute(
             """INSERT INTO render_units
                (id, production_id, ordinal, label, legacy_clip_id, asset_type, model,
-                audio_policy, lipsync_required, required_start_ms, required_end_ms,
+                audio_policy, final_audio_source, provider_audio_usage, text_policy,
+                lipsync_required, required_start_ms, required_end_ms,
                 required_duration_ms, slot_index, slot_total, status, active_artifact_id,
                 metadata_json, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(legacy_clip_id) DO UPDATE SET
                  label=excluded.label,
                  asset_type=excluded.asset_type,
                  model=excluded.model,
                  audio_policy=excluded.audio_policy,
+                 final_audio_source=excluded.final_audio_source,
+                 provider_audio_usage=excluded.provider_audio_usage,
+                 text_policy=excluded.text_policy,
                  lipsync_required=excluded.lipsync_required,
                  required_start_ms=excluded.required_start_ms,
                  required_end_ms=excluded.required_end_ms,
@@ -611,7 +629,8 @@ def import_legacy_clip(project_slug, clip, db_path=None):
             (
                 render_unit_id, production["id"], ordinal, clip.get("production_beat_id"),
                 clip.get("clip_id"), clip.get("asset_type") or "generated_video",
-                clip.get("model"), clip.get("audio_policy") or "strip",
+                clip.get("model"), audio_policy,
+                final_audio, provider_usage, "NO_VISIBLE_TEXT" if not is_hero else None,
                 int(bool(clip.get("lipsync_required"))), start_ms, end_ms, end_ms - start_ms,
                 clip.get("split_index"), clip.get("split_total"), clip.get("status") or "ordered",
                 artifact["id"] if artifact else None, _json(clip), now, now,
@@ -773,6 +792,7 @@ def main(argv=None):
     parser.add_argument("--db", help="Override production database path")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init")
+    sub.add_parser("migrate")
     create = sub.add_parser("create")
     create.add_argument("project_slug")
     create.add_argument("--seed")
@@ -796,6 +816,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.command == "init":
+        print(migrate(args.db))
+    if args.command == "migrate":
         print(migrate(args.db))
     elif args.command == "create":
         print(json.dumps(ensure_production(args.project_slug, args.seed, args.video_type,

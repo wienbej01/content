@@ -1,7 +1,10 @@
-"""Sprint 5: Policy-Complete Assembly DTOs (Ticket LB-500).
+"""Sprint 5/R5: Policy-Complete Assembly DTOs (Tickets LB-500 / R5-001).
 
 Constructs and validates a complete DTO for hero assembly, ensuring
 no hero command can be constructed from incomplete or stale data.
+
+R5-001: Extends with FullAssemblyContract covering picture tracks, master audio,
+music, graphics, captions, and output specs. Built exclusively from DB.
 """
 from __future__ import annotations
 
@@ -10,6 +13,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
 import production_db as _db
+
+DEFAULT_VERSION = 2
 
 
 @dataclass
@@ -156,5 +161,162 @@ def validate_dto_staleness(dto: HeroAssemblyDTO, production_id: str, db_path=Non
         ).fetchone()
         if not val or val["status"] != "pass":
             raise AssemblyDTOValidationError(f"Validation evidence {val_id} is stale or failing")
-            
+
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# R5-001  Full Assembly Contract (DB-native, versioned)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PictureTrack:
+    """A single picture track segment for the assembly timeline."""
+    render_unit_id: str
+    artifact_id: str
+    artifact_uri: str
+    artifact_sha256: str
+    start_ms: int
+    end_ms: int
+    audio_policy: str
+    asset_type: str = "generated_video"
+    slot_index: Optional[int] = None
+    slot_total: Optional[int] = None
+
+
+@dataclass
+class MasterAudioTrack:
+    """The master narration audio spine."""
+    artifact_id: str
+    artifact_uri: str
+    artifact_sha256: str
+    duration_ms: int
+    sample_rate: int = 48000
+
+
+@dataclass
+class FullAssemblyContract:
+    """R5-001: Complete DB-native assembly contract, version 2.
+
+    Covers picture tracks, master audio, music, graphics, captions, and output specs.
+    Built exclusively from DB; JSON is internal serialization only.
+    """
+    version: int = DEFAULT_VERSION
+    production_id: str = ""
+    picture_tracks: List[PictureTrack] = field(default_factory=list)
+    master_audio: Optional[MasterAudioTrack] = None
+    music_artifact_id: Optional[str] = None
+    graphics_artifact_id: Optional[str] = None
+    captions_json: Optional[str] = None
+    output_specs: Dict[str, Any] = field(default_factory=dict)
+
+    def total_duration_ms(self) -> int:
+        if not self.picture_tracks:
+            return 0
+        return max(pt.end_ms for pt in self.picture_tracks) - min(pt.start_ms for pt in self.picture_tracks)
+
+    def validate_continuity(self) -> list[str]:
+        issues = []
+        sorted_tracks = sorted(self.picture_tracks, key=lambda pt: pt.start_ms)
+        for i in range(len(sorted_tracks) - 1):
+            a = sorted_tracks[i]
+            b = sorted_tracks[i + 1]
+            if a.end_ms > b.start_ms:
+                issues.append(f"PictureTrack {a.render_unit_id} [{a.start_ms},{a.end_ms}] overlaps {b.render_unit_id} [{b.start_ms},{b.end_ms}]")
+            if a.end_ms < b.start_ms:
+                issues.append(f"Gap between {a.render_unit_id} and {b.render_unit_id}: {b.start_ms - a.end_ms}ms")
+        return issues
+
+
+def build_assembly_contract(production_id: str, db_path=None) -> FullAssemblyContract:
+    """Build a complete FullAssemblyContract from the DB.
+
+    Verifies artifact existence, SHA integrity, and blocks on open repairs
+    or stale approvals."""
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+
+    units = conn.execute(
+        """SELECT ru.id, ru.active_artifact_id, ru.audio_policy, ru.asset_type,
+                  ru.required_start_ms, ru.required_end_ms, ru.slot_index, ru.slot_total,
+                  a.uri as artifact_uri, a.sha256 as artifact_sha256
+           FROM render_units ru
+           JOIN artifacts a ON ru.active_artifact_id = a.id
+           WHERE ru.production_id=? AND ru.status IN ('generated', 'valid')
+           ORDER BY ru.ordinal""",
+        (production_id,),
+    ).fetchall()
+
+    if not units:
+        raise AssemblyDTOValidationError(f"No render units with active artifacts for production {production_id}")
+
+    open_crs = conn.execute(
+        """SELECT COUNT(*) as cnt FROM change_requests
+           WHERE production_id=? AND status='open' AND target_stage='assemble'""",
+        (production_id,),
+    ).fetchone()
+    if open_crs["cnt"] > 0:
+        raise AssemblyDTOValidationError(f"{open_crs['cnt']} open change requests targeting assemble")
+
+    pending_approvals = conn.execute(
+        """SELECT gate_name FROM approval_requests
+           WHERE production_id=? AND status NOT IN ('pass', 'fail')""",
+        (production_id,),
+    ).fetchall()
+    if pending_approvals:
+        gates = [a["gate_name"] for a in pending_approvals]
+        raise AssemblyDTOValidationError(f"Pending approvals: {gates}")
+
+    master_art = conn.execute(
+        """SELECT id, uri, sha256, duration_ms FROM artifacts
+           WHERE production_id=? AND kind='master_audio'
+           ORDER BY created_at DESC LIMIT 1""",
+        (production_id,),
+    ).fetchone()
+    if not master_art:
+        master_art = conn.execute(
+            """SELECT id, uri, sha256, duration_ms FROM artifacts
+               WHERE production_id=? AND kind='tts_master'
+               ORDER BY created_at DESC LIMIT 1""",
+            (production_id,),
+        ).fetchone()
+
+    picture_tracks = []
+    for u in units:
+        picture_tracks.append(PictureTrack(
+            render_unit_id=u["id"],
+            artifact_id=u["active_artifact_id"],
+            artifact_uri=u["artifact_uri"],
+            artifact_sha256=u["artifact_sha256"],
+            start_ms=u["required_start_ms"],
+            end_ms=u["required_end_ms"],
+            audio_policy=u["audio_policy"],
+            asset_type=u["asset_type"],
+            slot_index=u["slot_index"],
+            slot_total=u["slot_total"],
+        ))
+
+    master = None
+    if master_art:
+        master = MasterAudioTrack(
+            artifact_id=master_art["id"],
+            artifact_uri=master_art["uri"],
+            artifact_sha256=master_art["sha256"],
+            duration_ms=master_art["duration_ms"],
+        )
+
+    conn.close()
+
+    contract = FullAssemblyContract(
+        version=DEFAULT_VERSION,
+        production_id=production_id,
+        picture_tracks=picture_tracks,
+        master_audio=master,
+        output_specs={"1920x1080": {"w": 1920, "h": 1080, "fps": 24}},
+    )
+
+    issues = contract.validate_continuity()
+    if issues:
+        raise AssemblyDTOValidationError("Assembly continuity violations:\n" + "\n".join(issues))
+
+    return contract

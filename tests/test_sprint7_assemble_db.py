@@ -46,7 +46,7 @@ def _make_valid_render_unit(prod_id, db, tmp_path, label="B001"):
     units = plan_render_units(
         prod_id,
         [{"span_id": spans[0]["id"], "asset_type": "lipsync_video",
-          "audio_policy": "baked_in", "model": "seedance_2_0"}],
+          "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only", "model": "seedance_2_0"}],
         db_path=db,
     )
     f = tmp_path / f"{label}.mp4"
@@ -78,7 +78,7 @@ class TestBuildAssemblyInputs:
         )
         plan_render_units(
             prod["id"],
-            [{"span_id": spans[0]["id"], "asset_type": "lipsync_video"}],
+            [{"span_id": spans[0]["id"], "asset_type": "lipsync_video", "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only"}],
             db_path=db,
         )
         # unit status is 'ordered' (not valid) → should block
@@ -97,7 +97,7 @@ class TestBuildAssemblyInputs:
             units = plan_render_units(
                 p["id"],
                 [{"span_id": spans[0]["id"], "asset_type": "lipsync_video",
-                  "audio_policy": "baked_in"}],
+                  "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration", "provider_audio_usage": "diagnostic_only"}],
                 db_path=db,
             )
             f = tmp_path / f"clip_{i}.mp4"

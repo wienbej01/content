@@ -19,23 +19,24 @@ SCRIPTS_DIR = ROOT / "scripts"
 # These are legacy adapters or transitional scripts that will be refactored or deleted.
 # TODO(ALN-B1): Remove from allowlist as each script is migrated to split IDs.
 ALLOWLIST = {
-    "scripts/compile_media_prompts.py",  # Transitional, reads legacy plan format
-    "scripts/reconcile_duration.py",  # Legacy ffprobe fallback path (DB path is clean)
-    "scripts/build_manifest.py",  # Transitional manifest builder
-    "scripts/assemble.py",  # Transitional assembly script
-    "scripts/qa_media.py",  # Transitional QA script
-    "scripts/storyboard.py",  # Uses beat_id for LLM prompt generation (display label)
-    "scripts/repair_storyboard_beats.py",  # Transitional repair script
-    "scripts/review_storyboard.py",  # Transitional review script
-    "scripts/review_production_storyboard.py",  # Transitional review script
-    "scripts/slice_continuous_lipsync.py",  # Transitional slicing script
-    "scripts/insert_emphasis_pauses.py",  # Transitional script
-    "scripts/generate_media.py",  # Transitional generation script
-    "scripts/upscale_media.py",  # Transitional script
-    "scripts/audio_timing.py",  # Transitional script
-    "scripts/budget.py",  # Transitional script
-    "scripts/tts_service.py",  # Transitional service
-    # Newly identified transitional files:
+    "scripts/compile_media_prompts.py",
+    "scripts/reconcile_duration.py",
+    "scripts/build_manifest.py",
+    "scripts/assemble.py",
+    "scripts/qa_media.py",
+    "scripts/storyboard.py",
+    "scripts/repair_storyboard_beats.py",
+    "scripts/review_storyboard.py",
+    "scripts/review_production_storyboard.py",
+    "scripts/hero_grouping.py",  # Internal group planning, uses beat_id for member identity
+    "scripts/production_repo.py",
+    "scripts/slice_continuous_lipsync.py",
+    "scripts/insert_emphasis_pauses.py",
+    "scripts/generate_media.py",
+    "scripts/upscale_media.py",
+    "scripts/audio_timing.py",
+    "scripts/budget.py",
+    "scripts/tts_service.py",
     "scripts/production_storyboard.py",
     "scripts/render_graphics.py",
     "scripts/review_media_plan.py",
@@ -43,7 +44,7 @@ ALLOWLIST = {
     "scripts/qa_final.py",
     "scripts/build_quality_report.py",
     "scripts/direct_storyboard.py",
-    "scripts/clip_db.py",  # Contains fallback `beat.get("production_beat_id", beat["beat_id"])`
+    "scripts/clip_db.py",
 }
 
 

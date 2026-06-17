@@ -160,20 +160,39 @@ class TestHeroRenderGroupPlanner:
 class TestHeroGroupValidation:
     def test_valid_group_passes_validation(self):
         """Verify that a valid group passes validation."""
+        from hero_grouping import VisibleInterval
         group = HeroRenderGroup(
             hero_render_group_id="test_grp",
+            group_hash="test_grp",
             generation_start_sample=0,
-            generation_end_sample=144000,  # 3.0s
+            generation_end_sample=144000,
+            generation_duration_samples=144000,
             requested_duration_sec=3.0,
-            member_visible_intervals=[{"start_sample": 0, "end_sample": 144000, "beat_id": "B001"}]  # type: ignore
+            member_visible_intervals=[VisibleInterval(start_sample=0, end_sample=144000, beat_id="B001")]
+        )
+        assert validate_hero_group(group) is True
+
+    def test_exceeds_max_duration_fails_validation(self):
+        """Verify that a group exceeding max duration fails validation."""
+        from hero_grouping import VisibleInterval
+        group = HeroRenderGroup(
+            hero_render_group_id="test_grp",
+            group_hash="test_grp",
+            generation_start_sample=0,
+            generation_end_sample=960000,
+            generation_duration_samples=960000,
+            requested_duration_sec=20.0,
+            member_visible_intervals=[VisibleInterval(start_sample=0, end_sample=960000, beat_id="B001")]
         )
         # Note: The dataclass expects VisibleInterval objects, but for this test we just check duration
         # Let's create it properly
         from scripts.hero_grouping import VisibleInterval
         group = HeroRenderGroup(
             hero_render_group_id="test_grp",
+            group_hash="test_grp",
             generation_start_sample=0,
             generation_end_sample=144000,
+            generation_duration_samples=144000,
             requested_duration_sec=3.0,
             member_visible_intervals=[VisibleInterval(start_sample=0, end_sample=144000, beat_id="B001")]
         )
@@ -184,8 +203,10 @@ class TestHeroGroupValidation:
         from scripts.hero_grouping import VisibleInterval
         group = HeroRenderGroup(
             hero_render_group_id="test_grp",
+            group_hash="test_grp",
             generation_start_sample=0,
             generation_end_sample=960000,  # 20.0s
+            generation_duration_samples=960000,
             requested_duration_sec=20.0,
             member_visible_intervals=[VisibleInterval(start_sample=0, end_sample=960000, beat_id="B001")]
         )

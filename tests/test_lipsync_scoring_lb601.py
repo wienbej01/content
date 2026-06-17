@@ -1,178 +1,131 @@
-"""Tests for audiovisual lipsync scoring (Ticket LB-601)."""
+"""Tests for R6-001 fail-closed lipsync scoring."""
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from scripts.lipsync_scoring import score_lipsync, record_lipsync_evidence, PASS_THRESHOLD, REVIEW_THRESHOLD
+from lipsync_scoring import (
+    score_lipsync, record_lipsync_evidence,
+    register_sync_model, get_sync_model, SyncModelAdapter, NoModelLoaded,
+    PASS_THRESHOLD, REVIEW_THRESHOLD,
+)
+
+
+class FakeSyncedModel(SyncModelAdapter):
+    """A test model that returns a high sync score for testing."""
+    def __init__(self, score=0.90, confidence=0.95, offset=0):
+        self._score = score
+        self._confidence = confidence
+        self._offset = offset
+
+    def load(self) -> bool:
+        return True
+
+    def score(self, video_path, audio_path):
+        return {
+            "score": self._score,
+            "offset_estimate_ms": self._offset,
+            "confidence": self._confidence,
+            "per_window_scores": [self._score],
+            "progressive_drift_ms": 0,
+            "visible_face_confidence": 1.0,
+            "multiple_faces_detected": False,
+            "occlusion_confidence": 0.0,
+        }
+
+    @property
+    def model_info(self):
+        return {"name": "fake_synced", "version": "test_1.0", "checksum": "abc", "environment": {}}
 
 
 class TestLipsyncScoring:
-    @patch('scripts.lipsync_scoring.subprocess.run')
-    @patch('scripts.lipsync_scoring._estimate_audio_energy')
-    def test_aligned_talking_head_passes(self, mock_energy, mock_subprocess):
-        """Verify that a standard video with audio passes the heuristic check."""
-        mock_energy.return_value = 0.5  # Simulate healthy audio energy
-        
-        # Mock ffprobe to return valid video metadata
-        mock_subprocess.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps({
-                "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "2.0"}]
-            }),
-            stderr=""
-        )
-        
-        with tempfile.TemporaryDirectory() as td:
-            video_path = Path(td) / "video.mp4"
-            audio_path = Path(td) / "audio.wav"
-            video_path.write_bytes(b"fake video")
-            audio_path.write_bytes(b"fake audio")
-            
-            result = score_lipsync(video_path, audio_path)
-            
-            assert result["result_state"] == "PASS"
-            assert result["score"] >= PASS_THRESHOLD
-            assert result["failure_reason"] is None
+    @pytest.fixture(autouse=True)
+    def reset_model(self):
+        """Reset registered model between tests."""
+        from lipsync_scoring import _registered_model
+        _registered_model = None
+        yield
+        _registered_model = None
 
-    @patch('scripts.lipsync_scoring.subprocess.run')
-    @patch('scripts.lipsync_scoring._estimate_audio_energy')
-    def test_frozen_mouth_fails(self, mock_energy, mock_subprocess):
-        """Verify that a video with silent audio (simulating frozen mouth/no speech) fails."""
-        mock_energy.return_value = 0.001  # Simulate very low/no audio energy
-        
-        mock_subprocess.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps({
-                "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "2.0"}]
-            }),
-            stderr=""
-        )
-        
-        with tempfile.TemporaryDirectory() as td:
-            video_path = Path(td) / "video.mp4"
-            audio_path = Path(td) / "audio.wav"
-            video_path.write_bytes(b"fake video")
-            audio_path.write_bytes(b"fake audio")
-            
-            result = score_lipsync(video_path, audio_path)
-            
-            assert result["result_state"] == "FAIL_REGENERATE"
-            assert result["score"] < PASS_THRESHOLD
-            assert "Low audio energy or frozen mouth" in result["failure_reason"]
+    def test_no_model_returns_review_required(self, tmp_path):
+        """Without a real model, score returns REVIEW_REQUIRED."""
+        video = tmp_path / "test.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)],
+                       capture_output=True, check=True)
+        audio = tmp_path / "test.mp3"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3:sample_rate=44100",
+                        "-q:a", "9", str(audio)], capture_output=True, check=True)
 
-    @patch('scripts.lipsync_scoring.subprocess.run')
-    def test_no_visible_face_requires_review(self, mock_subprocess):
-        """Verify that a video too short for analysis requires review."""
-        # Mock ffprobe to return a very short duration
-        mock_subprocess.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps({
-                "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "0.2"}]
-            }),
-            stderr=""
-        )
-        
-        with tempfile.TemporaryDirectory() as td:
-            video_path = Path(td) / "video.mp4"
-            audio_path = Path(td) / "audio.wav"
-            video_path.write_bytes(b"fake video")
-            audio_path.write_bytes(b"fake audio")
-            
-            result = score_lipsync(video_path, audio_path)
-            
-            assert result["result_state"] == "REVIEW_REQUIRED"
-            assert result["confidence"] < 0.5
-            assert "too short" in result["failure_reason"]
+        result = score_lipsync(video, audio)
+        assert result["result_state"] == "REVIEW_REQUIRED"
+        assert "NO_REAL_MODEL_LOADED" in result["failure_reason"]
 
-    def test_missing_artifacts_fails(self):
-        """Verify that missing input artifacts result in FAIL_REGENERATE."""
-        result = score_lipsync(Path("/nonexistent/video.mp4"), Path("/nonexistent/audio.wav"))
-        
-        assert result["result_state"] == "FAIL_REGENERATE"
-        assert result["failure_reason"] == "Input artifacts missing"
+    def test_with_synced_model_returns_pass(self, tmp_path):
+        """A loaded synced model returns PASS for aligned input."""
+        register_sync_model(FakeSyncedModel(score=0.90, confidence=0.95))
 
-    @patch('scripts.lipsync_scoring.subprocess.run')
-    @patch('scripts.lipsync_scoring._estimate_audio_energy')
-    def test_evidence_recording_includes_required_fields(self, mock_energy, mock_subprocess):
-        """Verify that the scored evidence contains all required fields."""
-        mock_energy.return_value = 0.5
-        mock_subprocess.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps({
-                "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "2.0"}]
-            }),
-            stderr=""
-        )
-        
-        with tempfile.TemporaryDirectory() as td:
-            video_path = Path(td) / "video.mp4"
-            audio_path = Path(td) / "audio.wav"
-            video_path.write_bytes(b"fake video")
-            audio_path.write_bytes(b"fake audio")
-            
-            result = score_lipsync(video_path, audio_path)
-            
-            # Check all required fields from the plan
-            assert "score" in result
-            assert "offset_estimate_ms" in result
-            assert "confidence" in result
-            assert "algorithm_version" in result
-            assert "input_artifact_hashes" in result
-            assert "video" in result["input_artifact_hashes"]
-            assert "audio" in result["input_artifact_hashes"]
-            assert "pass_threshold" in result
-            assert "review_threshold" in result
-            assert "failure_reason" in result
-            assert "result_state" in result
+        video = tmp_path / "test.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)],
+                       capture_output=True, check=True)
+        audio = tmp_path / "test.mp3"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3:sample_rate=44100",
+                        "-q:a", "9", str(audio)], capture_output=True, check=True)
 
-    @patch('scripts.lipsync_scoring._db._now')
-    @patch('scripts.lipsync_scoring._db.transaction')
-    @patch('scripts.lipsync_scoring.subprocess.run')
-    @patch('scripts.lipsync_scoring._estimate_audio_energy')
-    def test_record_lipsync_evidence_saves_to_db(self, mock_energy, mock_subprocess, mock_transaction, mock_now):
-        """Verify that lipsync evidence is correctly formatted and saved to the DB."""
-        mock_energy.return_value = 0.5
-        mock_subprocess.return_value = MagicMock(
-            returncode=0,
-            stdout=json.dumps({
-                "streams": [{"codec_type": "video", "width": 1280, "height": 720, "duration": "2.0"}]
-            }),
-            stderr=""
-        )
-        mock_now.return_value = "2026-01-01T00:00:00Z"
-        
-        mock_conn = MagicMock()
-        # Mock the context manager for transaction
-        mock_transaction.return_value.__enter__.return_value = mock_conn
-        
-        with tempfile.TemporaryDirectory() as td:
-            video_path = Path(td) / "video.mp4"
-            audio_path = Path(td) / "audio.wav"
-            video_path.write_bytes(b"fake video")
-            audio_path.write_bytes(b"fake audio")
-            
-            evidence = record_lipsync_evidence(
-                production_id="prod_1",
-                render_unit_id="ru_1",
-                video_path=video_path,
-                audio_path=audio_path,
-                db_path="test.db"
-            )
-            
-            # Verify the INSERT statement was called with correct structure
-            assert mock_conn.execute.called
-            call_args = mock_conn.execute.call_args[0]
-            sql = call_args[0]
-            params = call_args[1]
-            
-            assert "lipsync_score" in sql
-            assert params[1] == "prod_1"
-            assert params[2] == "ru_1"
-            assert params[3] == "lipsync_scoring_v1"
-            
-            # Verify evidence JSON is valid (it's at index 6)
-            evidence_json = json.loads(params[6])
-            assert evidence_json["result_state"] == evidence["result_state"]
+        result = score_lipsync(video, audio)
+        assert result["result_state"] == "PASS"
+        assert result["score"] >= PASS_THRESHOLD
+
+    def test_with_model_low_score_blocks(self, tmp_path):
+        """A loaded model that scores below threshold returns BLOCKED."""
+        register_sync_model(FakeSyncedModel(score=0.20, confidence=0.95))
+
+        video = tmp_path / "test.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)],
+                       capture_output=True, check=True)
+        audio = tmp_path / "test.mp3"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3:sample_rate=44100",
+                        "-q:a", "9", str(audio)], capture_output=True, check=True)
+
+        result = score_lipsync(video, audio)
+        assert result["result_state"] == "BLOCKED"
+
+    def test_no_visible_face_requires_review(self, tmp_path):
+        """Short video returns REVIEW_REQUIRED."""
+        video = tmp_path / "short.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=0.3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)],
+                       capture_output=True, check=True)
+        audio = tmp_path / "short.mp3"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100:duration=0.3",
+                        "-q:a", "9", str(audio)], capture_output=True, check=True)
+
+        result = score_lipsync(video, audio)
+        assert result["result_state"] == "REVIEW_REQUIRED"
+
+    def test_missing_artifacts_returns_blocked(self, tmp_path):
+        """Missing files return BLOCKED."""
+        result = score_lipsync(tmp_path / "nonexistent.mp4", tmp_path / "nonexistent.mp3")
+        assert result["result_state"] == "BLOCKED"
+
+    def test_result_includes_model_info(self, tmp_path):
+        """Result includes model checksum/version metadata."""
+        register_sync_model(FakeSyncedModel())
+
+        video = tmp_path / "test.mp4"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video)],
+                       capture_output=True, check=True)
+        audio = tmp_path / "test.mp3"
+        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=3:sample_rate=44100",
+                        "-q:a", "9", str(audio)], capture_output=True, check=True)
+
+        result = score_lipsync(video, audio)
+        assert "model_info" in result
+        assert result["model_info"]["name"] == "fake_synced"
+        assert "input_artifact_hashes" in result

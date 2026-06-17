@@ -1,145 +1,142 @@
-"""Tests for repair routing of failed hero units (Ticket LB-603)."""
-import json
+"""Tests for R6-004 repair routing against real schema."""
+import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from scripts.repair_routing import (
-    create_repair_request,
-    is_repair_request_open,
-    resolve_repair_request,
-    get_open_repair_requests,
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import production_db as _db
+from repair_routing import (
+    create_repair_request, is_repair_request_open,
+    resolve_repair_request, get_open_repair_requests,
+    invalidate_dependent_deliverables, RepairRoutingError,
 )
 
 
+@pytest.fixture
+def db(tmp_path):
+    p = tmp_path / "test.db"
+    os.environ["PRODUCTION_DB_PATH"] = str(p)
+    _db.migrate(str(p))
+    yield str(p)
+    del os.environ["PRODUCTION_DB_PATH"]
+
+
+@pytest.fixture
+def prod(db):
+    return _db.ensure_production("repair_test", db_path=db)
+
+
+def _make_artifact(prod_id, db_path, path):
+    from production_repo import register_artifact
+    path.write_bytes(b"fake artifact content for testing")
+    return register_artifact(prod_id, path, "media", db_path=db_path)
+
+
+def _make_render_unit(prod_id, db_path):
+    from production_repo import commit_timeline_spans, plan_render_units
+    spans = commit_timeline_spans(prod_id, [{"label": "B001", "start_ms": 0, "end_ms": 5000}], db_path=db_path)
+    return plan_render_units(prod_id, [{
+        "span_id": spans[0]["id"], "asset_type": "lipsync_video",
+        "audio_policy": "HERO_SYNC_LOCKED", "final_audio_source": "master_narration",
+        "provider_audio_usage": "diagnostic_only",
+    }], db_path=db_path)[0]
+
+
 class TestRepairRouting:
-    @patch('scripts.repair_routing._db.transaction')
-    @patch('scripts.repair_routing._db._now')
-    def test_create_repair_request_saves_to_db(self, mock_now, mock_transaction):
-        """Verify that a repair request is correctly created in the DB."""
-        mock_now.return_value = "2026-01-01T00:00:00Z"
-        mock_conn = MagicMock()
-        mock_transaction.return_value.__enter__.return_value = mock_conn
-        
-        request_id = create_repair_request(
-            production_id="prod_1",
-            render_unit_id="ru_1",
-            failure_evidence_id="val_1",
-            owning_stage="generate_media",
-            reason="Lipsync score critically low",
-            db_path="test.db"
+    def test_create_repair_request(self, db, prod):
+        ru = _make_render_unit(prod["id"], db)
+        cr = create_repair_request(
+            production_id=prod["id"],
+            render_unit_id=ru["id"],
+            change_type="regenerate",
+            requested_by_stage="qa_media",
+            failure_reason="Failed lipsync score",
+            db_path=db,
         )
-        
-        assert request_id.startswith("cr_")
-        assert mock_conn.execute.called
-        call_args = mock_conn.execute.call_args[0]
-        sql = call_args[0]
-        params = call_args[1]
-        
-        assert "change_requests" in sql
-        assert params[1] == "prod_1"
-        assert params[2] == "ru_1"
-        assert params[3] == "generate_media"
-        assert params[4] == "Lipsync score critically low"
-        assert "'open'" in sql  # status is hardcoded in SQL
+        assert cr["status"] == "open"
+        assert cr["change_type"] == "regenerate"
+        assert cr["requested_by_stage"] == "qa_media"
+        assert is_repair_request_open(prod["id"], ru["id"], db_path=db)
 
-    @patch('scripts.repair_routing._db.connect')
-    @patch('scripts.repair_routing._db.migrate')
-    def test_is_repair_request_open_returns_true_when_open(self, mock_migrate, mock_connect):
-        """Verify that is_repair_request_open returns True when an open request exists."""
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_conn.execute.return_value.fetchone.return_value = {"id": "cr_123"}
-        
-        assert is_repair_request_open("prod_1", "ru_1", db_path="test.db") is True
-
-    @patch('scripts.repair_routing._db.connect')
-    @patch('scripts.repair_routing._db.migrate')
-    def test_is_repair_request_open_returns_false_when_closed(self, mock_migrate, mock_connect):
-        """Verify that is_repair_request_open returns False when no open request exists."""
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_conn.execute.return_value.fetchone.return_value = None
-        
-        assert is_repair_request_open("prod_1", "ru_1", db_path="test.db") is False
-
-    @patch('scripts.repair_routing._db.transaction')
-    @patch('scripts.repair_routing._db._now')
-    def test_resolve_repair_request_updates_artifact_and_status(self, mock_now, mock_transaction):
-        """Verify that resolving a repair request updates the render unit and marks the request resolved."""
-        mock_now.return_value = "2026-01-01T00:00:00Z"
-        mock_conn = MagicMock()
-        mock_transaction.return_value.__enter__.return_value = mock_conn
-        
-        # Mock the fetchone for getting the subject_id
-        mock_conn.execute.return_value.fetchone.return_value = {"subject_id": "ru_1"}
-        
-        resolve_repair_request(
-            production_id="prod_1",
-            request_id="cr_123",
-            new_artifact_id="art_new",
-            new_evidence_id="val_new",
-            db_path="test.db"
+    def test_repair_marks_unit_change_requested(self, db, prod):
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
         )
-        
-        # Verify the UPDATE statements were called
-        assert mock_conn.execute.call_count >= 2
-        
-        # Check the render_units update
-        ru_update_call = None
-        cr_update_call = None
-        for call in mock_conn.execute.call_args_list:
-            sql = call[0][0]
-            if "UPDATE render_units" in sql:
-                ru_update_call = call
-            elif "UPDATE change_requests" in sql:
-                cr_update_call = call
-                
-        assert ru_update_call is not None
-        assert ru_update_call[0][1][0] == "art_new"  # new_artifact_id
-        assert ru_update_call[0][1][2] == "ru_1"    # render_unit_id
-        
-        assert cr_update_call is not None
-        assert "status='resolved'" in cr_update_call[0][0]  # status is hardcoded in SQL
-        assert cr_update_call[0][1][2] == "cr_123"    # request_id
+        conn = _db.connect(db)
+        row = conn.execute("SELECT status FROM render_units WHERE id=?", (ru["id"],)).fetchone()
+        conn.close()
+        assert row["status"] == "change_requested"
 
-    @patch('scripts.repair_routing._db.connect')
-    @patch('scripts.repair_routing._db.migrate')
-    def test_get_open_repair_requests_returns_list(self, mock_migrate, mock_connect):
-        """Verify that get_open_repair_requests returns a list of open requests."""
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_conn.execute.return_value.fetchall.return_value = [
-            {"id": "cr_1", "subject_id": "ru_1", "target_stage": "generate_media", "reason": "Fail 1", "created_at": "2026-01-01"},
-            {"id": "cr_2", "subject_id": "ru_2", "target_stage": "generate_media", "reason": "Fail 2", "created_at": "2026-01-01"}
-        ]
-        
-        requests = get_open_repair_requests("prod_1", db_path="test.db")
-        
-        assert len(requests) == 2
-        assert requests[0]["id"] == "cr_1"
-        assert requests[1]["id"] == "cr_2"
+    def test_resolve_requires_all_validations_pass(self, db, prod, tmp_path):
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
+        )
+        new_art = _make_artifact(prod["id"], db, tmp_path / "new.mp4")
 
-    def test_stale_artifact_cannot_be_reactivated(self):
-        """
-        Verify that the architecture prevents reactivating a stale artifact.
-        This is implicitly enforced by the fact that resolve_repair_request
-        only accepts a new_artifact_id and updates the render unit to point to it.
-        The old artifact remains in the DB but is no longer referenced as 'active'.
-        """
-        # This is a structural test. The resolve_repair_request function
-        # explicitly sets active_artifact_id to the new artifact.
-        # There is no "reactivate" function, so this is enforced by design.
-        assert True  # Structural guarantee
+        with pytest.raises(RepairRoutingError, match="cannot resolve"):
+            resolve_repair_request(
+                prod["id"], ru["id"], new_art["id"],
+                replacement_validations=["nonexistent_val"],
+                db_path=db,
+            )
 
-    def test_failed_replacement_leaves_request_open(self):
-        """
-        Verify that if a replacement fails, the request remains open.
-        Since resolve_repair_request is only called after successful validation,
-        a failed replacement simply means resolve_repair_request is never called,
-        leaving the request in 'open' status.
-        """
-        # This is a workflow test. The request stays open until explicitly resolved.
-        assert True  # Workflow guarantee
+    def test_resolve_updates_artifact_and_resolves(self, db, prod, tmp_path):
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
+        )
+        new_art = _make_artifact(prod["id"], db, tmp_path / "new.mp4")
+
+        result = resolve_repair_request(
+            prod["id"], ru["id"], new_art["id"],
+            db_path=db,
+        )
+        assert result["status"] == "resolved"
+        assert not is_repair_request_open(prod["id"], ru["id"], db_path=db)
+
+        conn = _db.connect(db)
+        ru_row = conn.execute("SELECT active_artifact_id, status FROM render_units WHERE id=?", (ru["id"],)).fetchone()
+        conn.close()
+        assert ru_row["active_artifact_id"] == new_art["id"]
+        assert ru_row["status"] == "generated"
+
+    def test_failed_replacement_leaves_request_open(self, db, prod, tmp_path):
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
+        )
+        assert is_repair_request_open(prod["id"], ru["id"], db_path=db)
+
+    def test_get_open_repair_requests(self, db, prod):
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
+        )
+        open_reqs = get_open_repair_requests(prod["id"], db_path=db)
+        assert len(open_reqs) >= 1
+
+    def test_open_repair_blocks_assembly(self, db, prod):
+        """An open repair request should be detectable by the assembly gate."""
+        ru = _make_render_unit(prod["id"], db)
+        create_repair_request(
+            prod["id"], ru["id"], "regenerate", "qa_media",
+            "test failure", db_path=db,
+        )
+        conn = _db.connect(db)
+        open_count = conn.execute(
+            "SELECT COUNT(*) as cnt FROM change_requests WHERE production_id=? AND status='open'",
+            (prod["id"],),
+        ).fetchone()["cnt"]
+        conn.close()
+        assert open_count >= 1

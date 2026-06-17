@@ -15,8 +15,23 @@ from production_repo import (
     commit_timeline_spans, get_active_timeline_spans, TimelineSpanError,
     plan_render_units, invalidate_render_units, get_render_units, RenderUnitError,
     register_artifact, verify_artifact_on_disk, link_artifact_to_render_unit,
-    ArtifactRegistryError,
+    ArtifactRegistryError, record_validation, record_change_request,
+    persist_hero_render_groups, get_active_hero_groups,
+    probe_media, MediaProbe,
 )
+
+CANONICAL_HERO_UNIT = {
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "final_audio_source": "master_narration",
+    "provider_audio_usage": "diagnostic_only",
+}
+
+CANONICAL_BROLL_UNIT = {
+    "audio_policy": "BROLL_FLEX",
+    "final_audio_source": "none",
+    "provider_audio_usage": "discarded",
+    "text_policy": "NO_VISIBLE_TEXT",
+}
 
 
 @pytest.fixture
@@ -118,8 +133,8 @@ class TestRenderUnits:
             "span_id": span["id"],
             "asset_type": "lipsync_video",
             "model": "seedance_2_0",
-            "audio_policy": "baked_in",
             "lipsync_required": True,
+            **CANONICAL_HERO_UNIT,
         }]
         units = plan_render_units(prod["id"], specs, db_path=db)
         assert len(units) == 1
@@ -137,7 +152,7 @@ class TestRenderUnits:
             "span_id": span["id"],
             "asset_type": "lipsync_video",
             "model": "seedance_2_0",
-            "audio_policy": "baked_in",
+            **CANONICAL_HERO_UNIT,
             "slots": [
                 {"slot_index": 0, "slot_total": 2, "start_ms": 0, "end_ms": 2500},
                 {"slot_index": 1, "slot_total": 2, "start_ms": 2500, "end_ms": 5000},
@@ -150,19 +165,23 @@ class TestRenderUnits:
 
     def test_invalid_span_id_raises(self, db, prod):
         with pytest.raises(RenderUnitError, match="not found"):
-            plan_render_units(prod["id"], [{"span_id": "nonexistent", "asset_type": "x"}], db_path=db)
+            plan_render_units(prod["id"], [{"span_id": "nonexistent", "asset_type": "x",
+                                             **CANONICAL_BROLL_UNIT}], db_path=db)
 
     def test_stale_span_rejected(self, db, prod):
         spans = [{"label": "B001", "start_ms": 0, "end_ms": 5000}]
         created = commit_timeline_spans(prod["id"], spans, db_path=db)
-        # Supersede by committing new spans
         commit_timeline_spans(prod["id"], [{"label": "B001", "start_ms": 0, "end_ms": 6000}], db_path=db)
         with pytest.raises(RenderUnitError, match="not active"):
-            plan_render_units(prod["id"], [{"span_id": created[0]["id"], "asset_type": "x"}], db_path=db)
+            plan_render_units(prod["id"], [{"span_id": created[0]["id"], "asset_type": "x",
+                                             **CANONICAL_BROLL_UNIT}], db_path=db)
 
     def test_invalidate_render_units(self, db, prod):
         span = self._make_span(prod["id"], db)
-        plan_render_units(prod["id"], [{"span_id": span["id"], "asset_type": "still_kenburns"}], db_path=db)
+        plan_render_units(prod["id"], [{"span_id": span["id"], "asset_type": "still_kenburns",
+                                         "audio_policy": "SILENT_GRAPHIC",
+                                         "final_audio_source": "none",
+                                         "provider_audio_usage": "discarded"}], db_path=db)
         count = invalidate_render_units(prod["id"], [span["id"]], db_path=db)
         assert count == 1
         stale = get_render_units(prod["id"], status="stale", db_path=db)
@@ -178,6 +197,7 @@ class TestRenderUnits:
             plan_render_units(
                 prod["id"],
                 [{"span_id": span["id"], "asset_type": "x",
+                  **CANONICAL_BROLL_UNIT,
                   "slots": [{"start_ms": 5000, "end_ms": 1000}]}],
                 db_path=db,
             )
@@ -249,9 +269,10 @@ class TestArtifactRegistry:
             prod["id"], [{"label": "B001", "start_ms": 0, "end_ms": 4000}], db_path=db
         )[0]
         units = plan_render_units(
-            prod["id"], [{"span_id": span["id"], "asset_type": "lipsync_video"}], db_path=db
+            prod["id"], [{"span_id": span["id"], "asset_type": "lipsync_video",
+                           **CANONICAL_HERO_UNIT}], db_path=db
         )
-        art = register_artifact(prod["id"], f, "generated_media", db_path=db)
+        art = register_artifact(prod["id"], f, "media", db_path=db)
         link_artifact_to_render_unit(art["id"], units[0]["id"], db_path=db)
         updated = get_render_units(prod["id"], db_path=db)
         assert updated[0]["active_artifact_id"] == art["id"]
@@ -263,7 +284,8 @@ class TestArtifactRegistry:
         f = tmp_path / "f.mp4"
         f.write_bytes(b"x")
         span = commit_timeline_spans(p2["id"], [{"label": "B001", "start_ms": 0, "end_ms": 4000}], db_path=db)[0]
-        units = plan_render_units(p2["id"], [{"span_id": span["id"], "asset_type": "x"}], db_path=db)
+        units = plan_render_units(p2["id"], [{"span_id": span["id"], "asset_type": "x",
+                                               **CANONICAL_BROLL_UNIT}], db_path=db)
         art = register_artifact(p1["id"], f, "media", db_path=db)
         with pytest.raises(ArtifactRegistryError, match="different productions"):
             link_artifact_to_render_unit(art["id"], units[0]["id"], db_path=db)

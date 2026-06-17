@@ -39,7 +39,7 @@ def _base_manifest(media_rel, audio_policy, words, continuous=True, asset_type="
 def test_continuous_silent_image_segment_validates(tmp_path):
     """A local_graphic PNG with audio_policy=strip, words=0, continuous mode → VALID (no audio needed)."""
     png = _png(tmp_path)
-    m = _base_manifest(png.name, "strip", 0, continuous=True)
+    m = _base_manifest(png.name, "BROLL_FLEX", 0, continuous=True)
     errors = assemble.validate_manifest(m, tmp_path)
     assert errors == [], f"silent continuous graphic should validate: {errors}"
 
@@ -55,7 +55,7 @@ def test_post_overlay_image_segment_validates(tmp_path):
 def test_segment_tts_image_still_needs_audio(tmp_path):
     """In segment_tts (non-continuous) mode, an image segment STILL needs its own audio."""
     png = _png(tmp_path)
-    m = _base_manifest(png.name, "strip", 5, continuous=False)  # words present, but no audio
+    m = _base_manifest(png.name, "BROLL_FLEX", 5, continuous=False)  # words present, but no audio
     errors = assemble.validate_manifest(m, tmp_path)
     assert any("image media requires" in e for e in errors), \
         f"segment_tts image without audio should error: {errors}"
@@ -64,7 +64,7 @@ def test_segment_tts_image_still_needs_audio(tmp_path):
 def test_segment_tts_zero_words_still_errors(tmp_path):
     """In segment_tts mode, words=0 is still an error (every segment carries narration)."""
     png = _png(tmp_path)
-    m = _base_manifest(png.name, "strip", 0, continuous=False)
+    m = _base_manifest(png.name, "BROLL_FLEX", 0, continuous=False)
     errors = assemble.validate_manifest(m, tmp_path)
     assert any("words" in e for e in errors), f"segment_tts words=0 should error: {errors}"
 
@@ -72,6 +72,6 @@ def test_segment_tts_zero_words_still_errors(tmp_path):
 def test_continuous_zero_words_ok(tmp_path):
     """In continuous mode, a silent graphic with words=0 is valid."""
     png = _png(tmp_path)
-    m = _base_manifest(png.name, "strip", 0, continuous=True)
+    m = _base_manifest(png.name, "BROLL_FLEX", 0, continuous=True)
     errors = assemble.validate_manifest(m, tmp_path)
     assert not any("words" in e for e in errors), f"continuous words=0 should be ok: {errors}"

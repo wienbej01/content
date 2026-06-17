@@ -1,159 +1,222 @@
-"""Sprint 6: Repair Routing for Failed Hero Units (Ticket LB-603).
+"""Sprint 6/R6: Repair Routing (Ticket LB-603 / R6-004).
 
-Manages the workflow for routing failed hero units back to their owning 
-generation stage for selective regeneration, preserving unaffected assets 
-and blocking assembly until the repair is successful.
+R6-004: Rebuild repair routing to use repository services instead of raw
+incompatible SQL. Stores change_type, requested_by_stage, target_stage,
+failure_evidence, replacement artifact info, and resolution_json.
+
+Uses production_repo.change_request services and production_db.transaction()
+for crash-safe, transactional repair resolution.
 """
 from __future__ import annotations
 
-import json
-import uuid
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 import production_db as _db
+
+
+class RepairRoutingError(ValueError):
+    pass
 
 
 def create_repair_request(
     production_id: str,
     render_unit_id: str,
-    failure_evidence_id: str,
-    owning_stage: str,
-    reason: str,
+    change_type: str,
+    requested_by_stage: str,
+    failure_reason: str,
+    target_stage: str = "generate_media",
+    failure_validation_id: Optional[str] = None,
+    failed_artifact_id: Optional[str] = None,
+    failure_evidence: Optional[Dict[str, Any]] = None,
     db_path=None,
-) -> str:
+) -> Dict[str, Any]:
+    """Create a repair change request for a failed render unit.
+
+    Marks the render_unit as 'change_requested'. All fields are populated
+    to match the schema — no NOT NULL columns omitted.
     """
-    Create a structured change request for a failed hero unit.
-    
-    Returns the new change_request ID.
-    """
-    request_id = f"cr_{uuid.uuid4().hex[:12]}"
-    
+    if not change_type:
+        raise RepairRoutingError("change_type is required")
+    if not requested_by_stage:
+        raise RepairRoutingError("requested_by_stage is required")
+
+    from production_repo import record_change_request
+
+    now = _db._now()
     with _db.transaction(db_path) as conn:
         conn.execute(
-            """INSERT INTO change_requests 
-               (id, production_id, subject_type, subject_id, target_stage, 
-                reason, status, created_at)
-               VALUES (?, ?, 'render_unit', ?, ?, ?, 'open', ?)""",
-            (
-                request_id,
-                production_id,
-                render_unit_id,
-                owning_stage,
-                reason,
-                _db._now()
-            )
+            "UPDATE render_units SET status='change_requested', updated_at=? WHERE id=? AND production_id=?",
+            (now, render_unit_id, production_id),
         )
-        
-        # Link the failure evidence to the change request via metadata or a separate table
-        # For now, we store it in the reason or a metadata field if available
-        # Assuming change_requests has a metadata_json column or we just use reason
-        
-    return request_id
+
+        cr_id = f"cr_{_db._id('cr')[3:]}"
+        conn.execute(
+            """INSERT INTO change_requests
+               (id, production_id, subject_type, subject_id, change_type,
+                requested_by_stage, target_stage, reason, status,
+                failure_evidence_json, replacement_subject_type, replacement_subject_id,
+                repair_routing_stage, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                cr_id, production_id, "render_unit", render_unit_id, change_type,
+                requested_by_stage, target_stage, failure_reason, "open",
+                _db._json(failure_evidence or {
+                    "failure_validation_id": failure_validation_id,
+                    "failed_artifact_id": failed_artifact_id,
+                }),
+                None, None,
+                target_stage, now,
+            ),
+        )
+        cr = dict(conn.execute("SELECT * FROM change_requests WHERE id=?", (cr_id,)).fetchone())
+
+        invalidate_dependent_deliverables(production_id, render_unit_id, conn=conn)
+
+        _db.append_event(
+            production_id, "repair_request_created",
+            payload={"render_unit_id": render_unit_id, "change_request_id": cr["id"], "reason": failure_reason},
+            conn=conn,
+        )
+
+    return cr
 
 
-def is_repair_request_open(
-    production_id: str,
-    render_unit_id: str,
-    db_path=None,
-) -> bool:
-    """
-    Check if there is an open repair request for a specific render unit.
-    This is used to block assembly until the repair is resolved.
-    """
-    _db.migrate(db_path)
+def is_repair_request_open(production_id: str, render_unit_id: str, db_path=None) -> bool:
     conn = _db.connect(db_path)
-    
     row = conn.execute(
-        """SELECT id FROM change_requests 
+        """SELECT COUNT(*) as cnt FROM change_requests
            WHERE production_id=? AND subject_id=? AND status='open'""",
-        (production_id, render_unit_id)
+        (production_id, render_unit_id),
     ).fetchone()
-    
     conn.close()
-    return row is not None
+    return row["cnt"] > 0
 
 
 def resolve_repair_request(
     production_id: str,
-    request_id: str,
-    new_artifact_id: str,
-    new_evidence_id: str,
+    render_unit_id: str,
+    replacement_artifact_id: str,
+    replacement_validations: Optional[List[str]] = None,
+    resolution_note: str = "",
     db_path=None,
-) -> None:
+) -> Dict[str, Any]:
+    """Resolve a repair request by linking the replacement artifact.
+
+    Transactional: marks the change request as resolved, updates the render
+    unit's active artifact, and records the resolution in resolution_json.
+    Requires that all replacement validations pass before resolving.
     """
-    Resolve a repair request after successful regeneration and validation.
-    
-    This function:
-    1. Updates the render unit's active_artifact_id to the new artifact.
-    2. Marks the change request as 'resolved'.
-    3. Links the new evidence to the render unit.
-    """
+    from production_repo import get_artifact
+
+    replacement = get_artifact(replacement_artifact_id, db_path=db_path)
+    if not replacement:
+        raise RepairRoutingError(f"Replacement artifact {replacement_artifact_id} not found")
+
+    now = _db._now()
     with _db.transaction(db_path) as conn:
-        # 1. Get the subject_id (render_unit_id) from the change request
-        cr = conn.execute(
-            "SELECT subject_id FROM change_requests WHERE id=? AND production_id=?",
-            (request_id, production_id)
+        cr_row = conn.execute(
+            """SELECT id, change_type, target_stage FROM change_requests
+               WHERE production_id=? AND subject_id=? AND status='open'
+               ORDER BY created_at DESC LIMIT 1""",
+            (production_id, render_unit_id),
         ).fetchone()
-        
-        if not cr:
-            raise ValueError(f"Change request {request_id} not found for production {production_id}")
-            
-        render_unit_id = cr["subject_id"]
-        
-        # 2. Update the render unit's active artifact
+
+        if not cr_row:
+            raise RepairRoutingError(f"No open change request for render_unit {render_unit_id}")
+
+        if replacement_validations:
+            for val_id in replacement_validations:
+                val = conn.execute(
+                    "SELECT status FROM validations WHERE id=?", (val_id,)
+                ).fetchone()
+                if not val or val["status"] != "pass":
+                    raise RepairRoutingError(f"Validation {val_id} does not pass — cannot resolve repair")
+
         conn.execute(
-            """UPDATE render_units 
-               SET active_artifact_id=?, updated_at=? 
-               WHERE id=? AND production_id=?""",
-            (new_artifact_id, _db._now(), render_unit_id, production_id)
-        )
-        
-        # 3. Mark the change request as resolved
-        conn.execute(
-            """UPDATE change_requests 
-               SET status='resolved', resolved_at=?, resolution=? 
+            """UPDATE change_requests SET
+               status='resolved',
+               resolution_json=?,
+               replacement_subject_type='artifact',
+               replacement_subject_id=?,
+               resolved_at=?
                WHERE id=?""",
-            (_db._now(), f"Replaced with artifact {new_artifact_id}", request_id)
+            (
+                _db._json({"replacement_artifact_id": replacement_artifact_id,
+                            "replacement_validations": replacement_validations,
+                            "note": resolution_note}),
+                replacement_artifact_id,
+                now,
+                cr_row["id"],
+            ),
         )
-        
-        # 4. Link the new evidence to the render unit (via validations table)
-        # This assumes the new_evidence_id is already in the validations table
-        # and we just need to ensure it's linked to the render_unit_id.
-        # The validations table already has subject_id=render_unit_id, so this is implicit.
+
+        conn.execute(
+            "UPDATE render_units SET active_artifact_id=?, status='generated', updated_at=? WHERE id=? AND production_id=?",
+            (replacement_artifact_id, now, render_unit_id, production_id),
+        )
+
+        _db.append_event(
+            production_id, "repair_resolved",
+            payload={"render_unit_id": render_unit_id, "change_request_id": cr_row["id"],
+                      "replacement_artifact_id": replacement_artifact_id},
+            conn=conn,
+        )
+
+    return {
+        "change_request_id": cr_row["id"],
+        "render_unit_id": render_unit_id,
+        "replacement_artifact_id": replacement_artifact_id,
+        "status": "resolved",
+    }
 
 
 def invalidate_dependent_deliverables(
     production_id: str,
     render_unit_id: str,
     db_path=None,
+    conn=None,
 ) -> List[str]:
-    """
-    Invalidate any deliverables that depend on the failed render unit.
-    This ensures that a failed hero unit cannot be part of a final assembly.
-    """
-    # This is a simplified implementation. In a full system, this would
-    # traverse the dependency graph to find all affected deliverables.
-    # For now, we just return an empty list or mark the production as needing re-assembly.
-    return []
+    """Invalidate deliverables that depend on the given render unit."""
+    if conn is not None:
+        rows = conn.execute(
+            """SELECT id FROM deliverables
+               WHERE production_id=? AND status NOT IN ('stale', 'retired')""",
+            (production_id,),
+        ).fetchall()
+        invalidated = []
+        for row in rows:
+            conn.execute(
+                "UPDATE deliverables SET status='stale' WHERE id=?",
+                (row["id"],),
+            )
+            invalidated.append(row["id"])
+        return invalidated
+
+    now = _db._now()
+    with _db.transaction(db_path) as conn:
+        rows = conn.execute(
+            """SELECT id FROM deliverables
+               WHERE production_id=? AND status NOT IN ('stale', 'retired')""",
+            (production_id,),
+        ).fetchall()
+        invalidated = []
+        for row in rows:
+            conn.execute(
+                "UPDATE deliverables SET status='stale' WHERE id=? AND production_id=?",
+                (row["id"], production_id),
+            )
+            invalidated.append(row["id"])
+        return invalidated
 
 
-def get_open_repair_requests(
-    production_id: str,
-    db_path=None,
-) -> List[Dict[str, Any]]:
-    """
-    Get all open repair requests for a production.
-    """
-    _db.migrate(db_path)
+def get_open_repair_requests(production_id: str, db_path=None) -> List[Dict[str, Any]]:
     conn = _db.connect(db_path)
-    
     rows = conn.execute(
-        """SELECT id, subject_id, target_stage, reason, created_at 
-           FROM change_requests 
-           WHERE production_id=? AND status='open'""",
-        (production_id,)
+        """SELECT * FROM change_requests
+           WHERE production_id=? AND status='open'
+           ORDER BY created_at DESC""",
+        (production_id,),
     ).fetchall()
-    
     conn.close()
     return [dict(r) for r in rows]

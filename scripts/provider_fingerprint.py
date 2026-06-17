@@ -1,7 +1,12 @@
-"""Sprint 4: Provider Request Semantic Fingerprinting (Ticket LB-400).
+"""Sprint 4/R4: Provider Request Semantic Fingerprinting (Ticket LB-400 / R4-001).
 
-Generates deterministic fingerprints for hero render requests to ensure
-idempotent retries and invalidate stale clips when meaningful inputs change.
+Generates deterministic collision-resistant SHA-256 fingerprints for hero render
+requests to ensure idempotent retries and invalidate stale clips when meaningful
+inputs change. Duration is canonicalized in integer samples (not float seconds)
+to eliminate IEEE 754 drift. Payload and algorithm version are persisted for
+reproducibility.
+
+FINGERPRINT_ALGORITHM_VERSION is bumped whenever the fingerprint schema changes.
 """
 from __future__ import annotations
 
@@ -9,13 +14,15 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional
 
+FINGERPRINT_ALGORITHM_VERSION = 2
+
 
 def _stable_hash(value: Any) -> str:
-    """Generate a stable SHA-256 hash for any JSON-serializable value."""
+    """Generate a stable full SHA-256 hash for any JSON-serializable value."""
     if value is None:
         return "null"
     serialized = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def generate_hero_request_fingerprint(
@@ -24,24 +31,25 @@ def generate_hero_request_fingerprint(
     hero_render_group_id: Optional[str],
     master_artifact_hash: str,
     slice_artifact_hash: str,
-    source_samples: Dict[str, int],  # e.g., {"start": 48000, "end": 96000}
-    silence_padding: Dict[str, int],  # e.g., {"leading": 4800, "trailing": 4800}
+    source_samples: Dict[str, int],
+    silence_padding: Dict[str, int],
     prompt: str,
     reference_hashes: List[str],
     model: str,
-    requested_duration_sec: float,
+    requested_duration_samples: int,
     aspect_ratio: str,
     provider_params: Dict[str, Any],
     code_revision: str,
-) -> str:
+) -> dict:
+    """Generate a semantic fingerprint for a hero render request.
+
+    Returns a dict with 'fingerprint' (full SHA-256), 'algorithm_version',
+    and 'payload' (the canonicalized fingerprint payload for persistence).
+
+    Duration is in integer samples (not float seconds) to avoid IEEE 754 drift.
     """
-    Generate a semantic fingerprint for a hero render request.
-    
-    This fingerprint is used as the idempotency key for provider submissions.
-    If any meaningful input changes, the fingerprint changes, forcing a new
-    provider job and preventing stale clip reuse.
-    """
-    fingerprint_payload = {
+    payload = {
+        "_algorithm": FINGERPRINT_ALGORITHM_VERSION,
         "production_id": production_id,
         "render_unit_id": render_unit_id,
         "hero_render_group_id": hero_render_group_id,
@@ -52,13 +60,17 @@ def generate_hero_request_fingerprint(
         "prompt_hash": _stable_hash(prompt),
         "reference_hashes": sorted(reference_hashes),
         "model": model,
-        "requested_duration_sec": requested_duration_sec,
+        "requested_duration_samples": requested_duration_samples,
         "aspect_ratio": aspect_ratio,
         "provider_params": provider_params,
         "code_revision": code_revision,
     }
-    
-    return _stable_hash(fingerprint_payload)
+    fingerprint = _stable_hash(payload)
+    return {
+        "fingerprint": fingerprint,
+        "algorithm_version": FINGERPRINT_ALGORITHM_VERSION,
+        "payload": payload,
+    }
 
 
 def validate_fingerprint_match(
@@ -66,10 +78,14 @@ def validate_fingerprint_match(
     new_fingerprint: str,
     changed_field: Optional[str] = None,
 ) -> bool:
-    """
-    Validate that an existing fingerprint matches a new one.
-    Returns True if they match (safe to reuse), False otherwise.
-    """
-    if existing_fingerprint != new_fingerprint:
-        return False
-    return True
+    """Validate that an existing fingerprint matches a new one."""
+    return existing_fingerprint == new_fingerprint
+
+
+def fingerprint_idempotency_key(
+    production_id: str,
+    render_unit_id: str,
+    fingerprint: str,
+) -> str:
+    """Derive the idempotency key from fingerprint for provider job dedup."""
+    return f"fp:{production_id}:{render_unit_id}:{fingerprint}"

@@ -163,7 +163,7 @@ class TestRerouteAudioPolicyStrip:
         tm = _timing_map([{"beat_id": "B001", "start": 0.0, "end": 18.0, "duration": 18.0}])
 
         result, _ = reconcile(sb, tm, CONSTRAINTS)
-        assert result["beats"][0]["audio_policy"] == "strip"
+        assert result["beats"][0]["audio_policy"] == "BROLL_FLEX"
 
 
 class TestB001B008B009Resolved:
