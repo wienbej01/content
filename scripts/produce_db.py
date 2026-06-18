@@ -220,8 +220,14 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
                 f"and paid ElevenLabs calls are forbidden in test mode. Supply a "
                 f"deterministic master narration audio fixture before running TTS.")
         import paid_adapters
+        import yaml
+        _narration_cfg = (yaml.safe_load((ROOT / "configs" / "james" / "model_routing.yaml").read_text())
+                          or {}).get("narration", {})
         adapter = paid_adapters.ElevenLabsAdapter({})
-        result = adapter.submit({"text": tts_text, "duration": 30}, idempotency_key=f"tts:{inputs['production_id']}")
+        result = adapter.submit(
+            {"text": tts_text, "duration": 30,
+             "model_id": _narration_cfg.get("model", "eleven_v3")},
+            idempotency_key=f"tts:{inputs['production_id']}")
         if result.get("audio_path"):
             audio_path.parent.mkdir(parents=True, exist_ok=True)
             import shutil
@@ -355,11 +361,21 @@ def invoke_review_storyboard(inputs: dict, tmp_path: Path) -> dict:
 
 
 def _derive_shot_type(seg: dict) -> str:
+    # Explicit shot type on the segment wins.
     kind = (seg.get("shot_type") or seg.get("kind") or "").lower()
     if kind in ("talking_head_hero", "talking_head_standard", "hero"):
         return kind if kind else "talking_head_standard"
     if kind in ("broll", "broll_environment", "broll_human"):
         return kind
+    # Infer a hero/b-roll mix from the segment's role/id so the storyboard is not
+    # uniformly talking-head. Hook/promise/CTA = on-camera hero; tension/evidence/
+    # pattern/background = b-roll over narration.
+    sid = (seg.get("id") or seg.get("label") or "").lower()
+    if any(r in sid for r in ("hook", "cta", "promise", "open")):
+        return "talking_head_hero"
+    if any(r in sid for r in ("tension", "background", "pattern", "system", "evidence",
+                              "study", "give_back", "audience", "proof", "example")):
+        return "broll_environment"
     if seg.get("narration", True):
         return "talking_head_standard"
     return "broll_environment"
