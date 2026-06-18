@@ -29,10 +29,10 @@ def test_talking_head_hero_routes_to_veo3():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
     model_id, prompt, policy = r.resolve("talking_head_hero")
-    assert model_id == "seedance_2_0"
+    assert model_id == "seedance_2_0_fast"
     assert policy["requires_audio"] is True
     assert policy["preserve_baked_audio"] is True
-    print(f"  ✓ talking_head_hero → seedance_2_0, requires_audio=True")
+    print(f"  ✓ talking_head_hero → seedance_2_0_fast, requires_audio=True")
 
 
 def test_broll_environment_routes_to_hailuo():
@@ -48,11 +48,11 @@ def test_talking_head_standard_routes_to_kling():
     sr = _load()
     r = sr.ShotRouter(skip_availability_check=True)
     model_id, prompt, policy = r.resolve("talking_head_standard")
-    # talking_head_standard uses lipsync_primary (seedance_2_0)
-    assert model_id == "seedance_2_0"
+    # talking_head_standard uses lipsync_primary (seedance_2_0_fast, temporary 2026-06-18)
+    assert model_id == "seedance_2_0_fast"
     assert policy["requires_audio"] is True
     assert policy["preserve_baked_audio"] is True
-    print(f"  ✓ talking_head_standard → seedance_2_0, preserve_baked_audio")
+    print(f"  ✓ talking_head_standard → seedance_2_0_fast, preserve_baked_audio")
 
 
 def test_unknown_shot_type_fails():
