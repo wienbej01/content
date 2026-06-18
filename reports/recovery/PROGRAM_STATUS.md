@@ -3,9 +3,9 @@
 **Program Director:** Agent 0 (Nemotron acting as Chief Software Architect)
 **Base SHA:** `68f3ee5498611d2a18c1a58a6f05a8f94eee4b0f`
 **Recovery branch:** `fix/flagship-001-end-to-end-recovery` (local; base == `origin/fix/flagship-001-remediation`)
-**Last updated:** 2026-06-17
+**Last updated:** 2026-06-18
 
-## Current Sprint: SPRINT 0 — COMPLETE (Auditor PASS + Validator PASS)
+## Current Sprint: SPRINT 8 — COMPLETE (exit gate PASS). Sprint 9 (paid test) plan drafted, awaiting human approval.
 
 ### Ticket Ledger
 
@@ -83,9 +83,9 @@ Sprint 0 is complete with independent Auditor PASS and Validator PASS. Proceedin
 | S4 | Master Narration, Timing, Hero Slicing | COMPLETE (T01-T04 Auditor+Validator PASS) |
 | S5 | Storyboard, B-Roll, Text Policy | COMPLETE (T01-T04 Auditor+Validator PASS) |
 | S6 | Media QA, Lipsync QA, Repair | COMPLETE (T01-T05 Auditor+Validator PASS) |
-| S7 | DB-Native FFmpeg Assembly & Final QA | NOT_STARTED (D-003, D-005 assembly fixed) |
-| S8 | Full Local 45s E2E | NOT_STARTED |
-| S9 | Controlled Paid 45s Test | NOT_STARTED (financial rule HELD) |
+| S7 | DB-Native FFmpeg Assembly & Final QA | COMPLETE (D-003/D-005 assembly fixed in S0; assembly manifest bridge added in S8) |
+| S8 | Full Local 45s E2E | COMPLETE — exit gate PASS (T01-T05; D-013/D-014 fixed, D-015 open) |
+| S9 | Controlled Paid 45s Test | PLAN DRAFTED (PAID_TEST_READINESS.md) — blocked on explicit human approval of plan + $5 hard cap. No paid call made. |
 
 ## Sprint 1 Ticket Ledger
 
