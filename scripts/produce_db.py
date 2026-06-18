@@ -214,6 +214,11 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     audio_path = Path(project_dir) / "narration" / "continuous.mp3"
 
     if not audio_path.exists() and tts_text:
+        if os.environ.get("YT_TEST_MODE") == "1":
+            raise RuntimeError(
+                f"YT_TEST_MODE: TTS master narration is not pre-provided at {audio_path} "
+                f"and paid ElevenLabs calls are forbidden in test mode. Supply a "
+                f"deterministic master narration audio fixture before running TTS.")
         import paid_adapters
         adapter = paid_adapters.ElevenLabsAdapter({})
         result = adapter.submit({"text": tts_text, "duration": 30}, idempotency_key=f"tts:{inputs['production_id']}")
