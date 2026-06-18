@@ -56,15 +56,6 @@ costs:
     # length is non-deterministic/bucketed; coverage-slot planning must size slots
     # at or below this floor so even the shortest clip fully covers its slot window.
     reliable_clip_sec: 4.0
-  seedance_2_0_fast:
-    # TEMPORARY (user-authorized 2026-06-18): unlimited Enhanced Seedance 2.0 Fast
-    # access — routed in place of seedance_2_0 for the Sprint 9 paid test. Estimated
-    # cost is 0 (no spend cap concern); actual cost is still recorded per provider
-    # response in cost_events for accounting. Revert lipsync_primary/narrative_wide_james
-    # to seedance_2_0 and re-ban this model when the temporary access ends.
-    cost_per_clip_usd: 0.0
-    credits_per_clip: 0.0
-    reliable_clip_sec: 4.0
   kling3_0:
     cost_per_clip_usd: 0.49
     credits_per_clip: 10.0
@@ -81,14 +72,17 @@ costs:
     cost_per_clip_usd: 0
     credits_per_clip: 0
 
-# Logical name → Higgsfield job_set_type
+# Logical name → Higgsfield job_set_type (real model names; verified via
+# `higgsfield model list --video` 2026-06-18). NOTE: there is no seedance_2_0_fast
+# model — "Seedance 2.0 fast" = seedance_2_0 with --mode fast (adapter default).
+# User authorized fast-mode seedance_2_0 (ample credits, max plan) for S9.
 model_id_map:
-  lipsync_primary: seedance_2_0_fast   # TEMPORARY: unlimited Enhanced Fast (user-authorized 2026-06-18)
+  lipsync_primary: seedance_2_0
   hero_face_insert: kling3_0
   human_body_hands: kling3_0
   human_background: kling3_0
   environment_broll: kling3_0        # wan NOT authorized — kling3_0 for all b-roll
-  narrative_wide_james: seedance_2_0_fast  # TEMPORARY (2026-06-18)
+  narrative_wide_james: seedance_2_0
   experimental_lipsync: cinematic_studio_3_0
 
 # Shot-type routing (simplified — 5 types)
@@ -124,9 +118,9 @@ shot_type_routes:
     prompt_template: broll_environment
 
 # Banned models — never used
-# NOTE: seedance_2_0_fast temporarily ALLOWED (user-authorized 2026-06-18, unlimited access).
 banned_models:
   - minimax_hailuo
+  - seedance_2_0_fast   # not a real model (verified); kept banned to prevent use
   - seedance1_5
   - wan2_7
   - wan2_6

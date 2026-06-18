@@ -375,6 +375,7 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     routing = yaml.safe_load(routing_path.read_text())
     shot_routes = routing.get("shot_type_routes", {})
     costs = routing.get("costs", {})
+    model_id_map = routing.get("model_id_map", {})
 
     # S2-T01: Reconciliation is now a separate stage (reconcile_timing).
     # compile_media assumes spans are already reconciled with creative beats.
@@ -431,7 +432,11 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
 
         text_policy = route.get("text_policy", "NO_VISIBLE_TEXT")
 
-        model_key = route.get("model", "kling3_0")
+        # Resolve logical route model (e.g. lipsync_primary) → real provider model
+        # (e.g. seedance_2_0) via model_id_map, so render units and cost estimates
+        # use a model the provider actually accepts.
+        logical_model = route.get("model", "kling3_0")
+        model_key = model_id_map.get(logical_model, logical_model)
         clip_cost = costs.get(model_key, {}).get("cost_per_clip_usd", 0.0)
         estimated_cost += clip_cost
 
