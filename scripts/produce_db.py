@@ -1059,8 +1059,8 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
             })
             with _db.transaction(None) as conn:
                 conn.execute(
-                    "UPDATE deliverables SET status='published', updated_at=? WHERE id=?",
-                    (_db._now(), d["id"]),
+                    "UPDATE deliverables SET status='published' WHERE id=?",
+                    (d["id"],),
                 )
 
     if published:
@@ -1113,7 +1113,7 @@ def invoke_analytics(inputs: dict, tmp_path: Path) -> dict:
     ).fetchone()["cnt"]
 
     stages = conn.execute(
-        "SELECT stage, status, created_at FROM production_stage_runs WHERE production_id=? ORDER BY created_at",
+        "SELECT stage_name, status, created_at FROM stage_runs WHERE production_id=? ORDER BY created_at",
         (production_id,),
     ).fetchall()
 
@@ -1129,7 +1129,7 @@ def invoke_analytics(inputs: dict, tmp_path: Path) -> dict:
         "passing_validations": validations["passing"],
         "total_change_requests": change_requests,
         "open_change_requests": open_crs,
-        "stages": [{"stage": s["stage"], "status": s["status"], "at": s["created_at"]} for s in stages],
+        "stages": [{"stage": s["stage_name"], "status": s["status"], "at": s["created_at"]} for s in stages],
     }
 
     _db.append_event(production_id, "analytics", payload=analytics)
