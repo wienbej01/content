@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """CI Gate: Detect low-quality test patterns.
 
-Fails on: assert True no-ops, completely empty tests, and tests that
-only use SQL mocks without touching real DB functions.
+Fails on: assert True no-ops, completely empty tests, tests that
+only use SQL mocks without touching real DB functions, and the exact
+placeholder lipsync PASS pattern (score=0.85 AND confidence=0.90 in one
+test function) which mirrors the production placeholder the release guard
+blocks.
 """
 import ast
 import sys
@@ -11,6 +14,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TESTS_DIR = ROOT / "tests"
 SCRIPTS_DIR = ROOT / "scripts"
+
+# The exact placeholder pair the release guard blocks in production. A test that
+# hardcodes BOTH constants is asserting against the placeholder, not a real model.
+PLACEHOLDER_SCORE = 0.85
+PLACEHOLDER_CONFIDENCE = 0.90
 
 
 def _collect_script_function_names() -> set[str]:
@@ -70,6 +78,18 @@ def _check_test_function(node: ast.FunctionDef) -> list[str]:
                and child.func.attr in ("connect", "transaction", "execute", "migrate")
                for child in ast.walk(node)):
             violations.append(f"  {node.name}: mock-only test — zero calls to real script functions")
+
+    # Placeholder lipsync PASS pattern: both 0.85 (score) and 0.90 (confidence)
+    # hardcoded in the same test function. This mirrors the production placeholder
+    # the release guard blocks; a real test must use a calibrated model/fixture.
+    floats_in_test = {
+        child.value for child in ast.walk(node)
+        if isinstance(child, ast.Constant) and isinstance(child.value, float)
+    }
+    if PLACEHOLDER_SCORE in floats_in_test and PLACEHOLDER_CONFIDENCE in floats_in_test:
+        violations.append(
+            f"  {node.name}: hardcoded placeholder PASS (score={PLACEHOLDER_SCORE}, "
+            f"confidence={PLACEHOLDER_CONFIDENCE}) — use a real calibrated model/fixture")
 
     return violations
 

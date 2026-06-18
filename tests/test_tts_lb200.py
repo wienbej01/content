@@ -135,32 +135,33 @@ class TestTTSArtifactReuse:
         assert art2["reused"] is False
 
     def test_checksum_mismatch_invalidates_master(self, setup_test_db):
-        """Verify that if the stored file checksum doesn't match, it forces a new artifact."""
+        """A tampered master (checksum no longer matches) is NOT reused.
+
+        The immutable master must never be silently reused when its on-disk bytes
+        have changed, and corrupt bytes must not be registered as a new media
+        artifact. The service must refuse and require regeneration instead.
+        """
         prod = _db.ensure_production("checksum_test", seed="test", video_type="short", db_path=TEST_DB)
         audio_path = Path(tempfile.gettempdir()) / "test_master5.mp3"
         _create_dummy_audio(audio_path)
-        
+
         art1 = record_tts_artifact(
             production_id=prod["id"], audio_path=audio_path,
             script_revision_id="s1", voice_id="v1", model="m1",
             voice_settings={}, request_fingerprint="fp1", db_path=TEST_DB
         )
-        
-        # Corrupt the file to change its checksum
+
+        # Corrupt the file so its checksum no longer matches the recorded sha256.
         audio_path.write_bytes(b"corrupted data")
-        
-        # Should not reuse because checksum won't match
-        art2 = record_tts_artifact(
-            production_id=prod["id"], audio_path=audio_path,
-            script_revision_id="s1", voice_id="v1", model="m1",
-            voice_settings={}, request_fingerprint="fp1", db_path=TEST_DB
-        )
-        # Note: In a real scenario, this would register a new artifact. 
-        # For this test, we just verify it doesn't blindly return the old one with reused=True
-        # Actually, if the file is corrupted, _repo.register_artifact will compute a new sha256.
-        # The reuse check compares the new file's sha256 with the old one. They won't match.
-        # So it will proceed to register a new one.
-        assert art2["id"] != art1["id"]
+
+        # Reuse with the same fingerprint must be refused (not silently reused,
+        # and the corrupt bytes must not be registered as media).
+        with pytest.raises(RuntimeError, match="TTS_MASTER_CHECKSUM_MISMATCH"):
+            record_tts_artifact(
+                production_id=prod["id"], audio_path=audio_path,
+                script_revision_id="s1", voice_id="v1", model="m1",
+                voice_settings={}, request_fingerprint="fp1", db_path=TEST_DB
+            )
 
     def test_retry_does_not_duplicate_tts_job(self, setup_test_db):
         """Verify that a retry with the exact same parameters returns the existing artifact."""

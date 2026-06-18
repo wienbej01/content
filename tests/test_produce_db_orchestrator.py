@@ -91,9 +91,9 @@ def test_run_walks_graph_and_resumes(mock_write, mock_research):
     
     # Mock ALL other stages to prevent real execution and file dependencies
     mock_stages = [
-        "review_script", "gate_a_content", "tts", "audio_timing", "storyboard", 
-        "review_storyboard", "compile_media", "gate_a_spend", "generate_media", 
-        "qa_media", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
+        "review_script", "gate_a_content", "storyboard", "review_storyboard", "tts", "audio_timing",
+        "reconcile_timing", "compile_media", "gate_a_spend", "generate_media",
+        "qa_media", "repair", "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:
@@ -160,12 +160,12 @@ def test_tts_wiring_enforces_provenance(mock_timing, mock_tts):
     produce_db.STAGE_INVOKERS["tts"] = (None, mock_tts)
     produce_db.STAGE_INVOKERS["audio_timing"] = (None, mock_timing)
     
-    # Mock all other stages to prevent real execution
+    # Mock all other stages to prevent real execution (tts/audio_timing are patched above)
     mock_stages = [
         "research", "write_script", "review_script", "gate_a_content",
-        "storyboard", "review_storyboard", "compile_media", "gate_a_spend", 
-        "generate_media", "qa_media", "assemble", "qa_final", "gate_b_review", 
-        "publish", "analytics"
+        "storyboard", "review_storyboard", "reconcile_timing",
+        "compile_media", "gate_a_spend", "generate_media", "qa_media", "repair",
+        "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:
@@ -175,7 +175,9 @@ def test_tts_wiring_enforces_provenance(mock_timing, mock_tts):
     
     try:
         # Manually mark pre-TTS stages as succeeded so we reach TTS
-        for stage in ["research", "write_script", "review_script", "gate_a_content"]:
+        # S2-T01: tts now depends on review_storyboard (canonical order)
+        for stage in ["research", "write_script", "review_script", "gate_a_content",
+                       "storyboard", "review_storyboard"]:
             _db.mirror_stage_state("tts_provenance_proj", stage, "done", db_path=TEST_DB)
             
         # Create dummy files that TTS/timing expect
@@ -213,12 +215,12 @@ def test_compile_media_derives_from_measured_spans(mock_compile):
     mock_compile.return_value = {"status": "saved", "plan_revision_id": "plan_1", "units_count": 3}
     produce_db.STAGE_INVOKERS["compile_media"] = (None, mock_compile)
     
-    # Mock all other stages to prevent real execution
+    # Mock all other stages to prevent real execution (compile_media is patched above)
     mock_stages = [
         "research", "write_script", "review_script", "gate_a_content",
-        "tts", "audio_timing", "storyboard", "review_storyboard",
-        "gate_a_spend", "generate_media", "qa_media", "assemble", "qa_final", 
-        "gate_b_review", "publish", "analytics"
+        "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+        "gate_a_spend", "generate_media", "qa_media", "repair",
+        "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:
@@ -228,7 +230,9 @@ def test_compile_media_derives_from_measured_spans(mock_compile):
     
     try:
         # Manually mark pre-compile stages as succeeded
-        for stage in ["research", "write_script", "review_script", "gate_a_content", "tts", "audio_timing"]:
+        # S2-T01: compile_media depends on reconcile_timing
+        for stage in ["research", "write_script", "review_script", "gate_a_content",
+                       "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing"]:
             _db.mirror_stage_state("compile_spans_proj", stage, "done", db_path=TEST_DB)
             
         # Insert dummy active timeline spans into DB
@@ -317,11 +321,12 @@ def test_assembly_bypasses_manifest_file(mock_gate_b, mock_qa, mock_assemble):
     produce_db.STAGE_INVOKERS["qa_final"] = (None, mock_qa)
     produce_db.STAGE_INVOKERS["gate_b_review"] = (None, mock_gate_b)
     
-    # Mock all other stages to prevent real execution
+    # Mock all other stages to prevent real execution (assemble/qa_final/gate_b are patched above)
     mock_stages = [
         "research", "write_script", "review_script", "gate_a_content",
-        "tts", "audio_timing", "storyboard", "review_storyboard", "compile_media",
-        "gate_a_spend", "generate_media", "qa_media", "publish", "analytics"
+        "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+        "compile_media", "gate_a_spend", "generate_media", "qa_media", "repair",
+        "graphics_compositing", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:
@@ -331,8 +336,11 @@ def test_assembly_bypasses_manifest_file(mock_gate_b, mock_qa, mock_assemble):
     
     try:
         # Manually mark pre-assembly stages as succeeded
+        # S2-T01: assemble depends on graphics_compositing → repair → qa_media
         for stage in ["research", "write_script", "review_script", "gate_a_content", 
-                      "tts", "audio_timing", "compile_media", "gate_a_spend", "generate_media", "qa_media"]:
+                      "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+                      "compile_media", "gate_a_spend", "generate_media", "qa_media",
+                      "repair", "graphics_compositing"]:
             _db.mirror_stage_state("assembly_proj", stage, "done", db_path=TEST_DB)
             
         # Run production
@@ -362,12 +370,12 @@ def test_qa_media_enforces_no_silent_fallback(mock_qa_media):
     mock_qa_media.return_value = {"status": "passed", "units_validated": 3}
     produce_db.STAGE_INVOKERS["qa_media"] = (None, mock_qa_media)
     
-    # Mock all other stages to prevent real execution
+    # Mock all other stages to prevent real execution (qa_media is patched above)
     mock_stages = [
         "research", "write_script", "review_script", "gate_a_content",
-        "tts", "audio_timing", "storyboard", "review_storyboard", "compile_media",
-        "gate_a_spend", "generate_media", "assemble", "qa_final", "gate_b_review", 
-        "publish", "analytics"
+        "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+        "compile_media", "gate_a_spend", "generate_media", "repair",
+        "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:
@@ -377,8 +385,10 @@ def test_qa_media_enforces_no_silent_fallback(mock_qa_media):
     
     try:
         # Manually mark pre-QA stages as succeeded
+        # S2-T01: qa_media depends on generate_media (unchanged) but upstream order changed
         for stage in ["research", "write_script", "review_script", "gate_a_content", 
-                      "tts", "audio_timing", "compile_media", "gate_a_spend", "generate_media"]:
+                      "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+                      "compile_media", "gate_a_spend", "generate_media"]:
             _db.mirror_stage_state("qa_media_proj", stage, "done", db_path=TEST_DB)
             
         # Run production
@@ -445,9 +455,9 @@ def test_resume_without_legacy_json(mock_write, mock_research):
     
     # Mock all subsequent stages to prevent real execution
     mock_stages = [
-        "review_script", "gate_a_content", "tts", "audio_timing", "storyboard", 
-        "review_storyboard", "compile_media", "gate_a_spend", "generate_media", 
-        "qa_media", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
+        "review_script", "gate_a_content", "storyboard", "review_storyboard", "tts", "audio_timing",
+        "reconcile_timing", "compile_media", "gate_a_spend", "generate_media",
+        "qa_media", "repair", "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
     original_invokers = {}
     for stage in mock_stages:

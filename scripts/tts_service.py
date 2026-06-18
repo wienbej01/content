@@ -48,36 +48,56 @@ def record_tts_artifact(
     """
     _db.migrate(db_path)
     conn = _db.connect(db_path)
-    
-    # 1. Check for exact fingerprint match to enable idempotent reuse
-    existing = conn.execute(
-        """SELECT dr.id, dr.payload_json, a.id as artifact_id, a.uri, a.sha256
-           FROM document_revisions dr
-           JOIN artifacts a ON dr.payload_json LIKE '%"artifact_id":"' || a.id || '"%'
-           WHERE dr.production_id=? AND dr.kind='tts_artifact' AND dr.status='active'
-           ORDER BY dr.revision DESC LIMIT 1""",
+
+    # 1. Check for exact fingerprint match to enable idempotent reuse.
+    #    S1-T04: query the artifact's metadata_json directly instead of a
+    #    fragile JSON-content LIKE join across document_revisions ↔ artifacts.
+    #    The TTS artifact's metadata (registered via register_artifact) contains
+    #    script_revision_id, voice_id, model, voice_settings, request_fingerprint.
+    row = conn.execute(
+        """SELECT id, uri, sha256, metadata_json
+           FROM artifacts
+           WHERE production_id=? AND kind='tts_master' AND deleted_at IS NULL
+           ORDER BY created_at DESC LIMIT 1""",
         (production_id,)
     ).fetchone()
-    
+
+    existing = None
+    if row:
+        meta = json.loads(row["metadata_json"]) if row["metadata_json"] else {}
+        if (meta.get("script_revision_id") == script_revision_id and
+            meta.get("voice_id") == voice_id and
+            meta.get("model") == model and
+            meta.get("voice_settings") == voice_settings and
+            meta.get("request_fingerprint") == request_fingerprint):
+            existing = {
+                "artifact_id": row["id"],
+                "uri": row["uri"],
+                "sha256": row["sha256"],
+            }
+
     if existing:
-        payload = json.loads(existing["payload_json"])
-        if (payload.get("script_revision_id") == script_revision_id and
-            payload.get("voice_id") == voice_id and
-            payload.get("model") == model and
-            payload.get("voice_settings") == voice_settings and
-            payload.get("request_fingerprint") == request_fingerprint):
-            
-            # Verify stored bytes exist and checksum matches
-            art_path = Path(existing["uri"])
-            if art_path.exists() and _repo._sha256_file(art_path) == existing["sha256"]:
+        # The metadata match was already confirmed above. Now verify the stored
+        # bytes exist and checksum matches. A mismatch means the immutable master
+        # was tampered with or replaced on disk — it must NOT be silently reused,
+        # and the corrupt bytes must NOT be registered as a new media artifact.
+        # Require explicit regeneration instead.
+        art_path = Path(existing["uri"])
+        if art_path.exists():
+            if _repo._sha256_file(art_path) == existing["sha256"]:
                 conn.close()
-                # Return existing artifact dict
                 return {
                     "id": existing["artifact_id"],
                     "uri": existing["uri"],
                     "sha256": existing["sha256"],
                     "reused": True
                 }
+            conn.close()
+            raise RuntimeError(
+                "BLOCKED: TTS_MASTER_CHECKSUM_MISMATCH_REGENERATION_REQUIRED — "
+                f"stored master {art_path} no longer matches recorded sha256 "
+                f"{existing['sha256']}; the immutable master was altered. "
+                "Regenerate TTS before reuse.")
 
     conn.close()
 

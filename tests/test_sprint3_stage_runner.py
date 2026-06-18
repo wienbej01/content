@@ -38,8 +38,10 @@ class TestStageRegistry:
     def test_all_critical_stages_present(self):
         required = [
             "research", "write_script", "review_script", "gate_a_content",
-            "tts", "audio_timing", "storyboard", "compile_media", "gate_a_spend",
-            "generate_media", "qa_media", "assemble", "qa_final", "gate_b_review", "publish",
+            "storyboard", "review_storyboard", "tts", "audio_timing",
+            "reconcile_timing", "compile_media", "gate_a_spend",
+            "generate_media", "qa_media", "repair", "graphics_compositing",
+            "assemble", "qa_final", "gate_b_review", "publish", "analytics",
         ]
         for stage in required:
             assert stage in STAGE_REGISTRY, f"missing stage: {stage}"
@@ -68,6 +70,44 @@ class TestStageRegistry:
         assert "review_script" in downstream
         assert "gate_a_content" in downstream
         assert "tts" in downstream
+
+    def test_storyboard_does_not_depend_on_audio_timing(self):
+        """S2-T01: storyboard derives from script segments only, not timing."""
+        sb = STAGE_REGISTRY["storyboard"]
+        assert "audio_timing" not in sb.depends_on, (
+            "storyboard must not depend on audio_timing — it only needs the script")
+
+    def test_audio_timing_depends_on_tts(self):
+        """S2-T01: audio_timing needs TTS audio to align."""
+        at = STAGE_REGISTRY["audio_timing"]
+        assert "tts" in at.depends_on
+
+    def test_tts_depends_on_review_storyboard(self):
+        """S2-T01: TTS runs after storyboard review (canonical order)."""
+        tts = STAGE_REGISTRY["tts"]
+        assert "review_storyboard" in tts.depends_on, (
+            "tts must depend on review_storyboard — narration after visual plan is locked")
+
+    def test_canonical_stage_order(self):
+        """S2-T01: verify the canonical order: storyboard before tts before timing."""
+        names = list(STAGE_REGISTRY.keys())
+        idx_sb = names.index("storyboard")
+        idx_tts = names.index("tts")
+        idx_at = names.index("audio_timing")
+        assert idx_sb < idx_tts < idx_at, (
+            f"canonical order violated: storyboard({idx_sb}) < tts({idx_tts}) < audio_timing({idx_at})")
+
+    def test_repair_and_graphics_before_assemble(self):
+        """S2-T01: repair and graphics_compositing precede assembly."""
+        asm = STAGE_REGISTRY["assemble"]
+        assert "graphics_compositing" in asm.depends_on
+        gc = STAGE_REGISTRY["graphics_compositing"]
+        assert "repair" in gc.depends_on
+
+    def test_downstream_stages_transitive(self):
+        """downstream_stages returns all transitive dependents."""
+        downstream = downstream_stages("write_script")
+        assert "review_script" in downstream
         assert "publish" in downstream
         assert "write_script" not in downstream  # not itself
 

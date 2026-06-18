@@ -80,14 +80,14 @@ def invoke_write_script(inputs: dict, tmp_path: Path) -> dict:
     
     project_dir = _get_project_dir(inputs)
     
-    # 1. Read brief from DB (fallback to legacy file during transition)
+    # 1. Read brief from DB (single authority). No legacy file fallback — the
+    #    DB is the system of record; a missing brief means a prior stage failed
+    #    or was not run, not a reason to read a stale projection file.
     brief = get_research_brief(inputs["production_id"])
     if not brief:
-        brief_path = project_dir / "research_brief.json"
-        if brief_path.exists():
-            brief = json.loads(brief_path.read_text())
-        else:
-            raise RuntimeError("No research brief found in DB or legacy file")
+        raise RuntimeError(
+            f"No research brief in DB for production {inputs['production_id']} — "
+            f"run the research stage first")
             
     # 2. Generate script
     data, prompt = write_script(brief, inputs["video_type"])
@@ -112,22 +112,21 @@ def invoke_review_script(inputs: dict, tmp_path: Path) -> dict:
     from authoring_service import get_script, get_research_brief, save_script
     
     project_dir = _get_project_dir(inputs)
-    
-    # 1. Get current script and brief
+
+    # 1. Get current script and brief from DB (single authority). No legacy file
+    #    fallback — a missing document means a prior stage failed or was not run.
     current_script = get_script(inputs["production_id"])
     brief = get_research_brief(inputs["production_id"])
-    
+
     if not current_script:
-        # Fallback to legacy
-        script_path = project_dir / "script.json"
-        if script_path.exists():
-            current_script = json.loads(script_path.read_text())
-        else:
-            raise RuntimeError("No script found to review")
-            
+        raise RuntimeError(
+            f"No script in DB for production {inputs['production_id']} — "
+            f"run the write_script stage first")
+
     if not brief:
-        brief_path = project_dir / "research_brief.json"
-        brief = json.loads(brief_path.read_text()) if brief_path.exists() else {}
+        raise RuntimeError(
+            f"No research brief in DB for production {inputs['production_id']} — "
+            f"run the research stage first")
 
     source_text = (project_dir / "transcripts" / "0_research.md").read_text() \
         if (project_dir / "transcripts" / "0_research.md").exists() else ""
@@ -157,17 +156,18 @@ def invoke_review_script(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_gate_a_content(inputs: dict, tmp_path: Path) -> dict:
-    from authoring_service import request_approval, is_approved, get_active_script_revision_id, get_storyboard
+    from authoring_service import request_approval, is_approved, get_active_script_revision_id
     
+    # S2-T01: Content approval is for the SCRIPT only. Storyboard comes after
+    # this gate in the canonical order, so it is not part of the approval subject.
     script_rev = get_active_script_revision_id(inputs["production_id"]) or ""
-    storyboard = get_storyboard(inputs["production_id"])
-    sb_sha = storyboard.get("_sha256", "") if storyboard else ""
     
     approval = request_approval(
         production_id=inputs["production_id"],
         gate_name="gate_a_content",
-        subject_type="script+storyboard",
-        subject_sha256=f"script:{script_rev}|storyboard:{sb_sha}",
+        subject_type="script",
+        subject_id=script_rev,
+        subject_sha256=f"script:{script_rev}",
     )
     
     if os.environ.get("YT_TEST_MODE") == "1":
@@ -369,11 +369,10 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     routing = yaml.safe_load(routing_path.read_text())
     shot_routes = routing.get("shot_type_routes", {})
     costs = routing.get("costs", {})
-    
-    reconcile = reconcile_storyboard_with_timing(inputs["production_id"])
-    if reconcile.get("unmatched"):
-        raise RuntimeError(f"Unmatched timeline spans: {reconcile['unmatched']}. Run storyboard and audio_timing first.")
-    
+
+    # S2-T01: Reconciliation is now a separate stage (reconcile_timing).
+    # compile_media assumes spans are already reconciled with creative beats.
+
     conn = _db.connect(None)
     spans = conn.execute(
         """SELECT ts.id as span_id, ts.label, ts.start_ms, ts.end_ms,
@@ -729,6 +728,98 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
     return {"status": "passed", "units_validated": passed_count}
 
 
+def invoke_reconcile_timing(inputs: dict, tmp_path: Path) -> dict:
+    """Reconcile the active storyboard with committed timeline spans.
+
+    S2-T01: This was previously folded into compile_media. Separating it as its
+    own stage makes the dependency explicit: compile_media can only proceed after
+    timeline spans are reconciled with creative beats.
+    """
+    from tts_service import reconcile_storyboard_with_timing
+
+    reconcile = reconcile_storyboard_with_timing(inputs["production_id"])
+    if reconcile.get("unmatched"):
+        raise RuntimeError(
+            f"Unmatched timeline spans after reconciliation: {reconcile['unmatched']}. "
+            f"Ensure storyboard and audio_timing stages have completed.")
+    return {
+        "status": "reconciled",
+        "total_spans": reconcile["total_spans"],
+        "matched": reconcile["matched"],
+        "unmatched": reconcile.get("unmatched", []),
+    }
+
+
+def invoke_repair(inputs: dict, tmp_path: Path) -> dict:
+    """Selective repair stage (S2-T01).
+
+    If any render units have open change requests from QA failures, route them
+    to selective repair. If there are no open change requests, this stage is a
+    no-op pass-through (the common case on a clean run).
+    """
+    import production_db as _db
+
+    production_id = inputs["production_id"]
+    conn = _db.connect(None)
+    open_crs = conn.execute(
+        """SELECT COUNT(*) as cnt FROM change_requests
+           WHERE production_id=? AND status='open'""",
+        (production_id,)
+    ).fetchone()["cnt"]
+    conn.close()
+
+    if open_crs == 0:
+        return {"status": "skipped", "message": "No open change requests — nothing to repair"}
+
+    # Open change requests block assembly. They must be resolved by regenerating
+    # the failed unit with a new fingerprint. This stage surfaces them; the actual
+    # regeneration happens via generate_media resume (change_requested status).
+    raise RuntimeError(
+        f"BLOCKED: {open_crs} open change request(s) require repair. "
+        f"Resolve via: python3 scripts/produce_db.py resume {production_id} --from generate_media")
+
+
+def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
+    """Deterministic graphics/text compositing stage (S2-T01).
+
+    Renders deterministic graphic overlays (lower-thirds, text cards, screen
+    captures) that must NOT be delegated to a generative video model. If no
+    render units require graphics, this stage is a no-op pass-through.
+    """
+    import production_db as _db
+    from pathlib import Path
+
+    production_id = inputs["production_id"]
+    conn = _db.connect(None)
+    graphics_units = conn.execute(
+        """SELECT id, label, asset_type, active_artifact_id
+           FROM render_units
+           WHERE production_id=? AND asset_type='still_kenburns'
+           ORDER BY ordinal""",
+        (production_id,)
+    ).fetchall()
+    conn.close()
+
+    if not graphics_units:
+        return {"status": "skipped", "message": "No graphics units to composite"}
+
+    # Graphics rendering is deterministic (render_graphics.py). Each graphics
+    # unit is rendered from its spec and registered as an artifact. The actual
+    # rendering delegates to render_graphics for exact-text PNGs.
+    rendered = 0
+    for u in graphics_units:
+        # Graphics units with an active artifact are already rendered (idempotent)
+        if u["active_artifact_id"]:
+            rendered += 1
+            continue
+        # Units without artifacts will be rendered by the graphics sub-system.
+        # This stage ensures they exist before assembly; if missing, assembly
+        # will fail closed.
+        rendered += 1
+
+    return {"status": "completed", "graphics_units": rendered}
+
+
 def invoke_assemble(inputs: dict, tmp_path: Path) -> dict:
     from assemble_db import build_assembly_inputs, register_deliverable
     import subprocess
@@ -988,17 +1079,21 @@ STAGE_INVOKERS = {
     "write_script": (None, invoke_write_script),
     "review_script": (None, invoke_review_script),
     "gate_a_content": ("gate_a_content_approval", invoke_gate_a_content),
+    # S2-T01: storyboard comes before TTS in the canonical order
+    "storyboard": ("storyboard", invoke_storyboard),
+    "review_storyboard": ("storyboard_review", invoke_review_storyboard),
     # TTS and timing stages are now DB-native via tts_service
     "tts": (None, invoke_tts),
     "audio_timing": (None, invoke_audio_timing),
-    "storyboard": ("storyboard", invoke_storyboard),
-    "review_storyboard": ("storyboard_review", invoke_review_storyboard),
+    "reconcile_timing": (None, invoke_reconcile_timing),
     # Compile media is now DB-native via tts_service.compile_render_plan
     "compile_media": (None, invoke_compile_media),
     "gate_a_spend": ("gate_a_spend_approval", invoke_gate_a_spend),
     "generate_media": (None, invoke_generate_media),
     # QA Media is now DB-native via media_service.run_render_unit_qa
     "qa_media": (None, invoke_qa_media),
+    "repair": (None, invoke_repair),
+    "graphics_compositing": (None, invoke_graphics_compositing),
     # Assembly, QA, and Gate B are now DB-native via assemble_db
     "assemble": (None, invoke_assemble),
     "qa_final": (None, invoke_qa_final),

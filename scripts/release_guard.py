@@ -15,6 +15,7 @@ Also exposes:
 """
 import ast
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,11 +29,29 @@ BLOCKER_CODES = {
     "PADDING_SLICER": "Master-range padding slicer crosses speech boundaries",
     "STUBBED_PUBLISH": "Publish stage returns stubbed status",
     "STUBBED_ANALYTICS": "Analytics stage returns stubbed status",
+    "LEGACY_FILE_AUTHORITY": "Production services still read legacy JSON authority files",
 }
 
 PRODUCE_DB = ROOT / "scripts" / "produce_db.py"
 LIPSYNC_SCORING = ROOT / "scripts" / "lipsync_scoring.py"
 SLICE_CONTINUOUS = ROOT / "scripts" / "slice_continuous_lipsync.py"
+
+
+def _resolved_paths():
+    """Resolve the production modules to scan.
+
+    Defaults to the real production modules, but honors environment overrides so
+    the release interlock can be tested deterministically: tests inject fixture
+    files (containing a single blocker pattern) and point the override env vars
+    at them, then assert each blocker fires. The production path is never
+    bypassed — overrides only redirect WHICH file is scanned, not whether the
+    scan runs.
+    """
+    return {
+        "produce_db": Path(os.environ.get("RELEASE_GUARD_PRODUCE_DB", PRODUCE_DB)),
+        "lipsync": Path(os.environ.get("RELEASE_GUARD_LIPSYNC", LIPSYNC_SCORING)),
+        "slice": Path(os.environ.get("RELEASE_GUARD_SLICE", SLICE_CONTINUOUS)),
+    }
 
 
 def _parse_file(filepath: Path):
@@ -56,12 +75,13 @@ def _dict_has_key_val(dict_node, key, val):
 
 def _check_placeholder_scorer() -> list[dict]:
     blockers = []
-    tree = _parse_file(LIPSYNC_SCORING)
+    lipsync = _resolved_paths()["lipsync"]
+    tree = _parse_file(lipsync)
     if tree is None:
         blockers.append({
             "code": "PLACEHOLDER_SCORER",
             "detail": "Could not parse lipsync_scoring.py",
-            "location": str(LIPSYNC_SCORING),
+            "location": str(lipsync),
         })
         return blockers
 
@@ -84,7 +104,7 @@ def _check_placeholder_scorer() -> list[dict]:
         blockers.append({
             "code": "PLACEHOLDER_SCORER",
             "detail": "Lipsync scorer assigns fixed PASS score=0.85, confidence=0.90 — not a real ML model",
-            "location": f"{LIPSYNC_SCORING}:score_lipsync",
+            "location": f"{lipsync}:score_lipsync",
         })
 
     return blockers
@@ -92,7 +112,8 @@ def _check_placeholder_scorer() -> list[dict]:
 
 def _check_stubbed_provider() -> list[dict]:
     blockers = []
-    tree = _parse_file(PRODUCE_DB)
+    produce_db = _resolved_paths()["produce_db"]
+    tree = _parse_file(produce_db)
     if tree is None:
         return blockers
 
@@ -105,7 +126,7 @@ def _check_stubbed_provider() -> list[dict]:
                         blockers.append({
                             "code": "STUBBED_PROVIDER",
                             "detail": "generate_media writes b\"stubbed video content for CI\" — not real provider output",
-                            "location": f"{PRODUCE_DB}:{node.lineno}",
+                            "location": f"{produce_db}:{node.lineno}",
                         })
             if isinstance(func, ast.Attribute) and func.attr == "complete_provider_job":
                 pass
@@ -115,7 +136,8 @@ def _check_stubbed_provider() -> list[dict]:
 
 def _check_auto_approved_gates() -> list[dict]:
     blockers = []
-    tree = _parse_file(PRODUCE_DB)
+    produce_db = _resolved_paths()["produce_db"]
+    tree = _parse_file(produce_db)
     if tree is None:
         return blockers
 
@@ -130,7 +152,7 @@ def _check_auto_approved_gates() -> list[dict]:
                             blockers.append({
                                 "code": "AUTO_APPROVED_GATE",
                                 "detail": f"Gate '{func_node.name}' returns auto_approved without actual approval flow",
-                                "location": f"{PRODUCE_DB}:{node.lineno} (function {func_node.name})",
+                                "location": f"{produce_db}:{node.lineno} (function {func_node.name})",
                             })
                             break
     return blockers
@@ -138,7 +160,8 @@ def _check_auto_approved_gates() -> list[dict]:
 
 def _check_deleted_produce_import() -> list[dict]:
     blockers = []
-    tree = _parse_file(PRODUCE_DB)
+    produce_db = _resolved_paths()["produce_db"]
+    tree = _parse_file(produce_db)
     if tree is None:
         return blockers
 
@@ -149,7 +172,7 @@ def _check_deleted_produce_import() -> list[dict]:
                 blockers.append({
                     "code": "DELETED_PRODUCE_IMPORT",
                     "detail": f"Orchestrator imports from deleted produce.py: {', '.join(imports)}",
-                    "location": f"{PRODUCE_DB}:{node.lineno}",
+                    "location": f"{produce_db}:{node.lineno}",
                 })
 
     return blockers
@@ -157,7 +180,8 @@ def _check_deleted_produce_import() -> list[dict]:
 
 def _check_padding_slicer() -> list[dict]:
     blockers = []
-    tree = _parse_file(SLICE_CONTINUOUS)
+    slice_mod = _resolved_paths()["slice"]
+    tree = _parse_file(slice_mod)
     if tree is None:
         return blockers
 
@@ -182,7 +206,7 @@ def _check_padding_slicer() -> list[dict]:
         blockers.append({
             "code": "PADDING_SLICER",
             "detail": "slice_continuous_lipsync uses pad_needed/silence_padding that widens beyond speech boundaries into adjacent master audio",
-            "location": f"{SLICE_CONTINUOUS}:slice_hero_from_master",
+            "location": f"{slice_mod}:slice_hero_from_master",
         })
 
     return blockers
@@ -190,7 +214,8 @@ def _check_padding_slicer() -> list[dict]:
 
 def _check_stubbed_publish_analytics() -> list[dict]:
     blockers = []
-    tree = _parse_file(PRODUCE_DB)
+    produce_db = _resolved_paths()["produce_db"]
+    tree = _parse_file(produce_db)
     if tree is None:
         return blockers
 
@@ -203,7 +228,7 @@ def _check_stubbed_publish_analytics() -> list[dict]:
                             blockers.append({
                                 "code": "STUBBED_PUBLISH",
                                 "detail": "invoke_publish returns status: 'stubbed' — not integrated with publishing platform",
-                                "location": f"{PRODUCE_DB}:{child.lineno}",
+                                "location": f"{produce_db}:{child.lineno}",
                             })
             if node.name == "invoke_analytics":
                 for child in ast.walk(node):
@@ -212,9 +237,30 @@ def _check_stubbed_publish_analytics() -> list[dict]:
                             blockers.append({
                                 "code": "STUBBED_ANALYTICS",
                                 "detail": "invoke_analytics returns status: 'stubbed' — not integrated with analytics platform",
-                                "location": f"{PRODUCE_DB}:{child.lineno}",
+                                "location": f"{produce_db}:{child.lineno}",
                             })
 
+    return blockers
+
+
+def _check_legacy_file_authority() -> list[dict]:
+    """Block release when production services still read legacy JSON as authority.
+
+    Delegates to the existing forbidden-file-reads CI gate so the release
+    interlock and the CI gate agree on what constitutes legacy authority.
+    """
+    blockers = []
+    gate_path = ROOT / "tools" / "check_forbidden_file_reads.py"
+    if not gate_path.exists():
+        return blockers
+    r = subprocess.run([sys.executable, str(gate_path)], capture_output=True, text=True)
+    if r.returncode != 0:
+        blockers.append({
+            "code": "LEGACY_FILE_AUTHORITY",
+            "detail": "Production services still read legacy JSON authority files "
+                      "(see tools/check_forbidden_file_reads.py output)",
+            "location": str(gate_path),
+        })
     return blockers
 
 
@@ -233,6 +279,7 @@ def assess_release_readiness():
     blockers.extend(_check_deleted_produce_import())
     blockers.extend(_check_padding_slicer())
     blockers.extend(_check_stubbed_publish_analytics())
+    blockers.extend(_check_legacy_file_authority())
 
     return {"ready": len(blockers) == 0, "blockers": blockers}
 

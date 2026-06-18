@@ -32,6 +32,13 @@ def _get_cred(key: str) -> str:
 class HiggsfieldSeedanceAdapter(ProviderAdapter):
     """Real Higgsfield Seedance video generation via CLI."""
 
+    def estimate_cost(self, payload: dict) -> float:
+        model = payload.get("model", "seedance_2_0")
+        duration = float(payload.get("duration_sec", payload.get("duration", 5)))
+        # Cost model: $0.04/sec for seedance_2_0, $0.06/sec for seedance_2_0_pro
+        rate = 0.06 if "pro" in model else 0.04
+        return round(rate * duration, 2)
+
     def submit(self, payload: dict, idempotency_key: str) -> dict:
         prompt = payload.get("prompt", "educational video")
         duration = payload.get("duration_sec", payload.get("duration", 5))
@@ -85,6 +92,12 @@ class ElevenLabsAdapter(ProviderAdapter):
         super().__init__(config)
         self._api_key = config.get("api_key") or _get_cred("ELEVENLABS_API_KEY")
         self._voice_id = config.get("voice_id") or _get_cred("ELEVENLABS_VOICE_ID")
+
+    def estimate_cost(self, payload: dict) -> float:
+        text = payload.get("text", "")
+        char_count = len(text)
+        # ElevenLabs: ~$0.30 per 1000 chars for multilingual_v2
+        return round(0.30 * (char_count / 1000.0), 4)
 
     def _check_auth(self):
         if not self._api_key:

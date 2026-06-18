@@ -33,27 +33,36 @@ class StageDefinition:
     produces_kinds: list[str] = field(default_factory=list)
     # document kinds this stage consumes (for staleness checks)
     consumes_kinds: list[str] = field(default_factory=list)
+    # S2-T02: when True, a stage may only be marked 'succeeded' if it produced a
+    # committed output (document revision or artifact registered in the DB).
+    # Stages that are pure gates/approvals or analytics set this to False.
+    requires_committed_output: bool = True
 
 
-# Canonical pipeline stage order
+# Canonical pipeline stage order (S2-T01: corrected to match the intended
+# production flow — visuals planned before narration, timing aligns narration
+# to visuals, repair and graphics composite before assembly).
 STAGE_REGISTRY: dict[str, StageDefinition] = {
-    "research":        StageDefinition("research", depends_on=[], produces_kinds=["research_brief"]),
-    "write_script":    StageDefinition("write_script", depends_on=["research"], produces_kinds=["script"], consumes_kinds=["research_brief"]),
-    "review_script":   StageDefinition("review_script", depends_on=["write_script"], produces_kinds=["script_review"], consumes_kinds=["script"]),
-    "gate_a_content":  StageDefinition("gate_a_content", depends_on=["review_script"], produces_kinds=["gate_a_content_approval"]),
-    "tts":             StageDefinition("tts", depends_on=["gate_a_content"], produces_kinds=["tts_artifact"], consumes_kinds=["script"]),
-    "audio_timing":    StageDefinition("audio_timing", depends_on=["tts"], produces_kinds=["timing_map"], consumes_kinds=["tts_artifact"]),
-    "storyboard":      StageDefinition("storyboard", depends_on=["audio_timing"], produces_kinds=["storyboard"], consumes_kinds=["script", "timing_map"]),
-    "review_storyboard": StageDefinition("review_storyboard", depends_on=["storyboard"], produces_kinds=["storyboard_review"], consumes_kinds=["storyboard"]),
-    "compile_media":   StageDefinition("compile_media", depends_on=["review_storyboard"], produces_kinds=["media_plan"], consumes_kinds=["storyboard", "timing_map"]),
-    "gate_a_spend":    StageDefinition("gate_a_spend", depends_on=["compile_media"], produces_kinds=["gate_a_spend_approval"]),
-    "generate_media":  StageDefinition("generate_media", depends_on=["gate_a_spend"], consumes_kinds=["media_plan"]),
-    "qa_media":        StageDefinition("qa_media", depends_on=["generate_media"]),
-    "assemble":        StageDefinition("assemble", depends_on=["qa_media"], produces_kinds=["deliverable"]),
-    "qa_final":        StageDefinition("qa_final", depends_on=["assemble"]),
-    "gate_b_review":   StageDefinition("gate_b_review", depends_on=["qa_final"], produces_kinds=["gate_b_approval"]),
-    "publish":         StageDefinition("publish", depends_on=["gate_b_review"]),
-    "analytics":       StageDefinition("analytics", depends_on=["publish"]),
+    "research":          StageDefinition("research", depends_on=[], produces_kinds=["research_brief"]),
+    "write_script":      StageDefinition("write_script", depends_on=["research"], produces_kinds=["script"], consumes_kinds=["research_brief"]),
+    "review_script":     StageDefinition("review_script", depends_on=["write_script"], produces_kinds=["script_review"], consumes_kinds=["script"]),
+    "gate_a_content":    StageDefinition("gate_a_content", depends_on=["review_script"], produces_kinds=["gate_a_content_approval"], consumes_kinds=["script"], requires_committed_output=False),
+    "storyboard":        StageDefinition("storyboard", depends_on=["gate_a_content"], produces_kinds=["storyboard"], consumes_kinds=["script"]),
+    "review_storyboard": StageDefinition("review_storyboard", depends_on=["storyboard"], produces_kinds=["storyboard_review"], consumes_kinds=["storyboard"], requires_committed_output=False),
+    "tts":               StageDefinition("tts", depends_on=["review_storyboard"], produces_kinds=["tts_artifact"], consumes_kinds=["script"]),
+    "audio_timing":      StageDefinition("audio_timing", depends_on=["tts"], produces_kinds=["timing_map"], consumes_kinds=["tts_artifact", "storyboard"]),
+    "reconcile_timing":  StageDefinition("reconcile_timing", depends_on=["audio_timing"], produces_kinds=["timing_reconciliation"], consumes_kinds=["timing_map", "storyboard"], requires_committed_output=False),
+    "compile_media":     StageDefinition("compile_media", depends_on=["reconcile_timing"], produces_kinds=["render_plan"], consumes_kinds=["storyboard", "timing_map"]),
+    "gate_a_spend":      StageDefinition("gate_a_spend", depends_on=["compile_media"], produces_kinds=["gate_a_spend_approval"], consumes_kinds=["render_plan"], requires_committed_output=False),
+    "generate_media":    StageDefinition("generate_media", depends_on=["gate_a_spend"], consumes_kinds=["render_plan"]),
+    "qa_media":          StageDefinition("qa_media", depends_on=["generate_media"]),
+    "repair":            StageDefinition("repair", depends_on=["qa_media"], requires_committed_output=False),
+    "graphics_compositing": StageDefinition("graphics_compositing", depends_on=["repair"]),
+    "assemble":          StageDefinition("assemble", depends_on=["graphics_compositing"], produces_kinds=["deliverable"]),
+    "qa_final":          StageDefinition("qa_final", depends_on=["assemble"]),
+    "gate_b_review":     StageDefinition("gate_b_review", depends_on=["qa_final"], produces_kinds=["gate_b_approval"], requires_committed_output=False),
+    "publish":           StageDefinition("publish", depends_on=["gate_b_review"]),
+    "analytics":         StageDefinition("analytics", depends_on=["publish"], requires_committed_output=False),
 }
 
 # Reverse map: document kind → which stages it blocks when stale
@@ -112,6 +121,32 @@ class StageSkipped(Exception):
     def __init__(self, stage_run_id: str, result: Any):
         self.stage_run_id = stage_run_id
         self.result = result
+
+
+def _verify_committed_output(production_id, produces_kinds, run_id, db_path=None):
+    """S2-T02: Verify that a stage produced committed output evidence.
+
+    Checks that at least one active document revision exists for each produced
+    kind, or that the stage_run has an associated artifact. Raises if no
+    committed output is found — a stage must not be marked succeeded without
+    evidence.
+    """
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    for kind in produces_kinds:
+        row = conn.execute(
+            """SELECT id FROM document_revisions
+               WHERE production_id=? AND kind=? AND status='active'
+               ORDER BY revision DESC LIMIT 1""",
+            (production_id, kind),
+        ).fetchone()
+        if not row:
+            conn.close()
+            raise RuntimeError(
+                f"BLOCKED: STAGE_SUCCESS_REQUIRES_COMMITTED_OUTPUT — stage run {run_id} "
+                f"produced no committed document of kind '{kind}' for production {production_id}. "
+                f"A stage may not be marked succeeded without committed output evidence.")
+    conn.close()
 
 
 def run_stage(
@@ -332,8 +367,16 @@ class LegacyAdapter:
         input_data: dict,
         db_path=None,
     ) -> dict:
-        """Execute via run_stage; commits result document to DB."""
+        """Execute via run_stage; commits result document to DB.
+
+        S2-T02: After the invoker runs, verifies committed output evidence for
+        stages that require it (produces_kinds is non-empty and
+        requires_committed_output is True). A stage must not be marked succeeded
+        without committed output.
+        """
         import tempfile, os
+
+        stage_def = STAGE_REGISTRY.get(self.stage_name)
 
         def work(inputs: dict) -> dict:
             with tempfile.TemporaryDirectory(prefix="ytch_adapter_") as tmpdir:
@@ -345,10 +388,23 @@ class LegacyAdapter:
                     save_document_revision(production_id, self.output_kind, result, db_path=db_path)
                 return result
 
+        result = None
         try:
-            return run_stage(production_id, self.stage_name, work, input_data, db_path=db_path)
+            result = run_stage(production_id, self.stage_name, work, input_data, db_path=db_path)
         except StageSkipped as skipped:
             return skipped.result
+
+        # S2-T02: Verify committed output after successful execution. Only
+        # enforced when the adapter itself is responsible for committing a
+        # document kind that matches the stage's produces_kinds. DB-native
+        # stages (output_kind=None) commit their own output internally.
+        if (self.output_kind and stage_def
+                and stage_def.requires_committed_output
+                and self.output_kind in stage_def.produces_kinds):
+            _verify_committed_output(
+                production_id, [self.output_kind], None, db_path)
+
+        return result
 
 
 # ---------------------------------------------------------------------------

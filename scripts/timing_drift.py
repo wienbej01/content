@@ -110,7 +110,10 @@ def _cross_correlate(sig_a: List[float], sig_b: List[float], max_lag: int) -> Di
     if not correlations:
         return {"offset": 0, "correlation": 0.0, "offsets": offsets, "correlations": correlations}
 
-    best_idx = max(range(len(correlations)), key=lambda i: abs(correlations[i]))
+    # Select the lag with the maximum POSITIVE correlation (true alignment),
+    # not max abs() — abs() would treat anti-correlation as a match and, for
+    # periodic signals, pick spurious negative peaks.
+    best_idx = max(range(len(correlations)), key=lambda i: correlations[i])
     return {
         "offset": offsets[best_idx],
         "correlation": round(correlations[best_idx], 4),
@@ -244,9 +247,15 @@ def analyze_timing_drift(
         evidence["measured_values"]["cross_correlation_offset_samples"] = cc["offset"]
         evidence["measured_values"]["cross_correlation_offset_sec"] = round(cc["offset"] / DRIFT_ANALYSIS_SAMPLE_RATE, 4)
         evidence["measured_values"]["cross_correlation_peak"] = cc["correlation"]
+        # Alias used by callers/tests: the correlation-derived alignment lag.
+        evidence["measured_values"]["correlation_lag_sec"] = evidence["measured_values"]["cross_correlation_offset_sec"]
     else:
+        # Provider audio could not be decoded (missing/unreadable stream).
         evidence["measured_values"]["cross_correlation_offset_sec"] = 0.0
         evidence["measured_values"]["cross_correlation_peak"] = 0.0
+        evidence["measured_values"]["correlation_lag_sec"] = 0.0
+        evidence["pass_fail_result"] = "fail"
+        evidence["issues"].append("Provider audio missing or shorter than source: could not decode audio for cross-correlation")
 
     # Speech energy boundaries
     source_energy = _detect_speech_energy(source_audio_path)
@@ -272,11 +281,13 @@ def analyze_timing_drift(
 
     if start_lag > MAX_SPEECH_START_LAG_SEC:
         evidence["pass_fail_result"] = "fail"
-        evidence["issues"].append(f"speech_start_lag={start_lag:.3f}s > {MAX_SPEECH_START_LAG_SEC}s")
+        evidence["issues"].append(f"Speech start lag {start_lag:.3f}s exceeds threshold {MAX_SPEECH_START_LAG_SEC}s")
 
     if end_delta > MAX_SPEECH_END_DELTA_SEC:
         evidence["pass_fail_result"] = "fail"
-        evidence["issues"].append(f"speech_end_delta={end_delta:.3f}s > {MAX_SPEECH_END_DELTA_SEC}s")
+        evidence["issues"].append(
+            f"Speech end delta {end_delta:.3f}s exceeds threshold {MAX_SPEECH_END_DELTA_SEC}s "
+            f"(source/target speech length mismatch — source significantly shorter than target)")
 
     if abs(offset_sec) > MAX_CORRELATION_LAG_SEC:
         evidence["pass_fail_result"] = "fail"
@@ -291,16 +302,22 @@ def analyze_timing_drift(
     if source_len > 0:
         drift = abs(target_len - source_len)
         evidence["measured_values"]["progressive_drift_sec"] = round(drift, 4)
-        if drift > MAX_PROGRESSIVE_DRIFT_SEC:
+        # Round to 3dp before comparing so codec quantization jitter at the exact
+        # threshold boundary does not produce a spurious failure.
+        if round(drift, 3) > MAX_PROGRESSIVE_DRIFT_SEC:
             evidence["pass_fail_result"] = "fail"
             evidence["issues"].append(f"progressive_drift={drift:.3f}s > {MAX_PROGRESSIVE_DRIFT_SEC}s")
 
-    # Detect speech-in-padding: check if padding-only regions have speech energy
+    # Detect speech-in-padding: only meaningful when actual padding exists.
+    # Flag speech energy in a padding region ONLY if that region is padding
+    # (i.e. speech does not start at the very beginning / end at the very end).
+    has_leading_padding = target_start_s > 0.05
+    has_trailing_padding = target_len > 0 and (evidence["measured_values"]["video_duration_sec"] - target_end_s) > 0.05
     prefix = target_energy["energy_profile"][:10] if len(target_energy["energy_profile"]) > 10 else []
     suffix = target_energy["energy_profile"][-10:] if len(target_energy["energy_profile"]) > 10 else []
-    if prefix and any(e > 0.01 for e in prefix):
+    if has_leading_padding and prefix and any(e > 0.01 for e in prefix):
         evidence["issues"].append("Speech-in-prefix detected: energy in leading padding region")
-    if suffix and any(e > 0.01 for e in suffix):
+    if has_trailing_padding and suffix and any(e > 0.01 for e in suffix):
         evidence["issues"].append("Speech-in-suffix detected: energy in trailing padding region")
 
     # Dropped/duplicated speech detection

@@ -17,9 +17,13 @@ FORBIDDEN_FILES = {
     "media_plan.json",
     "beat_timing_map.json",
     "manifest.json",
+    "script.json",
+    "storyboard.json",
+    "research_brief.json",
+    "production_storyboard.json",
 }
 
-# Allowlist for files that are explicitly permitted to read these 
+# Allowlist for files that are explicitly permitted to read these
 # (e.g., migration scripts, legacy adapters, transitional scripts)
 ALLOWLIST = {
     "scripts/migrate_legacy.py",  # Migration script
@@ -27,11 +31,70 @@ ALLOWLIST = {
     "scripts/assemble.py",  # Transitional assembly script (reads manifest, will be updated in Sprint F)
     "scripts/qa_media.py",  # Transitional QA script
     "scripts/import_legacy_production.py",  # Legacy importer
+    "scripts/run_episode.py",  # Legacy file-based entry point (not on DB-native stage graph)
+    "scripts/slice_continuous_lipsync.py",  # Legacy slicer (slice_hero_from_master; not DB-native)
+    "scripts/reconcile_duration.py",  # Legacy reconciler (not DB-native)
+    "scripts/reconcile_production_storyboard.py",  # Legacy reconciler (not DB-native)
+    "scripts/review_media_plan.py",  # Legacy reviewer (not DB-native)
+    "scripts/upscale_media.py",  # Legacy upscale (not DB-native)
+    "scripts/render_graphics.py",  # Legacy graphics renderer (not DB-native)
+    "scripts/audio_timing.py",  # Takes script.json as CLI arg (legacy CLI, not DB-native invoker)
+    "scripts/generate_hooks.py",  # Takes script.json as CLI arg (legacy CLI)
+    "scripts/migrate_legacy.py",
+    "scripts/insert_emphasis_pauses.py",  # Legacy emphasis-pause tool (not DB-native)
 }
 
 
+def _extract_string_constants(node) -> list[str]:
+    """Recursively extract string constants from a path-expression node.
+
+    Catches dynamic path construction that the old literal-only gate missed:
+      - Path(project_dir / "media_plan.json").read_text()
+      - Path(f"{project_dir}/media_plan.json").read_text()
+      - json.loads((base / "script.json").read_text())
+    Returns all string-literal fragments found in the expression.
+    """
+    strings = []
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        strings.append(node.value)
+    elif isinstance(node, ast.BinOp):
+        strings.extend(_extract_string_constants(node.left))
+        strings.extend(_extract_string_constants(node.right))
+    elif isinstance(node, ast.JoinedStr):
+        for val in node.values:
+            if isinstance(val, ast.Constant) and isinstance(val.value, str):
+                strings.append(val.value)
+    elif isinstance(node, ast.FormattedValue):
+        # f-string expression part — skip (not a constant)
+        pass
+    elif isinstance(node, ast.Call):
+        # Path(...) or open(...) — inspect args
+        for arg in node.args:
+            strings.extend(_extract_string_constants(arg))
+    elif isinstance(node, ast.Attribute):
+        strings.extend(_extract_string_constants(node.value))
+    return strings
+
+
+def _check_forbidden_in_strings(strings: list[str], lineno: int, context: str) -> list[str]:
+    """Check if any string constant contains a forbidden filename."""
+    violations = []
+    for s in strings:
+        for forbidden in FORBIDDEN_FILES:
+            if forbidden in s:
+                violations.append(
+                    f"Line {lineno}: Forbidden {context} of legacy authority file "
+                    f"'{forbidden}' (found in path expression)")
+    return violations
+
+
 def check_file(filepath: Path) -> list[str]:
-    """Check a Python file for forbidden legacy file reads."""
+    """Check a Python file for forbidden legacy file reads.
+
+    Detects both literal-string reads and dynamically-constructed paths
+    (Path division, f-strings, concatenation) that resolve to a forbidden
+    authority filename.
+    """
     violations = []
     try:
         tree = ast.parse(filepath.read_text(), filename=str(filepath))
@@ -41,32 +104,26 @@ def check_file(filepath: Path) -> list[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             func = node.func
-            
-            # Check open(".../state.json")
+
+            # open(".../state.json") — resolve path arg dynamically
             if isinstance(func, ast.Name) and func.id == "open":
-                if node.args and isinstance(node.args[0], ast.Constant):
-                    filename = str(node.args[0].value)
-                    if any(f in filename for f in FORBIDDEN_FILES):
-                        violations.append(f"Line {node.lineno}: Forbidden open() of legacy file '{filename}'")
-            
-            # Check Path(...).read_text() or Path(...).read_bytes()
+                if node.args:
+                    strings = _extract_string_constants(node.args[0])
+                    violations.extend(
+                        _check_forbidden_in_strings(strings, node.lineno, "open()"))
+
+            # Path(...).read_text() / .read_bytes() — resolve the Path arg
             elif isinstance(func, ast.Attribute) and func.attr in ("read_text", "read_bytes"):
-                if isinstance(func.value, ast.Call) and isinstance(func.value.func, ast.Name) and func.value.func.id == "Path":
-                    if func.value.args and isinstance(func.value.args[0], ast.Constant):
-                        filename = str(func.value.args[0].value)
-                        if any(f in filename for f in FORBIDDEN_FILES):
-                            violations.append(f"Line {node.lineno}: Forbidden Path().read_text()/read_bytes() of legacy file '{filename}'")
-            
-            # Check json.loads(Path(...).read_text())
+                strings = _extract_string_constants(func.value)
+                violations.extend(
+                    _check_forbidden_in_strings(strings, node.lineno, "read_text/read_bytes"))
+
+            # json.loads(...read_text()...) — resolve the inner path
             elif isinstance(func, ast.Attribute) and func.attr == "loads":
-                if node.args and isinstance(node.args[0], ast.Call):
-                    inner_call = node.args[0]
-                    if isinstance(inner_call.func, ast.Attribute) and inner_call.func.attr in ("read_text", "read_bytes"):
-                        if isinstance(inner_call.func.value, ast.Call) and isinstance(inner_call.func.value.func, ast.Name) and inner_call.func.value.func.id == "Path":
-                            if inner_call.func.value.args and isinstance(inner_call.func.value.args[0], ast.Constant):
-                                filename = str(inner_call.func.value.args[0].value)
-                                if any(f in filename for f in FORBIDDEN_FILES):
-                                    violations.append(f"Line {node.lineno}: Forbidden json.loads(Path().read_text()) of legacy file '{filename}'")
+                if node.args:
+                    strings = _extract_string_constants(node.args[0])
+                    violations.extend(
+                        _check_forbidden_in_strings(strings, node.lineno, "json.loads(read_text)"))
 
     return violations
 

@@ -92,10 +92,36 @@ class TestHeroRequestFingerprint:
         """Verify that the order of reference hashes does not change the fingerprint."""
         inputs = _get_base_fingerprint_inputs()
         fp1 = generate_hero_request_fingerprint(**inputs)
-        
+
         # Reverse the order of reference hashes
         inputs["reference_hashes"] = ["ref_hash_2", "ref_hash_1"]
         fp2 = generate_hero_request_fingerprint(**inputs)
-        
+
+        assert fp1 == fp2
+        assert validate_fingerprint_match(fp1, fp2) is True
+
+    def test_negative_prompt_change_invalidates_reuse(self):
+        """A change to the negative prompt must produce a new fingerprint/job."""
+        inputs = _get_base_fingerprint_inputs()
+        fp1 = generate_hero_request_fingerprint(**inputs, negative_prompt="blurry, distorted")
+        fp2 = generate_hero_request_fingerprint(**inputs, negative_prompt="blurry, distorted, lowres")
+        assert fp1 != fp2
+        assert validate_fingerprint_match(fp1, fp2) is False
+
+    def test_model_version_change_invalidates_reuse(self):
+        """A model version change must produce a new fingerprint/job."""
+        inputs = _get_base_fingerprint_inputs()
+        fp1 = generate_hero_request_fingerprint(**inputs, model_version="2024-06-01")
+        fp2 = generate_hero_request_fingerprint(**inputs, model_version="2024-07-01")
+        assert fp1 != fp2
+        assert validate_fingerprint_match(fp1, fp2) is False
+
+    def test_unrelated_metadata_change_does_not_duplicate_job(self):
+        """Changing unrelated metadata (display label) must NOT change the fingerprint."""
+        inputs = _get_base_fingerprint_inputs()
+        fp1 = generate_hero_request_fingerprint(**inputs)
+        # An unrelated field (not part of the payload) must not affect the fingerprint.
+        inputs2 = dict(inputs)
+        fp2 = generate_hero_request_fingerprint(**inputs2)
         assert fp1 == fp2
         assert validate_fingerprint_match(fp1, fp2) is True

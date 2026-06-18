@@ -30,15 +30,53 @@ class ProviderAdapterError(RuntimeError):
 
 
 class ProviderAdapter(ABC):
-    """Abstract provider adapter."""
+    """Abstract provider adapter (S3-T01: full contract).
+
+    A provider adapter encapsulates all interaction with an external media
+    generation service. The contract methods cover the full lifecycle:
+    prepare → estimate cost → submit → poll → download → validate → record cost.
+    Production must reject test adapters (FakeProviderAdapter); the test adapter
+    is only available in YT_TEST_MODE.
+    """
 
     def __init__(self, config: dict):
         self.config = config
+
+    def prepare_request(self, render_unit: dict, render_plan: dict) -> dict:
+        """Compile a provider request payload from a render unit + plan.
+
+        Default implementation builds a standard payload; subclasses may override
+        to add provider-specific fields (model parameters, references, etc.).
+        Returns the request payload dict.
+        """
+        return {
+            "asset_type": render_unit.get("asset_type"),
+            "model": render_unit.get("model"),
+            "duration_sec": (render_unit.get("required_duration_ms") or 0) / 1000.0,
+            "audio_policy": render_unit.get("audio_policy"),
+            "prompt": render_plan.get("prompt", ""),
+            "negative_prompt": render_plan.get("negative_prompt", ""),
+            "aspect_ratio": render_plan.get("aspect_ratio", "16:9"),
+        }
+
+    def estimate_cost(self, payload: dict) -> float:
+        """Estimate the cost of a request in USD before submission.
+
+        Subclasses must override to return the provider's per-request cost.
+        """
+        return 0.0
 
     @abstractmethod
     def submit(self, payload: dict, idempotency_key: str) -> dict:
         """Submit a job. Returns {external_job_id, status, raw_request}."""
         ...
+
+    def get_external_id(self, submit_result: dict) -> str:
+        """Extract the external job ID from a submit result.
+
+        Default implementation reads the 'external_job_id' key.
+        """
+        return submit_result.get("external_job_id", "")
 
     @abstractmethod
     def poll(self, external_job_id: str) -> dict:
@@ -50,18 +88,92 @@ class ProviderAdapter(ABC):
         """Download completed artifact. Returns path to downloaded file."""
         ...
 
+    def validate_response(self, downloaded_path: Path, expected_metadata: Optional[dict] = None) -> dict:
+        """Validate a downloaded provider response.
+
+        Default implementation delegates to validate_downloaded_artifact (ffprobe
+        + SHA). Subclasses may override for provider-specific checks.
+        """
+        expected_sha = expected_metadata.get("sha256") if expected_metadata else None
+        return validate_downloaded_artifact(downloaded_path, expected_sha256=expected_sha)
+
+    def record_actual_cost(self, provider_job_id: str, actual_usd: float, db_path=None) -> dict:
+        """Record the actual cost of a completed provider job.
+
+        Delegates to media_service / production_db cost_events. Subclasses may
+        override to compute cost from the provider response.
+        """
+        import production_db as _db
+        now = _db._now()
+        with _db.transaction(db_path) as conn:
+            job = conn.execute(
+                "SELECT production_id, provider, operation FROM provider_jobs WHERE id=?",
+                (provider_job_id,),
+            ).fetchone()
+            if not job:
+                return {}
+            conn.execute(
+                """INSERT INTO cost_events
+                   (id, production_id, provider_job_id, provider, operation,
+                    actual_usd, currency, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (_db._id("cost"), job["production_id"], provider_job_id,
+                 job["provider"], job["operation"], actual_usd, "USD", now),
+            )
+            _db.append_event(
+                job["production_id"], "cost_recorded",
+                payload={"provider_job_id": provider_job_id, "actual_usd": actual_usd},
+                conn=conn,
+            )
+            return {"provider_job_id": provider_job_id, "actual_usd": actual_usd}
+
+    def cancel_if_supported(self, external_job_id: str) -> dict:
+        """Attempt to cancel an in-progress job.
+
+        Default implementation returns unsupported. Subclasses override if the
+        provider supports cancellation.
+        """
+        return {"external_job_id": external_job_id, "cancelled": False,
+                "reason": "cancellation not supported by this provider"}
+
 
 class FakeProviderAdapter(ProviderAdapter):
-    """Test-only adapter gated behind YT_TEST_MODE."""
+    """Test-only adapter gated behind YT_TEST_MODE (S3-T02).
+
+    Generates REAL valid media (not arbitrary bytes) via FFmpeg so that
+    downstream QA (ffprobe, lipsync, assembly) works correctly. Supports
+    controllable failure, offset, corruption, and delay via config to exercise
+    the crash matrix and QA failure paths.
+
+    Config keys:
+      fail_on_submit: bool       — submit() raises ProviderAdapterError
+      fail_on_poll: bool         — poll() returns status='failed'
+      fail_on_download: bool     — download() raises ProviderAdapterError
+      corrupt_download: bool     — download() writes invalid bytes
+      delay_sec: float           — sleep before submit/poll/download
+      audio_offset_ms: int       — shift audio track by N ms (lipsync offset)
+      short_video: bool          — generate video shorter than requested
+      long_video: bool           — generate video longer than requested
+      no_audio: bool             — generate video without audio stream
+      duplicate_audio: bool      — generate video with duplicated audio stream
+      timeout: bool              — poll() returns status='running' forever
+    """
 
     def __init__(self, config: dict):
         super().__init__(config)
         if not _is_test_mode():
             raise ProviderAdapterError(
-                "FakeProviderAdapter is only available in YT_TEST_MODE=1"
-            )
+                "FakeProviderAdapter is only available in YT_TEST_MODE=1")
+
+    def estimate_cost(self, payload: dict) -> float:
+        return self.config.get("cost_per_clip_usd", 0.0)
 
     def submit(self, payload: dict, idempotency_key: str) -> dict:
+        if self.config.get("fail_on_submit"):
+            raise ProviderAdapterError("FakeProviderAdapter: fail_on_submit configured")
+        _delay = self.config.get("delay_sec", 0)
+        if _delay:
+            time.sleep(_delay)
         job_id = f"fake_{hashlib.sha256(idempotency_key.encode()).hexdigest()[:16]}"
         raw_request = json.dumps(payload, sort_keys=True, default=str)
         return {
@@ -71,6 +183,19 @@ class FakeProviderAdapter(ProviderAdapter):
         }
 
     def poll(self, external_job_id: str) -> dict:
+        if self.config.get("fail_on_poll"):
+            return {
+                "external_job_id": external_job_id,
+                "status": "failed",
+                "raw_response": json.dumps({"simulated": True, "error": "fail_on_poll"}),
+                "error": "FakeProviderAdapter: fail_on_poll configured",
+            }
+        if self.config.get("timeout"):
+            return {
+                "external_job_id": external_job_id,
+                "status": "running",
+                "raw_response": json.dumps({"simulated": True, "state": "processing"}),
+            }
         return {
             "external_job_id": external_job_id,
             "status": "completed",
@@ -79,14 +204,40 @@ class FakeProviderAdapter(ProviderAdapter):
         }
 
     def download(self, external_job_id: str, output_path: Path) -> Path:
+        if self.config.get("fail_on_download"):
+            raise ProviderAdapterError("FakeProviderAdapter: fail_on_download configured")
+        if self.config.get("corrupt_download"):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"not a valid mp4 file")
+            return output_path
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run([
+        duration = self.config.get("duration_sec", 5)
+        if self.config.get("short_video"):
+            duration = max(1, duration * 0.5)
+        elif self.config.get("long_video"):
+            duration = duration * 2
+
+        cmd = [
             "ffmpeg", "-y",
-            "-f", "lavfi", "-i", f"color=c=black:s=1920x1080:d=5:r=24",
-            "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=48000:duration=5",
-            "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            str(output_path),
-        ], capture_output=True, check=True)
+            "-f", "lavfi", "-i", f"color=c=black:s=1920x1080:d={duration}:r=24",
+        ]
+        if self.config.get("no_audio"):
+            cmd = cmd + ["-an"]
+        elif self.config.get("audio_offset_ms"):
+            cmd = cmd + ["-f", "lavfi", "-i", f"anullsrc=channel_layout=mono:sample_rate=48000:duration={duration}",
+                         "-af", f"adelay={self.config['audio_offset_ms']}|{self.config['audio_offset_ms']}",
+                         "-shortest"]
+        elif self.config.get("duplicate_audio"):
+            cmd = cmd + ["-f", "lavfi", "-i", f"anullsrc=channel_layout=mono:sample_rate=48000:duration={duration}",
+                         "-filter_complex", "[1:a][1:a]amerge=inputs=2[a]",
+                         "-map", "0:v", "-map", "[a]", "-shortest"]
+        else:
+            cmd = cmd + ["-f", "lavfi", "-i", f"anullsrc=channel_layout=mono:sample_rate=48000:duration={duration}",
+                         "-shortest"]
+        cmd = cmd + ["-c:v", "libx264", "-pix_fmt", "yuv420p", str(output_path)]
+
+        subprocess.run(cmd, capture_output=True, check=True)
         return output_path
 
 

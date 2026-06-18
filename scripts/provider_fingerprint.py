@@ -14,7 +14,7 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional
 
-FINGERPRINT_ALGORITHM_VERSION = 2
+FINGERPRINT_ALGORITHM_VERSION = 3
 
 
 def _stable_hash(value: Any) -> str:
@@ -40,6 +40,8 @@ def generate_hero_request_fingerprint(
     aspect_ratio: str,
     provider_params: Dict[str, Any],
     code_revision: str,
+    negative_prompt: str = "",
+    model_version: str = "",
 ) -> dict:
     """Generate a semantic fingerprint for a hero render request.
 
@@ -47,6 +49,12 @@ def generate_hero_request_fingerprint(
     and 'payload' (the canonicalized fingerprint payload for persistence).
 
     Duration is in integer samples (not float seconds) to avoid IEEE 754 drift.
+
+    The fingerprint includes ALL meaningful inputs that must invalidate a cached
+    provider job when they change: prompt, negative prompt, references, model AND
+    model version, source/slice hashes, sample intervals, silence padding,
+    duration, aspect ratio, and provider parameters. Unrelated metadata changes
+    (e.g. a display label) must NOT create a new job.
     """
     payload = {
         "_algorithm": FINGERPRINT_ALGORITHM_VERSION,
@@ -58,8 +66,10 @@ def generate_hero_request_fingerprint(
         "source_samples": source_samples,
         "silence_padding": silence_padding,
         "prompt_hash": _stable_hash(prompt),
+        "negative_prompt_hash": _stable_hash(negative_prompt),
         "reference_hashes": sorted(reference_hashes),
         "model": model,
+        "model_version": model_version,
         "requested_duration_samples": requested_duration_samples,
         "aspect_ratio": aspect_ratio,
         "provider_params": provider_params,

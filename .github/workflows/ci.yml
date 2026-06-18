@@ -8,7 +8,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pyyaml pytest
+      - run: pip install pyyaml pytest pytest-timeout
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: python3 tools/check_forbidden_file_reads.py
       - run: python3 tools/check_forbidden_beat_id_lookups.py
@@ -16,5 +16,7 @@ jobs:
       - run: python3 tools/check_direct_db_writes.py
       - run: python3 tools/check_test_quality.py
       - run: python3 scripts/release_guard.py status
-      - run: YT_TEST_MODE=1 python3 -m pytest -q --ignore=tests/e2e
+      # S0-T03: full suite with per-test timeout; real-provider smoke is gated and
+      # never runs in default CI. E2E/media suites use real FFmpeg fixtures.
+      - run: python3 -m pytest -q --ignore=tests/real_provider
       - run: YT_TEST_MODE=1 python3 -m pytest tests/e2e/ -q -v || echo "E2E suite (may require GPU/credentials)"

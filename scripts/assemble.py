@@ -205,7 +205,7 @@ def validate_manifest(manifest, base):
 
     for i, seg in enumerate(segments):
         prefix = f"segments[{i}]"
-        is_lipsync = seg.get("audio_policy") == "HERO_SYNC_LOCKED"
+        is_lipsync = _is_hero_lipsync(seg)
         if "media" not in seg:
             errors.append(f"{prefix}: missing 'media'")
         else:
@@ -306,7 +306,7 @@ def compute_speeds(segments, pacing, base, narration_mode=None):
     for seg in segments:
         # hero_lipsync spans run at native speed (lipsync timing is sacred); skip
         # WPS measurement (they may have no 'words'/'audio'). Use a sentinel WPS.
-        if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
+        if _is_hero_lipsync(seg):
             wps_list.append(None)
             continue
         # Measure narration audio for WPS — use separate audio if provided (generated_tts),
@@ -406,13 +406,26 @@ def _composite_overlay(seg, clip, base, tmp, idx):
     return dst
 
 
+_HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
+
+
+def _is_hero_lipsync(seg):
+    """A segment is hero-lipsync when its audio policy locks lip sync, or it is
+    explicitly flagged. Recognizes both the DB-native policy (HERO_SYNC_LOCKED)
+    and the legacy alias (keep_lipsync) used by manifests/fixtures."""
+    policy = seg.get("audio_policy")
+    if policy in _HERO_LIPSYNC_POLICIES:
+        return True
+    return bool(seg.get("lipsync_required"))
+
+
 def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_looping=False):
     """Normalize one segment: scale/crop, speed, grade, optional lower-third.
     When narration is longer than the video, hold the last frame (premium 'linger')
     instead of looping — unless allow_looping=True."""
     
     # LB-001: Hero temporal-edit fail-closed guard
-    is_hero_lipsync = seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("lipsync_required") or seg.get("audio_policy") == "HERO_SYNC_LOCKED"
+    is_hero_lipsync = _is_hero_lipsync(seg)
     if is_hero_lipsync:
         if abs(speed - 1.0) > 1e-3:
             raise ValueError(
@@ -481,7 +494,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
     # Hero lipsync clips are generated using the master narration. To prevent
     # audio artifacts, drift, or duplication, we MUST strip the provider's baked
     # audio (-an) and rely exclusively on the master narration spine in the final mix.
-    if seg.get("audio_policy") == "HERO_SYNC_LOCKED" or seg.get("audio_policy") == "HERO_SYNC_LOCKED":
+    if _is_hero_lipsync(seg):
         speech_len = seg.get("speech_len_sec")
         media_dur = probe_dur(media)
         # Trim to true speech length when known; else keep full clip.
@@ -526,7 +539,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
         # each shot individually: lipsync shots via the hero_lipsync path (baked audio,
         # trimmed to speech_len_sec); voiceover shots via a proportional narration slice.
         has_lipsync = any(
-            isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED"
+            isinstance(sh, dict) and _is_hero_lipsync(sh)
             for sh in shots)
 
         audio_path = resolve(base, audio_src)
@@ -541,20 +554,20 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
             # speech_len_sec would under-allocate narration time to the voiceover shots.
             actual_lipsync_dur = 0.0
             for sh in shots:
-                if isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED":
+                if isinstance(sh, dict) and _is_hero_lipsync(sh):
                     sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
                     speech_len = float(sh.get("speech_len_sec") or 0)
                     clip_dur = probe_dur(sp) or speech_len
                     actual_lipsync_dur += min(speech_len, clip_dur) if speech_len else clip_dur
             vo_shots = [sh for sh in shots
-                        if not (isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED")]
+                        if not (isinstance(sh, dict) and _is_hero_lipsync(sh))]
             n_vo = len(vo_shots)
             vo_nar_dur = max(0.0, total_nar_dur - actual_lipsync_dur)
             per_vo = (vo_nar_dur / n_vo) if n_vo else 0.0
             nar_offset = 0.0  # current position in narration mp3
 
             for j, sh in enumerate(shots):
-                is_lip = isinstance(sh, dict) and sh.get("audio_policy") == "HERO_SYNC_LOCKED"
+                is_lip = isinstance(sh, dict) and _is_hero_lipsync(sh)
                 sp = resolve(base, sh["media"] if isinstance(sh, dict) else sh)
                 sdst = tmp / f"seg_{idx}_shot{j}.mp4"
 
@@ -1025,14 +1038,14 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         for i, seg in enumerate(segments):
             # hero_lipsync spans: verify baked-audio provenance BEFORE assembling.
             # A tampered slice hash (or missing provenance) must kill assembly.
-            if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
+            if _is_hero_lipsync(seg):
                 prov_problems = validate_lipsync_provenance(seg, base)
                 if prov_problems:
                     raise ValueError(
                         "Lipsync provenance check failed — refusing to assemble:\n  "
                         + "\n  ".join(prov_problems))
             clip = process_segment(seg, speeds[i], w, h, fps, grade, crf, fmt_tmp, base, i, allow_looping=allow_looping)
-            if seg.get("audio_policy") == "HERO_SYNC_LOCKED":
+            if _is_hero_lipsync(seg):
                 # Baked-audio span: assert the assembled clip's audio matches the
                 # clip's own baked audio and the true speech length within ±0.25s.
                 seg_dur = probe_dur(clip)

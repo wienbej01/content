@@ -70,42 +70,84 @@ def connect(db_path=None):
     return conn
 
 
-def migrate(db_path=None):
-    """Apply ordered SQL migrations exactly once."""
-    conn = connect(db_path)
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS schema_migrations (
-               version TEXT PRIMARY KEY,
-               filename TEXT NOT NULL,
-               sha256 TEXT NOT NULL,
-               applied_at TEXT NOT NULL
-           )"""
-    )
-    applied = {
-        row["version"]: row
-        for row in conn.execute("SELECT * FROM schema_migrations").fetchall()
-    }
-    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
-        version = path.name.split("_", 1)[0]
-        sql = path.read_text()
-        digest = _sha256_bytes(sql.encode("utf-8"))
-        prior = applied.get(version)
-        if prior:
-            if prior["sha256"] != digest:
-                conn.close()
-                raise RuntimeError(f"migration {path.name} changed after application")
-            continue
-        conn.executescript(sql)
+def _backup_db(db_path):
+    """Create a pre-migration backup of the DB file. Returns the backup path or None."""
+    import shutil
+    path = _db_path(db_path)
+    if not path.exists():
+        return None
+    backup = path.with_suffix(path.suffix + ".pre_migration_bak")
+    shutil.copy2(str(path), str(backup))
+    return backup
+
+
+def _restore_db(backup_path, db_path):
+    """Restore the DB from a pre-migration backup."""
+    import shutil
+    path = _db_path(db_path)
+    if backup_path and backup_path.exists():
+        shutil.copy2(str(backup_path), str(path))
+        backup_path.unlink(missing_ok=True)
+
+
+def migrate(db_path=None, backup=True):
+    """Apply ordered SQL migrations exactly once.
+
+    S1-T03: when backup=True (default), creates a pre-migration copy of the DB
+    before applying any new migration. If a migration fails mid-execution, the
+    backup is restored so the DB is left in its pre-migration state (no partial
+    migration applied). The schema_migrations checksum immutability check
+    prevents silent modification of already-applied migrations.
+    """
+    path = _db_path(db_path)
+    backup_path = _backup_db(db_path) if backup else None
+
+    try:
+        conn = connect(db_path)
         conn.execute(
-            "INSERT INTO schema_migrations(version, filename, sha256, applied_at) VALUES (?,?,?,?)",
-            (version, path.name, digest, _now()),
+            """CREATE TABLE IF NOT EXISTS schema_migrations (
+                   version TEXT PRIMARY KEY,
+                   filename TEXT NOT NULL,
+                   sha256 TEXT NOT NULL,
+                   applied_at TEXT NOT NULL
+               )"""
         )
-        conn.commit()
-    violations = conn.execute("PRAGMA foreign_key_check").fetchall()
-    conn.close()
-    if violations:
-        raise RuntimeError(f"foreign key violations after migration: {violations}")
-    return _db_path(db_path)
+        applied = {
+            row["version"]: row
+            for row in conn.execute("SELECT * FROM schema_migrations").fetchall()
+        }
+        for mpath in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            version = mpath.name.split("_", 1)[0]
+            sql = mpath.read_text()
+            digest = _sha256_bytes(sql.encode("utf-8"))
+            prior = applied.get(version)
+            if prior:
+                if prior["sha256"] != digest:
+                    conn.close()
+                    raise RuntimeError(f"migration {mpath.name} changed after application")
+                continue
+            conn.executescript(sql)
+            conn.execute(
+                "INSERT INTO schema_migrations(version, filename, sha256, applied_at) VALUES (?,?,?,?)",
+                (version, mpath.name, digest, _now()),
+            )
+            conn.commit()
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        conn.close()
+        if violations:
+            raise RuntimeError(f"foreign key violations after migration: {violations}")
+    except Exception:
+        # Failed-migration rollback: restore from backup so the DB is not left
+        # in a partially-migrated state.
+        if backup_path:
+            _restore_db(backup_path, db_path)
+        raise
+
+    # Clean up backup on success (all migrations applied cleanly)
+    if backup_path and backup_path.exists():
+        backup_path.unlink(missing_ok=True)
+
+    return path
 
 
 @contextlib.contextmanager
