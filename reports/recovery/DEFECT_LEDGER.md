@@ -142,3 +142,14 @@ earlier. All fixed at the root cause in pipeline code.
 - **Fix direction:** each fixed in the producing/consuming pipeline code; the S8 E2E
   test (in progress) will pin the full graph.
 
+### D-015 — Re-running compile_media after invalidation duplicates render units
+- **Severity:** MEDIUM
+- **Status:** OPEN
+- **Evidence:** `invalidate_stages("compile_media")` marks the stage_run stale but
+  does not supersede the render_units it produced. Re-running compile_media appends
+  a second set of units (plan_render_units assigns fresh ordinals), so assembly then
+  sees 2× the timeline (observed clips=90s vs audio=45s). Discovered by S8-T03.
+- **Fix direction:** when compile_render_plan creates a new render_plan revision,
+  mark the prior revision's render_units stale/superseded, and have compile_media /
+  qa_media / assemble consider only the active revision's units.
+
