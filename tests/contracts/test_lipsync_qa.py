@@ -94,10 +94,10 @@ def test_real_model_aligned_passes(test_videos):
             return {
                 "score": 0.92,
                 "offset_estimate_ms": 5,
-                "confidence": 0.85,
-                "per_window_scores": [0.9, 0.92, 0.91],
+                "confidence": 0.88,
+                "per_window_scores": [0.92, 0.93, 0.91],
                 "progressive_drift_ms": 2,
-                "visible_face_confidence": 0.8,
+                "visible_face_confidence": 0.82,
                 "multiple_faces_detected": False,
                 "occlusion_confidence": 0.1,
             }
