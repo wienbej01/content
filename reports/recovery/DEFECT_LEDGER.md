@@ -101,3 +101,44 @@ Severity: `BLOCKER`, `HIGH`, `MEDIUM`, `LOW`.
 - Q-001 (S3): Runtime proof that the REAL provider adapter (not test adapter) is selected in production and issues a real HTTP request. No paid calls to be made.
 - Q-002 (S5): Runtime proof text-policy enforcement reaches render/assembly, not just prompt generation.
 - Q-003 (S4): Byte-level silence proof across the full hero-padding fixture matrix (B001/B002, B008a/b/c, master start/end, no-pause, min/max duration).
+
+---
+
+## Defects found during Sprint 8 (DB-native end-to-end exercise)
+
+These surfaced only by driving a real production through `run_production()` in
+`YT_TEST_MODE=1` — the orchestrator tests mocked every stage, so none were caught
+earlier. All fixed at the root cause in pipeline code.
+
+### D-013 — invoke_tts bypassed YT_TEST_MODE and made a REAL paid ElevenLabs call
+- **Severity:** BLOCKER (financial-rule violation)
+- **Status:** FIXED (f69d601; verified by `tests/test_s8_tts_paid_guard.py`)
+- **Evidence:** `invoke_tts` instantiated `paid_adapters.ElevenLabsAdapter` directly
+  (not via `get_provider_adapter`), so the YT_TEST_MODE guard did not apply. A missing
+  master-narration file fell through to a real HTTPS POST to `api.elevenlabs.io`.
+  An S8 probe with a project-slug mismatch triggered one real ~32s TTS call before
+  the fix. The "31.79s timing anomaly" was that real narration's duration, not a bug.
+- **Impact:** One real paid ElevenLabs call (~$0.30) was made during S8 development on
+  2026-06-18. No further paid calls are possible in test mode after the fix.
+- **Fix:** `invoke_tts` now refuses (fail-loud) in `YT_TEST_MODE` if the master
+  narration is not pre-provided; tests must supply a deterministic audio fixture.
+
+### D-014 — DB-native orchestrator could not run end-to-end (integration defect cluster)
+- **Severity:** BLOCKER
+- **Status:** FIXED (b77c2c6 + a5ded58; verified by probe through `assemble`)
+- **Evidence (each was a hard stop on a real run):**
+  - `invoke_audio_timing` read `start_sec`/`end_sec` but `build_storyboard_timing_map`
+    emits `start`/`end` → zero-duration spans.
+  - `invoke_compile_media` never populated the R7 B-roll semantic contract → every
+    B-roll unit failed `plan_render_units`.
+  - `invoke_generate_media` marked itself succeeded after only submitting; idempotent
+    resume then skipped it, so jobs were never polled/completed (also exposed latent
+    `sqlite3.Row.get`, a stray `response_json` kwarg, and ephemeral-tmpdir artifacts).
+  - `invoke_qa_media` / `invoke_publish` / deliverable lookups queried non-existent
+    columns (`artifact_uri`, `uri`, `sha256`, `format_id`) instead of JOINing `artifacts`.
+  - `build_assembly_inputs` returned a DB DTO (`clips`) but `invoke_assemble` fed it to
+    `assemble.py`, which expects the legacy `continuous_voiceover` manifest. Added
+    `build_assembly_manifest` bridge.
+- **Fix direction:** each fixed in the producing/consuming pipeline code; the S8 E2E
+  test (in progress) will pin the full graph.
+
