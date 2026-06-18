@@ -14,7 +14,7 @@ and inspected DB rows, artifact SHAs, the ffmpeg assembly path, and the delivera
 
 | # | Criterion | Result |
 |---|---|---|
-| 1 | All automated suites PASS | PASS — full suite green at `c2241c4` (1038 passed); only additive, individually-verified tests added since (S8-T03 +1, S8-T04 +8). Final HEAD count confirming in background. |
+| 1 | All automated suites PASS | PASS — full suite at HEAD `a026c51`: **1047 passed, 0 failed** (1 skipped, 1 xfailed, 2 xpassed). |
 | 2 | Full local 45-second production PASS | PASS — `test_s8_full_production.py`: 1920×1080, 30–60s, audio, no frozen span >1.5s |
 | 3 | Crash matrix PASS | PASS — 8 tests (`test_s8_crash_matrix.py`): 7 stage-boundary crash→resume + no-duplicate-paid-jobs |
 | 4 | Zero legacy authority | PASS — `test_s8_projections_resume.py`: delete all JSON projections + invalidate + resume succeeds |
