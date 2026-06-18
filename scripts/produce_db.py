@@ -277,8 +277,8 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     for b in timing.get("beats", []):
         spans.append({
             "label": b.get("label"),
-            "start_ms": int(b.get("start_sec", 0) * 1000),
-            "end_ms": int(b.get("end_sec", 0) * 1000),
+            "start_ms": int(b.get("start", 0) * 1000),
+            "end_ms": int(b.get("end", 0) * 1000),
             "narration_text": b.get("text", "")
         })
         
@@ -362,9 +362,10 @@ def _derive_shot_type(seg: dict) -> str:
 
 def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     from tts_service import compile_render_plan, reconcile_storyboard_with_timing
+    from broll_semantic import route_render_mode
     import production_db as _db
     import yaml
-    
+
     routing_path = ROOT / "configs" / "james" / "model_routing.yaml"
     routing = yaml.safe_load(routing_path.read_text())
     shot_routes = routing.get("shot_type_routes", {})
@@ -384,16 +385,29 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         (inputs["production_id"],)
     ).fetchall()
     conn.close()
-    
+
     if not spans:
         raise RuntimeError("No active timeline spans found.")
-    
+
     estimated_cost = 0.0
     span_specs = []
     for s in spans:
         shot_type = (s["shot_type"] or "broll").lower()
         route = shot_routes.get(shot_type, {})
-        
+
+        # Creative intent lives on the storyboard beat: visual_intent carries the
+        # R7 B-roll semantic contract; graphics carries deterministic text content
+        # that must NOT be delegated to a generative model. Propagate both so
+        # plan_render_units can validate the contract (S5/S7).
+        try:
+            visual_intent = json.loads(s["visual_intent_json"]) if s["visual_intent_json"] else {}
+        except (TypeError, ValueError):
+            visual_intent = {}
+        try:
+            graphics = json.loads(s["graphics_json"]) if s["graphics_json"] else {}
+        except (TypeError, ValueError):
+            graphics = {}
+
         if route.get("requires_audio"):
             asset_type = "lipsync_video"
             audio_policy = "HERO_SYNC_LOCKED"
@@ -411,14 +425,19 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
             provider_audio_usage = "discarded"
 
         text_policy = route.get("text_policy", "NO_VISIBLE_TEXT")
-        
+
         model_key = route.get("model", "kling3_0")
         clip_cost = costs.get(model_key, {}).get("cost_per_clip_usd", 0.0)
         estimated_cost += clip_cost
-        
-        span_specs.append({
+
+        graphic_text_content = ""
+        if isinstance(graphics, dict):
+            graphic_text_content = (graphics.get("text") or "").strip()
+
+        spec = {
             "span_id": s["span_id"],
             "label": s["label"],
+            "shot_type": shot_type,
             "asset_type": asset_type,
             "model": model_key,
             "audio_policy": audio_policy,
@@ -426,7 +445,13 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
             "provider_audio_usage": provider_audio_usage,
             "text_policy": text_policy,
             "lipsync_required": route.get("requires_audio", False),
-        })
+            "graphic_text_content": graphic_text_content or None,
+        }
+        # Merge the storyboard's creative intent (B-roll semantic fields,
+        # concept key/hash, render-mode hints) into the spec.
+        spec.update(visual_intent)
+        spec["render_mode"] = route_render_mode(spec)
+        span_specs.append(spec)
     
     result = compile_render_plan(
         production_id=inputs["production_id"],
@@ -498,121 +523,146 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
     production_id = inputs["production_id"]
 
-    # 1. Poll existing jobs first (idempotent resume)
-    conn = _db.connect(None)
-    active_jobs = conn.execute(
-        """SELECT id, render_unit_id, status, provider, operation, external_job_id
-           FROM provider_jobs
-           WHERE production_id=? AND status IN ('submitted', 'running')""",
-        (production_id,)
-    ).fetchall()
-    conn.close()
-
+    # Self-completing generation: alternate (1) polling/finishing active jobs and
+    # (2) submitting new jobs for render units that still need generation, until a
+    # full pass makes no progress (all units reach a terminal state). The
+    # synchronous test adapter completes within two passes. For a real async
+    # provider whose poll returns 'running', the bounded loop exits with jobs still
+    # in flight — a crash here leaves the stage 'failed' so it re-runs and resumes;
+    # submit/poll/complete are each individually idempotent, so no duplicate work.
     processed_jobs = 0
-    for job in active_jobs:
-        adapter = get_provider_adapter(job["provider"])
-        try:
-            poll_result = adapter.poll(job["external_job_id"] or f"ext_{job['id']}")
-            new_status = poll_result.get("status", "completed")
-        except Exception as e:
-            fail_provider_job(
-                provider_job_id=job["id"],
-                error=f"Poll failed: {e}",
-                db_path=None
-            )
-            raise RuntimeError(f"Provider job {job['id']} polling failed: {e}")
+    submitted_count = 0
+    for _ in range(64):
+        progressed = False
 
-        poll_provider_job(
-            provider_job_id=job["id"],
-            external_job_id=job.get("external_job_id") or f"ext_{job['id']}",
-            new_status=new_status,
-            response_json=poll_result.get("raw_response"),
-            db_path=None
-        )
+        # Phase 1: poll active jobs (submitted/running) → download + complete
+        conn = _db.connect(None)
+        active_jobs = conn.execute(
+            """SELECT id, render_unit_id, status, provider, operation, external_job_id, request_json
+               FROM provider_jobs
+               WHERE production_id=? AND status IN ('submitted', 'running')""",
+            (production_id,)
+        ).fetchall()
+        conn.close()
+        active_jobs = [dict(r) for r in active_jobs]
 
-        if new_status == "completed":
-            dl_dir = Path(tmp_path) / "downloads" / job["id"]
-            dl_dir.mkdir(parents=True, exist_ok=True)
-            output_path = dl_dir / f"{job['id']}.mp4"
+        for job in active_jobs:
+            progressed = True
+            # Size the provider clip to the unit's requested slot so it covers the
+            # span (read from the job's own request payload; real adapters ignore
+            # the test-only duration_sec config key).
             try:
-                downloaded = adapter.download(job["external_job_id"] or f"ext_{job['id']}", output_path)
-                validation = validate_downloaded_artifact(downloaded)
+                req_payload = json.loads(job["request_json"]) if job["request_json"] else {}
+            except (TypeError, ValueError):
+                req_payload = {}
+            req_sec = (req_payload.get("duration_ms") or 5000) / 1000.0
+            adapter = get_provider_adapter(job["provider"], config={"duration_sec": req_sec})
+            try:
+                poll_result = adapter.poll(job["external_job_id"] or f"ext_{job['id']}")
+                new_status = poll_result.get("status", "completed")
             except Exception as e:
                 fail_provider_job(
                     provider_job_id=job["id"],
-                    error=f"Download/validate failed: {e}",
+                    error=f"Poll failed: {e}",
                     db_path=None
                 )
-                raise RuntimeError(f"Provider job {job['id']} download failed: {e}")
+                raise RuntimeError(f"Provider job {job['id']} polling failed: {e}")
 
-            result_metadata = {
-                "actual_duration_ms": validation["duration_ms"],
-                "width": validation["width"],
-                "height": validation["height"],
-                "has_audio": validation["has_audio"],
-                "sha256": validation["sha256"],
-                "format_name": validation.get("format_name"),
-                "actual_usd": job.get("actual_usd", 0.05),
+            poll_provider_job(
+                provider_job_id=job["id"],
+                external_job_id=job.get("external_job_id") or f"ext_{job['id']}",
+                new_status=new_status,
+                db_path=None
+            )
+
+            if new_status == "completed":
+                # Persist to the immutable artifact store (assets/media/<prod>/) so
+                # the file outlives this stage's tempdir and is reachable by
+                # qa_media and assemble. assets/media is gitignored.
+                dl_dir = ROOT / "assets" / "media" / production_id
+                dl_dir.mkdir(parents=True, exist_ok=True)
+                output_path = dl_dir / f"{job['id']}.mp4"
+                try:
+                    downloaded = adapter.download(job["external_job_id"] or f"ext_{job['id']}", output_path)
+                    validation = validate_downloaded_artifact(downloaded)
+                except Exception as e:
+                    fail_provider_job(
+                        provider_job_id=job["id"],
+                        error=f"Download/validate failed: {e}",
+                        db_path=None
+                    )
+                    raise RuntimeError(f"Provider job {job['id']} download failed: {e}")
+
+                result_metadata = {
+                    "actual_duration_ms": validation["duration_ms"],
+                    "width": validation["width"],
+                    "height": validation["height"],
+                    "has_audio": validation["has_audio"],
+                    "sha256": validation["sha256"],
+                    "format_name": validation.get("format_name"),
+                    "actual_usd": job.get("actual_usd", 0.05),
+                }
+                complete_provider_job(
+                    provider_job_id=job["id"],
+                    result_artifact_path=downloaded,
+                    result_metadata=result_metadata,
+                    db_path=None
+                )
+                processed_jobs += 1
+
+            elif new_status == "failed":
+                fail_provider_job(
+                    provider_job_id=job["id"],
+                    error=poll_result.get("error", "Provider returned failed status"),
+                    db_path=None
+                )
+                raise RuntimeError(f"Provider job {job['id']} failed: {poll_result.get('error', 'unknown')}")
+
+        # Phase 2: submit new jobs for render units that still need generation
+        conn = _db.connect(None)
+        units_to_generate = conn.execute(
+            """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy,
+                      ru.required_duration_ms, cr.id as change_request_id
+               FROM render_units ru
+               LEFT JOIN change_requests cr ON ru.id = cr.subject_id AND cr.status='open' AND cr.target_stage='generate_media'
+               WHERE ru.production_id=? AND (ru.status='ordered' OR (ru.status='change_requested' AND cr.target_stage='generate_media'))
+               ORDER BY ru.ordinal""",
+            (production_id,)
+        ).fetchall()
+        conn.close()
+
+        for u in units_to_generate:
+            progressed = True
+            request_payload = {
+                "asset_type": u["asset_type"],
+                "model": u["model"],
+                "duration_ms": u["required_duration_ms"],
+                "audio_policy": u["audio_policy"],
             }
-            complete_provider_job(
-                provider_job_id=job["id"],
-                result_artifact_path=downloaded,
-                result_metadata=result_metadata,
-                db_path=None
-            )
-            processed_jobs += 1
-
-        elif new_status == "failed":
-            fail_provider_job(
-                provider_job_id=job["id"],
-                error=poll_result.get("error", "Provider returned failed status"),
-                db_path=None
-            )
-            raise RuntimeError(f"Provider job {job['id']} failed: {poll_result.get('error', 'unknown')}")
-
-    # 2. Submit new jobs for render units that need generation
-    conn = _db.connect(None)
-    units_to_generate = conn.execute(
-        """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy,
-                  ru.required_duration_ms, cr.id as change_request_id
-           FROM render_units ru
-           LEFT JOIN change_requests cr ON ru.id = cr.subject_id AND cr.status='open' AND cr.target_stage='generate_media'
-           WHERE ru.production_id=? AND (ru.status='ordered' OR (ru.status='change_requested' AND cr.target_stage='generate_media'))
-           ORDER BY ru.ordinal""",
-        (production_id,)
-    ).fetchall()
-    conn.close()
-
-    submitted_count = 0
-    for u in units_to_generate:
-        request_payload = {
-            "asset_type": u["asset_type"],
-            "model": u["model"],
-            "duration_ms": u["required_duration_ms"],
-            "audio_policy": u["audio_policy"],
-        }
-        job = submit_provider_job(
-            production_id=production_id,
-            render_unit_id=u["id"],
-            provider="higgsfield",
-            operation="generate_video",
-            request_payload=request_payload,
-            db_path=None
-        )
-        submitted_count += 1
-
-        if u["change_request_id"]:
-            resolve_change_request(
+            submit_provider_job(
                 production_id=production_id,
-                change_request_id=u["change_request_id"],
-                resolution="accepted",
-                resolved_by="generate_media",
+                render_unit_id=u["id"],
+                provider="higgsfield",
+                operation="generate_video",
+                request_payload=request_payload,
                 db_path=None
             )
+            submitted_count += 1
+
+            if u["change_request_id"]:
+                resolve_change_request(
+                    production_id=production_id,
+                    change_request_id=u["change_request_id"],
+                    resolution="accepted",
+                    resolved_by="generate_media",
+                    db_path=None
+                )
+
+        if not progressed:
+            break
 
     return {
         "status": "processed",
-        "jobs_polled": len(active_jobs),
         "jobs_completed": processed_jobs,
         "new_jobs_submitted": submitted_count
     }
@@ -626,14 +676,19 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
     
     production_id = inputs["production_id"]
     
-    # 1. Get render units that need QA (status='generated')
+    # 1. Get render units that need QA (status='generated'). Media metadata lives
+    #    on the linked artifact (render_units has only active_artifact_id).
     conn = _db.connect(None)
     units = conn.execute(
-        """SELECT id, label, asset_type, audio_policy, required_duration_ms, 
-                  active_artifact_id, artifact_uri, artifact_sha256, artifact_has_audio, artifact_duration_ms
-           FROM render_units 
-           WHERE production_id=? AND status='generated'
-           ORDER BY ordinal""",
+        """SELECT ru.id, ru.label, ru.asset_type, ru.audio_policy, ru.required_duration_ms,
+                  ru.active_artifact_id,
+                  a.uri AS artifact_uri, a.sha256 AS artifact_sha256,
+                  a.has_audio AS artifact_has_audio, a.duration_ms AS artifact_duration_ms,
+                  a.width, a.height
+           FROM render_units ru
+           LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
+           WHERE ru.production_id=? AND ru.status='generated'
+           ORDER BY ru.ordinal""",
         (production_id,)
     ).fetchall()
     conn.close()

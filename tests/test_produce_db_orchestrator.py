@@ -282,17 +282,19 @@ def test_generate_media_async_state_machine(monkeypatch):
     }
     tmp_path = Path(tempfile.mkdtemp())
 
-    # Phase 1: Submit new jobs
+    # Self-completing generate_media loops (poll active jobs, submit new jobs)
+    # until a full pass makes no progress. With submit mocked (no real DB state
+    # change), model two iterations: iter1 polls nothing then submits 2 units;
+    # iter2 polls nothing and finds no remaining ordered units -> break.
     with patch("production_db.connect") as mock_connect:
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
-        mock_conn.execute.side_effect = [
-            MagicMock(fetchall=MagicMock(return_value=[])),
-            MagicMock(fetchall=MagicMock(return_value=[
-                {"id": "ru_1", "label": "B001", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None},
-                {"id": "ru_2", "label": "B002", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None}
-            ]))
-        ]
+        empty = MagicMock(fetchall=MagicMock(return_value=[]))
+        two_units = MagicMock(fetchall=MagicMock(return_value=[
+            {"id": "ru_1", "label": "B001", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None},
+            {"id": "ru_2", "label": "B002", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None}
+        ]))
+        mock_conn.execute.side_effect = [empty, two_units, empty, empty, empty]
 
         with patch("media_service.submit_provider_job") as mock_submit:
             mock_submit.return_value = {"id": "job_1"}
@@ -300,7 +302,7 @@ def test_generate_media_async_state_machine(monkeypatch):
             result = invoke_generate_media(inputs, tmp_path)
 
             assert result["new_jobs_submitted"] == 2
-            assert result["jobs_polled"] == 0
+            assert result["jobs_completed"] == 0
             assert mock_submit.call_count == 2
 
 
