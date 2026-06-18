@@ -29,7 +29,10 @@ def read_state():
     filepath.unlink()
     
     assert len(violations) == 1
-    assert "Forbidden open() of legacy file" in violations[0]
+    # Message format set by S1's AST dynamic-path enhancement: the detector names
+    # the construct and the offending file. Assert the meaningful tokens, not the
+    # exact prose, so future wording improvements don't break this test.
+    assert "open()" in violations[0]
     assert "state.json" in violations[0]
 
 
@@ -54,7 +57,7 @@ def read_manifest():
     filepath.unlink()
     
     assert len(violations) == 1
-    assert "Forbidden Path().read_text()/read_bytes() of legacy file" in violations[0]
+    assert "read_text" in violations[0]
     assert "manifest.json" in violations[0]
 
 
@@ -79,9 +82,10 @@ def read_plan():
     violations = check_gate.check_file(filepath)
     filepath.unlink()
     
-    # It catches both the json.loads and the inner Path().read_text() as separate violations
+    # json.loads(Path(...).read_text()) is caught via the read_text/read_bytes branch
+    # (the read_text() call carries the literal path argument the AST resolves).
     assert len(violations) >= 1
-    assert any("Forbidden json.loads(Path().read_text()) of legacy file" in v and "media_plan.json" in v for v in violations)
+    assert any("media_plan.json" in v and "read_text" in v for v in violations)
 
 
 def test_check_file_allows_safe_reads():
