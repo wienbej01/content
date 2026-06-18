@@ -16,6 +16,11 @@ import production_db as _db
 import production_repo as _repo
 from authoring_service import request_approval, record_approval_decision
 
+ROOT = Path(__file__).resolve().parent.parent
+PROJECTS = ROOT / "Videos" / "Projects"
+
+_HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
+
 
 # ---------------------------------------------------------------------------
 # ASM-701  Build assembly manifest from DB
@@ -28,8 +33,10 @@ class AssemblyError(Exception):
 def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
     """Build a complete assembly input object purely from DB state.
 
-    Returns a dict compatible with assemble.py's manifest format so the
-    legacy assemble.py can be called without reading any JSON file.
+    Returns the DB-native assembly contract (a list of clips with timing,
+    artifact path/sha, and policy). This is NOT directly consumable by the
+    legacy assemble.py; use build_assembly_manifest() to bridge to its
+    continuous_voiceover manifest format.
 
     Raises AssemblyError if any render unit is not valid or has no artifact.
     """
@@ -110,6 +117,72 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
     }
 
 
+def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+    """Bridge DB state to assemble.py's legacy continuous_voiceover manifest.
+
+    In continuous_voiceover mode every clip is a muted visual and the single
+    master narration (tts_master) is the sole audio spine, overlaid once across
+    the concatenated visual bed. Each segment carries timing_in/timing_out (its
+    window in the master timeline) so the assembler can contract clip durations
+    to the narration. Hero-lipsync segments additionally carry speech_len_sec and
+    lipsync_provenance, which validate_manifest requires for any HERO_SYNC_LOCKED
+    span (the deep provenance check only runs in non-continuous mode).
+    """
+    inputs = build_assembly_inputs(production_id, variant=variant, db_path=db_path)
+
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    master = conn.execute(
+        """SELECT uri, sha256 FROM artifacts
+           WHERE production_id=? AND kind='tts_master'
+           ORDER BY created_at DESC LIMIT 1""",
+        (production_id,),
+    ).fetchone()
+    conn.close()
+    if not master:
+        raise AssemblyError(
+            f"No tts_master narration artifact for production {production_id}")
+
+    segments = []
+    for c in inputs["clips"]:
+        start_sec = (c.get("start_ms") or 0) / 1000.0
+        end_sec = (c.get("end_ms") or 0) / 1000.0
+        dur_sec = (c.get("duration_ms") or 0) / 1000.0
+        seg = {
+            "id": c.get("label") or c.get("clip_id"),
+            "beat_id": c.get("label"),
+            "clip_id": c.get("clip_id"),
+            "media": c.get("path"),
+            "asset_type": c.get("asset_type"),
+            "audio_policy": c.get("audio_policy"),
+            "timing_in": start_sec,
+            "timing_out": end_sec,
+            "duration_required": dur_sec,
+        }
+        if (c.get("audio_policy") or "") in _HERO_LIPSYNC_POLICIES or c.get("lipsync_required"):
+            seg["speech_len_sec"] = dur_sec if dur_sec > 0 else 1.0
+            seg["lipsync_provenance"] = {
+                "slice_sha256": c.get("sha256") or "",
+                "parent_mp3_sha256": master["sha256"] or "",
+            }
+        else:
+            # continuous_voiceover tolerates words=0 for silent visuals.
+            seg["words"] = 0
+        segments.append(seg)
+
+    project_slug = inputs.get("project_slug") or "."
+    return {
+        "id": production_id,
+        "project_slug": project_slug,
+        "variant": variant,
+        "narration_mode": "continuous_voiceover",
+        "continuous_audio": master["uri"],
+        "pacing": {"reference": 0, "baseline_speed": 1.0},
+        "output": {"directory": str(PROJECTS / project_slug)},
+        "segments": segments,
+    }
+
+
 # ---------------------------------------------------------------------------
 # ASM-703  Deliverable registry
 # ---------------------------------------------------------------------------
@@ -165,7 +238,11 @@ def get_deliverables(production_id: str, db_path=None) -> list[dict]:
     _db.migrate(db_path)
     conn = _db.connect(db_path)
     rows = conn.execute(
-        "SELECT * FROM deliverables WHERE production_id=? ORDER BY id", (production_id,)
+        """SELECT d.*, a.uri AS artifact_uri, a.sha256 AS artifact_sha256
+           FROM deliverables d
+           LEFT JOIN artifacts a ON d.artifact_id = a.id
+           WHERE d.production_id=? ORDER BY d.id""",
+        (production_id,)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

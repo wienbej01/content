@@ -876,15 +876,15 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_assemble(inputs: dict, tmp_path: Path) -> dict:
-    from assemble_db import build_assembly_inputs, register_deliverable
+    from assemble_db import build_assembly_manifest, register_deliverable
     import subprocess
     import tempfile
-    
+
     production_id = inputs["production_id"]
     project_dir = _get_project_dir(inputs)
-    
-    # 1. Build assembly inputs purely from DB (no manifest.json read)
-    assembly_inputs = build_assembly_inputs(production_id, variant="16x9", db_path=None)
+
+    # 1. Build the assembler manifest purely from DB (no manifest.json read)
+    assembly_inputs = build_assembly_manifest(production_id, variant="16x9", db_path=None)
     
     # 2. Write to temp file for legacy assemble.py compatibility
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, dir=tmp_path) as f:
@@ -1018,23 +1018,26 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
     conn = _db.connect(None)
 
     deliverables = conn.execute(
-        """SELECT id, uri, sha256, format_id, status
-           FROM deliverables
-           WHERE production_id=? AND status='valid'
-           ORDER BY created_at DESC""",
+        """SELECT d.id, d.variant, d.status, a.uri, a.sha256
+           FROM deliverables d
+           LEFT JOIN artifacts a ON d.artifact_id = a.id
+           WHERE d.production_id=? AND d.status='valid'
+           ORDER BY d.id DESC""",
         (production_id,),
     ).fetchall()
 
     if not deliverables:
         deliverables = conn.execute(
-            """SELECT id, uri, sha256, format_id, status
-               FROM deliverables
-               WHERE production_id=?
-               ORDER BY created_at DESC LIMIT 1""",
+            """SELECT d.id, d.variant, d.status, a.uri, a.sha256
+               FROM deliverables d
+               LEFT JOIN artifacts a ON d.artifact_id = a.id
+               WHERE d.production_id=?
+               ORDER BY d.id DESC LIMIT 1""",
             (production_id,),
         ).fetchall()
 
     conn.close()
+    deliverables = [dict(r) for r in deliverables]
 
     published = []
     for d in deliverables:
@@ -1046,7 +1049,7 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
                 "deliverable_id": d["id"],
                 "uri": d["uri"],
                 "sha256": d["sha256"],
-                "format_id": d["format_id"],
+                "variant": d["variant"],
                 "status": "published",
             })
             with _db.transaction(None) as conn:

@@ -218,9 +218,11 @@ class FakeProviderAdapter(ProviderAdapter):
         elif self.config.get("long_video"):
             duration = duration * 2
 
+        # testsrc2 produces a moving test pattern (real providers return motion;
+        # static color would trip final-QA freeze detection and is unrealistic).
         cmd = [
             "ffmpeg", "-y",
-            "-f", "lavfi", "-i", f"color=c=black:s=1920x1080:d={duration}:r=24",
+            "-f", "lavfi", "-i", f"testsrc2=size=1920x1080:duration={duration}:rate=24",
         ]
         if self.config.get("no_audio"):
             cmd = cmd + ["-an"]
