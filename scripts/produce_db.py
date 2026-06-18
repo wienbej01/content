@@ -1147,9 +1147,13 @@ STAGE_INVOKERS = {
     "write_script": (None, invoke_write_script),
     "review_script": (None, invoke_review_script),
     "gate_a_content": ("gate_a_content_approval", invoke_gate_a_content),
-    # S2-T01: storyboard comes before TTS in the canonical order
-    "storyboard": ("storyboard", invoke_storyboard),
-    "review_storyboard": ("storyboard_review", invoke_review_storyboard),
+    # S2-T01: storyboard comes before TTS in the canonical order.
+    # DB-native: invoke_storyboard/review_storyboard save their own document via
+    # authoring_service.save_storyboard and return only a summary, so output_kind
+    # is None (a set output_kind would save the summary as the document and
+    # corrupt it — e.g. {"beats": <count>} replacing the real beats list).
+    "storyboard": (None, invoke_storyboard),
+    "review_storyboard": (None, invoke_review_storyboard),
     # TTS and timing stages are now DB-native via tts_service
     "tts": (None, invoke_tts),
     "audio_timing": (None, invoke_audio_timing),
