@@ -11,31 +11,20 @@ You are continuing a multi-sprint recovery program for an automated AI-influence
 ```
 Repository:  wienbej01/content (local path: /home/jacobw/YTchannel)
 Branch:      fix/flagship-001-end-to-end-recovery
-Base SHA:    68f3ee5498611d2a18c1a58a6f05a8f94eee4b0f
-Committed:   3ec64bd (Sprints S0-S3)
-Uncommitted: Sprints S4-S7 changes in working tree (ffmpeg_validator.py fix + 9 new contract test files + 4 sprint report dirs)
+Base SHA:    68f3ee5498611d2a18c1a58a6f05a8f94eee4b0f  (original program base; do not modify prior migrations)
+Committed:   6792b70 (Sprints S4-S7) on top of 3ec64bd (S0-S3). Working tree CLEAN.
+Uncommitted: (none — S4-S7 committed 2026-06-18)
 ```
 
-**Uncommitted files (S4–S7 work, needs commit before S8):**
-- `scripts/ffmpeg_validator.py` — fixed duplicate `_check_filter_names`, added minterpolate/freeze/settb/-stream_loop to forbidden
-- `tests/contracts/test_master_narration.py` — S4-T01/T02 (9 tests)
-- `tests/contracts/test_hero_silence_padding.py` — S4-T03 (5 tests)
-- `tests/contracts/test_hero_groups.py` — S4-T04 (4 tests)
-- `tests/contracts/test_broll_semantics.py` — S5-T01/T02 (9 tests)
-- `tests/contracts/test_text_policy.py` — S5-T03/T04 (7 tests)
-- `tests/contracts/test_artifact_qa.py` — S6-T01/T02 (5 tests)
-- `tests/contracts/test_lipsync_qa.py` — S6-T03/T04 (8 tests)
-- `tests/contracts/test_selective_repair.py` — S6-T05 (3 tests)
-- `tests/contracts/test_hero_temporal_policy.py` — S7-T02 (6 tests)
-- `tests/contracts/test_assembly_contract.py` — S7-T01/T04/T05 (5 tests)
-- `reports/recovery/S4/` through `reports/recovery/S7/` — engineer/auditor + validator reports
-- `reports/recovery/PROGRAM_STATUS.md` — updated sprint progress table
+**S4–S7 is already committed (commit `6792b70`, 2026-06-18).** Do NOT re-commit. Contract tests were verified green (104 passed) before that commit. Working tree is clean.
 
-**First action: commit S4–S7 work.** Run:
-```bash
-git add scripts/ffmpeg_validator.py tests/contracts/ reports/recovery/S4/ reports/recovery/S5/ reports/recovery/S6/ reports/recovery/S7/ reports/recovery/PROGRAM_STATUS.md
-git commit -m "feat: recovery sprints S4-S7 — master narration, B-roll text policy, media/lipsync QA, assembly"
-```
+**Session checkpoint (2026-06-18) — where we are now:**
+- Sprints S0–S7: COMPLETE and committed (`3ec64bd` = S0-S3, `6792b70` = S4-S7).
+- Baseline verification (full `pytest -q` + the 6 CI gate scripts in §3) was STARTED but NOT completed before a restart — **re-run it first** to re-confirm green before any S8 work.
+- Next work item: **Sprint 8 (§4). S8-T01** = define/extend the 45-second deterministic fixture.
+- Sprints 8–9 remain. Sprint 9 is PAID and is blocked until Sprint 8's exit gate passes AND the user explicitly approves the S9 plan + hard cap (§6, §11). No paid calls have ever been made.
+
+**First action on resume:** verify the baseline (§3 commands), then begin S8-T01. No commit is pending.
 
 ---
 
@@ -392,8 +381,8 @@ Every ticket report must contain: ticket ID, agent, objective, base SHA, result 
 
 ## 13. Immediate Next Steps
 
-1. **Commit S4–S7** (uncommitted working tree)
-2. **Run full test suite** to confirm green baseline
+1. **Verify green baseline** — re-run `python3 -m pytest -q` + the 6 CI gate scripts (§3). S4–S7 is already committed (`6792b70`); the prior session's baseline run was interrupted before restart, so re-confirm green first.
+2. _(S4–S7 commit: DONE at `6792b70`. Sprint 8 work starts at item 3.)_
 3. **Sprint 8-T01**: Define/extend the 45-second deterministic fixture
 4. **Sprint 8-T02**: Execute local E2E with test providers
 5. **Sprint 8-T03**: Delete projections and resume
