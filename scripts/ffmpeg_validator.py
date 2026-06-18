@@ -27,12 +27,17 @@ FORBIDDEN_FILTERS = frozenset({
     "tpad",
     "trim",
     "setpts",  # setpts with expression other than PTS-STARTPTS is forbidden
+    "minterpolate",  # frame interpolation
+    "freeze",
+    "freezeframes",
+    "settb",  # can alter timestamps
 })
 
 FORBIDDEN_FLAGS = frozenset({
     "-itsoffset",
     "-shortest",
     "-vsync",  # can silently drop/duplicate frames
+    "-stream_loop",
 })
 
 FORBIDDEN_SUBSTRINGS = frozenset({
@@ -44,6 +49,10 @@ FORBIDDEN_SUBSTRINGS = frozenset({
     ":asetpts=",
     "fps=fps=",        # frame-rate conversion
     ":interp",
+    "minterpolate=",
+    "freeze=",
+    "setpts=PTS*N",    # speed change via setpts
+    "setpts=PTS/",     # speed change via setpts
 })
 
 
@@ -88,7 +97,22 @@ def validate_ffmpeg_command(
 
 
 def _check_filter_names(args: List[str], is_hero: bool, reason: str) -> None:
-    """Parse filter arguments and reject unrecognized temporal filters."""
+    """Parse filter arguments and reject unrecognized temporal filters.
+
+    S7-T02: Hero temporal policy — reject speed change (atempo/setpts=PTS*N),
+    loop, reverse, freeze extension (tpad/freeze), frame interpolation (minterpolate),
+    trim through active speech, and any unknown temporal operation. Fail closed.
+    """
+    cmd_str = " ".join(args)
+
+    # Explicit forbidden filter checks (substring match catches filter_complex too)
+    for name in sorted(FORBIDDEN_FILTERS):
+        if name != "setpts" and f"{name}=" in cmd_str:
+            raise FFmpegPolicyError(
+                f"BLOCKED: Forbidden filter '{name}' in ffmpeg command: {reason}"
+            )
+
+    # Check for forbidden filter names via structured parsing
     found = set()
     for arg in args:
         if "=" not in arg:
@@ -104,10 +128,17 @@ def _check_filter_names(args: List[str], is_hero: bool, reason: str) -> None:
         if name in FORBIDDEN_FILTERS:
             raise FFmpegPolicyError(
                 f"BLOCKED: Forbidden filter '{name}' in ffmpeg command: {reason}"
-            )
+        )
         if is_hero:
             raise FFmpegPolicyError(
                 f"BLOCKED: HERO_SYNC_LOCKED does not permit filter '{name}': {reason}"
+            )
+
+    # Hero setpts must be identity (PTS-STARTPTS) only
+    if is_hero and "setpts=" in cmd_str:
+        if "setpts=PTS-STARTPTS" not in cmd_str:
+            raise FFmpegPolicyError(
+                f"BLOCKED: HERO_SYNC_LOCKED forbids non-identity setpts: {reason}"
             )
 
 
@@ -122,22 +153,6 @@ def _check_setpts_expression(args: List[str], is_hero: bool, reason: str) -> Non
                 raise FFmpegPolicyError(
                     f"BLOCKED: setpts expression '{expr}' is not PTS-STARTPTS: {reason}"
                 )
-
-
-def _check_filter_names(args: List[str], is_hero: bool, reason: str) -> None:
-    """Check for forbidden filter names in ffmpeg arguments."""
-    cmd_str = " ".join(args)
-    for name in sorted(FORBIDDEN_FILTERS):
-        if name != "setpts" and f"{name}=" in cmd_str:
-            raise FFmpegPolicyError(
-                f"BLOCKED: Forbidden filter '{name}' in ffmpeg command: {reason}"
-            )
-    if is_hero and "setpts=" in cmd_str:
-        # setpts=PTS-STARTPTS is identity; any other expression is invalid
-        if "setpts=PTS-STARTPTS" not in cmd_str:
-            raise FFmpegPolicyError(
-                f"BLOCKED: HERO_SYNC_LOCKED forbids non-identity setpts: {reason}"
-            )
 
 
 def validate_frame_count(expected_fps: float, expected_duration_sec: float,

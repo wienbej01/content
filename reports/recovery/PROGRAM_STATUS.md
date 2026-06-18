@@ -80,9 +80,9 @@ Sprint 0 is complete with independent Auditor PASS and Validator PASS. Proceedin
 | S1 | DB Authority, Migrations, Data Lineage | COMPLETE (T01-T04 Auditor PASS) |
 | S2 | Canonical Orchestrator & Stage Contracts | COMPLETE (T01-T04 Auditor+Validator PASS) |
 | S3 | Provider Architecture & Idempotency | COMPLETE (T01-T05 Auditor+Validator PASS) |
-| S4 | Master Narration, Timing, Hero Slicing | NOT_STARTED (D-003, D-004 timing fixed) |
-| S5 | Storyboard, B-Roll, Text Policy | NOT_STARTED |
-| S6 | Media QA, Lipsync QA, Repair | NOT_STARTED (D-010 real model pending) |
+| S4 | Master Narration, Timing, Hero Slicing | COMPLETE (T01-T04 Auditor+Validator PASS) |
+| S5 | Storyboard, B-Roll, Text Policy | COMPLETE (T01-T04 Auditor+Validator PASS) |
+| S6 | Media QA, Lipsync QA, Repair | COMPLETE (T01-T05 Auditor+Validator PASS) |
 | S7 | DB-Native FFmpeg Assembly & Final QA | NOT_STARTED (D-003, D-005 assembly fixed) |
 | S8 | Full Local 45s E2E | NOT_STARTED |
 | S9 | Controlled Paid 45s Test | NOT_STARTED (financial rule HELD) |
