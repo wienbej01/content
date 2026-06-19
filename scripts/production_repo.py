@@ -412,6 +412,27 @@ def plan_render_units(
             ).fetchall()
         }
 
+        # D-015: a new render-plan supersedes the prior one. Mark this production's
+        # existing (non-stale) units 'stale' in the SAME transaction — render units are
+        # immutable history, never deleted — and remember the prior unit per span so the
+        # new units can record parentage. Without this, re-compiling after an upstream
+        # invalidation appends a second active set, so generate (status='ordered') and
+        # assembly see a doubled timeline / duplicate paid jobs.
+        prior_by_span = {
+            r["timeline_span_id"]: r["id"]
+            for r in conn.execute(
+                "SELECT id, timeline_span_id FROM render_units "
+                "WHERE production_id=? AND status!='stale'",
+                (production_id,),
+            ).fetchall()
+        }
+        if prior_by_span:
+            conn.execute(
+                "UPDATE render_units SET status='stale', updated_at=? "
+                "WHERE production_id=? AND status!='stale'",
+                (now, production_id),
+            )
+
         for spec in span_render_specs:
             span_id = spec["span_id"]
             span = span_rows.get(span_id)
@@ -545,6 +566,13 @@ def plan_render_units(
                         now, now,
                     ),
                 )
+                # Traceability: link the new unit to the unit it replaced (same span), if any.
+                _parent = prior_by_span.get(span_id)
+                if _parent:
+                    conn.execute(
+                        "UPDATE render_units SET parent_render_unit_id=? WHERE id=?",
+                        (_parent, unit_id),
+                    )
                 results.append(dict(conn.execute(
                     "SELECT * FROM render_units WHERE id=?", (unit_id,)
                 ).fetchone()))

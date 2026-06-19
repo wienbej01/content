@@ -53,13 +53,15 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
         conn.close()
         raise AssemblyError(f"No active timeline spans for production {production_id}")
 
-    # Load render units in ordinal order
+    # Load render units in ordinal order. Exclude 'stale' units (D-015): re-compiling
+    # after invalidation supersedes the prior plan's units (status='stale'); assembly must
+    # see only the current plan's units, not the stale duplicates.
     units = conn.execute(
         """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256,
                   a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
            FROM render_units ru
            LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
-           WHERE ru.production_id=? ORDER BY ru.ordinal""",
+           WHERE ru.production_id=? AND ru.status!='stale' ORDER BY ru.ordinal""",
         (production_id,),
     ).fetchall()
 
