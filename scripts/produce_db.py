@@ -77,9 +77,10 @@ def invoke_research(inputs: dict, tmp_path: Path) -> dict:
 def invoke_write_script(inputs: dict, tmp_path: Path) -> dict:
     from write_script import write_script
     from authoring_service import get_research_brief, save_script
-    
+    from episode_format import script_within_budget, count_script_words, get_format
+
     project_dir = _get_project_dir(inputs)
-    
+
     # 1. Read brief from DB (single authority). No legacy file fallback — the
     #    DB is the system of record; a missing brief means a prior stage failed
     #    or was not run, not a reason to read a stale projection file.
@@ -88,12 +89,28 @@ def invoke_write_script(inputs: dict, tmp_path: Path) -> dict:
         raise RuntimeError(
             f"No research brief in DB for production {inputs['production_id']} — "
             f"run the research stage first")
-            
+
     # 2. Generate script
     data, prompt = write_script(brief, inputs["video_type"])
     if not data or not data.get("segments"):
         raise RuntimeError("Script writer returned empty/invalid output")
-        
+
+    # 2b. Duration/word-budget gate (D-DUR). The format budget is a HARD input: a
+    #     script outside word_range is non-compliant regardless of reviewer verdicts.
+    #     Reject BEFORE saving so no over-length script reaches TTS (a paid call) —
+    #     the financial rule forbids burning paid credit on a malformed request. This
+    #     is a real word count vs the format spec; no estimated speaking rate.
+    if not script_within_budget(data, inputs["video_type"]):
+        _f = get_format(inputs["video_type"])
+        raise RuntimeError(
+            f"Script non-compliant with {inputs['video_type']} format: "
+            f"{count_script_words(data)} words outside the "
+            f"{_f['word_range'][0]}-{_f['word_range'][1]} word budget "
+            f"(target ~{_f['target_sec']}s, acceptable "
+            f"{_f['target_sec_range'][0]}-{_f['target_sec_range'][1]}s). "
+            f"Shorten the script and re-run write_script."
+        )
+
     # 3. Save to DB via authoring_service
     doc = save_script(
         production_id=inputs["production_id"],
@@ -142,7 +159,22 @@ def invoke_review_script(inputs: dict, tmp_path: Path) -> dict:
         source_text=source_text, video_type=inputs["video_type"],
         project_dir=project_dir
     )
-    
+
+    # 3b. Duration/word-budget gate (D-DUR). Review verdicts do not override the
+    #     format budget — the LLM review_loop passed a 2.6x over-length script in the
+    #     real ai_notes_teaser run. Reject the reviewed final before saving so an
+    #     over-budget script can never reach TTS. Real word count vs the format spec.
+    from episode_format import script_within_budget, count_script_words, get_format
+    if not script_within_budget(final, inputs["video_type"]):
+        _f = get_format(inputs["video_type"])
+        raise RuntimeError(
+            f"Reviewed script non-compliant with {inputs['video_type']} format: "
+            f"{count_script_words(final)} words outside the "
+            f"{_f['word_range'][0]}-{_f['word_range'][1]} word budget "
+            f"(target ~{_f['target_sec']}s). The reviewer revision loop produced an "
+            f"over-budget script; shorten and re-run."
+        )
+
     # 4. Save final approved script to DB
     doc = save_script(
         production_id=inputs["production_id"],

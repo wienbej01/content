@@ -58,3 +58,37 @@ def format_block(video_type):
         f"Structure: {f['structure']}\n"
         f"REVIEW NOTE: {f['review_note']}\n"
     )
+
+
+def count_script_words(script_payload: dict) -> int:
+    """Total spoken words across all segments — a real count, not an estimate.
+
+    Each segment may carry an explicit ``word_count``; otherwise the words are
+    counted from ``text`` (mirroring authoring_service.save_script, which stores
+    ``word_count or len(text.split())``).
+    """
+    total = 0
+    for seg in (script_payload or {}).get("segments", []):
+        wc = seg.get("word_count")
+        if wc is None:
+            wc = len((seg.get("text") or "").split())
+        total += int(wc)
+    return total
+
+
+def script_within_budget(script_payload: dict, video_type: str) -> bool:
+    """True iff the script's total words fall inside the format's word budget.
+
+    The word budget is the duration budget expressed in words — it is exactly what
+    ``format_block`` tells the writer ("Word budget: lo-hi words"), so enforcing it
+    is a real check of the delivered script against the format spec. No estimated
+    speaking rate is hard-coded: the James ElevenLabs voice measures ~138 wpm on
+    the clean s9_paid sample (70 words -> 30.35s) but only ~74-108 wpm on the longer
+    ai_notes_teaser narration, i.e. the pace varies, so a fixed words-per-minute
+    constant would be unsound. The format's own word_range (calibrated against
+    target_sec_range) is the authoritative budget.
+    """
+    f = get_format(video_type)
+    lo, hi = f["word_range"]
+    return lo <= count_script_words(script_payload) <= hi
+
