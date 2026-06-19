@@ -222,7 +222,7 @@ def invoke_gate_a_content(inputs: dict, tmp_path: Path) -> dict:
 def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     from tts import run_tts
     from authoring_service import get_active_script_revision_id
-    from tts_service import record_tts_artifact
+    from tts_service import record_tts_artifact, record_cost_event
     import production_db as _db
 
     project_dir = _get_project_dir(inputs)
@@ -264,6 +264,16 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
             audio_path.parent.mkdir(parents=True, exist_ok=True)
             import shutil
             shutil.copy(result["audio_path"], audio_path)
+            # S9-C03: Record TTS cost in cost_events ledger for spend auditing
+            estimated_usd = adapter.estimate_cost({"text": tts_text})
+            record_cost_event(
+                production_id=inputs["production_id"],
+                operation="tts",
+                provider="elevenlabs",
+                actual_usd=estimated_usd,  # ElevenLabs charges per character; use estimate as actual
+                estimated_usd=estimated_usd,
+                db_path=None,
+            )
 
     request_fingerprint = _db._now()
 
