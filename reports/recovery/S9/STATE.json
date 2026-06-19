@@ -17,11 +17,12 @@
       "approach": "Extracted gather_research() (real search->sort->cap->prompt, no kiro-cli); tests call it directly. No test-specific production behavior, no mock of logic under test."
     }
   },
-  "completed_tickets": [],
-  "implemented_awaiting_validation": ["S9-C01", "S9-C09"],
+  "completed_tickets": ["S9-C01", "S9-C09"],
+  "implemented_awaiting_validation": [],
   "blocked_tickets": [],
   "failed_tickets": [],
-  "last_verified_commit": "3f1c9fa (uncommitted: scripts/episode_format.py, scripts/produce_db.py, scripts/research.py, tests/test_s9_c01_duration.py, tests/test_research_sources.py)",
+  "validation": {"report": "reports/recovery/S9/validator_report.md", "decision": {"S9-C01": "ACCEPTED (GO)", "S9-C09": "ACCEPTED (GO)"}, "date": "2026-06-19", "code_head": "196e09c (6950da3 docs-only)"},
+  "last_verified_commit": "6950da3 (S9-C01 @ 034f12e, S9-C09 @ 196e09c; validated independently)",
   "full_suite_green": true,
   "full_suite_result": "1055 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 674s (2026-06-19)",
   "focused_tests_passing": true,
