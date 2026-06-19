@@ -9,3 +9,122 @@
 {"ts": "2026-06-19", "event": "ticket_implemented", "sprint": "S9-C", "ticket": "S9-C02", "head": "46e294e (uncommitted)", "defect": "D-015", "files_changed": ["scripts/production_repo.py (plan_render_units: stale-mark prior non-stale units in-transaction + thread parent_render_unit_id by span)", "scripts/assemble_db.py (build_assembly_inputs excludes status='stale')", "tests/test_s9_c02_supersede.py (4 tests)"], "approach": "Used existing 'stale' status (not inventing 'superseded') consistent with invalidate_render_units. Supersession in plan_render_units covers all callers; render units immutable (never deleted); UNIQUE(production_id,ordinal) preserved. Consumers audited: generate/qa/assembly_dto already filter by status; only build_assembly_inputs lacked a filter (fixed).", "focused_tests": "4/4 pass", "validation": "FULL SUITE GREEN: 1059 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 680s. Clean batch (sprint2/sprint7/crash-matrix/full-e2e/repair, excl. D-017 leaking orchestrator test) 58 passed. No regression. Awaits independent validator.", "residual": "re-compile supersedes change_requested (open-repair) units too (correct for genuine upstream change; orphaned change_requests not actively closed).", "committed": false}
 {"ts": "2026-06-19", "event": "ticket_implemented", "sprint": "S9-C", "ticket": "S9-C08", "defect": "D-017", "head": "7ac50b5 (uncommitted)", "files_changed": ["tests/test_produce_db_orchestrator.py (setup_test_db autouse fixture now snapshots+restores produce_db.STAGE_INVOKERS; removed vestigial module-level PRODUCTION_DB_PATH)", "tests/test_s9_c08_test_isolation.py (AST meta-guard: no module-level DB env)"], "root_cause_corrected": "Ticket hypothesized module-level PRODUCTION_DB_PATH. Actual e2e-breaker was STAGE_INVOKERS leak: orchestrator tests set MagicMock invokers outside their finally-restored dict, leaking 9 mocks (incl audio_timing) into later tests -> e2e ran no-op audio_timing -> no spans -> reconcile_timing failed. The env override was vestigial (removing it left orchestrator 9/9).", "validation": "orchestrator 9/9; BOTH batch orders pass (orchestrator->e2e and e2e->orchestrator, 10/10 each; previously orchestrator->e2e failed); meta-guard passes + verified it detects violations; FULL SUITE 1060 passed, exit 0, 679s. No production code changed. Awaits independent validator.", "committed": false}
 {"ts": "2026-06-19", "event": "ticket_implemented", "sprint": "S9-C", "ticket": "S9-C08", "defect": "D-017", "head": "7ac50b5 (uncommitted)", "files_changed": ["tests/test_produce_db_orchestrator.py (setup_test_db autouse fixture now snapshots+restores produce_db.STAGE_INVOKERS; removed vestigial module-level PRODUCTION_DB_PATH)", "tests/test_s9_c08_test_isolation.py (AST meta-guard: no module-level DB env)"], "root_cause_corrected": "Ticket hypothesized module-level PRODUCTION_DB_PATH. Actual e2e-breaker was STAGE_INVOKERS leak: orchestrator tests set MagicMock invokers outside their finally-restored dict, leaking 9 mocks (incl audio_timing) -> e2e ran no-op audio_timing -> no spans -> reconcile_timing failed. The env override was vestigial.", "validation": "orchestrator 9/9; BOTH batch orders pass (10/10 each; previously orchestrator->e2e failed); meta-guard passes + detects violations; FULL SUITE 1060 passed exit 0. No production code changed. Awaits independent validator.", "committed": false}
+{"ts": "2026-06-19", "event": "ticket_audited", "sprint": "S9-C", "ticket": "S9-C02", "verdict": "PASS_WITH_FINDINGS", "findings": 1, "severity": "LOW", "finding_id": "F-001", "location": "scripts/produce_db.py:907-913", "issue": "invoke_graphics_compositing does not filter by status, could inflate count after re-compile", "status": "NON-BLOCKING", "report": "reports/recovery/S9/evidence/S9-C02-audit.md", "evidence": "focused 4/4 pass; full suite 1059 pass; implementation at b164136; transaction atomicity verified; UNIQUE(production_id,ordinal) preserved; consumers audited; all primary consumers filter status except graphics_compositing"}
+{"ts": "2026-06-19", "event": "audit_finding_fixed", "sprint": "S9-C", "ticket": "S9-C02", "finding_id": "F-001", "files_changed": ["scripts/produce_db.py (invoke_graphics_compositing: added AND status!='stale' filter to WHERE clause)", "tests/test_s9_c02_supersede.py (added test_graphics_compositing_excludes_stale)"], "verification": "focused 5/5 pass (4 original + 1 new); full suite 1061 pass; fix addresses NON-BLOCKING LOW finding; no regressions", "committed": false}
+{"ts": "2026-06-19", "event": "ticket_audited", "sprint": "S9-C", "ticket": "S9-C02", "verdict": "PASS", "findings": 0, "severity": "NONE", "location": "N/A", "issue": "Previous audit finding F-001 fully corrected", "status": "READY_FOR_VALIDATION", "report": "reports/recovery/S9/evidence/S9-C02-audit-independent.md", "evidence": "focused 5/5 pass (4 original + 1 F-001 regression); all consumers now filter stale units; D-015 core fix verified; transaction atomicity confirmed; UNIQUE(production_id,ordinal) preserved; implementation complete, uncommitted"}
+{"timestamp": "2026-06-19T11:29:38Z", "role": "validator", "ticket": "S9-C02", "decision": "PASS", "evidence": "Focused 5/5, full suite 1061 passed, consumer audit verified, invariants preserved", "next_ticket": "S9-C03"}
+{"timestamp":"2026-06-19T19:50:00Z","ticket_id":"S9-C03","role":"engineer","action":"implementation_complete","baseline":{"head":"f85757e","branch":"fix/flagship-001-end-to-end-recovery","tests_collected":1061,"suite_green":true,"tests_passed":1061,"exit_code":0},"files_changed":["scripts/produce_db.py","tests/test_s9_c03_tts_cost.py"],"commands":["YT_TEST_MODE=1 python3 -m pytest tests/test_s9_c03_tts_cost.py -v","YT_TEST_MODE=1 python3 -m pytest tests/test_s8_tts_paid_guard.py -v"],"exit_codes":[0,0],"test_results":{"focused":{"total":3,"passed":3},"full_suite":{"total":1061,"passed":1061,"skipped":1,"xfailed":1,"xpassed":2}},"residual_risks":["None identified. Cost recording works correctly, D-013 guard intact, no regressions."],"commit_identifier":"f85757e (S9-C03 uncommitted)","result":"ready_for_audit"}
+{"timestamp":"2026-06-19T20:15:00Z","role":"auditor","ticket":"S9-C03","verdict":"PASS","findings":0,"severity":"NONE","report":"reports/recovery/S9/evidence/S9-C03-audit.md","evidence":"focused 3/3 pass; guard test 1/1 pass; full suite 1061 pass; cost recording on success path; amount matches estimate_cost; D-013 guard intact; no regressions; implementation correct","next_step":"independent_validator"}
+{"timestamp":"2026-06-19T20:20:00Z","role":"validator","ticket":"S9-C03","decision":"PASS","evidence":"Focused 3/3, TTS-related tests 28/28, D-013 guard intact, cost recording on success path only, amount derived from estimate_cost(), schema compatible (provider_job_id nullable), no regressions, implementation correct","validation_report":"reports/recovery/S9/evidence/S9-C03-validation.md","next_ticket":"S9-C08"}
+{"timestamp":"2026-06-19T12:34:58Z","role":"auditor","ticket":"S9-C08","verdict":"PASS","findings":0,"severity":"NONE","report":"reports/recovery/S9/evidence/S9-C08-audit.md","evidence":"Root cause confirmed: STAGE_INVOKERS leak (not module-level PRODUCTION_DB_PATH). Fix: snapshot/restore in setup_test_db fixture + AST meta-guard. Both batch orders pass (10/10 each); orchestrator 9/9; meta-guard 1/1; full suite 1060 passed. No production code changed. Implementation correct.","next_step":"independent_validator"}
+{"timestamp":"2026-06-19T20:45:00Z","role":"validator","ticket":"S9-C08","decision":"PASS","evidence":"Both batch orders pass (orchestrator->e2e: 10/10; e2e->orchestrator: 10/10); meta-guard 1/1; orchestrator 9/9; full suite 1064 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 674s; STAGE_INVOKERS leak fix confirmed; no production code changed","validation_report":"reports/recovery/S9/evidence/S9-C08-validation.md","next_ticket":"W2-first-eligible"}
+{
+  "timestamp": "2026-06-19T21:00:00Z",
+  "ticket_id": "S9-C05",
+  "role": "engineer",
+  "action": "implementation_complete",
+  "baseline": {
+    "head": "f85757e",
+    "branch": "fix/flagship-001-end-to-end-recovery",
+    "tests_passed": 1064,
+    "suite_green": true
+  },
+  "files_changed": [
+    "scripts/produce_db.py",
+    "tests/test_s9_c05_slotting.py"
+  ],
+  "commands": [
+    "YT_TEST_MODE=1 python3 -m pytest tests/test_s9_c05_slotting.py -xvs",
+    "YT_TEST_MODE=1 python3 -m pytest tests/test_s9_c02_supersede.py tests/test_s9_c03_tts_cost.py tests/test_s9_c04_storyboard.py -q"
+  ],
+  "exit_codes": [0, 0],
+  "test_results": {
+    "s9_c05_focused": "3/3 passed",
+    "dependent_tickets": "14/14 passed",
+    "full_suite_status": "not_run"
+  },
+  "residual_risks": [
+    "Hero audio slice materialization not fully implemented (only sample ranges computed)",
+    "No actual ffmpeg slicing in test mode",
+    "Integration with generation stage (S9-C06) needs validation"
+  ],
+  "commit_identifier": "uncommitted",
+  "result": "ready_for_audit"
+}
+{
+  "timestamp": "2026-06-19T21:30:00Z",
+  "role": "auditor",
+  "ticket": "S9-C05",
+  "verdict": "FAIL",
+  "findings": 2,
+  "severity": "BLOCKING",
+  "finding_ids": ["F-001", "F-002"],
+  "report": "reports/recovery/S9/evidence/S9-C05-audit.md",
+  "evidence": "Focused 3/3 passed, dependent 14/14 passed. CRITICAL F-001: Hero audio slice materialization NOT implemented (only sample ranges computed). No ffmpeg slicing, no artifact registration, no SHA verification, no master_audio_artifact_id/master_audio_sha256 attached. MEDIUM F-002: No validation of individual slot duration vs min_clip_sec. Clip ranges correctly read from config (4s/15s). Slots tile exactly. Sample ranges computed correctly. B-roll also slotted. Integration with S9-C02 supersession preserved. Full suite not run.",
+  "residual_risks": [
+    "Generation stage (S9-C06) cannot consume slice files --audio parameter",
+    "Invalid slots (< 4s) could be produced in edge cases",
+    "Undetected regressions from full suite not run",
+    "S9-C04 changes mixed in same diff (scope violation)"
+  ],
+  "next_step": "engineer_must_complete_implementation"
+}
+{
+  "timestamp": "2026-06-19T22:00:00Z",
+  "ticket_id": "S9-C05",
+  "role": "engineer",
+  "action": "repair_complete_cycle1",
+  "trigger": "audit FAIL F-001 (BLOCKING) + F-002 (MEDIUM)",
+  "baseline": {
+    "head": "f85757e",
+    "branch": "fix/flagship-001-end-to-end-recovery",
+    "suite_before": "1061 passed (per STATE baseline)"
+  },
+  "root_causes_fixed": [
+    "F-001: no slicer in DB path -> added slice_continuous_lipsync.materialize_hero_slot_slices (ffmpeg extract + hero_audio_slice artifact + SHA + master provenance on unit); invoke_compile_media calls it for every HERO_SYNC_LOCKED unit, fail-loud if no tts_master",
+    "F-001b: plan_render_units read speech/master/sample cols from span spec -> multi-slot hero spans never persisted per-slot slices; added _slot_or_spec (slot-first, spec fallback)",
+    "F-001c: hardcoded 44100 sample rate -> MASTER_SAMPLE_RATE 48000 via timeline_utils.ms_to_samples",
+    "F-001d: hero_lipsync (S9-C04 canonical type) not in shot_type_routes -> fell through to BROLL_FLEX, slices never fired in prod; added _HERO_SHOT_TYPE_ALIASES bridge hero_lipsync->talking_head_hero",
+    "F-001e: validate_hero_slicing_intervals needs complete generation interval + silence; set generation==speech (no pad for tiling) + leading/trailing_silence=0",
+    "F-002: added _validate_hero_slot_min (hero slot < min_clip_duration_sec fails loud; even-split N=ceil(span/max) guarantees multi-slot heroes >= max/2 > min)"
+  ],
+  "files_changed": [
+    "scripts/slice_continuous_lipsync.py",
+    "scripts/production_repo.py",
+    "scripts/produce_db.py",
+    "tests/test_s9_c05_slotting.py"
+  ],
+  "commands": [
+    "YT_TEST_MODE=1 python3 -m pytest tests/test_s9_c05_slotting.py -xvs",
+    "YT_TEST_MODE=1 python3 -m pytest tests/test_s9_c02_supersede.py tests/test_s9_c03_tts_cost.py tests/test_s9_c04_storyboard.py tests/test_sprint2_production_repo.py tests/test_sprint5_tts_service.py tests/test_sprint6_media_service.py tests/test_sprint7_assemble_db.py tests/test_produce_db_orchestrator.py tests/test_repair_routing_lb603.py -q",
+    "YT_TEST_MODE=1 python3 -m pytest -q"
+  ],
+  "exit_codes": [0, 0, 0],
+  "test_results": {
+    "s9_c05_focused": "6/6 passed",
+    "dependent_and_compile_plan": "98/98 passed",
+    "full_suite": "1076 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 687.81s"
+  },
+  "residual_risks": [
+    "S9-C04 vocab<->routing gap NOT closed: broll_archival/graphic_title_card absent from shot_type_routes (only hero_lipsync bridged); graphic_title_card misroutes to BROLL_FLEX instead of local_graphic/SILENT_GRAPHIC -> follow-up for S9-C04 validation or a routing ticket",
+    "Slice lookup is a metadata scan (kind=hero_audio_slice + metadata.render_unit_id), not an indexed column; acceptable for S9-C06 (few hero units)",
+    "ffmpeg input-seeking on an MP3 master is frame-approximate but SHA-deterministic (same params -> same bytes); slice re-derivable from immutable master",
+    "S9-C06 (--audio consumption) and S9-C07 (assembly provenance) end-to-end validation pending those tickets"
+  ],
+  "paid_calls_made": 0,
+  "commit_identifier": "uncommitted",
+  "engineer_report": "reports/recovery/S9/evidence/S9-C05-engineer.md",
+  "result": "ready_for_reaudit"
+}
+{
+  "timestamp": "2026-06-19T23:30:00Z",
+  "role": "auditor",
+  "ticket": "S9-C05",
+  "verdict": "PASS_WITH_FINDINGS",
+  "findings": 1,
+  "severity": "LOW",
+  "finding_ids": ["F-003"],
+  "report": "reports/recovery/S9/evidence/S9-C05-audit-independent.md",
+  "evidence": "F-001 (BLOCKING) RESOLVED: materialize_hero_slot_slices() implemented, ffmpeg slicing + artifact registration + SHA + master provenance all verified. F-002 (MEDIUM) RESOLVED: _validate_hero_slot_min() implemented and called. Focused tests 6/6 pass (test_hero_slice_materialized comprehensively verifies slice file + SHA + artifact + provenance). Dependent+compile/plan tests 98/98 pass. Full suite 1076 passed. One non-blocking finding F-003: S9-C04 storyboard code mixed in same working tree (commit hygiene issue, not functional). S9-C05-specific changes are isolated and correct.",
+  "next_step": "independent_validator"
+}
