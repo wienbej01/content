@@ -15,8 +15,10 @@ ROOT = Path(__file__).resolve().parent.parent
 PRODUCE_DB = ROOT / "scripts" / "produce_db.py"
 TEST_DB = ROOT / "db" / "test_produce_db.db"
 
-# Ensure we use the test DB
-os.environ["PRODUCTION_DB_PATH"] = str(TEST_DB)
+# NOTE: do NOT set os.environ["PRODUCTION_DB_PATH"] at module scope (D-017). That leaks
+# into every subsequently-collected test in the session (monkeypatch restores it to this
+# value after each test), breaking order-independence. Conftest's autouse
+# _isolate_production_db sets it per test; these tests also pass db_path=TEST_DB explicitly.
 
 import production_db as _db
 import produce_db
@@ -25,7 +27,16 @@ from produce_db import run_production, STAGE_REGISTRY
 
 @pytest.fixture(autouse=True)
 def setup_test_db():
-    """Ensure a clean test database for each test."""
+    """Ensure a clean test database + restore module-global state for each test.
+
+    Many tests below monkeypatch produce_db.STAGE_INVOKERS (a module global) to mock
+    stages. Some set mocks outside their finally-restored dict, which leaked MagicMock
+    invokers into subsequently-collected tests and broke them order-dependently (D-017:
+    the s8_resume e2e got a no-op audio_timing -> 'No active timeline spans'). Snapshot
+    STAGE_INVOKERS here and restore it after every test so no mock can leak.
+    """
+    import produce_db as _pdb
+    saved_invokers = dict(_pdb.STAGE_INVOKERS)
     if TEST_DB.exists():
         TEST_DB.unlink()
     # Also remove any test project dirs
@@ -34,6 +45,8 @@ def setup_test_db():
     if test_proj.exists():
         shutil.rmtree(test_proj)
     yield
+    _pdb.STAGE_INVOKERS.clear()
+    _pdb.STAGE_INVOKERS.update(saved_invokers)
     # Cleanup after test if needed
 
 
