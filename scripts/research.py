@@ -225,11 +225,15 @@ def _extract_json(stdout):
     return None, text
 
 
-def research(seed, video_type="short", model="claude-sonnet-4.6", timeout=300,
-             dry_run=False, transcript_path=None):
-    """Deterministic web research: Python Brave-searches the seed, injects real results, then
-    the LLM synthesizes a sourced brief. Returns (brief_dict_or_None, prompt, raw_output)."""
-    # 1) Python-side web search (deterministic; not dependent on MCP attaching).
+def gather_research(seed, video_type="short"):
+    """Deterministic web research up to (but excluding) LLM synthesis.
+
+    Builds the query set, Brave-searches each query, tags reputable domains, sorts
+    reputable-first, caps to MAX_RESULTS_FOR_PROMPT, and builds the prompt. Returns
+    (results, prompt). No LLM/subprocess call — hermetic, so tests can exercise the real
+    sort/cap/prompt/query logic without kiro-cli (D-018: research()'s synthesis step runs
+    kiro-cli as a subprocess with no YT_TEST_MODE guard and would stall the suite).
+    """
     queries = [
         seed,
         f"{seed} study findings statistics",
@@ -239,20 +243,28 @@ def research(seed, video_type="short", model="claude-sonnet-4.6", timeout=300,
         f"{seed} business school OR university research",
     ]
     results, seen = [], set()
-    if not dry_run:
-        for q in queries:
-            for r in brave_search(q, count=8):
-                if r["url"] and r["url"] not in seen:
-                    seen.add(r["url"])
-                    results.append(r)
-        # Tag reputable, sort reputable-first, cap
-        for r in results:
-            r["reputable"] = _is_reputable(r["url"])
-        results.sort(key=lambda r: (not r["reputable"],))
-        results = results[:MAX_RESULTS_FOR_PROMPT]
+    for q in queries:
+        for r in brave_search(q, count=8):
+            if r["url"] and r["url"] not in seen:
+                seen.add(r["url"])
+                results.append(r)
+    for r in results:
+        r["reputable"] = _is_reputable(r["url"])
+    results.sort(key=lambda r: (not r["reputable"],))
+    results = results[:MAX_RESULTS_FOR_PROMPT]
     prompt = build_research_prompt(seed, video_type, search_results=results)
+    return results, prompt
+
+
+def research(seed, video_type="short", model="claude-sonnet-4.6", timeout=300,
+             dry_run=False, transcript_path=None):
+    """Deterministic web research: Python Brave-searches the seed, injects real results, then
+    the LLM synthesizes a sourced brief. Returns (brief_dict_or_None, prompt, raw_output)."""
     if dry_run:
-        return None, prompt, "(dry-run)"
+        # No external work (no search, no synthesis): placeholder prompt only.
+        return None, build_research_prompt(seed, video_type, search_results=[]), "(dry-run)"
+    # 1) Python-side web search + reputable sort/cap + prompt (hermetic; no LLM call).
+    results, prompt = gather_research(seed, video_type)
     if not results:
         if transcript_path:
             Path(transcript_path).write_text(

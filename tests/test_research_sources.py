@@ -1,4 +1,13 @@
-"""Tests for research.py reputable-domain allowlist, sorting, capping, and prompt guidance."""
+"""Tests for research.py reputable-domain allowlist, sorting, capping, and prompt guidance.
+
+Hermeticity (D-018): the sorting/capping/query tests below call gather_research() — the real
+search -> reputable-sort -> cap -> build_research_prompt logic, factored out of research()
+with NO kiro-cli call. The assertions are on the prompt / captured queries, which are exactly
+what gather_research produces. Only brave_search (external web I/O, not available in CI) is
+mocked; the logic under test is exercised for real. Do NOT rewrite these to call research()
+with dry_run=False — that reaches the kiro-cli synthesis subprocess and stalls the suite when
+kiro-cli is unavailable (pytest's thread-timeout cannot recover).
+"""
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -10,7 +19,7 @@ from research import (
     MAX_RESULTS_FOR_PROMPT,
     _is_reputable,
     build_research_prompt,
-    research,
+    gather_research,
 )
 
 
@@ -41,7 +50,7 @@ def test_reputable_sorted_first():
         return mixed if not captured_queries[:-1] else []
 
     with patch("research.brave_search", side_effect=mock_brave):
-        data, prompt, raw = research("test topic", dry_run=False)
+        results, prompt = gather_research("test topic")
 
     # Verify prompt has reputable results first
     hbr_pos = prompt.find("hbr.org")
@@ -75,7 +84,7 @@ def test_domain_targeted_queries_present():
         return []
 
     with patch("research.brave_search", side_effect=mock_brave):
-        research("deep work focus", dry_run=False)
+        gather_research("deep work focus")
 
     query_text = " ".join(captured_queries)
     assert "site:hbr.org" in query_text
@@ -102,7 +111,7 @@ def test_results_capped():
         return []
 
     with patch("research.brave_search", side_effect=mock_brave):
-        data, prompt, raw = research("test", dry_run=False)
+        results, prompt = gather_research("test")
 
     # Count how many results appear in prompt (each has a URL: line)
     url_lines = [l for l in prompt.splitlines() if l.strip().startswith("URL:")]
