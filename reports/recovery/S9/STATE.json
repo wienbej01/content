@@ -20,6 +20,11 @@
       "impl": "done",
       "validation": "FULL SUITE GREEN (1059 passed, exit 0). Focused 4/4. Awaits independent validator. Not committed.",
       "approach": "stale-mark prior units in plan_render_units (existing 'stale' convention) + parent_render_unit_id; build_assembly_inputs excludes stale. Consumers audited."
+    },
+    "S9-C08": {
+      "impl": "done",
+      "validation": "FULL SUITE GREEN (1060 passed, exit 0). Both orchestrator<->e2e batch orders pass. Meta-guard passes. Awaits independent validator. Not committed.",
+      "root_cause": "STAGE_INVOKERS leak (not the env override, which was vestigial). Fixed via snapshot/restore fixture + AST meta-guard."
     }
   },
   "completed_tickets": [
@@ -27,7 +32,8 @@
     "S9-C09"
   ],
   "implemented_awaiting_validation": [
-    "S9-C02"
+    "S9-C02",
+    "S9-C08"
   ],
   "blocked_tickets": [],
   "failed_tickets": [],
@@ -40,7 +46,7 @@
     "date": "2026-06-19",
     "code_head": "196e09c (6950da3 docs-only)"
   },
-  "last_verified_commit": "46e294e (S9-C02 uncommitted: production_repo.py, assemble_db.py, tests/test_s9_c02_supersede.py)",
+  "last_verified_commit": "7ac50b5 (S9-C08 uncommitted: tests/test_produce_db_orchestrator.py, tests/test_s9_c08_test_isolation.py)",
   "full_suite_green": true,
   "full_suite_result": "1055 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 674s (2026-06-19)",
   "focused_tests_passing": true,
@@ -57,21 +63,19 @@
       "description": "No real paid generation until Wave 3 complete AND user re-approves gate_a_spend. Hard cap $5.00; ~$0.90 spent. No automatic paid retry."
     }
   ],
-  "open_test_reliability_tickets": [
-    "S9-C08 (D-017 module-level PRODUCTION_DB_PATH override; suite is green in default order but the manual orchestrator->e2e batch still order-fails)"
-  ],
+  "open_test_reliability_tickets": [],
   "baseline": {
     "head": "3f1c9fa",
     "branch": "fix/flagship-001-end-to-end-recovery",
     "tests_collected": 1059,
     "suite_green": true,
-    "tests_passed": 1059,
+    "tests_passed": 1060,
     "tests_skipped": 1,
     "tests_xfailed": 1,
     "tests_xpassed": 2,
     "suite_exit_code": 0,
-    "suite_run_sec": 680,
-    "note": "1059 = 1055 (C01+C09) + 4 new S9-C02 tests. Suite hermetic.",
+    "suite_run_sec": 679,
+    "note": "1060 = 1059 prior + 1 S9-C08 meta-guard. Suite hermetic + order-independent (D-017 fixed).",
     "s8_exit_gate_tests": 1047,
     "s8_exit_gate_commit": "4152574",
     "paid_spent_usd_approx": 0.9,
@@ -93,7 +97,8 @@
       "done": [
         "S9-C01",
         "S9-C09",
-        "S9-C02"
+        "S9-C02",
+        "S9-C08"
       ],
       "note": "C01/C09 implemented + suite-green (await independent validation). C08 still open (minor ordering flake). Next: C02 or C03."
     },
