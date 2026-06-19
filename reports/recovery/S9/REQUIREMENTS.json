@@ -1,0 +1,93 @@
+{
+  "sprint_id": "S9-C",
+  "objective": "Complete the missing/inadequately-coded production process steps (duration enforcement, storyboard structure, render-unit supersession, slotting, real generation adapter, assembly richness, cost tracking) BEFORE any further paid provider call.",
+  "requirements": [
+    {
+      "id": "R1",
+      "title": "Deterministic script-duration compliance",
+      "statement": "The pipeline must refuse a script whose estimated narration duration exceeds the format target range, via a programmatic gate (not prompt text alone). Format word budgets must be calibrated to the actual James voice pace (~60-74 wpm).",
+      "rationale": "Real run produced a 195-word/198s script for a 75s teaser; LLM reviewers passed it (2.6x over).",
+      "tickets": ["S9-C01"]
+    },
+    {
+      "id": "R2",
+      "title": "Canonical, band-compliant storyboard shot mix",
+      "statement": "DB-produced storyboards must assign shot types in the canonical vocabulary (hero_lipsync / broll_* / graphic_*) in a distribution satisfying review_storyboard bands; never a uniform talking-head fallback.",
+      "rationale": "All 4 beats of the real storyboard were talking_head_standard; the hero/b-roll/graphic mix never materialized.",
+      "tickets": ["S9-C04"]
+    },
+    {
+      "id": "R3",
+      "title": "Render-unit supersession on invalidation (D-015)",
+      "statement": "Re-running compile_media after invalidation must supersede prior render units; consumers see exactly one active set per plan revision.",
+      "rationale": "D-015 open: re-compile appended a second unit set (8 units vs 4), doubling the timeline.",
+      "tickets": ["S9-C02"]
+    },
+    {
+      "id": "R4",
+      "title": "Multi-clip slotting of long beats",
+      "statement": "Beats longer than the max clip length must be broken into <=max-clip slots; hero slots carry their master-narration audio slice.",
+      "rationale": "compile_media passed one slot per beat; a 30s hero beat was never split -> coverage gaps. Hidden by S8's short fixture + FakeProvider.",
+      "tickets": ["S9-C05"]
+    },
+    {
+      "id": "R5",
+      "title": "Real generation request enrichment (Q-001)",
+      "statement": "A Higgsfield generation request must carry a real per-clip prompt, the hero reference image (--image), and the hero master-narration slice (--audio for seedance_2_0).",
+      "rationale": "Request payload was {asset_type,model,duration_ms,audio_policy}; prompt defaulted to 'educational video'; no lipsync audio or reference image.",
+      "tickets": ["S9-C06"]
+    },
+    {
+      "id": "R6",
+      "title": "Assembly richness: graphics + music bed",
+      "statement": "The assembled output must include graphics and a music bed in addition to the clip bed + master narration.",
+      "rationale": "User wants both; build_assembly_manifest currently emits clips + master narration only.",
+      "tickets": ["S9-C07"]
+    },
+    {
+      "id": "R7",
+      "title": "Paid-call cost tracking",
+      "statement": "Every paid call (TTS + generation) must write a cost_events row so spend is auditable against the cap.",
+      "rationale": "invoke_tts records no cost_events; ~$0.90 spent is not in the ledger.",
+      "tickets": ["S9-C03"]
+    },
+    {
+      "id": "R8",
+      "title": "Test isolation / order-independence",
+      "statement": "The suite must be order-independent: no test module sets PRODUCTION_DB_PATH (or any DB env) at module-import scope; every test's DB identity is per-test only.",
+      "rationale": "test_produce_db_orchestrator.py:19 sets PRODUCTION_DB_PATH at module level (the only such case; all others use fixture-scoped setenv+del). It breaks isolation: the s8_resume e2e fails (No active timeline spans) only when run after the orchestrator test, passes alone. Pre-existing at 3f1c9fa.",
+      "tickets": ["S9-C08"]
+    },
+    {
+      "id": "R9",
+      "title": "Test hermeticity — no unmocked external LLM/web calls",
+      "statement": "No test may reach a real kiro-cli (or other external LLM/web) call in YT_TEST_MODE; the suite must run green to completion with kiro-cli unavailable. Tests verify the real logic directly (not via the full external-call path).",
+      "rationale": "research.py:262-266 runs a real kiro-cli subprocess with no YT_TEST_MODE guard (unlike D-013 for TTS). test_research_sources.py drives it with dry_run=False + mocked search but unmocked LLM; it hangs environmentally and timeout_method=thread cannot recover, stalling the whole suite. Reproduces at baseline 3f1c9fa. Blocks the sprint's full-suite-green validation gate.",
+      "tickets": ["S9-C09"]
+    }
+  ],
+  "invariants": [
+    {"id": "I1", "title": "YT_TEST_MODE paid-call guard preserved", "ref": "D-013, commit f69d601"},
+    {"id": "I2", "title": "No-hacks rule: root cause in pipeline code", "ref": ".kiro/rules/no-hacks.md"},
+    {"id": "I3", "title": "Gate binding (SHA-256), two human gates, no --force-unsafe", "ref": "CLAUDE.md"},
+    {"id": "I4", "title": "Lipsync non-negotiable: hero must lipsync or hard-fail; baked audio verbatim (-map 0:a)", "ref": "CLAUDE.md"},
+    {"id": "I5", "title": "Deterministic AI-free assembly", "ref": "CLAUDE.md"},
+    {"id": "I6", "title": "Financial rule: no paid call until Wave 3 + user gate_a_spend re-approval; $5 cap", "ref": "CONTINUE.md sec4"}
+  ],
+  "defects": [
+    {"id": "D-DUR", "title": "Duration non-compliance accepted", "severity": "HIGH", "status": "OPEN", "ticket": "S9-C01"},
+    {"id": "D-016", "title": "Storyboard uniform talking-head (role discarded, wrong vocab)", "severity": "HIGH", "status": "OPEN", "ticket": "S9-C04"},
+    {"id": "D-015", "title": "Re-compile duplicates render units", "severity": "MEDIUM", "status": "OPEN", "ticket": "S9-C02"},
+    {"id": "D-SLOT", "title": "Long beats not slotted into <=clip-length units", "severity": "MEDIUM", "status": "OPEN", "ticket": "S9-C05"},
+    {"id": "Q-001", "title": "Real provider adapter never exercised with a real request", "severity": "HIGH", "status": "OPEN", "ticket": "S9-C06"},
+    {"id": "D-ASM", "title": "Assembly lacks graphics + music bed", "severity": "MEDIUM", "status": "OPEN", "ticket": "S9-C07"},
+    {"id": "D-COST", "title": "TTS paid call not recorded in cost_events", "severity": "MEDIUM", "status": "OPEN", "ticket": "S9-C03"},
+    {"id": "D-017", "title": "Module-level PRODUCTION_DB_PATH override breaks test isolation (order-dependent e2e failure)", "severity": "MEDIUM", "status": "OPEN", "ticket": "S9-C08"},
+    {"id": "D-018", "title": "Unmocked kiro-cli call in research tests stalls the suite when kiro-cli is unavailable", "severity": "HIGH", "status": "OPEN", "ticket": "S9-C09"}
+  ],
+  "risks": [
+    {"id": "RK1", "title": "Generation adapter correctness on the paid path", "severity": "HIGH", "ticket": "S9-C06", "note": "Verify with --dry-run/mocks before any paid call; image+audio provenance must satisfy lipsync invariants."},
+    {"id": "RK2", "title": "Storyboard vocabulary reconciliation design choice", "severity": "HIGH", "ticket": "S9-C04", "note": "direct_storyboard.py route vs deterministic assignment; couples visual_intent into S9-C06."},
+    {"id": "RK3", "title": "Slotting/slicing coverage + audio-sync correctness", "severity": "MEDIUM", "ticket": "S9-C05", "note": "Slice must match slot timing and assembly provenance hash."}
+  ]
+}

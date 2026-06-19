@@ -1,0 +1,65 @@
+{
+  "sprint_id": "S9-C",
+  "plan_revision": 3,
+  "status": "in_progress",
+  "current_wave": "W1",
+  "active_ticket": "",
+  "next_ticket": "S9-C02",
+  "ticket_status": {
+    "S9-C01": {
+      "impl": "done",
+      "validation": "FULL SUITE GREEN (1055 passed, exit 0) with S9-C01+S9-C09. Focused 8/8. Awaits independent validator acceptance. Not committed.",
+      "deviation_from_plan": "No recalibration, no hardcoded NARRATION_WPM. James voice = 138 wpm (s9_paid), so teaser [140,230] was already correct; real defect = missing enforcement (356-word ai_notes_teaser). Gate = real word count vs format word_range."
+    },
+    "S9-C09": {
+      "impl": "done",
+      "validation": "FULL SUITE GREEN (1055 passed, exit 0). Suite hermetic (no kiro-cli stall). Awaits independent validator acceptance. Not committed.",
+      "approach": "Extracted gather_research() (real search->sort->cap->prompt, no kiro-cli); tests call it directly. No test-specific production behavior, no mock of logic under test."
+    }
+  },
+  "completed_tickets": [],
+  "implemented_awaiting_validation": ["S9-C01", "S9-C09"],
+  "blocked_tickets": [],
+  "failed_tickets": [],
+  "last_verified_commit": "3f1c9fa (uncommitted: scripts/episode_format.py, scripts/produce_db.py, scripts/research.py, tests/test_s9_c01_duration.py, tests/test_research_sources.py)",
+  "full_suite_green": true,
+  "full_suite_result": "1055 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 674s (2026-06-19)",
+  "focused_tests_passing": true,
+  "wave_gate_passing": false,
+  "final_gate_passing": false,
+  "repair_cycles": {"S9-C01": 0, "S9-C09": 1},
+  "blockers": [
+    {
+      "id": "BLK-HUMAN-SPEND",
+      "type": "human_approval",
+      "description": "No real paid generation until Wave 3 complete AND user re-approves gate_a_spend. Hard cap $5.00; ~$0.90 spent. No automatic paid retry."
+    }
+  ],
+  "open_test_reliability_tickets": ["S9-C08 (D-017 module-level PRODUCTION_DB_PATH override; suite is green in default order but the manual orchestrator->e2e batch still order-fails)"],
+  "baseline": {
+    "head": "3f1c9fa",
+    "branch": "fix/flagship-001-end-to-end-recovery",
+    "tests_collected": 1059,
+    "suite_green": true,
+    "tests_passed": 1055,
+    "tests_skipped": 1,
+    "tests_xfailed": 1,
+    "tests_xpassed": 2,
+    "suite_exit_code": 0,
+    "suite_run_sec": 674,
+    "note": "1055 passed = 1047 S8 baseline + 8 new S9-C01 tests. Suite hermetic after S9-C09 (kiro-cli no longer reached by tests).",
+    "s8_exit_gate_tests": 1047,
+    "s8_exit_gate_commit": "4152574",
+    "paid_spent_usd_approx": 0.90,
+    "paid_cap_usd": 5.00,
+    "real_run_db": "db/s9_real.db",
+    "real_run_slug": "ai_notes_teaser",
+    "real_run_paused_at": "gate_a_spend"
+  },
+  "waves": {
+    "W1": {"tickets": ["S9-C01", "S9-C02", "S9-C03", "S9-C08", "S9-C09"], "status": "in_progress", "done": ["S9-C01", "S9-C09"], "note": "C01/C09 implemented + suite-green (await independent validation). C08 still open (minor ordering flake). Next: C02 or C03."},
+    "W2": {"tickets": ["S9-C04", "S9-C05"], "status": "pending"},
+    "W3": {"tickets": ["S9-C06", "S9-C07"], "status": "pending"}
+  },
+  "last_updated": "2026-06-19"
+}
