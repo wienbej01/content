@@ -4,7 +4,7 @@
   "status": "in_progress",
   "current_wave": "W1",
   "active_ticket": "",
-  "next_ticket": "S9-C02",
+  "next_ticket": "S9-C08",
   "ticket_status": {
     "S9-C01": {
       "impl": "done",
@@ -15,20 +15,41 @@
       "impl": "done",
       "validation": "FULL SUITE GREEN (1055 passed, exit 0). Suite hermetic (no kiro-cli stall). Awaits independent validator acceptance. Not committed.",
       "approach": "Extracted gather_research() (real search->sort->cap->prompt, no kiro-cli); tests call it directly. No test-specific production behavior, no mock of logic under test."
+    },
+    "S9-C02": {
+      "impl": "done",
+      "validation": "FULL SUITE GREEN (1059 passed, exit 0). Focused 4/4. Awaits independent validator. Not committed.",
+      "approach": "stale-mark prior units in plan_render_units (existing 'stale' convention) + parent_render_unit_id; build_assembly_inputs excludes stale. Consumers audited."
     }
   },
-  "completed_tickets": ["S9-C01", "S9-C09"],
-  "implemented_awaiting_validation": [],
+  "completed_tickets": [
+    "S9-C01",
+    "S9-C09"
+  ],
+  "implemented_awaiting_validation": [
+    "S9-C02"
+  ],
   "blocked_tickets": [],
   "failed_tickets": [],
-  "validation": {"report": "reports/recovery/S9/validator_report.md", "decision": {"S9-C01": "ACCEPTED (GO)", "S9-C09": "ACCEPTED (GO)"}, "date": "2026-06-19", "code_head": "196e09c (6950da3 docs-only)"},
-  "last_verified_commit": "6950da3 (S9-C01 @ 034f12e, S9-C09 @ 196e09c; validated independently)",
+  "validation": {
+    "report": "reports/recovery/S9/validator_report.md",
+    "decision": {
+      "S9-C01": "ACCEPTED (GO)",
+      "S9-C09": "ACCEPTED (GO)"
+    },
+    "date": "2026-06-19",
+    "code_head": "196e09c (6950da3 docs-only)"
+  },
+  "last_verified_commit": "46e294e (S9-C02 uncommitted: production_repo.py, assemble_db.py, tests/test_s9_c02_supersede.py)",
   "full_suite_green": true,
   "full_suite_result": "1055 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 674s (2026-06-19)",
   "focused_tests_passing": true,
   "wave_gate_passing": false,
   "final_gate_passing": false,
-  "repair_cycles": {"S9-C01": 0, "S9-C09": 1},
+  "repair_cycles": {
+    "S9-C01": 0,
+    "S9-C09": 1
+  },
   "blockers": [
     {
       "id": "BLK-HUMAN-SPEND",
@@ -36,31 +57,60 @@
       "description": "No real paid generation until Wave 3 complete AND user re-approves gate_a_spend. Hard cap $5.00; ~$0.90 spent. No automatic paid retry."
     }
   ],
-  "open_test_reliability_tickets": ["S9-C08 (D-017 module-level PRODUCTION_DB_PATH override; suite is green in default order but the manual orchestrator->e2e batch still order-fails)"],
+  "open_test_reliability_tickets": [
+    "S9-C08 (D-017 module-level PRODUCTION_DB_PATH override; suite is green in default order but the manual orchestrator->e2e batch still order-fails)"
+  ],
   "baseline": {
     "head": "3f1c9fa",
     "branch": "fix/flagship-001-end-to-end-recovery",
     "tests_collected": 1059,
     "suite_green": true,
-    "tests_passed": 1055,
+    "tests_passed": 1059,
     "tests_skipped": 1,
     "tests_xfailed": 1,
     "tests_xpassed": 2,
     "suite_exit_code": 0,
-    "suite_run_sec": 674,
-    "note": "1055 passed = 1047 S8 baseline + 8 new S9-C01 tests. Suite hermetic after S9-C09 (kiro-cli no longer reached by tests).",
+    "suite_run_sec": 680,
+    "note": "1059 = 1055 (C01+C09) + 4 new S9-C02 tests. Suite hermetic.",
     "s8_exit_gate_tests": 1047,
     "s8_exit_gate_commit": "4152574",
-    "paid_spent_usd_approx": 0.90,
-    "paid_cap_usd": 5.00,
+    "paid_spent_usd_approx": 0.9,
+    "paid_cap_usd": 5.0,
     "real_run_db": "db/s9_real.db",
     "real_run_slug": "ai_notes_teaser",
     "real_run_paused_at": "gate_a_spend"
   },
   "waves": {
-    "W1": {"tickets": ["S9-C01", "S9-C02", "S9-C03", "S9-C08", "S9-C09"], "status": "in_progress", "done": ["S9-C01", "S9-C09"], "note": "C01/C09 implemented + suite-green (await independent validation). C08 still open (minor ordering flake). Next: C02 or C03."},
-    "W2": {"tickets": ["S9-C04", "S9-C05"], "status": "pending"},
-    "W3": {"tickets": ["S9-C06", "S9-C07"], "status": "pending"}
+    "W1": {
+      "tickets": [
+        "S9-C01",
+        "S9-C02",
+        "S9-C03",
+        "S9-C08",
+        "S9-C09"
+      ],
+      "status": "in_progress",
+      "done": [
+        "S9-C01",
+        "S9-C09",
+        "S9-C02"
+      ],
+      "note": "C01/C09 implemented + suite-green (await independent validation). C08 still open (minor ordering flake). Next: C02 or C03."
+    },
+    "W2": {
+      "tickets": [
+        "S9-C04",
+        "S9-C05"
+      ],
+      "status": "pending"
+    },
+    "W3": {
+      "tickets": [
+        "S9-C06",
+        "S9-C07"
+      ],
+      "status": "pending"
+    }
   },
   "last_updated": "2026-06-19"
 }
