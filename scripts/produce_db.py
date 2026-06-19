@@ -907,7 +907,7 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
     graphics_units = conn.execute(
         """SELECT id, label, asset_type, active_artifact_id
            FROM render_units
-           WHERE production_id=? AND asset_type='still_kenburns'
+           WHERE production_id=? AND asset_type='still_kenburns' AND status!='stale'
            ORDER BY ordinal""",
         (production_id,)
     ).fetchall()

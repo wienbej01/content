@@ -115,3 +115,43 @@ def test_first_plan_is_a_noop_on_supersession(db, prod):
     units = plan_render_units(prod["id"], _hero_specs(spans), db_path=db)
     assert len(units) == 1
     assert get_render_units(prod["id"], status="stale", db_path=db) == []
+
+
+def test_graphics_compositing_excludes_stale(db, prod):
+    """invoke_graphics_compositing must filter out stale units (F-001 fix)."""
+    # Create graphics units (asset_type='still_kenburns')
+    spans = commit_timeline_spans(
+        prod["id"],
+        [{"label": f"G{i:03d}", "start_ms": i * 5000, "end_ms": (i + 1) * 5000} for i in range(3)],
+        db_path=db,
+    )
+    graphics_specs = [
+        {"span_id": s["id"], "asset_type": "still_kenburns",
+         "audio_policy": "SILENT_GRAPHIC", "final_audio_source": "none",
+         "provider_audio_usage": "discarded", "model": "image_gen_default"}
+        for s in spans
+    ]
+    # First plan: 3 graphics units
+    plan_render_units(prod["id"], graphics_specs, db_path=db)
+
+    # Re-plan (the D-015 scenario): prior 3 units should be staled
+    plan_render_units(prod["id"], graphics_specs, db_path=db)
+
+    stale = get_render_units(prod["id"], status="stale", db_path=db)
+    active = get_render_units(prod["id"], status="ordered", db_path=db)
+    assert len(stale) == 3, f"prior graphics units must be staled, got {len(stale)}"
+    assert len(active) == 3, f"only new graphics units must be active, got {len(active)}"
+
+    # Verify invoke_graphics_compositing excludes stale units
+    conn = _db.connect(db)
+    graphics_units = conn.execute(
+        """SELECT id, label, asset_type, active_artifact_id
+           FROM render_units
+           WHERE production_id=? AND asset_type='still_kenburns' AND status!='stale'
+           ORDER BY ordinal""",
+        (prod["id"],)
+    ).fetchall()
+    conn.close()
+
+    # Should only see the 3 active units, not 6 (3 stale + 3 active)
+    assert len(graphics_units) == 3, f"invoke_graphics_compositing must exclude stale, got {len(graphics_units)}"
