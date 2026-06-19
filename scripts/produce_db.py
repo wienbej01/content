@@ -669,30 +669,39 @@ def invoke_review_storyboard(inputs: dict, tmp_path: Path) -> dict:
     return {"status": "saved", "document_id": doc["id"], "passed": passed, "rounds": rounds}
 
 
-def _derive_shot_type(seg: dict) -> str:
-    # Explicit shot type on the segment wins.
-    kind = (seg.get("shot_type") or seg.get("kind") or "").lower()
-    if kind in ("talking_head_hero", "talking_head_standard", "hero"):
-        return kind if kind else "talking_head_standard"
-    if kind in ("broll", "broll_environment", "broll_human"):
-        return kind
-    # Infer a hero/b-roll mix from the segment's role/id so the storyboard is not
-    # uniformly talking-head. Hook/promise/CTA = on-camera hero; tension/evidence/
-    # pattern/background = b-roll over narration.
-    sid = (seg.get("id") or seg.get("label") or "").lower()
-    if any(r in sid for r in ("hook", "cta", "promise", "open")):
-        return "talking_head_hero"
-    if any(r in sid for r in ("tension", "background", "pattern", "system", "evidence",
-                              "study", "give_back", "audience", "proof", "example")):
-        return "broll_environment"
-    if seg.get("narration", True):
-        return "talking_head_standard"
-    return "broll_environment"
+def _validate_hero_slot_min(span_id, slot_index, slot_duration_ms, min_clip_ms):
+    """S9-C05 (F-002): a hero slot shorter than min_clip_duration_sec cannot render
+    (Seedance rejects <4s). Fail loud rather than plan an unrenderable unit; the beat
+    must be merged into an adjacent hero render group or padded per
+    lipsync_render_rules.on_sub_min_beat. With N = ceil(span/max_clip) the even-split
+    slotting guarantees multi-slot heroes are >= max/2 > min, so this only ever fires
+    for a single-slot hero span shorter than min."""
+    if slot_duration_ms < min_clip_ms:
+        raise RuntimeError(
+            f"BLOCKED: hero slot {slot_index} of span {span_id} is "
+            f"{slot_duration_ms / 1000.0:.3f}s < min_clip_duration_sec "
+            f"({min_clip_ms / 1000.0:.3f}s). Per lipsync_render_rules.on_sub_min_beat, "
+            "merge it into an adjacent hero render group or pad it; refusing to plan an "
+            "unrenderable (<min) hero slot."
+        )
+
+
+# S9-C05: the storyboard (S9-C04) emits the canonical hero shot type `hero_lipsync`, but
+# model_routing.yaml's shot_type_routes keys the hero route as `talking_head_hero`. Bridge
+# them so hero beats pick up the full hero route (lipsync_primary -> seedance, requires_audio,
+# prompt_template) and classify as HERO_SYNC_LOCKED -- otherwise hero spans fall through to
+# BROLL_FLEX and per-slot slice materialization never fires in production. Only the hero
+# alias is bridged here (what S9-C05 needs); broll_archival / graphic_title_card are a
+# separate routing residual (see S9-C05 engineer report) -- they do not affect slotting or
+# audio slicing.
+_HERO_SHOT_TYPE_ALIASES = {"hero_lipsync": "talking_head_hero"}
 
 
 def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     from tts_service import compile_render_plan, reconcile_storyboard_with_timing
     from broll_semantic import route_render_mode
+    from slice_continuous_lipsync import materialize_hero_slot_slices
+    from timeline_utils import ms_to_samples as _ms_to_samples
     import production_db as _db
     import yaml
 
@@ -701,6 +710,14 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     shot_routes = routing.get("shot_type_routes", {})
     costs = routing.get("costs", {})
     model_id_map = routing.get("model_id_map", {})
+
+    # S9-C05: Load clip duration constraints from constraints.json
+    constraints_path = ROOT / "docs" / "channel_universe" / "constraints.json"
+    with open(constraints_path) as f:
+        constraints = __import__("json").load(f)
+    lipsync_rules = constraints.get("lipsync_render_rules", {})
+    min_clip_sec = lipsync_rules.get("min_clip_duration_sec", 4.0)
+    max_clip_sec = lipsync_rules.get("max_clip_duration_sec", 15.0)
 
     # S2-T01: Reconciliation is now a separate stage (reconcile_timing).
     # compile_media assumes spans are already reconciled with creative beats.
@@ -724,7 +741,8 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     span_specs = []
     for s in spans:
         shot_type = (s["shot_type"] or "broll").lower()
-        route = shot_routes.get(shot_type, {})
+        routed_type = _HERO_SHOT_TYPE_ALIASES.get(shot_type, shot_type)
+        route = shot_routes.get(routed_type, {})
 
         # Creative intent lives on the storyboard beat: visual_intent carries the
         # R7 B-roll semantic contract; graphics carries deterministic text content
@@ -786,6 +804,70 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # concept key/hash, render-mode hints) into the spec.
         spec.update(visual_intent)
         spec["render_mode"] = route_render_mode(spec)
+
+        # S9-C05: Compute slots for long beats (exceeding max_clip_duration).
+        # Slots tile the span exactly (contiguous, no gaps/overlaps) so the visual bed
+        # matches the master narration; hero slots additionally carry the master speech
+        # sample interval (at MASTER_SAMPLE_RATE=48000, via timeline_utils) so compile
+        # can slice the per-slot --audio. Sample rate MUST match the master's
+        # canonicalization (48000), not the 44100 the legacy code hardcoded.
+        min_clip_ms = int(round(min_clip_sec * 1000))
+        max_clip_ms = int(round(max_clip_sec * 1000))
+        span_duration_ms = s["end_ms"] - s["start_ms"]
+        clip_max_ms = max_clip_ms  # hero lipsync + b-roll share the lipsync ceiling
+
+        # N = ceil(span/max): each even slot is >= span/N >= max/2, which exceeds
+        # min_clip for the configured [4,15] range, so multi-slot heroes never fall
+        # below min. A single-slot hero span shorter than min is rejected (it must be
+        # merged/padded per lipsync_render_rules.on_sub_min_beat, not rendered short).
+        if span_duration_ms > clip_max_ms:
+            num_slots = __import__("math").ceil(span_duration_ms / clip_max_ms)
+            slot_duration_ms = span_duration_ms // num_slots
+
+            slots = []
+            for i in range(num_slots):
+                slot_start_ms = s["start_ms"] + (i * slot_duration_ms)
+                # Last slot gets the remainder so the slots tile the span exactly.
+                slot_end_ms = s["end_ms"] if i == num_slots - 1 else slot_start_ms + slot_duration_ms
+                slot_data = {
+                    "slot_index": i,
+                    "slot_total": num_slots,
+                    "start_ms": slot_start_ms,
+                    "end_ms": slot_end_ms,
+                }
+                if audio_policy == "HERO_SYNC_LOCKED":
+                    _validate_hero_slot_min(s["span_id"], i, slot_end_ms - slot_start_ms, min_clip_ms)
+                    # S9-C05: speech == generation interval (no lead/trail silence; a long
+                    # hero narration is tiled into contiguous clips). validate_hero_
+                    # slicing_intervals requires a complete generation interval + matching
+                    # silence alongside any speech interval.
+                    slot_data["speech_start_sample"] = _ms_to_samples(slot_start_ms)
+                    slot_data["speech_end_sample"] = _ms_to_samples(slot_end_ms)
+                    slot_data["generation_start_sample"] = slot_data["speech_start_sample"]
+                    slot_data["generation_end_sample"] = slot_data["speech_end_sample"]
+                    slot_data["leading_silence_samples"] = 0
+                    slot_data["trailing_silence_samples"] = 0
+                slots.append(slot_data)
+
+            spec["slots"] = slots
+        else:
+            # Single slot for short beats.
+            slot_data = {
+                "slot_index": 0,
+                "slot_total": 1,
+                "start_ms": s["start_ms"],
+                "end_ms": s["end_ms"],
+            }
+            if audio_policy == "HERO_SYNC_LOCKED":
+                _validate_hero_slot_min(s["span_id"], 0, span_duration_ms, min_clip_ms)
+                slot_data["speech_start_sample"] = _ms_to_samples(s["start_ms"])
+                slot_data["speech_end_sample"] = _ms_to_samples(s["end_ms"])
+                slot_data["generation_start_sample"] = slot_data["speech_start_sample"]
+                slot_data["generation_end_sample"] = slot_data["speech_end_sample"]
+                slot_data["leading_silence_samples"] = 0
+                slot_data["trailing_silence_samples"] = 0
+            spec["slots"] = [slot_data]
+
         span_specs.append(spec)
     
     result = compile_render_plan(
@@ -794,12 +876,47 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         estimated_cost_usd=round(estimated_cost, 2),
         db_path=None
     )
-    
+
+    # S9-C05: materialize a per-slot master-narration slice for every hero unit so
+    # generation (S9-C06) can pass seedance --audio. Hero lipsync audio is non-negotiable
+    # (CLAUDE.md): a hero slot MUST carry a real ffmpeg-produced slice. If hero spans
+    # exist without a tts_master narration artifact, compile fails loudly rather than
+    # planning unrenderable units — no silent fallback. Span start/end are master-
+    # relative (the continuous master IS the narration timeline_spans tile), so the
+    # speech sample interval is ms_to_samples(required_start/end_ms).
+    hero_units = [u for u in result["render_units"]
+                  if u.get("audio_policy") == "HERO_SYNC_LOCKED"]
+    hero_slice_count = 0
+    if hero_units:
+        mconn = _db.connect(None)
+        master_row = mconn.execute(
+            "SELECT id FROM artifacts WHERE production_id=? AND kind='tts_master' "
+            "AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+            (inputs["production_id"],)
+        ).fetchone()
+        mconn.close()
+        if not master_row:
+            raise RuntimeError(
+                "BLOCKED: HERO_SYNC_LOCKED spans require a tts_master narration artifact "
+                "to slice for lipsync --audio, but none exists for production "
+                f"{inputs['production_id']}. Run tts before compile_media."
+            )
+        slot_bounds = [{
+            "render_unit_id": u["id"],
+            "speech_start_sample": _ms_to_samples(u["required_start_ms"]),
+            "speech_end_sample": _ms_to_samples(u["required_end_ms"]),
+        } for u in hero_units]
+        slices = materialize_hero_slot_slices(
+            inputs["production_id"], master_row["id"], slot_bounds, db_path=None,
+        )
+        hero_slice_count = len(slices)
+
     return {
         "status": "saved",
         "plan_revision_id": result["plan_revision_id"],
         "units_count": len(result["render_units"]),
         "estimated_cost_usd": round(estimated_cost, 2),
+        "hero_slice_count": hero_slice_count,
     }
 
 

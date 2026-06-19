@@ -261,6 +261,126 @@ def slice_hero_units(
     return results
 
 
+def materialize_hero_slot_slices(
+    production_id: str,
+    master_artifact_id: str,
+    slot_bounds: list[dict],
+    db_path=None,
+) -> list[dict]:
+    """S9-C05: Materialize exact master-narration slices for hero render-unit slots.
+
+    Called by invoke_compile_media AFTER render units are planned. For each
+    HERO_SYNC_LOCKED slot it extracts the master audio's [speech_start_sample,
+    speech_end_sample] range as a sample-exact PCM WAV via ffmpeg, registers it as an
+    immutable artifact (kind ``hero_audio_slice``), and writes master-audio provenance
+    (``master_audio_artifact_id`` + ``master_audio_sha256``) plus the speech sample
+    interval onto the render_unit row — the slice generation (S9-C06) passes to
+    seedance ``--audio``.
+
+    This is distinct from ``slice_hero_units`` (the beat-level, legacy file-led path
+    that pads short beats with silence and advances the unit to 'generated'). Slot
+    slicing TILES a long hero span exactly: no silence padding, and it deliberately
+    does NOT set ``active_artifact_id`` / advance status — setting the generated media
+    artifact is generation's job (R6-004). Per-slot min duration is guaranteed upstream
+    by invoke_compile_media, so no min-padding is applied here.
+
+    Slices are written next to the immutable master (``<master_dir>/hero_audio_slices``)
+    so they survive across the compile→generate stages of one run and are regenerable
+    from the master on re-plan (supersession, S9-C02).
+
+    slot_bounds: list of ``{render_unit_id, speech_start_sample, speech_end_sample}``
+    (samples at ``MASTER_SAMPLE_RATE``).
+
+    Returns one dict per slot:
+    ``{render_unit_id, slice_path, artifact_id, sha256, speech_start_sample, speech_end_sample}``
+    """
+    master = get_artifact(master_artifact_id, db_path=db_path)
+    if not master:
+        raise RuntimeError(f"Master audio artifact not found: {master_artifact_id}")
+    master_path = Path(master["uri"])
+    if not master_path.exists():
+        raise FileNotFoundError(f"Master audio file missing: {master_path}")
+    master_probe = probe_media(master_path)
+    if master_probe is None:
+        raise RuntimeError(f"Master audio is not valid media: {master_path}")
+    master_duration_samples = int(master_probe.duration_ms * MASTER_SAMPLE_RATE / 1000)
+    master_sha = master["sha256"]
+
+    output_dir = master_path.parent / "hero_audio_slices"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    for bounds in slot_bounds:
+        unit_id = bounds["render_unit_id"]
+        ss_start = int(bounds["speech_start_sample"])
+        ss_end = int(bounds["speech_end_sample"])
+        if ss_start >= ss_end:
+            raise ValueError(f"render_unit {unit_id}: speech_start >= speech_end")
+        if ss_start < 0 or ss_end > master_duration_samples:
+            raise ValueError(
+                f"render_unit {unit_id}: speech bounds [{ss_start},{ss_end}] "
+                f"outside master [0,{master_duration_samples}]"
+            )
+
+        # Sample-exact extraction (re-encode to PCM, never -c copy on a master that
+        # may be MP3). -ss/-t before -i matches the slice_hero_units convention.
+        speech_ss = samples_to_ms(ss_start) / 1000.0
+        speech_dur = samples_to_ms(ss_end - ss_start) / 1000.0
+        slice_path = output_dir / f"{unit_id}.wav"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-ss", f"{speech_ss:.6f}",
+            "-t", f"{speech_dur:.6f}",
+            "-i", str(master_path),
+            "-acodec", "pcm_s16le",
+            "-ar", str(MASTER_SAMPLE_RATE),
+            "-ac", "1",
+            str(slice_path),
+        ], capture_output=True, check=True)
+
+        slice_probe = probe_media(slice_path)
+        if slice_probe is None:
+            raise RuntimeError(f"Slice is not valid media: {slice_path}")
+
+        slice_sha = _sha(slice_path)
+        art = register_artifact(
+            production_id=production_id,
+            path=slice_path,
+            kind="hero_audio_slice",
+            extra_metadata={
+                "speech_start_sample": ss_start,
+                "speech_end_sample": ss_end,
+                "master_artifact_id": master_artifact_id,
+                "master_sha256": master_sha,
+                "render_unit_id": unit_id,
+            },
+            db_path=db_path,
+        )
+
+        # Provenance + speech interval on the unit row. Deliberately NOT touching
+        # active_artifact_id / status — that is generation's responsibility (S9-C06).
+        with _db.transaction(db_path) as conn:
+            conn.execute(
+                """UPDATE render_units SET
+                   speech_start_sample=?, speech_end_sample=?,
+                   master_audio_artifact_id=?, master_audio_sha256=?,
+                   updated_at=?
+                   WHERE id=?""",
+                (ss_start, ss_end, master_artifact_id, master_sha, _db._now(), unit_id),
+            )
+
+        results.append({
+            "render_unit_id": unit_id,
+            "slice_path": slice_path,
+            "artifact_id": art["id"],
+            "sha256": slice_sha,
+            "speech_start_sample": ss_start,
+            "speech_end_sample": ss_end,
+        })
+
+    return results
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Sample-exact hero slice extraction with true silence")
     ap.add_argument("production_id", help="Production DB id")

@@ -364,6 +364,19 @@ class RenderUnitError(ValueError):
     pass
 
 
+def _slot_or_spec(slot: dict, spec: dict, field: str):
+    """Prefer a per-slot value; fall back to the span-level spec value.
+
+    Speech-sample / silence-padding / master-audio-provenance fields differ PER SLOT
+    when a hero span is split into multiple render units (S9-C05): each slot carries its
+    own slice of the master. Reading slot-first lets invoke_compile_media attach a
+    distinct slice per slot while single-unit spans / legacy callers that set these on
+    the spec still work.
+    """
+    v = slot.get(field)
+    return v if v is not None else spec.get(field)
+
+
 def plan_render_units(
     production_id: str,
     span_render_specs: list[dict],
@@ -475,17 +488,17 @@ def plan_render_units(
                     "provider_audio_usage": provider_audio_usage,
                     "text_policy": text_policy,
                     "lipsync_required": lipsync_required,
-                    "speech_start_sample": spec.get("speech_start_sample"),
-                    "speech_end_sample": spec.get("speech_end_sample"),
-                    "generation_start_sample": spec.get("generation_start_sample"),
-                    "generation_end_sample": spec.get("generation_end_sample"),
-                    "visible_start_sample": spec.get("visible_start_sample"),
-                    "visible_end_sample": spec.get("visible_end_sample"),
-                    "leading_silence_samples": spec.get("leading_silence_samples"),
-                    "trailing_silence_samples": spec.get("trailing_silence_samples"),
-                    "master_audio_artifact_id": spec.get("master_audio_artifact_id"),
-                    "master_audio_sha256": spec.get("master_audio_sha256"),
-                    "master_duration_samples": spec.get("master_duration_samples"),
+                    "speech_start_sample": _slot_or_spec(slot, spec, "speech_start_sample"),
+                    "speech_end_sample": _slot_or_spec(slot, spec, "speech_end_sample"),
+                    "generation_start_sample": _slot_or_spec(slot, spec, "generation_start_sample"),
+                    "generation_end_sample": _slot_or_spec(slot, spec, "generation_end_sample"),
+                    "visible_start_sample": _slot_or_spec(slot, spec, "visible_start_sample"),
+                    "visible_end_sample": _slot_or_spec(slot, spec, "visible_end_sample"),
+                    "leading_silence_samples": _slot_or_spec(slot, spec, "leading_silence_samples"),
+                    "trailing_silence_samples": _slot_or_spec(slot, spec, "trailing_silence_samples"),
+                    "master_audio_artifact_id": _slot_or_spec(slot, spec, "master_audio_artifact_id"),
+                    "master_audio_sha256": _slot_or_spec(slot, spec, "master_audio_sha256"),
+                    "master_duration_samples": _slot_or_spec(slot, spec, "master_duration_samples"),
                     "boundary_reason": spec.get("boundary_reason"),
                     "boundary_confidence": spec.get("boundary_confidence"),
                     "replacement_asset_spec": spec.get("replacement_asset_spec"),
@@ -549,11 +562,11 @@ def plan_render_units(
                         start_ms, end_ms, end_ms - start_ms,
                         slot.get("slot_index"), slot.get("slot_total"),
                         "ordered",
-                        spec.get("speech_start_sample"), spec.get("speech_end_sample"),
-                        spec.get("generation_start_sample"), spec.get("generation_end_sample"),
-                        spec.get("visible_start_sample"), spec.get("visible_end_sample"),
-                        spec.get("leading_silence_samples"), spec.get("trailing_silence_samples"),
-                        spec.get("master_audio_artifact_id"), spec.get("master_audio_sha256"),
+                        unit["speech_start_sample"], unit["speech_end_sample"],
+                        unit["generation_start_sample"], unit["generation_end_sample"],
+                        unit["visible_start_sample"], unit["visible_end_sample"],
+                        unit["leading_silence_samples"], unit["trailing_silence_samples"],
+                        unit["master_audio_artifact_id"], unit["master_audio_sha256"],
                         spec.get("boundary_reason"), spec.get("boundary_confidence"),
                         spec.get("visual_function"), spec.get("narrative_claim"),
                         spec.get("information_to_show"), spec.get("viewer_takeaway"),
