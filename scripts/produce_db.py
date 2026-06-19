@@ -348,26 +348,293 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     return {"status": "saved", "spans_committed": len(committed)}
 
 
+# === S9-C04: canonical, band-compliant DB-native storyboard derivation =====
+# The DB storyboard path assigns the canonical shot vocabulary
+# (review_storyboard.VALID_SHOT_TYPES / direct_storyboard.SHOT_ROUTING) in a
+# review_storyboard-band-compliant mix, deterministically, from the active
+# script segments — no LLM, no paid calls (Option B). Each beat carries a
+# visual_brief (the G2 gate's required generation prompt) and a structured
+# visual_intent (the R7 B-roll semantic contract that compile_media /
+# S9-C06 generation consume).
+
+# Canonical shot-type properties (mirrors direct_storyboard.SHOT_ROUTING).
+_CANONICAL_SHOTS = {
+    "hero_lipsync":        {"asset_type": "generated_video", "hero": True,  "graphic": False},
+    "hero_cutaway":        {"asset_type": "generated_video", "hero": True,  "graphic": False},
+    "broll_archival":      {"asset_type": "generated_video", "hero": False, "graphic": False},
+    "broll_environment":   {"asset_type": "generated_video", "hero": False, "graphic": False},
+    "broll_tactical":      {"asset_type": "generated_video", "hero": False, "graphic": False},
+    "broll_metaphorical":  {"asset_type": "generated_video", "hero": False, "graphic": False},
+    "graphic_progressive": {"asset_type": "local_graphic",   "hero": False, "graphic": True},
+    "graphic_title_card":  {"asset_type": "local_graphic",   "hero": False, "graphic": True},
+    "kinetic_text":        {"asset_type": "local_graphic",   "hero": False, "graphic": True},
+    "still_kenburns":      {"asset_type": "generated_still", "hero": False, "graphic": False},
+}
+
+# Narration words -> seconds. Matches direct_storyboard._load_calibrated_wps
+# (configs/voice_pacing.yaml calibrated_wps). Used only to size beats so the
+# shot-mix DURATION bands are computable; generation-stage clamping (hero
+# [4,15]s, broll <=6s) is S9-C06's concern, not the storyboard schema's.
+_NARRATION_WPS = 1.8077
+
+# Deterministic b-roll/graphics rotation for the storyboard body. Order
+# guarantees the first body beat is an archival anchor and an early graphic.
+_BODY_POOL = [
+    "broll_archival", "graphic_progressive", "broll_environment", "kinetic_text",
+    "broll_metaphorical", "graphic_title_card", "broll_tactical",
+]
+
+
+def _assign_shot_mix(n: int, video_type: str) -> list[str]:
+    """Deterministic, review_storyboard-band-compliant canonical shot-type plan.
+
+    Returns ``n`` canonical shot types (review_storyboard.VALID_SHOT_TYPES) so
+    the resulting mix satisfies the G2 bands for the video_type:
+      * open + close = hero_lipsync (James bookends the episode on camera);
+      * body beats rotate through b-roll (>=1 broll_archival) + graphics (>=1),
+        with hero_cutaway inserts scaled to keep the hero total ~30% — inside
+        the explainer [25,40]% band (short's [8,60]% band is looser);
+      * no two adjacent beats share a shot_type (avoids the consecutive-identical
+        anti-pattern) and no ``talking_head_*`` is ever emitted.
+    Deterministic: a given (n, video_type) always yields the same plan.
+    """
+    if n <= 0:
+        return []
+    if n == 1:
+        return ["hero_lipsync"]
+    if n == 2:
+        return ["hero_lipsync", "broll_archival"]
+    if n == 3:
+        return ["hero_lipsync", "broll_archival", "graphic_title_card"]
+
+    # n >= 4: bookend hero_lipsync; distribute the body.
+    slots: list[str] = ["hero_lipsync"] + [None] * (n - 2) + ["hero_lipsync"]  # type: ignore[list-item]
+    body_len = n - 2
+    # hero_cutaway inserts so hero total (2 bookends + cutaways) ~= 30% of beats.
+    cutaways = max(0, round(0.30 * n) - 2)
+    for k in range(cutaways):
+        rel = int(round((k + 1) * body_len / (cutaways + 1)))
+        rel = min(max(rel, 0), body_len - 1)
+        slots[1 + rel] = "hero_cutaway"
+    pi = 0
+    for i in range(1, n - 1):
+        if slots[i] is None:
+            slots[i] = _BODY_POOL[pi % len(_BODY_POOL)]
+            pi += 1
+    return slots
+
+
+def _beat_duration_sec(narration_text: str) -> float:
+    words = len((narration_text or "").split())
+    return round(words / _NARRATION_WPS, 2) if words else 0.0
+
+
+def _first_clause(text: str, words: int = 8) -> str:
+    return " ".join((text or "").split()[:words])
+
+
+def _title_text(text: str) -> str:
+    parts = [p for p in (text or "").split() if p][:4]
+    return " ".join(parts).upper().rstrip(".,;:!?\"'")
+
+
+def _concept_key(narration: str) -> str:
+    parts = [p.strip(".,;:!?\"'").lower() for p in (narration or "").split()
+             if p.strip(".,;:!?\"'")]
+    key = re.sub(r"[^a-z0-9_]+", "", "_".join(parts[:4]))[:40]
+    return key or "concept"
+
+
+def _act_for(order: int, n: int) -> int:
+    if n <= 1:
+        return 6
+    if order == n - 1:
+        return 6  # closing beat
+    return min(5, max(1, (order * 5) // max(1, n - 1) + 1))
+
+
+def _visual_brief_for(shot_type: str, narration: str) -> str:
+    clause = _first_clause(narration)
+    if shot_type == "hero_lipsync":
+        return (f"Photorealistic James Harrington on camera in the home-library studio "
+                f"(navy sweater, brass lamp, bookshelves), delivering to lens: \"{clause}.\" "
+                f"Medium close-up, slow push-in, no readable text.")
+    if shot_type == "hero_cutaway":
+        return (f"James in frame, non-speaking, thoughtful reaction as narration covers: "
+                f"\"{clause}.\" Over-the-shoulder desk shot, library setting, no on-screen text.")
+    if shot_type == "broll_archival":
+        return (f"Archival b-roll grounding the claim \"{clause}.\": concrete period-correct "
+                f"detail, soft focus, slow pan, no readable text, no logos.")
+    if shot_type == "broll_environment":
+        return (f"Environmental b-roll of a modern library or office illustrating \"{clause}.\"; "
+                f"slow tracking, warm practical light, no people in close-up, no readable text.")
+    if shot_type == "broll_tactical":
+        return (f"Tactical insert b-roll: a concrete desk object or action embodying "
+                f"\"{clause}.\"; close-up, motivated slow pan, no readable text.")
+    if shot_type == "broll_metaphorical":
+        return (f"Metaphorical b-roll visualizing \"{clause}.\" as an observational, abstract "
+                f"image; slow motion, no text, no logos, no sci-fi elements.")
+    if shot_type in ("graphic_progressive", "graphic_title_card", "kinetic_text"):
+        kind = {"graphic_progressive": "progressive lower-third graphic",
+                "graphic_title_card": "title card",
+                "kinetic_text": "kinetic-text overlay"}[shot_type]
+        return (f"Locally rendered {kind} (brand palette #1B2A4A/#C8973E, post overlay) for: "
+                f"\"{_title_text(narration)}\"; no generated in-scene text.")
+    if shot_type == "still_kenburns":
+        return (f"Slow Ken-Burns drift over a still illustrating \"{clause}.\"; library "
+                f"setting, no readable text.")
+    return f"B-roll illustrating \"{clause}.\"; no readable text, no logos."
+
+
+def _narrative_function_for(shot_type: str) -> str:
+    return {
+        "hero_lipsync": "James addresses the viewer directly on camera.",
+        "hero_cutaway": "Reinforce James's presence with a non-speaking reaction under voiceover.",
+        "broll_archival": "Anchor the named evidence or date with a concrete archival visual.",
+        "broll_environment": "Establish the real-world setting behind the spoken claim.",
+        "broll_tactical": "Insert a concrete object that embodies the mechanism described.",
+        "broll_metaphorical": "Externalize the abstract idea as an observational metaphor.",
+        "graphic_progressive": "Render the framework or list as an on-screen progressive graphic.",
+        "graphic_title_card": "Mark the section with a branded title card.",
+        "kinetic_text": "Emphasize the key phrase as kinetic on-screen text.",
+        "still_kenburns": "Hold a representative still with gentle motion.",
+    }[shot_type]
+
+
+def _graphics_for(shot_type: str, narration: str) -> dict:
+    """Graphics contract for graphic beats (deterministic text + layout, never
+    delegated to a generative model); empty dict for non-graphic beats."""
+    if not _CANONICAL_SHOTS.get(shot_type, {}).get("graphic"):
+        return {}
+    layout = {"graphic_progressive": "lower_third",
+              "graphic_title_card": "key_line",
+              "kinetic_text": "stat_callout"}[shot_type]
+    return {"required": True, "layout": layout,
+            "text": _title_text(narration), "timing": "on_spoken_line"}
+
+
+def _visual_intent_for(shot_type: str, narration: str) -> dict:
+    """Structured R7 B-roll semantic contract (read by compile_media), seeded
+    deterministically from the segment narration. Non-empty for every beat."""
+    clause = _first_clause(narration)
+    concept = _concept_key(narration)
+    is_graphic = _CANONICAL_SHOTS.get(shot_type, {}).get("graphic", False)
+    action = {
+        "hero_lipsync": "Locked-off medium shot with a subtle push-in.",
+        "hero_cutaway": "Over-the-shoulder desk hold, minimal motion.",
+        "broll_archival": "Slow pan across period-correct detail.",
+        "broll_environment": "Slow tracking through the environment.",
+        "broll_tactical": "Motivated close-up pan on the object.",
+        "broll_metaphorical": "Slow observational motion.",
+        "graphic_progressive": "Static post-overlay built in compositing.",
+        "graphic_title_card": "Static post-overlay title card.",
+        "kinetic_text": "Animated post-overlay text.",
+        "still_kenburns": "Slow Ken-Burns drift across the still.",
+    }.get(shot_type, "Slow controlled camera movement.")
+    return {
+        "visual_function": "render_graphic" if is_graphic else "illustrate",
+        "concept_key": concept,
+        "concept_hash": concept,
+        "narrative_claim": clause,
+        "information_to_show": clause,
+        "viewer_takeaway": clause,
+        "required_action": action,
+        "distinctness_requirement": "Concrete and specific to this beat's narration; no generic stock.",
+        "semantic_acceptance_criteria": "Visual traces to the spoken claim; no readable generated text.",
+    }
+
+
+def _is_hero(shot_type: str) -> bool:
+    return bool(_CANONICAL_SHOTS.get(shot_type, {}).get("hero", False))
+
+
+def _is_graphic(shot_type: str) -> bool:
+    return bool(_CANONICAL_SHOTS.get(shot_type, {}).get("graphic", False))
+
+
+def _max_hero_chain_sec(beats: list[dict]) -> float:
+    """Longest continuous hero (hero_lipsync/hero_cutaway) run in seconds.
+    Mirrors review_storyboard._max_hero_chain for the non-Act-6 case (our
+    heroes are isolated by b-roll, so chains are single beats)."""
+    ordered = sorted(beats, key=lambda b: b.get("order", 0))
+    best = cur = 0.0
+    for b in ordered:
+        if _is_hero(b.get("shot_type") or ""):
+            cur += b.get("est_duration_sec", 0) or 0
+            best = max(best, cur)
+        else:
+            cur = 0.0
+    return round(best, 2)
+
+
+def _compute_mix_summary(beats: list[dict]) -> dict:
+    """shot_mix_summary consumed by review_storyboard._bands_check. Percentages
+    are duration-weighted (matching direct_storyboard.hydrate_beats)."""
+    total = sum((b.get("est_duration_sec", 0) or 0) for b in beats) or 1.0
+
+    def pct(pred) -> float:
+        s = sum((b.get("est_duration_sec", 0) or 0) for b in beats if pred(b))
+        return round(100.0 * s / total, 1)
+
+    return {
+        "hero_lipsync_pct": pct(lambda b: b.get("shot_type") == "hero_lipsync"),
+        "hero_cutaway_pct": pct(lambda b: b.get("shot_type") == "hero_cutaway"),
+        "broll_specific_pct": pct(lambda b: (b.get("shot_type") or "").startswith("broll")),
+        "broll_metaphorical_pct": pct(lambda b: b.get("shot_type") == "broll_metaphorical"),
+        "graphics_ui_pct": pct(lambda b: _is_graphic(b.get("shot_type") or "")),
+        "kinetic_text_pct": pct(lambda b: b.get("shot_type") == "kinetic_text"),
+        "max_hero_block_sec": _max_hero_chain_sec(beats),
+        "distinct_visual_setups": len(beats),
+        "total_cuts_estimate": len(beats),
+    }
+
+
 def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
+    """DB-native storyboard: assign a canonical, review_storyboard-band-compliant
+    shot mix to the active script segments and persist a schema-v2 storyboard.
+
+    Deterministic structural assignment (Option B): open/close = hero_lipsync,
+    body beats rotate through b-roll (>=1 broll_archival) + graphics (>=1) with
+    hero_cutaway inserts, sized to satisfy the G2 bands for the video_type.
+    Every beat carries a visual_brief (G2) + structured visual_intent (S9-C06
+    generation input) + a graphics contract for graphic beats. No LLM, no paid
+    calls.
+    """
     from authoring_service import get_script_segments, save_storyboard
-    
+
     segments = get_script_segments(inputs["production_id"])
     if not segments:
         raise RuntimeError("No script segments found for storyboard derivation")
-    
+
+    video_type = inputs.get("video_type", "short")
+    n = len(segments)
+    plan = _assign_shot_mix(n, video_type)
+
     beats = []
-    for i, seg in enumerate(segments):
+    for i, (seg, shot_type) in enumerate(zip(segments, plan)):
+        narration = seg.get("text", "") or ""
         label = seg.get("label") or f"B{i:03d}"
-        shot_type = _derive_shot_type(seg)
         beats.append({
+            "beat_id": f"B{i:03d}",
+            "order": i,
+            "act": _act_for(i, n),
+            "segment_id": seg.get("id") or label,
             "label": label,
-            "narration_text": seg.get("text", ""),
-            "visual_intent": seg.get("visual_intent", {}),
+            "narration_text": narration,
             "shot_type": shot_type,
-            "graphics": seg.get("graphics"),
+            "est_duration_sec": _beat_duration_sec(narration),
+            "visual_brief": _visual_brief_for(shot_type, narration),
+            "narrative_function": _narrative_function_for(shot_type),
+            "visual_intent": _visual_intent_for(shot_type, narration),
+            "graphics": _graphics_for(shot_type, narration),
         })
-    
-    storyboard_payload = {"beats": beats}
+
+    storyboard_payload = {
+        "schema_version": "2.0",
+        "video_type": video_type,
+        "beats": beats,
+        "shot_mix_summary": _compute_mix_summary(beats),
+    }
     doc = save_storyboard(
         production_id=inputs["production_id"],
         storyboard_payload=storyboard_payload,
