@@ -202,7 +202,10 @@ def ensure_render_unit_artifact_state(render_unit_id: str, db_path=None) -> Opti
     art = None
     if ru["active_artifact_id"]:
         art = conn.execute(
-            "SELECT * FROM artifacts WHERE id=? AND deleted_at IS NULL",
+            """SELECT * FROM artifacts
+               WHERE id=? AND deleted_at IS NULL
+                 AND kind='generated_media'
+                 AND (mime_type LIKE 'video/%' OR uri LIKE '%.mp4')""",
             (ru["active_artifact_id"],),
         ).fetchone()
     if not art:
@@ -210,6 +213,8 @@ def ensure_render_unit_artifact_state(render_unit_id: str, db_path=None) -> Opti
             """SELECT a.* FROM artifacts a
                JOIN provider_jobs pj ON a.provider_job_id = pj.id
                WHERE pj.render_unit_id=? AND a.deleted_at IS NULL
+                 AND a.kind='generated_media'
+                 AND (a.mime_type LIKE 'video/%' OR a.uri LIKE '%.mp4')
                ORDER BY a.created_at DESC LIMIT 1""",
             (render_unit_id,),
         ).fetchone()

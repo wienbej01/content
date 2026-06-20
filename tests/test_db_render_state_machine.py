@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import production_db as _db
 from authoring_service import record_approval_decision, request_approval
-from media_service import poll_provider_job, submit_provider_job
+from media_service import ensure_render_unit_artifact_state, poll_provider_job, submit_provider_job
 from production_repo import commit_timeline_spans, plan_render_units, register_artifact
 
 
@@ -168,6 +168,46 @@ def test_existing_artifact_is_not_regenerated(monkeypatch, tmp_path):
     conn.close()
     assert count == 0
     assert status == "generated"
+
+
+def test_diagnostic_audio_artifact_is_not_recovered_as_generated(tmp_path):
+    prod = _db.ensure_production("diagnostic_not_generated")
+    _approve_spend(prod["id"])
+    ru = _unit(prod["id"], status="ordered")
+    job = submit_provider_job(
+        prod["id"], ru["id"], "higgsfield", "generate_video",
+        {"model": "seedance_2_0", "duration_sec": 14},
+    )
+    wav = tmp_path / "clip.diagnostic_audio.wav"
+    wav.write_bytes(b"diagnostic audio placeholder")
+
+    with _db.transaction(None) as conn:
+        conn.execute(
+            """INSERT INTO artifacts
+               (id, production_id, kind, uri, storage_backend, mime_type,
+                sha256, size_bytes, provider_job_id, metadata_json, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                "art_diag_only", prod["id"], "provider_diagnostic_audio",
+                str(wav), "local", "audio/wav", "sha", wav.stat().st_size,
+                job["id"], '{"usage_policy":"diagnostic_only"}', _db._now(),
+            ),
+        )
+        conn.execute(
+            "UPDATE render_units SET status='ordered', active_artifact_id=NULL WHERE id=?",
+            (ru["id"],),
+        )
+
+    assert ensure_render_unit_artifact_state(ru["id"], db_path=None) is None
+
+    conn = _db.connect(None)
+    state = conn.execute(
+        "SELECT status, active_artifact_id FROM render_units WHERE id=?",
+        (ru["id"],),
+    ).fetchone()
+    conn.close()
+    assert state["status"] == "ordered"
+    assert state["active_artifact_id"] is None
 
 
 def test_capacity_full_prevents_submission_without_failed_job(monkeypatch):
