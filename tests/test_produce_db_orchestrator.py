@@ -277,46 +277,57 @@ def test_compile_media_derives_from_measured_spans(mock_compile):
             produce_db.STAGE_INVOKERS[stage] = (kind, orig_fn)
 
 
-def test_generate_media_async_state_machine(monkeypatch):
-    """Verify generate_media invoker supports async polling: submit -> poll -> complete idempotently."""
+def test_generate_media_async_state_machine(monkeypatch, tmp_path):
+    """generate_media submits a conservative wave and fails closed while jobs are in flight."""
     monkeypatch.setenv("YT_TEST_MODE", "1")
+    monkeypatch.setenv("PRODUCTION_DB_PATH", str(TEST_DB))
+    monkeypatch.setattr(_db, "_db_path_override", str(TEST_DB))
     prod = _db.ensure_production("gen_media_async_proj", seed="gen async test", video_type="short", db_path=TEST_DB)
     prod_id = prod["id"]
 
     from produce_db import invoke_generate_media
-    import tempfile
-    from pathlib import Path
+    from authoring_service import request_approval, record_approval_decision
+    from production_repo import commit_timeline_spans, plan_render_units
 
-    inputs = {
-        "production_id": prod_id,
-        "project_slug": "gen_media_async_proj_short",
-        "seed": "gen async test",
-        "video_type": "short"
-    }
-    tmp_path = Path(tempfile.mkdtemp())
+    spans = commit_timeline_spans(
+        prod_id,
+        [{"label": "B001", "start_ms": 0, "end_ms": 5000}],
+        db_path=TEST_DB,
+    )
+    plan_render_units(
+        prod_id,
+        [{
+            "span_id": spans[0]["id"],
+            "asset_type": "generated_video",
+            "model": "kling3_0",
+            "audio_policy": "BROLL_FLEX",
+            "final_audio_source": "none",
+            "provider_audio_usage": "discarded",
+            "text_policy": "NO_VISIBLE_TEXT",
+            "visual_function": "illustrate",
+            "narrative_claim": "test",
+            "information_to_show": "test",
+            "viewer_takeaway": "test",
+            "required_action": "slow pan",
+            "distinctness_requirement": "distinct",
+            "semantic_acceptance_criteria": "matches test",
+            "concept_key": "test",
+            "concept_hash": "test",
+        }],
+        db_path=TEST_DB,
+    )
+    request_approval(prod_id, "gate_a_spend", subject_sha256="plan", db_path=TEST_DB)
+    record_approval_decision(prod_id, "gate_a_spend", "pass", db_path=TEST_DB)
 
-    # Self-completing generate_media loops (poll active jobs, submit new jobs)
-    # until a full pass makes no progress. With submit mocked (no real DB state
-    # change), model two iterations: iter1 polls nothing then submits 2 units;
-    # iter2 polls nothing and finds no remaining ordered units -> break.
-    with patch("production_db.connect") as mock_connect:
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        empty = MagicMock(fetchall=MagicMock(return_value=[]))
-        two_units = MagicMock(fetchall=MagicMock(return_value=[
-            {"id": "ru_1", "label": "B001", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "metadata_json": None, "change_request_id": None},
-            {"id": "ru_2", "label": "B002", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "metadata_json": None, "change_request_id": None}
-        ]))
-        mock_conn.execute.side_effect = [empty, two_units, empty, empty, empty]
+    with pytest.raises(RuntimeError, match="not generated/valid"):
+        invoke_generate_media({"production_id": prod_id}, tmp_path)
 
-        with patch("media_service.submit_provider_job") as mock_submit:
-            mock_submit.return_value = {"id": "job_1"}
-
-            result = invoke_generate_media(inputs, tmp_path)
-
-            assert result["new_jobs_submitted"] == 2
-            assert result["jobs_completed"] == 0
-            assert mock_submit.call_count == 2
+    conn = _db.connect(TEST_DB)
+    jobs = conn.execute(
+        "SELECT status FROM provider_jobs WHERE production_id=?", (prod_id,)
+    ).fetchall()
+    conn.close()
+    assert [j["status"] for j in jobs] == ["submitted"]
 
 
 @patch("produce_db.invoke_assemble")

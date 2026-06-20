@@ -150,12 +150,14 @@ def _unit_metadata(unit):
 # Contract: hero payload has prompt + image + audio
 # ---------------------------------------------------------------------------
 
-def test_hero_payload_has_prompt_image_audio(tmp_path):
+def test_hero_payload_has_prompt_image_audio(tmp_path, monkeypatch):
     """Hero unit payload carries real prompt + image path + audio slice path."""
+    monkeypatch.setenv("YT_TEST_MODE", "1")
     pid, _ = _make_production_with_hero_and_broll("c06_hero_payload", 0, 10000, 10000, 15000)
     produce_db.invoke_compile_media({"production_id": pid}, tmp_path)
     produce_db.invoke_gate_a_spend({"production_id": pid}, tmp_path)  # auto-approved in YT_TEST_MODE
-    produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
+    with pytest.raises(RuntimeError, match="not generated/valid"):
+        produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
 
     units = _active_units(pid)
     hero_units = [u for u in units if u["audio_policy"] == "HERO_SYNC_LOCKED"]
@@ -196,12 +198,14 @@ def test_hero_payload_has_prompt_image_audio(tmp_path):
 # Contract: b-roll payload has prompt, no image/audio
 # ---------------------------------------------------------------------------
 
-def test_broll_payload_has_prompt_only(tmp_path):
+def test_broll_payload_has_prompt_only(tmp_path, monkeypatch):
     """B-roll unit payload carries real prompt only (no image/audio)."""
+    monkeypatch.setenv("YT_TEST_MODE", "1")
     pid, _ = _make_production_with_hero_and_broll("c06_broll_payload", 0, 10000, 10000, 15000)
     produce_db.invoke_compile_media({"production_id": pid}, tmp_path)
     produce_db.invoke_gate_a_spend({"production_id": pid}, tmp_path)
-    produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
+    with pytest.raises(RuntimeError, match="not generated/valid"):
+        produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
 
     units = _active_units(pid)
     broll_units = [u for u in units if u["audio_policy"] == "BROLL_FLEX"]
@@ -244,7 +248,7 @@ def test_adapter_hero_args_with_image_audio():
     }
 
     with patch("paid_adapters.subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="job_abc123", stderr="")
+        mock_run.return_value = MagicMock(returncode=0, stdout="11111111-1111-4111-8111-111111111111", stderr="")
         result = adapter.submit(payload, idempotency_key="test_key")
 
         # Verify subprocess was called with correct args
@@ -261,7 +265,7 @@ def test_adapter_hero_args_with_image_audio():
         assert "--audio" in call_args, "Hero args must include --audio"
         assert "unit_123.wav" in " ".join(call_args), "Audio path must be in args"
         
-        assert result["external_job_id"] == "job_abc123"
+        assert result["external_job_id"] == "11111111-1111-4111-8111-111111111111"
         assert result["status"] == "submitted"
 
 
@@ -303,7 +307,7 @@ def test_adapter_broll_no_image_audio():
     }
 
     with patch("paid_adapters.subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="job_xyz", stderr="")
+        mock_run.return_value = MagicMock(returncode=0, stdout="22222222-2222-4222-8222-222222222222", stderr="")
         adapter.submit(payload, idempotency_key="test_key")
 
         call_args = mock_run.call_args[0][0]
@@ -373,16 +377,16 @@ def test_dry_run_returns_args_without_subprocess():
 # Regression: FakeProvider still used in YT_TEST_MODE
 # ---------------------------------------------------------------------------
 
-def test_fake_provider_used_in_test_mode(tmp_path):
+def test_fake_provider_used_in_test_mode(tmp_path, monkeypatch):
     """YT_TEST_MODE=1 uses FakeProvider, not the real adapter."""
+    monkeypatch.setenv("YT_TEST_MODE", "1")
     pid, _ = _make_production_with_hero_and_broll("c06_fake_provider", 0, 10000, 10000, 15000)
     produce_db.invoke_compile_media({"production_id": pid}, tmp_path)
     produce_db.invoke_gate_a_spend({"production_id": pid}, tmp_path)
     
-    # invoke_generate_media should use FakeProvider in YT_TEST_MODE
-    result = produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
-    assert result["status"] == "processed"
-    assert result["new_jobs_submitted"] >= 2  # hero + b-roll
+    # First pass submits one conservative wave and fails closed while it is generating.
+    with pytest.raises(RuntimeError, match="not generated/valid"):
+        produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +437,7 @@ def test_adapter_negative_prompt():
     }
 
     with patch("paid_adapters.subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="job_neg", stderr="")
+        mock_run.return_value = MagicMock(returncode=0, stdout="33333333-3333-4333-8333-333333333333", stderr="")
         adapter.submit(payload, idempotency_key="test_key")
 
         call_args = mock_run.call_args[0][0]

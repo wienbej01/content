@@ -2,7 +2,7 @@
 
 API keys loaded from env vars or ~/.config/ytchannel/runtime.env.
 """
-import hashlib, json, os, subprocess, tempfile, time
+import hashlib, json, os, re, subprocess, tempfile, time
 from pathlib import Path
 from typing import Any, Optional
 from provider_adapter import ProviderAdapter, ProviderAdapterError
@@ -109,6 +109,10 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                 )
             args.extend(["--audio", str(audio_path)])
 
+        negative_prompt = payload.get("negative_prompt")
+        if negative_prompt:
+            args.extend(["--negative_prompt", str(negative_prompt)])
+
         # S9-C06: Dry-run mode returns constructed args without calling subprocess
         if os.environ.get("HIGGSFIELD_DRY_RUN") == "1":
             return {
@@ -121,7 +125,19 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
         r = subprocess.run(args, capture_output=True, text=True)
         if r.returncode != 0:
             raise ProviderAdapterError(f"Higgsfield submit failed: {r.stderr[:500]}")
-        job_id = r.stdout.strip()
+
+        # Higgsfield CLI may return a table or extra text, not just the UUID.
+        # Store only the UUID so later `higgsfield generate get <id>` calls work.
+        m = re.search(
+            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            r.stdout,
+        )
+        if not m:
+            raise ProviderAdapterError(
+                f"Higgsfield submit returned no UUID: stdout={r.stdout[:500]} stderr={r.stderr[:500]}"
+            )
+        job_id = m.group(0)
+
         return {"external_job_id": job_id, "status": "submitted",
                 "raw_request": json.dumps(payload, sort_keys=True, default=str)}
 
@@ -130,22 +146,153 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                            capture_output=True, text=True)
         if r.returncode != 0:
             return {"status": "failed", "error": r.stderr[:500]}
+
+        raw = r.stdout.strip()
+
+        # Preferred path: JSON output from the CLI/API.
         try:
-            data = json.loads(r.stdout)
+            data = json.loads(raw)
+            state = str(data.get("state", data.get("status", "running"))).lower()
+            state_map = {
+                "completed": "completed",
+                "done": "completed",
+                "running": "running",
+                "failed": "failed",
+                "submitted": "submitted",
+                "processing": "running",
+                "waiting": "running",
+                "queued": "running",
+            }
+            return {
+                "status": state_map.get(state, "running"),
+                "raw_response": json.dumps(data, default=str),
+            }
         except json.JSONDecodeError:
-            data = {"state": r.stdout.strip()}
-        state = data.get("state", data.get("status", "running"))
-        state_map = {"completed": "completed", "done": "completed", "running": "running",
-                     "failed": "failed", "submitted": "submitted", "processing": "running"}
-        return {"status": state_map.get(state, state), "raw_response": json.dumps(data, default=str)}
+            pass
+
+        # Observed path: Higgsfield CLI returns a human-readable table, e.g.
+        # ID DATE MODEL STATUS URL ... completed ...
+        lowered = raw.lower()
+        padded = f" {lowered} "
+
+        if " failed " in padded or "\nfailed" in lowered:
+            return {"status": "failed", "raw_response": raw, "error": raw[:500]}
+
+        if " completed " in padded or "\ncompleted" in lowered:
+            return {"status": "completed", "raw_response": raw}
+
+        if (
+            " waiting " in padded
+            or " running " in padded
+            or " processing " in padded
+            or " submitted " in padded
+            or " queued " in padded
+        ):
+            return {"status": "running", "raw_response": raw}
+
+        # Unknown non-JSON text: do not poison provider_jobs.status with the raw table.
+        # Treat as running so the next resume can poll again.
+        return {"status": "running", "raw_response": raw}
 
     def download(self, external_job_id: str, output_path: Path) -> Path:
+        # Download a completed Higgsfield video to output_path.
+        #
+        # Some Higgsfield CLI versions do not accept:
+        #   higgsfield generate download <id> --output <path>
+        # They do expose the final CloudFront MP4 URL in:
+        #   higgsfield generate get <id>
+        # So this method prefers direct URL download, then falls back through
+        # common CLI download syntaxes.
+        import shutil
+        import urllib.request
+
+        output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        r = subprocess.run(["higgsfield", "generate", "download", external_job_id,
-                            "--output", str(output_path)], capture_output=True, text=True)
-        if r.returncode != 0 and not output_path.exists():
-            raise ProviderAdapterError(f"Higgsfield download failed: {r.stderr[:500]}")
-        return output_path
+
+        def _accept_candidate(candidate: Path) -> Path | None:
+            candidate = Path(candidate)
+            if candidate.exists() and candidate.stat().st_size > 0:
+                if candidate.resolve() != output_path.resolve():
+                    shutil.copy2(candidate, output_path)
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    return output_path
+            return None
+
+        get_result = subprocess.run(
+            ["higgsfield", "generate", "get", external_job_id],
+            capture_output=True,
+            text=True,
+        )
+        get_raw = (get_result.stdout or "") + "\n" + (get_result.stderr or "")
+
+        m = re.search(r"https?://[^\s]+?\.mp4(?:\?[^\s]+)?", get_raw)
+        if m:
+            url = m.group(0).rstrip(" ,;|)]}")
+            try:
+                urllib.request.urlretrieve(url, str(output_path))
+                accepted = _accept_candidate(output_path)
+                if accepted:
+                    return accepted
+            except Exception as e:
+                last_url_error = str(e)
+            else:
+                last_url_error = "downloaded URL but output file was missing or empty"
+        else:
+            last_url_error = f"no .mp4 URL found in generate get output: {get_raw[:500]}"
+
+        attempts = [
+            ["higgsfield", "generate", "download", external_job_id, str(output_path)],
+            ["higgsfield", "generate", "download", external_job_id, "-o", str(output_path)],
+            ["higgsfield", "generate", "download", external_job_id, "--path", str(output_path)],
+            ["higgsfield", "generate", "download", external_job_id, "--dir", str(output_path.parent)],
+        ]
+
+        errors = [f"url_download: {last_url_error}"]
+        for cmd in attempts:
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            accepted = _accept_candidate(output_path)
+            if accepted:
+                return accepted
+
+            candidates = sorted(
+                output_path.parent.glob("*.mp4"),
+                key=lambda p: p.stat().st_mtime if p.exists() else 0,
+                reverse=True,
+            )
+            for candidate in candidates:
+                accepted = _accept_candidate(candidate)
+                if accepted:
+                    return accepted
+
+            errors.append(
+                f"{' '.join(cmd)} -> rc={r.returncode} stderr={r.stderr[:250]} stdout={r.stdout[:250]}"
+            )
+
+        with tempfile.TemporaryDirectory(prefix="hf_download_") as td:
+            td_path = Path(td)
+            r = subprocess.run(
+                ["higgsfield", "generate", "download", external_job_id],
+                capture_output=True,
+                text=True,
+                cwd=str(td_path),
+            )
+            candidates = sorted(
+                td_path.glob("*.mp4"),
+                key=lambda p: p.stat().st_mtime if p.exists() else 0,
+                reverse=True,
+            )
+            for candidate in candidates:
+                accepted = _accept_candidate(candidate)
+                if accepted:
+                    return accepted
+            errors.append(
+                f"cwd temp download -> rc={r.returncode} stderr={r.stderr[:250]} stdout={r.stdout[:250]}"
+            )
+
+        raise ProviderAdapterError(
+            "Higgsfield download failed for "
+            f"{external_job_id}: " + " | ".join(errors)[:1200]
+        )
 
 
 class ElevenLabsAdapter(ProviderAdapter):

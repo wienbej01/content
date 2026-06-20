@@ -134,17 +134,39 @@ def _make_production_with_graphic(slug, hero_start_ms, hero_end_ms,
     return pid, master_art
 
 
+def _mark_units_valid_with_artifacts(pid: str, tmp_path: Path) -> None:
+    """Seed assembly-ready artifacts without exercising provider generation."""
+    from production_repo import register_artifact
+
+    conn = _db.connect(None)
+    units = conn.execute(
+        "SELECT id, label FROM render_units WHERE production_id=? AND status!='stale'",
+        (pid,),
+    ).fetchall()
+    conn.close()
+
+    for i, unit in enumerate(units):
+        path = tmp_path / f"{unit['label'] or unit['id']}_{i}.mp4"
+        path.write_bytes(b"assembly fixture media")
+        art = register_artifact(pid, path, "generated_media", db_path=None)
+        with _db.transaction(None) as conn:
+            conn.execute(
+                "UPDATE render_units SET active_artifact_id=?, status='valid' WHERE id=?",
+                (art["id"], unit["id"]),
+            )
+
+
 # ---------------------------------------------------------------------------
 # Contract: manifest has graphic layer per graphic beat + music track
 # ---------------------------------------------------------------------------
 
-def test_manifest_richness(tmp_path):
+def test_manifest_richness(tmp_path, monkeypatch):
     """build_assembly_manifest emits graphic layer per graphic beat + music track."""
+    monkeypatch.setenv("YT_TEST_MODE", "1")
     pid, _ = _make_production_with_graphic("c07_manifest", 0, 10000, 10000, 15000)
     produce_db.invoke_compile_media({"production_id": pid}, tmp_path)
     produce_db.invoke_gate_a_spend({"production_id": pid}, tmp_path)
-    produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
-    produce_db.invoke_qa_media({"production_id": pid}, tmp_path)
+    _mark_units_valid_with_artifacts(pid, tmp_path)
 
     manifest = build_assembly_manifest(pid, variant="16x9")
 
@@ -173,13 +195,13 @@ def test_manifest_richness(tmp_path):
 # Unit: master narration appears exactly once (no double)
 # ---------------------------------------------------------------------------
 
-def test_narration_once(tmp_path):
+def test_narration_once(tmp_path, monkeypatch):
     """Master narration appears exactly once in the manifest (no double)."""
+    monkeypatch.setenv("YT_TEST_MODE", "1")
     pid, master_art = _make_production_with_graphic("c07_narration_once", 0, 10000, 10000, 15000)
     produce_db.invoke_compile_media({"production_id": pid}, tmp_path)
     produce_db.invoke_gate_a_spend({"production_id": pid}, tmp_path)
-    produce_db.invoke_generate_media({"production_id": pid}, tmp_path)
-    produce_db.invoke_qa_media({"production_id": pid}, tmp_path)
+    _mark_units_valid_with_artifacts(pid, tmp_path)
 
     manifest = build_assembly_manifest(pid, variant="16x9")
 

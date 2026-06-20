@@ -16,6 +16,32 @@ import production_db as _db
 import production_repo as _repo
 
 
+PROVIDER_ACTIVE_STATUSES = ("submitted", "running")
+PROVIDER_TERMINAL_STATUSES = ("completed", "failed")
+PROVIDER_STATUSES = PROVIDER_ACTIVE_STATUSES + PROVIDER_TERMINAL_STATUSES
+
+
+def normalize_provider_status(status: Optional[str]) -> str:
+    """Collapse provider-specific states to the DB lifecycle vocabulary."""
+    text = str(status or "").strip().lower()
+    text = text.replace("_", " ").replace("-", " ")
+    if text in ("completed", "complete", "done", "succeeded", "success"):
+        return "completed"
+    if text in ("failed", "failure", "error", "errored", "cancelled", "canceled"):
+        return "failed"
+    if text in ("submitted", "created", "pending", "queued", "waiting"):
+        return "submitted"
+    if text in ("running", "processing", "in progress", "started"):
+        return "running"
+    if "completed" in text or " complete " in f" {text} " or " done " in f" {text} ":
+        return "completed"
+    if "failed" in text or " error " in f" {text} ":
+        return "failed"
+    if any(token in text for token in ("waiting", "queued", "submitted", "pending")):
+        return "submitted"
+    return "running"
+
+
 # ---------------------------------------------------------------------------
 # MEDIA-601  Provider-job state machine
 # ---------------------------------------------------------------------------
@@ -97,6 +123,8 @@ def poll_provider_job(
     provider_job_id: str,
     external_job_id: Optional[str] = None,
     new_status: Optional[str] = None,  # 'running', 'completed', 'failed'
+    response_payload: Optional[dict] = None,
+    error: Optional[str] = None,
     db_path=None,
 ) -> dict:
     """Update provider job status from an external poll result."""
@@ -108,11 +136,18 @@ def poll_provider_job(
             update_parts.append("external_job_id=?")
             params.append(external_job_id)
         if new_status:
+            new_status = normalize_provider_status(new_status)
             update_parts.append("status=?")
             params.append(new_status)
             if new_status in ("completed", "failed"):
                 update_parts.append("completed_at=?")
                 params.append(now)
+        if response_payload is not None:
+            update_parts.append("response_json=?")
+            params.append(_db._json(response_payload))
+        if error:
+            update_parts.append("error_json=?")
+            params.append(_db._json({"error": error}))
         params.append(provider_job_id)
         conn.execute(
             f"UPDATE provider_jobs SET {', '.join(update_parts)} WHERE id=?", params
@@ -120,6 +155,86 @@ def poll_provider_job(
         return dict(conn.execute(
             "SELECT * FROM provider_jobs WHERE id=?", (provider_job_id,)
         ).fetchone())
+
+
+def count_active_provider_jobs(
+    production_id: str,
+    provider: str,
+    model: Optional[str] = None,
+    db_path=None,
+) -> int:
+    """Count submitted/running provider jobs, optionally scoped by request model."""
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    rows = conn.execute(
+        """SELECT request_json FROM provider_jobs
+           WHERE production_id=? AND provider=? AND status IN ('submitted','running')""",
+        (production_id, provider),
+    ).fetchall()
+    conn.close()
+    if model is None:
+        return len(rows)
+
+    count = 0
+    for row in rows:
+        try:
+            payload = json.loads(row["request_json"] or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if payload.get("model") == model:
+            count += 1
+    return count
+
+
+def ensure_render_unit_artifact_state(render_unit_id: str, db_path=None) -> Optional[dict]:
+    """Treat any existing linked/on-disk artifact as authoritative generated state.
+
+    Returns the artifact row when the render unit already has recoverable media,
+    otherwise None.
+    """
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    ru = conn.execute("SELECT * FROM render_units WHERE id=?", (render_unit_id,)).fetchone()
+    if not ru:
+        conn.close()
+        return None
+
+    art = None
+    if ru["active_artifact_id"]:
+        art = conn.execute(
+            "SELECT * FROM artifacts WHERE id=? AND deleted_at IS NULL",
+            (ru["active_artifact_id"],),
+        ).fetchone()
+    if not art:
+        art = conn.execute(
+            """SELECT a.* FROM artifacts a
+               JOIN provider_jobs pj ON a.provider_job_id = pj.id
+               WHERE pj.render_unit_id=? AND a.deleted_at IS NULL
+               ORDER BY a.created_at DESC LIMIT 1""",
+            (render_unit_id,),
+        ).fetchone()
+    conn.close()
+
+    if not art:
+        return None
+    artifact = dict(art)
+    uri = artifact.get("uri")
+    if not uri or not Path(uri).exists():
+        return None
+
+    now = _db._now()
+    with _db.transaction(db_path) as conn:
+        latest = conn.execute(
+            "SELECT status FROM render_units WHERE id=?", (render_unit_id,)
+        ).fetchone()
+        if latest and latest["status"] != "valid":
+            conn.execute(
+                """UPDATE render_units
+                   SET active_artifact_id=?, status='generated', updated_at=?
+                   WHERE id=?""",
+                (artifact["id"], now, render_unit_id),
+            )
+    return artifact
 
 
 def _extract_and_register_diagnostic_audio(
