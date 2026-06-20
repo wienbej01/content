@@ -109,10 +109,6 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                 )
             args.extend(["--audio", str(audio_path)])
 
-        negative_prompt = payload.get("negative_prompt")
-        if negative_prompt:
-            args.extend(["--negative_prompt", str(negative_prompt)])
-
         # S9-C06: Dry-run mode returns constructed args without calling subprocess
         if os.environ.get("HIGGSFIELD_DRY_RUN") == "1":
             return {

@@ -421,11 +421,11 @@ def test_reference_rotation_round_robin():
 
 
 # ---------------------------------------------------------------------------
-# F-002: Adapter --negative_prompt
+# F-002: Adapter does not pass unsupported --negative_prompt
 # ---------------------------------------------------------------------------
 
-def test_adapter_negative_prompt():
-    """HiggsfieldSeedanceAdapter.submit builds --negative_prompt when present."""
+def test_adapter_omits_unsupported_negative_prompt_flag():
+    """HiggsfieldSeedanceAdapter.submit omits unsupported --negative_prompt."""
     from paid_adapters import HiggsfieldSeedanceAdapter
     adapter = HiggsfieldSeedanceAdapter(config={"duration_sec": 10})
 
@@ -441,9 +441,10 @@ def test_adapter_negative_prompt():
         adapter.submit(payload, idempotency_key="test_key")
 
         call_args = mock_run.call_args[0][0]
-        assert "--negative_prompt" in call_args, "Args must include --negative_prompt"
-        assert "no futuristic holograms" in " ".join(call_args), \
-            "Negative prompt value must be in args"
+        assert "--negative_prompt" not in call_args, \
+            "Higgsfield CLI rejected --negative_prompt in real-provider runs"
+        assert "no futuristic holograms" not in " ".join(call_args), \
+            "Unsupported negative prompt value must not be passed as a CLI arg"
 
 
 if __name__ == "__main__":
