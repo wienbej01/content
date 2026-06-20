@@ -7,6 +7,7 @@ Drives the stage graph via stage_runner.run_stage and LegacyAdapter.
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -1202,13 +1203,14 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             break
 
         meta = json.loads(u["metadata_json"]) if u["metadata_json"] else {}
+        provider_duration_sec = max(1, int(math.ceil(u["required_duration_ms"] / 1000.0)))
         request_payload = {
             "asset_type": u["asset_type"],
             "model": u["model"],
             "duration_ms": u["required_duration_ms"],
             "audio_policy": u["audio_policy"],
             "prompt": meta.get("prompt", "educational video"),
-            "duration_sec": u["required_duration_ms"] / 1000.0,
+            "duration_sec": provider_duration_sec,
         }
         if meta.get("image_path"):
             request_payload["image_path"] = meta["image_path"]

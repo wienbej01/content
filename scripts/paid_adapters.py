@@ -2,7 +2,7 @@
 
 API keys loaded from env vars or ~/.config/ytchannel/runtime.env.
 """
-import hashlib, json, os, re, subprocess, tempfile, time
+import hashlib, json, math, os, re, subprocess, tempfile, time
 from pathlib import Path
 from typing import Any, Optional
 from provider_adapter import ProviderAdapter, ProviderAdapterError
@@ -59,6 +59,7 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
     def submit(self, payload: dict, idempotency_key: str) -> dict:
         prompt = payload.get("prompt", "educational video")
         duration = payload.get("duration_sec", payload.get("duration", 5))
+        duration_cli = max(1, int(math.ceil(float(duration))))
         aspect = payload.get("aspect_ratio", "16:9")
         model = payload.get("model", "seedance_2_0")
 
@@ -68,7 +69,7 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
             "higgsfield", "generate", "create",
             model,
             "--prompt", str(prompt),
-            "--duration", str(int(duration)),
+            "--duration", str(duration_cli),
             "--aspect_ratio", str(aspect),
         ]
 

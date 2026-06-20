@@ -316,6 +316,32 @@ def test_adapter_broll_no_image_audio():
         assert "--audio" not in call_args, "B-roll must not have --audio"
 
 
+def test_adapter_duration_ceil_avoids_short_provider_clip():
+    """Fractional DB durations must not be truncated before Higgsfield submit."""
+    from paid_adapters import HiggsfieldSeedanceAdapter
+    adapter = HiggsfieldSeedanceAdapter(config={"duration_sec": 13.717})
+
+    payload = {
+        "model": "seedance_2_0",
+        "prompt": "James explains time management",
+        "duration_sec": 13.717,
+        "aspect_ratio": "16:9",
+        "resolution": "480p",
+    }
+
+    with patch("paid_adapters.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="44444444-4444-4444-8444-444444444444",
+            stderr="",
+        )
+        adapter.submit(payload, idempotency_key="test_key")
+
+        call_args = mock_run.call_args[0][0]
+        duration_idx = call_args.index("--duration") + 1
+        assert call_args[duration_idx] == "14"
+
+
 # ---------------------------------------------------------------------------
 # Unit: prompt composed from visual_intent, not "educational video"
 # ---------------------------------------------------------------------------
