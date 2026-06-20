@@ -173,6 +173,41 @@ def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=N
         segments.append(seg)
 
     project_slug = inputs.get("project_slug") or "."
+
+    # S9-C07: Query graphic beats for overlay layers
+    conn2 = _db.connect(db_path)
+    graphic_beats = conn2.execute(
+        """SELECT cb.id, cb.label, cb.graphics_json
+           FROM creative_beats cb
+           JOIN timeline_spans ts ON cb.id = ts.creative_beat_id
+           WHERE ts.production_id=? AND ts.status='active' AND cb.shot_type='local_graphic'
+           ORDER BY cb.ordinal""",
+        (production_id,),
+    ).fetchall()
+    conn2.close()
+
+    graphics_layers = []
+    for gb in graphic_beats:
+        gfx = json.loads(gb["graphics_json"]) if gb["graphics_json"] else {}
+        text = gfx.get("text", "")
+        if text:
+            graphics_layers.append({
+                "beat_id": gb["id"],
+                "label": gb["label"],
+                "text": text,
+                "layout": gfx.get("layout", "center"),
+            })
+
+    # S9-C07: Music bed config (deterministic, local synthesis via tools/generate_music)
+    music_config = {
+        "enabled": True,
+        "mood": "calm",
+        "seed": 7,
+        "volume_db": -28,
+        "fade_in": 1.5,
+        "fade_out": 2.0,
+    }
+
     return {
         "id": production_id,
         "project_slug": project_slug,
@@ -182,6 +217,8 @@ def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=N
         "pacing": {"reference": 0, "baseline_speed": 1.0},
         "output": {"directory": str(PROJECTS / project_slug)},
         "segments": segments,
+        "graphics": graphics_layers,
+        "music": music_config,
     }
 
 

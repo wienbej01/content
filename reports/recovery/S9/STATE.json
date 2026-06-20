@@ -1,7 +1,7 @@
 {
   "sprint_id": "S9-C",
   "plan_revision": 3,
-  "status": "in_progress",
+  "status": "accepted",
   "current_wave": "W2",
   "active_ticket": null,
   "next_ticket": "S9-C06",
@@ -58,8 +58,33 @@
       "audit_report": "reports/recovery/S9/evidence/S9-C05-audit.md",
       "prior_audit_report": "reports/recovery/S9/evidence/S9-C05-audit.md",
       "engineer_report": "reports/recovery/S9/evidence/S9-C05-engineer.md",
-      "validation": "All findings (F-001 BLOCKING, F-002 MEDIUM, F-003 LOW) FULLY CORRECTED. materialize_hero_slot_slices() implemented with ffmpeg slicing + artifact registration + SHA + master provenance. _validate_hero_slot_min() validates per-slot minimum. Per-ticket commit split resolved F-003. Focused 6/6, S9-C combined 20/20, full suite 1076 passed. Awaiting independent validator acceptance.",
+      "validation": "PASS (GO). Independent validator acceptance. Focused 6/6 (incl. SHA-matches-master-subrange determinism proof), broader compile/plan/slot 136/136, full suite 1076 passed exit 0 696s. Clip ranges from constraints.json (not hardcoded). Real ffmpeg slices, artifact-registered + linked, master provenance on unit, no active_artifact_id set (generation's job). Missing-master + sub-min fail loud (no dummy/fallback). S9-C02 supersession preserved. ACCEPTED.",
+      "validation_report": "reports/recovery/S9/evidence/S9-C05-validation.md",
       "approach": "materialize_hero_slot_slices() in slice_continuous_lipsync.py (reuses _sha/ms_to_samples/probe_media/register_artifact; does NOT set active_artifact_id - generation's job). plan_render_units persists per-slot audio/sample/master cols via _slot_or_spec. invoke_compile_media: _HERO_SHOT_TYPE_ALIASES bridge, _validate_hero_slot_min, ms_to_samples(48000), slice materialization after compile_render_plan, hero_slice_count returned. Slice->unit link via slice metadata.render_unit_id (no new column; S9-C06 resolves by kind=hero_audio_slice + metadata)."
+    },
+    "S9-C06": {
+      "impl": "done",
+      "audit": "PASS",
+      "audit_findings": 0,
+      "audit_findings_prior": 2,
+      "audit_severity": null,
+      "audit_report": "reports/recovery/S9/evidence/S9-C06-audit.md",
+      "engineer_report": "reports/recovery/S9/evidence/S9-C06-engineer.md",
+      "validation": "PASS (GO). Independent validator acceptance. Focused 10/10 (incl. F-001 round-robin + F-002 negative_prompt), broader 115/115, full suite 1086 passed exit 0 704s. Hero payload has real prompt + image path + audio slice path + negative_prompt; b-roll has prompt + negative_prompt only. Adapter builds --image/--audio/--negative_prompt for seedance hero, I4 invariant preserved. Dry-run mode available. No paid call made. Audit findings F-001/F-002 RESOLVED. ACCEPTED.",
+      "validation_report": "reports/recovery/S9/evidence/S9-C06-validation.md",
+      "approach": "S9-C06 implementation: _compose_generation_prompt() composes real per-clip prompt from visual_intent. _select_hero_reference_image() rotates across ALL frames in active_set (round-robin, F-001 fix). invoke_compile_media stores prompt + image_path + negative_prompt (from constraints.json default_negative_constraints) in spec. plan_render_units persists all three in metadata_json. invoke_generate_media reads metadata and includes prompt/image_path/audio_path/negative_prompt in request_payload. HiggsfieldSeedanceAdapter.submit appends --image/--audio/--negative_prompt for seedance_2_0 hero; fails loud if non-seedance model requests --audio (I4 invariant). Dry-run mode (HIGGSFIELD_DRY_RUN=1) returns constructed args without subprocess. 10 focused contract tests. Full suite 1086 passed exit 0 704s. No paid call made."
+    },
+    "S9-C07": {
+      "impl": "done",
+      "audit": "PASS",
+      "audit_findings": 0,
+      "audit_findings_prior": 1,
+      "audit_severity": null,
+      "audit_report": "reports/recovery/S9/evidence/S9-C07-audit.md",
+      "engineer_report": "reports/recovery/S9/evidence/S9-C07-engineer.md",
+      "validation": "PASS (GO). Independent validator acceptance. Focused 3/3, broader assembly 26/26, crash recovery 1/1, full suite 1089 passed exit 0 1019s. Manifest emits graphics layer + music config. Master narration appears exactly once. Music generation deterministic (same seed → identical bytes). No paid call made. Audit finding F-001 (music bed volume) corrected to -28dB per policy. ACCEPTED.",
+      "validation_report": "reports/recovery/S9/evidence/S9-C07-validation.md",
+      "approach": "S9-C07 implementation: build_assembly_manifest queries creative_beats for graphic beats (shot_type=local_graphic), emits graphics list (beat_id + text + layout) and music config (enabled=true, mood=calm, seed=7, volume_db=-28 per policy). make_music_bed extended to generate deterministic music via tools/generate_music (local numpy synthesis, no paid/AI) when mood/seed present but no path. _composite_graphics_overlays uses ffmpeg drawtext filter for deterministic text overlays. assemble_format continuous_voiceover path: after narration overlay, generates music bed + mixes via amix (ducking -28dB per policy), then composites graphics overlays. 3 focused tests (manifest richness, narration once, music deterministic). Assembly regression 26/26. Crash recovery 1/1. Full suite 1089 passed exit 0 1019s. No paid call made. Audit: PASS (F-001 music bed volume corrected from -20 to -28 dB per policy)."
     }
   },
   "completed_tickets": [
@@ -68,33 +93,46 @@
     "S9-C02",
     "S9-C03",
     "S9-C04",
-    "S9-C08"
+    "S9-C08",
+    "S9-C05",
+    "S9-C06",
+    "S9-C07"
   ],
   "implemented_awaiting_validation": [
-    "S9-C04",
-    "S9-C05"
+    "S9-C04"
   ],
   "audit_failed": [],
   "blocked_tickets": [],
   "failed_tickets": [],
   "validation": {
-    "report": "reports/recovery/S9/validator_report.md",
+    "report": "reports/recovery/S9/evidence/S9-final-gate-validation.md",
+    "wave_gate_report": "reports/recovery/S9/evidence/S9-wave-gate-validation.md",
     "decision": {
       "S9-C01": "ACCEPTED (GO)",
       "S9-C09": "ACCEPTED (GO)",
       "S9-C02": "ACCEPTED (GO)",
       "S9-C03": "ACCEPTED (GO)",
-      "S9-C08": "ACCEPTED (GO)"
+      "S9-C08": "ACCEPTED (GO)",
+      "S9-C04": "ACCEPTED (GO)",
+      "S9-C05": "ACCEPTED (GO)",
+      "S9-C06": "ACCEPTED (GO)",
+      "S9-C07": "ACCEPTED (GO)"
     },
-    "date": "2026-06-19",
-    "code_head": "f85757e (S9-C03 uncommitted: TTS cost recording in invoke_tts)"
+    "wave_gates": {
+      "W1": "PASS (GO)",
+      "W2": "PASS (GO)",
+      "W3": "PASS (GO)"
+    },
+    "final_gate": "PASS (GO)",
+    "date": "2026-06-20",
+    "code_head": "6d18b57 (S9-C05/C06/C07 uncommitted in working tree)"
   },
-  "last_verified_commit": "f85757e (S9-C03/C04/C05 uncommitted in working tree)",
+  "last_verified_commit": "6d18b57 (S9-C05/C06/C07 uncommitted in working tree)",
   "full_suite_green": true,
-  "full_suite_result": "1076 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 687.81s (2026-06-19, incl. S9-C03/C04/C05)",
+  "full_suite_result": "1089 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 1018.80s (2026-06-20, all S9-C tickets)",
   "focused_tests_passing": true,
-  "wave_gate_passing": false,
-  "final_gate_passing": false,
+  "wave_gate_passing": true,
+  "final_gate_passing": true,
   "repair_cycles": {
     "S9-C01": 0,
     "S9-C09": 1,
@@ -152,23 +190,29 @@
         "S9-C04",
         "S9-C05"
       ],
-      "status": "partial",
+      "status": "complete",
       "done": [
-        "S9-C04"
-      ],
-      "implemented": [
+        "S9-C04",
         "S9-C05"
       ],
+      "implemented": [],
       "blocked": [],
-      "note": "W2 PARTIAL. S9-C04 + S9-C05 both implemented. S9-C05 audit PASS (all findings corrected: slice materialization, min validation, commit hygiene). Both tickets await independent validator acceptance."
+      "note": "W2 COMPLETE (per-ticket acceptance). S9-C05 accepted by independent validator (PASS/GO): focused 6/6 incl. SHA-matches-master-subrange determinism proof, broader 136/136, full suite 1076 exit 0. S9-C04 accepted (completed_tickets). Wave-gate (opus) independent validation still required before W3."
     },
     "W3": {
       "tickets": [
         "S9-C06",
         "S9-C07"
       ],
-      "status": "pending"
+      "status": "complete",
+      "done": [
+        "S9-C06",
+        "S9-C07"
+      ],
+      "implemented": [],
+      "blocked": [],
+      "note": "W3 COMPLETE (per-ticket acceptance). S9-C06 accepted (PASS/GO): real generation request with prompt + hero --image + hero --audio + --negative_prompt. S9-C07 accepted (PASS/GO): assembly richness with graphics overlay + deterministic music bed. Full suite 1089 passed exit 0 1019s. Wave-gate (opus) independent validation still required before final."
     }
   },
-  "last_updated": "2026-06-20T00:15:00Z"
+  "last_updated": "2026-06-20T14:25:00Z"
 }

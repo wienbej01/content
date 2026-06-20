@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""llm_call.py — Thin subprocess wrapper around kiro-cli for programmatic LLM calls.
+"""llm_call.py — Thin subprocess wrapper around kilo for programmatic LLM calls.
 
-Calls kiro-cli as a subprocess, extracts the model response, validates JSON output,
-and enforces model-routing/creative-authority policy from configs/llm_models.yaml.
+Calls kilo as a subprocess (model: deepseek-v4-flash), extracts the model response,
+validates JSON output, and enforces model-routing/creative-authority policy from
+configs/llm_models.yaml.
 
 Usage:
   python3 scripts/llm_call.py --task script_review --prompt "Review this script..." --output-json out.json
@@ -10,7 +11,7 @@ Usage:
   python3 scripts/llm_call.py --task storyboard_review --prompt-file prompts/review.md --input-json sb.json
   python3 scripts/llm_call.py --dry-run --task hook_generation --prompt "Generate hooks for..."
 
-No API tokens stored or printed. Uses existing kiro-cli session auth.
+No API tokens stored or printed. Uses existing kilo session auth.
 """
 import argparse
 import json
@@ -23,6 +24,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CONFIGS = ROOT / "configs" / "llm_models.yaml"
 KIRO_CLI = "kiro-cli"
+KILO_CLI = "kilo"
+KILO_MODEL = "kilo/deepseek/deepseek-v4-flash"
+
+# System prompt enforcing strict JSON-only output from the model.
+# Prepended as "SYSTEM:\n...\n\nUSER:\n..." so deepseek treats it as a system instruction.
+# Applied automatically to all expect_json=True calls in the pipeline.
+PIPELINE_SYSTEM_PROMPT = """You are a JSON-only API for the production pipeline.
+
+ABSOLUTE OUTPUT RULE: Your entire response MUST be valid JSON and nothing else.
+- No prose. No markdown. No bullet points. No preamble. No explanation.
+- Do NOT write sentences like "Here is the result" or "I have analyzed...".
+- Do NOT use ```json fences. Output raw JSON directly.
+- The ONLY acceptable response format is a JSON object or array.
+- If you cannot produce valid JSON, output exactly: ERROR
+
+Any response that is not raw JSON or the string ERROR is a critical failure."""
 
 
 def load_config():
@@ -76,6 +93,29 @@ def extract_response(stdout):
         elif capture and not stripped:
             lines.append("")
     return "\n".join(lines).strip() if lines else None
+
+
+def extract_kilo_response(stdout):
+    """Extract LLM response from kilo JSON event stream.
+
+    kilo run --format json outputs NDJSON events. The relevant event for extracting
+    the response text is: {"type":"text","part":{"text":"the model response here"}}.
+    Multiple text events may arrive (streaming chunks). Concatenate all text parts.
+    """
+    parts = []
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+            if event.get("type") == "text":
+                text = event.get("part", {}).get("text", "")
+                if text:
+                    parts.append(text)
+        except json.JSONDecodeError:
+            continue
+    return "".join(parts).strip() if parts else None
 
 
 def parse_json_response(text):
@@ -148,7 +188,8 @@ def validate_output(data):
     return errors
 
 
-def call_kiro(model, prompt, timeout=120, verbose=False):
+# ARCHIVED: kiro-cli method, not called. Re-enable by switching llm_call() to use call_kiro_archived().
+def call_kiro_archived(model, prompt, timeout=120, verbose=False):
     """Run kiro-cli subprocess and return raw stdout.
 
     Hardening (2026-06-12): the default agent (ytbuilder) runs spawn/stop hooks on
@@ -178,6 +219,41 @@ def call_kiro(model, prompt, timeout=120, verbose=False):
     return r.stdout
 
 
+def call_kilo(model, prompt, timeout=120, verbose=False, system_prompt=None):
+    """Run kilo subprocess and return raw stdout (NDJSON event stream).
+
+    Uses `kilo run --model <model> --format json` with prompt piped via stdin.
+    kilo outputs NDJSON events on stdout. The caller (llm_call) uses
+    extract_kilo_response() to parse the text events.
+
+    If system_prompt is provided, it is prepended as "SYSTEM:\n...\n\nUSER:\n..."
+    so deepseek treats it as a system-level instruction.
+    """
+    if system_prompt:
+        full_prompt = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{prompt}"
+    else:
+        full_prompt = prompt
+
+    cmd = [KILO_CLI, "run", "--model", model, "--format", "json"]
+    if verbose:
+        print(f"  cmd: {KILO_CLI} run --model {model} --format json "
+              f"[stdin: {len(full_prompt)} chars]", file=sys.stderr)
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           input=full_prompt)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"kilo did not respond within {timeout}s (model {model}). "
+            "Check `kilo models` and that your session is authenticated.")
+    elapsed = time.time() - t0
+    if verbose:
+        print(f"  elapsed: {elapsed:.1f}s, exit: {r.returncode}", file=sys.stderr)
+    if r.returncode != 0:
+        raise RuntimeError(f"kilo exited {r.returncode}: {r.stderr[:200]}")
+    return r.stdout
+
+
 def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
              dry_run=False, verbose=False, expect_json=True):
     """High-level: resolve profile, build prompt, call, parse, validate.
@@ -196,18 +272,21 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
         full_prompt = f"{prompt}\n\nINPUT:\n```json\n{input_json}\n```"
 
     if dry_run:
-        print(f"DRY RUN — would call kiro-cli")
+        print(f"DRY RUN — would call kilo")
         print(f"  task:    {task}")
         print(f"  profile: {profile_name} → model {model}")
         print(f"  prompt:  {full_prompt[:200]}...")
         print(f"  timeout: {timeout}s")
         return None, None, profile_name, model
 
-    raw = call_kiro(model, full_prompt, timeout=timeout, verbose=verbose)
-    text = extract_response(raw)
+    # Apply system prompt for JSON enforcement when expect_json=True
+    system_prompt = PIPELINE_SYSTEM_PROMPT if expect_json else None
+    raw = call_kilo(model, full_prompt, timeout=timeout, verbose=verbose,
+                    system_prompt=system_prompt)
+    text = extract_kilo_response(raw)
 
     if not text:
-        raise RuntimeError("No response extracted from kiro-cli output")
+        raise RuntimeError("No response extracted from kilo output")
 
     if not expect_json:
         return text, text, profile_name, model
@@ -224,7 +303,7 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Programmatic LLM calls via kiro-cli.")
+    ap = argparse.ArgumentParser(description="Programmatic LLM calls via kilo.")
     ap.add_argument("--task", required=True, help="Task name (for routing/authority)")
     ap.add_argument("--prompt", default=None, help="Prompt text (inline)")
     ap.add_argument("--prompt-file", default=None, help="Prompt from file")
@@ -232,7 +311,7 @@ def main():
     ap.add_argument("--output-json", "-o", default=None, help="Write parsed JSON output to file")
     ap.add_argument("--model-profile", default=None, help="Override model profile")
     ap.add_argument("--timeout", type=int, default=120, help="Subprocess timeout (seconds)")
-    ap.add_argument("--dry-run", action="store_true", help="Print plan without calling kiro-cli")
+    ap.add_argument("--dry-run", action="store_true", help="Print plan without calling kilo")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--no-json", action="store_true", help="Don't expect JSON response (return raw text)")
     args = ap.parse_args()

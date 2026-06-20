@@ -1,0 +1,142 @@
+{
+  "seed": "use ai to manage your time",
+  "angle": "AI doesn't save time — it supercharges expectations. The professionals who gain leverage aren't the ones who use AI to do more faster. They're the ones who use it to reclaim decision bandwidth, say no to the wrong work, and let the machine absorb the overhead that quietly consumes 25% of every workday.",
+  "key_claims": [
+    {
+      "claim": "After Microsoft Copilot was deployed, developers increased coding activities by 12.4% and slashed project management overhead by 24.9% — but peer collaboration collapsed by nearly 80%, raising serious questions about what kind of 'time' AI actually creates.",
+      "source": {
+        "title": "Generative AI changes how employees spend their time",
+        "author_or_site": "MIT Sloan",
+        "year": "2024",
+        "url": "https://mitsloan.mit.edu/ideas-made-to-matter/generative-ai-changes-how-employees-spend-their-time"
+      }
+    },
+    {
+      "claim": "A joint study by MIT Sloan, Microsoft Research, and GitHub found gen AI coding tools can cut programming time by 56% — yet managers report the resulting acceleration has outpaced their management systems, creating a productivity boom they cannot keep up with.",
+      "source": {
+        "title": "How Is Your Team Spending the Time Saved by Gen AI?",
+        "author_or_site": "Harvard Business Review",
+        "year": "2025",
+        "url": "https://hbr.org/2025/03/how-is-your-team-spending-the-time-saved-by-gen-ai"
+      }
+    },
+    {
+      "claim": "Despite the promise of AI reducing busywork, HBR reports that AI does not reduce work — it intensifies it. Companies are struggling because the time supposedly 'saved' is immediately consumed by higher output demands, not slack.",
+      "source": {
+        "title": "AI Doesn't Reduce Work—It Intensifies It",
+        "author_or_site": "Harvard Business Review (Aruna Ranganathan)",
+        "year": "2026",
+        "url": "https://hbr.org/2026/02/ai-doesnt-reduce-work-it-intensifies-it"
+      }
+    },
+    {
+      "claim": "AI-driven workforce scheduling from McKinsey eliminates human bias and error, creates fairer schedules, and cuts the managerial bandwidth needed to oversee scheduling — but the same research warns that AI systems can also disrupt workflows and worsen decision-making when poorly integrated with human judgment.",
+      "source": {
+        "title": "Smart scheduling: How to solve workforce-planning challenges with AI",
+        "author_or_site": "McKinsey & Company",
+        "year": "2024",
+        "url": "https://www.mckinsey.com/capabilities/operations/our-insights/smart-scheduling-how-to-solve-workforce-planning-challenges-with-ai"
+      }
+    },
+    {
+      "claim": "MIT Sloan Management Review research reveals that AI systems have significant limitations that can lead to workflow disruptions and poorer decision-making when partnered with humans, including a tendency to affirm users' judgment rather than challenge it.",
+      "source": {
+        "title": "Three Things to Know About Implementing Workplace AI Tools",
+        "author_or_site": "MIT Sloan Management Review",
+        "year": "2025",
+        "url": "https://sloanreview.mit.edu/article/three-things-to-know-about-implementing-workplace-ai-tools/"
+      }
+    },
+    {
+      "claim": "A 2026 HBR report found managers are 'struggling to keep up' with the AI productivity boom — employees can now execute ideas, produce deliverables, and launch projects far faster than traditional management systems were designed to handle.",
+      "source": {
+        "title": "Managers Are Struggling to Keep Up with the AI Productivity Boom",
+        "author_or_site": "Harvard Business Review",
+        "year": "2026",
+        "url": "https://hbr.org/2026/05/managers-are-struggling-to-keep-up-with-the-ai-productivity-boom"
+      }
+    },
+    {
+      "claim": "MIT Sloan's Benjamin Laker argues that trust is 'the human currency of management' — AI should handle tasks like drafting timelines, crunching numbers, and generating slides, but applying it to relationship-based work erodes the very thing that makes teams effective.",
+      "source": {
+        "title": "When Not to Use AI",
+        "author_or_site": "MIT Sloan Management Review (Benjamin Laker)",
+        "year": "2025",
+        "url": "https://sloanreview.mit.edu/article/when-not-to-use-ai/"
+      }
+    },
+    {
+      "claim": "Microsoft's workplace analytics uses AI to analyze communication patterns, helping managers understand collaboration trends — but the same Microsoft 365 ecosystem also offers basic AI scheduling tools that most professionals never configure properly, leaving 'time management' on the table.",
+      "source": {
+        "title": "Artificial intelligence-driven management: Bridging innovation, knowledge creation, and sustainable business practices",
+        "author_or_site": "ScienceDirect",
+        "year": "2025",
+        "url": "https://www.sciencedirect.com/science/article/pii/S2444569X25002057"
+      }
+    },
+    {
+      "claim": "Scientists increasingly use AI to save time and money on research — but Nature reports that many have also seen negative effects, including erosion of critical thinking and over-reliance on automated outputs that bypass peer validation.",
+      "source": {
+        "title": "AI is saving time and money in research — but at what cost?",
+        "author_or_site": "Nature",
+        "year": "2025",
+        "url": "https://www.nature.com/articles/d41586-025-03936-2"
+      }
+    }
+  ],
+  "research_text": "The dominant narrative around AI and time management is a trap. Every productivity dashboard, every vendor demo, every LinkedIn post sells the same promise: AI will do your busywork, and you will get your hours back. The research tells a very different, much more interesting story.\n\nAt MIT Sloan, researchers tracked what happened when Microsoft Copilot entered a real engineering organisation. Coding output rose 12.4%. Project management overhead dropped 24.9%. Those sound like wins — until you see that peer collaboration collapsed by nearly 80%. The time 'saved' from administrative work didn't become thinking time. It became solo screen time. The machine optimised the individual while hollowing out the collective. A separate MIT Sloan / Microsoft Research / GitHub study found gen AI tools slash programming time by 56%, yet HBR reports that managers are now 'struggling to keep up' with the resulting acceleration. The productivity boom is real — but management infrastructure wasn't built for this cadence.\n\nMeanwhile, HBR's Aruna Ranganathan published a bracing counter-argument in early 2026: AI Does Not Reduce Work — It Intensifies It. The time AI frees up is immediately filled by higher expectations, more deliverables, tighter turnaround. The 'saved time' never materialises as slack. It materialises as faster throughput and higher volume.\n\nMIT Sloan Management Review adds another dimension. Benjamin Laker argues in 'When Not to Use AI' that trust is the human currency of management. AI should draft timelines and generate slides — but it should not broker relationships, negotiate trade-offs, or make judgment calls that require shared belief. A separate piece in the same publication warns that AI systems can actually worsen human decision-making by affirming users' biases and disrupting workflows.\n\nThe upshot for a mid-career professional is this: time management is not a scheduling problem. It is a sovereignty problem — deciding what not to do, whose expectations to decline, which meetings to kill. AI can absorb the overhead (McKinsey shows it eliminates bias from scheduling and cuts managerial bandwidth), but only if you know where to draw the line. Deploy it on tasks. Protect the relationships. The leverage is in the boundary, not the speed.",
+  "sources": [
+    {
+      "title": "Generative AI changes how employees spend their time",
+      "url": "https://mitsloan.mit.edu/ideas-made-to-matter/generative-ai-changes-how-employees-spend-their-time",
+      "year": "2024"
+    },
+    {
+      "title": "How Is Your Team Spending the Time Saved by Gen AI?",
+      "url": "https://hbr.org/2025/03/how-is-your-team-spending-the-time-saved-by-gen-ai",
+      "year": "2025"
+    },
+    {
+      "title": "AI Doesn't Reduce Work—It Intensifies It",
+      "url": "https://hbr.org/2026/02/ai-doesnt-reduce-work-it-intensifies-it",
+      "year": "2026"
+    },
+    {
+      "title": "Smart scheduling: How to solve workforce-planning challenges with AI",
+      "url": "https://www.mckinsey.com/capabilities/operations/our-insights/smart-scheduling-how-to-solve-workforce-planning-challenges-with-ai",
+      "year": "2024"
+    },
+    {
+      "title": "Three Things to Know About Implementing Workplace AI Tools",
+      "url": "https://sloanreview.mit.edu/article/three-things-to-know-about-implementing-workplace-ai-tools/",
+      "year": "2025"
+    },
+    {
+      "title": "Managers Are Struggling to Keep Up with the AI Productivity Boom",
+      "url": "https://hbr.org/2026/05/managers-are-struggling-to-keep-up-with-the-ai-productivity-boom",
+      "year": "2026"
+    },
+    {
+      "title": "When Not to Use AI",
+      "url": "https://sloanreview.mit.edu/article/when-not-to-use-ai/",
+      "year": "2025"
+    },
+    {
+      "title": "Artificial intelligence-driven management: Bridging innovation, knowledge creation, and sustainable business practices",
+      "url": "https://www.sciencedirect.com/science/article/pii/S2444569X25002057",
+      "year": "2025"
+    },
+    {
+      "title": "AI is saving time and money in research — but at what cost?",
+      "url": "https://www.nature.com/articles/d41586-025-03936-2",
+      "year": "2025"
+    }
+  ],
+  "suggested_titles": [
+    "AI Won't Give You More Time — It Will Take It",
+    "The AI Time Trap: Why Faster Work Means Less Freedom",
+    "Before You Automate Your Calendar, Watch This",
+    "Your AI Productivity Tool Is Making You Lonely (and Other Surprises)",
+    "The Real Leverage Isn't Speed — It's What You Refuse to Automate"
+  ]
+}

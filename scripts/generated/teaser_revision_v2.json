@@ -1,0 +1,54 @@
+{
+  "project_id": "ai-months-to-hours",
+  "title": "AI Isn\u2019t Saving You Minutes \u2014 It\u2019s Collapsing Months",
+  "video_type": "teaser",
+  "narration_mode": "continuous_voiceover",
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "text": "A single systematic literature review takes nine to eighteen months. AI can collapse it to hours. Yet most time-management advice is still about rearranging your calendar."
+    },
+    {
+      "id": "002_promise",
+      "audio_mode": "generated_tts",
+      "text": "Here is what the credible research actually shows. A 2026 preprint reports this manual workflow costs over a hundred thousand dollars per review. The authors compressed it to minutes or hours through an AI-assisted review pipeline. A 2025 paper in NEJM AI found that human-plus-AI review pipelines significantly accelerated peer review quality assessment. And Nature itself has asked whether hidden costs come with that speed \u2014 a fair caveat. But these tools do not exist in five years. They exist now. If you read reports, review documents, or synthesise research, AI can compress what takes you a month into a single afternoon. The question is whether you will be the person who uses them \u2014 or the one they replace."
+    },
+    {
+      "id": "003_cta",
+      "audio_mode": "generated_tts",
+      "text": "Subscribe now. Next week I show you exactly how. If you spend even one hour a week processing information \u2014 that button is where you start reclaiming it."
+    }
+  ],
+  "key_points": [
+    {
+      "text": "AI\u2019s real productivity leverage is not marginal calendar optimisation but collapsing multi-month analytical workflows into hours \u2014 a finding grounded in the most rigorous domain of academic research."
+    }
+  ],
+  "sources": [
+    {
+      "id": "medrxiv-2026",
+      "citation": "medRxiv, \"Systematic reviews in minutes to hours using artificial intelligence\", 2026",
+      "url": "https://www.medrxiv.org/content/10.64898/2026.02.06.26345764v1",
+      "claims_used": [
+        "Manual systematic reviews take 9\u201318 months and over $100k; AI-assisted review pipeline compresses to minutes or hours"
+      ]
+    },
+    {
+      "id": "nejm-ai-2025",
+      "citation": "NEJM AI, \"Accelerating Science with Human+AI Review\", 2025",
+      "url": "https://ai.nejm.org/doi/full/10.1056/AIe2501175",
+      "claims_used": [
+        "Human+AI review pipelines significantly accelerated peer review quality assessment"
+      ]
+    },
+    {
+      "id": "nature-2025",
+      "citation": "Nature, \"AI is saving time and money in research \u2014 but at what cost?\", 2025",
+      "url": "https://www.nature.com/articles/d41586-025-03936-2",
+      "claims_used": [
+        "Nature asked whether AI-driven speed in research comes with hidden costs"
+      ]
+    }
+  ]
+}

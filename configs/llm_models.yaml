@@ -1,6 +1,6 @@
 profiles:
   sonnet_creative:
-    model: claude-sonnet-4.6
+    model: kilo/deepseek/deepseek-v4-flash
     purpose: creative/reasoning-heavy tasks
     is_final_creative_authority: true
     default_for: creative
@@ -8,12 +8,12 @@ profiles:
     max_reroll_attempts: 2
 
   storyboard_director:
-    model: claude-opus-4.8
+    model: kilo/deepseek/deepseek-v4-flash
     purpose: bulletproof storyboard authoring grounded in all bibles + source text
     is_final_creative_authority: true
 
   auto_utility:
-    model: auto
+    model: kilo/deepseek/deepseek-v4-flash
     purpose: mechanical/low-risk tasks
     is_final_creative_authority: false
     default_for: utility

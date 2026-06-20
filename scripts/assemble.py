@@ -798,14 +798,30 @@ def make_music_bed(duration, music_cfg, tmp, base):
     """Load a music file, loop/trim to video duration, apply level + fades.
 
     Returns path to the prepared music track, or None if music is disabled.
-    Fails loudly if enabled=True but file is missing/unreadable.
+    S9-C07: If no path is provided but mood/seed are present, generates a
+    deterministic music bed using local synthesis (tools/generate_music).
+    Fails loudly if enabled=True but neither path nor generation config is available.
     """
     if not music_cfg.get("enabled", False):
         return None
 
     rel = music_cfg.get("path") or music_cfg.get("file")  # accept both keys
     if not rel:
-        raise ValueError("music.enabled=true but no music.path specified")
+        # S9-C07: Generate deterministic music bed if mood/seed are provided
+        mood = music_cfg.get("mood")
+        seed = music_cfg.get("seed")
+        if mood is not None and seed is not None:
+            try:
+                sys.path.insert(0, str(ROOT / "tools"))
+                from generate_music import generate as gen_music, write_wav
+            except ImportError:
+                raise ValueError("music.enabled=true but generate_music not available")
+            raw_wav = tmp / "music_raw.wav"
+            stereo = gen_music(duration, mood, seed)
+            write_wav(stereo, raw_wav)
+            rel = str(raw_wav)
+        else:
+            raise ValueError("music.enabled=true but no music.path or mood/seed specified")
     music_file = resolve(base, rel)
     if not music_file.exists():
         raise FileNotFoundError(f"music file not found: {music_file}")
@@ -848,6 +864,51 @@ def loudnorm(src, dst):
     run(["ffmpeg", "-y", "-i", str(src),
          "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
          "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", str(dst)], "loudnorm")
+
+
+def _composite_graphics_overlays(video, graphics_layers, segments, total_dur,
+                                  tmp, w, h, fps):
+    """S9-C07: Composite deterministic text overlays for graphic beats.
+
+    For each graphic layer, generates a text overlay PNG using ffmpeg's drawtext
+    filter and composites it over the video at the correct timing window.
+    Returns the path to the composited video.
+    """
+    current = video
+    for i, gfx in enumerate(graphics_layers):
+        beat_id = gfx.get("beat_id", f"gfx_{i}")
+        text = gfx.get("text", "")
+        if not text:
+            continue
+
+        seg_timing_in = 0.0
+        seg_timing_out = total_dur
+        for seg in segments:
+            if seg.get("beat_id") == beat_id or seg.get("id") == beat_id:
+                seg_timing_in = seg.get("timing_in", 0.0)
+                seg_timing_out = seg.get("timing_out", total_dur)
+                break
+
+        overlay_dur = seg_timing_out - seg_timing_in
+        if overlay_dur <= 0:
+            continue
+
+        escaped_text = text.replace("'", "'\\''").replace(":", "\\:")
+        dst = tmp / f"gfx_overlay_{i}.mp4"
+        vf = (
+            f"drawtext=text='{escaped_text}'"
+            f":fontsize=48:fontcolor=white:borderw=3:bordercolor=black"
+            f":x=(w-text_w)/2:y=(h-text_h)/2"
+            f":enable='between(t,{seg_timing_in:.3f},{seg_timing_out:.3f})'"
+        )
+        run(["ffmpeg", "-y", "-i", str(current),
+             "-vf", vf,
+             "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+             "-pix_fmt", "yuv420p", "-c:a", "copy",
+             str(dst)], f"gfx_overlay_{i}")
+        current = dst
+
+    return current
 
 
 # --- Main assembly ---
@@ -1022,6 +1083,27 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
              "-map", "0:v", "-map", "1:a", "-c:v", "copy",
              "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
              "-t", f"{total_nar_dur:.3f}", str(joined)], "cont_overlay")
+
+        # S9-C07: Generate deterministic music bed and mix under narration
+        music_cfg = manifest.get("music", {})
+        if music_cfg.get("enabled"):
+            music_bed = make_music_bed(total_nar_dur, music_cfg, fmt_tmp, base)
+            if music_bed:
+                mixed = fmt_tmp / "cont_mixed.mp4"
+                run(["ffmpeg", "-y", "-i", str(joined), "-i", str(music_bed),
+                     "-filter_complex",
+                     "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]",
+                     "-map", "0:v", "-map", "[a]",
+                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                     str(mixed)], "cont_mix_music")
+                joined = mixed
+
+        # S9-C07: Composite graphics overlays for graphic beats
+        graphics_layers = manifest.get("graphics", [])
+        if graphics_layers:
+            joined = _composite_graphics_overlays(
+                joined, graphics_layers, segments, total_nar_dur,
+                fmt_tmp, w, h, fps)
 
         # Change 3: Post-mux stream integrity check
         joined_vid_dur = probe_dur(joined)

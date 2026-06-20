@@ -1,42 +1,36 @@
 # HANDOFF — S9-C (complete-system sprint)
 
-**Status:** PLANNED — no ticket started yet. **Next:** S9-C01.
-**Read first:** `reports/recovery/S9/CONTINUE.md` (program state), then `reports/recovery/S9/PLAN.md` (this sprint), then the active ticket.
+**Status:** ACCEPTED — all 9 tickets complete, all wave gates passed, final gate passed. **Next:** user `gate_a_spend` re-approval before any real paid generation.
+**Read first:** `reports/recovery/S9/CONTINUE.md` (program state), then `reports/recovery/S9/STATE.json` (sprint state), then the validation reports in `reports/recovery/S9/evidence/`.
 
-## What this sprint is
+## What this sprint delivered
 
-Close the 7 material gaps (CONTINUE.md §3.1–§3.7) at the root cause, in pipeline code, **before** any further paid call. 3 waves, 7 tickets, one ticket per session.
+Closed 7 material gaps (CONTINUE.md §3.1–§3.7) at the root cause, in pipeline code. 3 waves, 9 tickets (expanded from original 7 to include S9-C08 STAGE_INVOKERS leak fix and S9-C09 research extraction).
 
 ```
-W1: S9-C01 (duration) | S9-C02 (D-015) | S9-C03 (tts cost)   — independent
-W2: S9-C04 (storyboard mix, needs C01) | S9-C05 (slotting, needs C02)
-W3: S9-C06 (generation adapter, needs C04+C05) | S9-C07 (assembly, needs C04)
+W1: S9-C01 (duration) | S9-C02 (D-015) | S9-C03 (tts cost) | S9-C08 (leak) | S9-C09 (research) — ALL ACCEPTED
+W2: S9-C04 (storyboard mix) | S9-C05 (slotting + hero slices) — ALL ACCEPTED
+W3: S9-C06 (generation: prompt + --image + --audio + --negative_prompt) | S9-C07 (assembly: graphics + music) — ALL ACCEPTED
 ```
 
-## Hard rules for any agent picking this up
+## Hard rules (still apply)
 
-1. **One ticket per session.** Load `STATE.json` + the ticket; do `LOAD → BASELINE → REPRODUCE → IMPLEMENT → FOCUSED TEST → AUDIT → REPAIR → VALIDATE → RECORD`.
+1. **No paid calls without user gate_a_spend re-approval.** Dry-run mode (HIGGSFIELD_DRY_RUN=1) allows human inspection of the exact hero request before approving spend.
 2. **No-hacks (I2):** fix the producing/consuming script. Never edit intermediate JSON/state/DB rows/outputs.
-3. **No paid calls in any ticket (I6).** Prove with `--dry-run`, mocks, `FakeProvider`, deterministic fixtures, `YT_TEST_MODE=1`. Hard cap $5; ~$0.90 already spent. No automatic paid retry.
-4. **Reproduce before fixing.** Write a failing test that demonstrates the defect first.
-5. **Don't touch the real run** (`db/s9_real.db`) except to read it for reproduction evidence.
-6. **Append** every action to `EXECUTION_LOG.jsonl`. Update `STATE.json` (status, active_ticket, wave gates) as you go. An auditor reviews but does not repair; only an independent validator accepts.
+3. **Reproduce before fixing.** Write a failing test that demonstrates the defect first.
+4. **Don't touch the real run** (`db/s9_real.db`) except to read it for reproduction evidence.
 
-## Starting S9-C01 (recommended first ticket)
+## Evidence
 
-```bash
-cd /home/jacobw/YTchannel
-git log --oneline -1                       # expect 3f1c9fa
-YT_TEST_MODE=1 python3 -m pytest -q        # expect ~1051 passed (baseline)
-# then open reports/recovery/S9/tickets/S9-C01.md and follow it
-```
+- **Full suite:** 1089 passed, 1 skipped, 1 xfailed, 2 xpassed, exit 0, 1018.80s
+- **Focused tests:** 24/24 (C02: 5, C05: 6, C06: 10, C07: 3)
+- **Wave gate report:** `reports/recovery/S9/evidence/S9-wave-gate-validation.md`
+- **Final gate report:** `reports/recovery/S9/evidence/S9-final-gate-validation.md`
+- **Per-ticket reports:** `reports/recovery/S9/evidence/S9-C*-validation.md`
 
-## Wave gates (when to stop and validate)
+## Residual risks
 
-- **W1:** over-budget script rejected · re-compile = one active unit set · mocked TTS writes cost row · suite green · zero paid calls.
-- **W2:** ~75s compliant script + review_storyboard-passing storyboard + slotted plan with hero slices, all in test/dry-run · suite green · zero paid calls.
-- **W3:** dry-run hero payload has prompt+image+audio · adapter builds --audio/--image under --dry-run · manifest has graphic+music · suite green · zero paid calls. **Then STOP — request user `gate_a_spend` re-approval before any real generation.**
-
-## Blockers
-
-- **BLK-HUMAN-SPEND:** real generation blocked until W3 done + user re-approves spend.
+1. **BLK-HUMAN-SPEND:** Real paid generation blocked until user re-approves `gate_a_spend`. Dry-run mode available for inspection.
+2. **Music quality:** Local synthesis (piano+violin). Future: more moods/instruments or committed royalty-free asset.
+3. **Graphics rendering:** Basic ffmpeg drawtext font. Future: brand font or PNG rendering.
+4. **Suite runtime:** ~17 min (was ~12 min pre-S9-C) due to music bed generation in crash recovery tests.

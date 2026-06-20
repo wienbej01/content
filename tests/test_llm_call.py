@@ -43,7 +43,7 @@ def test_utility_task_uses_auto():
     cfg = lc.load_config()
     name, profile = lc.resolve_profile(cfg, "json_normalization")
     assert name == "auto_utility"
-    assert profile["model"] == "auto"
+    assert profile["model"] == "kilo/deepseek/deepseek-v4-flash"
     print("  ✓ utility tasks default to auto_utility")
 
 
@@ -52,7 +52,7 @@ def test_creative_task_defaults_sonnet():
     cfg = lc.load_config()
     name, profile = lc.resolve_profile(cfg, "storyboard_review")
     assert name == "sonnet_creative"
-    assert profile["model"] == "claude-sonnet-4.6"
+    assert profile["model"] == "kilo/deepseek/deepseek-v4-flash"
     print("  ✓ creative tasks default to sonnet_creative")
 
 
@@ -130,7 +130,7 @@ def test_dry_run_no_subprocess(capsys=None):
     out = buf.getvalue()
     assert data is None  # no actual call
     assert "sonnet_creative" in out
-    assert "claude-sonnet-4.6" in out
+    assert "kilo/deepseek/deepseek-v4-flash" in out
     print("  ✓ dry_run prints plan without calling kiro-cli")
 
 

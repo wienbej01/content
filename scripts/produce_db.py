@@ -532,7 +532,7 @@ def _visual_intent_for(shot_type: str, narration: str) -> dict:
         "still_kenburns": "Slow Ken-Burns drift across the still.",
     }.get(shot_type, "Slow controlled camera movement.")
     return {
-        "visual_function": "render_graphic" if is_graphic else "illustrate",
+        "visual_function": "demonstrate" if is_graphic else "illustrate",
         "concept_key": concept,
         "concept_hash": concept,
         "narrative_claim": clause,
@@ -697,6 +697,60 @@ def _validate_hero_slot_min(span_id, slot_index, slot_duration_ms, min_clip_ms):
 _HERO_SHOT_TYPE_ALIASES = {"hero_lipsync": "talking_head_hero"}
 
 
+def _compose_generation_prompt(visual_intent: dict, shot_type: str,
+                                graphic_text_content: str | None) -> str:
+    """S9-C06: Compose a real per-clip prompt from visual_intent + shot_type.
+
+    Honors constraints.json negative prompts and text/audio policy: graphic beats
+    use deterministic text (graphic_text_content), not a generative prompt. The prompt
+    must NOT delegate graphic text to the model (S5/S7 rule).
+    """
+    # Graphic beats: deterministic text, not a generative prompt
+    if graphic_text_content:
+        return f"Title card: {graphic_text_content}"
+
+    # Hero / b-roll: compose from visual_intent
+    visual_function = visual_intent.get("visual_function", "illustrate")
+    narrative_claim = visual_intent.get("narrative_claim", "")
+    information_to_show = visual_intent.get("information_to_show", "")
+    viewer_takeaway = visual_intent.get("viewer_takeaway", "")
+
+    parts = []
+    if shot_type == "hero_lipsync" or shot_type in _HERO_SHOT_TYPE_ALIASES:
+        parts.append("Photorealistic cinematic medium close-up of James, the same person as the reference image.")
+    else:
+        parts.append(f"Cinematic {visual_function} shot.")
+
+    if narrative_claim:
+        parts.append(narrative_claim)
+    if information_to_show:
+        parts.append(f"Show: {information_to_show}.")
+    if viewer_takeaway:
+        parts.append(f"Convey: {viewer_takeaway}.")
+
+    return " ".join(parts)
+
+
+def _select_hero_reference_image(routing: dict, hero_beat_index: int) -> str | None:
+    """S9-C06: Select a deterministic speaking-frame reference for hero_lipsync.
+
+    Reads the active_set from model_routing.yaml lipsync_references and rotates
+    across ALL frames in the set (round-robin, no two consecutive hero beats reuse
+    the same frame). Honors a beat's explicit camera_angle_id when it matches a
+    frame's ``angle`` (handled by the caller via the beat's visual_intent).
+    """
+    refs = routing.get("lipsync_references", {})
+    active_set_name = refs.get("active_set", "navy_sweater_library")
+    sets = refs.get("sets", {})
+    active_set = sets.get(active_set_name, {})
+    frames = active_set.get("frames", [])
+
+    if not frames:
+        return None
+
+    return frames[hero_beat_index % len(frames)].get("path")
+
+
 def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     from tts_service import compile_render_plan, reconcile_storyboard_with_timing
     from broll_semantic import route_render_mode
@@ -718,6 +772,7 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     lipsync_rules = constraints.get("lipsync_render_rules", {})
     min_clip_sec = lipsync_rules.get("min_clip_duration_sec", 4.0)
     max_clip_sec = lipsync_rules.get("max_clip_duration_sec", 15.0)
+    negative_constraints = constraints.get("default_negative_constraints", "")
 
     # S2-T01: Reconciliation is now a separate stage (reconcile_timing).
     # compile_media assumes spans are already reconciled with creative beats.
@@ -739,6 +794,7 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
 
     estimated_cost = 0.0
     span_specs = []
+    hero_beat_index = 0  # S9-C06: round-robin hero reference selection
     for s in spans:
         shot_type = (s["shot_type"] or "broll").lower()
         routed_type = _HERO_SHOT_TYPE_ALIASES.get(shot_type, shot_type)
@@ -762,8 +818,8 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
             audio_policy = "HERO_SYNC_LOCKED"
             final_audio_source = "master_narration"
             provider_audio_usage = "diagnostic_only"
-        elif shot_type in ("still_kenburns", "local_graphic"):
-            asset_type = shot_type
+        elif shot_type in ("still_kenburns", "graphic_progressive", "graphic_title_card", "kinetic_text", "local_graphic"):
+            asset_type = "local_graphic" if shot_type != "still_kenburns" else shot_type
             audio_policy = "SILENT_GRAPHIC"
             final_audio_source = "none"
             provider_audio_usage = "discarded"
@@ -804,6 +860,20 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # concept key/hash, render-mode hints) into the spec.
         spec.update(visual_intent)
         spec["render_mode"] = route_render_mode(spec)
+
+        # S9-C06: Compose real per-clip prompt + select hero reference image.
+        # Prompt reflects visual_intent (not the generic "educational video" default).
+        # Hero reference is a deterministic speaking frame from the active set.
+        prompt = _compose_generation_prompt(visual_intent, shot_type, graphic_text_content or None)
+        spec["prompt"] = prompt
+        if negative_constraints:
+            spec["negative_prompt"] = negative_constraints
+
+        if audio_policy == "HERO_SYNC_LOCKED":
+            hero_ref = _select_hero_reference_image(routing, hero_beat_index)
+            if hero_ref:
+                spec["image_path"] = str(ROOT / hero_ref) if not Path(hero_ref).is_absolute() else hero_ref
+            hero_beat_index += 1
 
         # S9-C05: Compute slots for long beats (exceeding max_clip_duration).
         # Slots tile the span exactly (contiguous, no gaps/overlaps) so the visual bed
@@ -911,6 +981,23 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         )
         hero_slice_count = len(slices)
 
+        # S9-C06: Thread the audio slice path into each hero unit's metadata so
+        # invoke_generate_media can read it and pass --audio to the adapter.
+        for slice_info in slices:
+            unit_id = slice_info["render_unit_id"]
+            slice_path = str(slice_info["slice_path"])
+            # Read existing metadata, add audio_path, write back
+            with _db.transaction(None) as conn:
+                unit_row = conn.execute(
+                    "SELECT metadata_json FROM render_units WHERE id=?", (unit_id,)
+                ).fetchone()
+                meta = json.loads(unit_row["metadata_json"]) if unit_row["metadata_json"] else {}
+                meta["audio_path"] = slice_path
+                conn.execute(
+                    "UPDATE render_units SET metadata_json=?, updated_at=? WHERE id=?",
+                    (json.dumps(meta), _db._now(), unit_id)
+                )
+
     return {
         "status": "saved",
         "plan_revision_id": result["plan_revision_id"],
@@ -1010,7 +1097,13 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             req_sec = (req_payload.get("duration_ms") or 5000) / 1000.0
             adapter = get_provider_adapter(job["provider"], config={"duration_sec": req_sec})
             try:
-                poll_result = adapter.poll(job["external_job_id"] or f"ext_{job['id']}")
+                ext_id = job["external_job_id"]
+                if not ext_id:
+                    raise RuntimeError(
+                        f"Provider job {job['id']} has no external_job_id — "
+                        f"adapter submit never ran or failed to store the UUID"
+                    )
+                poll_result = adapter.poll(ext_id)
                 new_status = poll_result.get("status", "completed")
             except Exception as e:
                 fail_provider_job(
@@ -1022,7 +1115,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
             poll_provider_job(
                 provider_job_id=job["id"],
-                external_job_id=job.get("external_job_id") or f"ext_{job['id']}",
+                external_job_id=ext_id,
                 new_status=new_status,
                 db_path=None
             )
@@ -1035,7 +1128,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 dl_dir.mkdir(parents=True, exist_ok=True)
                 output_path = dl_dir / f"{job['id']}.mp4"
                 try:
-                    downloaded = adapter.download(job["external_job_id"] or f"ext_{job['id']}", output_path)
+                    downloaded = adapter.download(ext_id, output_path)
                     validation = validate_downloaded_artifact(downloaded)
                 except Exception as e:
                     fail_provider_job(
@@ -1074,7 +1167,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         conn = _db.connect(None)
         units_to_generate = conn.execute(
             """SELECT ru.id, ru.label, ru.asset_type, ru.model, ru.audio_policy,
-                      ru.required_duration_ms, cr.id as change_request_id
+                      ru.required_duration_ms, ru.metadata_json, cr.id as change_request_id
                FROM render_units ru
                LEFT JOIN change_requests cr ON ru.id = cr.subject_id AND cr.status='open' AND cr.target_stage='generate_media'
                WHERE ru.production_id=? AND (ru.status='ordered' OR (ru.status='change_requested' AND cr.target_stage='generate_media'))
@@ -1085,13 +1178,26 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
         for u in units_to_generate:
             progressed = True
+            # S9-C06: Read prompt/image_path/audio_path from metadata
+            meta = json.loads(u["metadata_json"]) if u["metadata_json"] else {}
             request_payload = {
                 "asset_type": u["asset_type"],
                 "model": u["model"],
                 "duration_ms": u["required_duration_ms"],
                 "audio_policy": u["audio_policy"],
+                "prompt": meta.get("prompt", "educational video"),
+                "duration_sec": u["required_duration_ms"] / 1000.0,
             }
-            submit_provider_job(
+            # Hero units: include image_path + audio_path
+            if meta.get("image_path"):
+                request_payload["image_path"] = meta["image_path"]
+            if meta.get("audio_path"):
+                request_payload["audio_path"] = meta["audio_path"]
+            # S9-C06 F-002: include negative_prompt from constraints.json
+            if meta.get("negative_prompt"):
+                request_payload["negative_prompt"] = meta["negative_prompt"]
+
+            job = submit_provider_job(
                 production_id=production_id,
                 render_unit_id=u["id"],
                 provider="higgsfield",
@@ -1099,6 +1205,32 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 request_payload=request_payload,
                 db_path=None
             )
+
+            # Call the real adapter to submit to Higgsfield and get the real job UUID
+            from provider_adapter import get_provider_adapter
+            req_sec = (request_payload.get("duration_ms") or 5000) / 1000.0
+            adapter = get_provider_adapter("higgsfield", config={"duration_sec": req_sec})
+            idem_key = job.get("idempotency_key", job["id"])
+            try:
+                submit_result = adapter.submit(request_payload, idempotency_key=idem_key)
+                ext_job_id = submit_result.get("external_job_id")
+                if ext_job_id:
+                    from media_service import poll_provider_job
+                    poll_provider_job(
+                        provider_job_id=job["id"],
+                        external_job_id=ext_job_id,
+                        new_status=submit_result.get("status", "submitted"),
+                        db_path=None
+                    )
+            except Exception as e:
+                from media_service import fail_provider_job
+                fail_provider_job(
+                    provider_job_id=job["id"],
+                    error=f"Submit failed: {e}",
+                    db_path=None
+                )
+                raise RuntimeError(f"Provider job {job['id']} submit failed: {e}")
+
             submitted_count += 1
 
             if u["change_request_id"]:

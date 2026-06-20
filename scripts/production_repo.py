@@ -526,6 +526,14 @@ def plan_render_units(
                         raise RenderUnitError("B-roll semantic contract violations for " + spec.get("label", "?") + ":\n" + "\n".join(broll_issues))
 
                 md = {"prompt_revision_id": spec.get("prompt_revision_id")}
+                # S9-C06: Store prompt + image_path in metadata so generate can read them
+                if spec.get("prompt"):
+                    md["prompt"] = spec["prompt"]
+                if spec.get("image_path"):
+                    md["image_path"] = spec["image_path"]
+                # S9-C06 F-002: Store negative_prompt so adapter can pass --negative_prompt
+                if spec.get("negative_prompt"):
+                    md["negative_prompt"] = spec["negative_prompt"]
                 if spec.get("metadata"):
                     md.update(spec["metadata"])
 

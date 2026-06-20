@@ -39,22 +39,85 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
         rate = 0.06 if "pro" in model else 0.04
         return round(rate * duration, 2)
 
+    # Per-model param schemas (from `higgsfield model get <model>`)
+    MODEL_PARAMS = {
+        "seedance_2_0": {
+            "mode": ("std", "fast"),
+            "aspect_ratio": ("auto", "16:9", "9:16", "4:3", "3:4", "1:1", "21:9"),
+            "resolution": ("480p", "720p", "1080p"),
+            "has_resolution": True,
+            "audio_param": ("generate_audio", ("true", "false")),
+        },
+        "kling3_0": {
+            "mode": ("pro", "std", "4k"),
+            "aspect_ratio": ("16:9", "9:16", "1:1"),
+            "has_resolution": False,
+            "audio_param": ("sound", ("on", "off")),
+        },
+    }
+
     def submit(self, payload: dict, idempotency_key: str) -> dict:
         prompt = payload.get("prompt", "educational video")
         duration = payload.get("duration_sec", payload.get("duration", 5))
         aspect = payload.get("aspect_ratio", "16:9")
-        resolution = payload.get("resolution", "480p")
-        mode = payload.get("mode", "fast")
+        model = payload.get("model", "seedance_2_0")
+
+        schema = self.MODEL_PARAMS.get(model, self.MODEL_PARAMS["seedance_2_0"])
 
         args = [
             "higgsfield", "generate", "create",
-            payload.get("model", "seedance_2_0"),
+            model,
             "--prompt", str(prompt),
             "--duration", str(int(duration)),
             "--aspect_ratio", str(aspect),
-            "--resolution", str(resolution),
-            "--mode", str(mode),
         ]
+
+        # Mode: use payload value if valid for this model, else use model default
+        mode = payload.get("mode")
+        if mode and mode in schema["mode"]:
+            args.extend(["--mode", str(mode)])
+        else:
+            args.extend(["--mode", schema["mode"][0]])  # default = first allowed
+
+        # Resolution: only for models that support it
+        if schema.get("has_resolution"):
+            resolution = payload.get("resolution", "480p")
+            if resolution in schema["resolution"]:
+                args.extend(["--resolution", str(resolution)])
+            else:
+                args.extend(["--resolution", "480p"])
+
+        # Audio: seedance uses generate_audio (bool), kling uses sound (on/off)
+        audio_param, audio_vals = schema["audio_param"]
+        args.extend([f"--{audio_param}", audio_vals[0]])  # default = first (true/on)
+
+        # S9-C06: Hero units carry --image (reference frame) + --audio (master slice).
+        # --audio only attaches to seedance_2_0 (I4 invariant: only seedance has lipsync).
+        image_path = payload.get("image_path")
+        audio_path = payload.get("audio_path")
+
+        if image_path:
+            args.extend(["--image", str(image_path)])
+
+        if audio_path:
+            # Fail loud if a non-seedance model requests --audio (I4 invariant)
+            if "seedance" not in model:
+                raise ProviderAdapterError(
+                    f"I4 invariant violation: --audio requires seedance_2_0, "
+                    f"but model={model} was requested with audio_path={audio_path}. "
+                    f"Hero lipsync audio is seedance-only."
+                )
+            args.extend(["--audio", str(audio_path)])
+
+        # S9-C06: Dry-run mode returns constructed args without calling subprocess
+        if os.environ.get("HIGGSFIELD_DRY_RUN") == "1":
+            return {
+                "dry_run": True,
+                "args": args,
+                "payload": payload,
+                "idempotency_key": idempotency_key,
+            }
+
         r = subprocess.run(args, capture_output=True, text=True)
         if r.returncode != 0:
             raise ProviderAdapterError(f"Higgsfield submit failed: {r.stderr[:500]}")

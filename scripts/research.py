@@ -28,6 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 KIRO = "kiro-cli"
+KILO = "kilo"
+KILO_MODEL = "kilo/deepseek/deepseek-v4-flash"
 import os
 import urllib.parse
 import urllib.request
@@ -115,6 +117,19 @@ generic content. Pillars: AI for professional leverage (primary), learning/produ
 personal OS, career capital & wealth frameworks. Every video needs an ORIGINAL framework or
 insight + at least one concrete, sourced data point. (No other channel videos exist yet.)"""
 
+# System prompt enforcing strict JSON-only output from the model.
+# Prepended as "SYSTEM:\n...\n\nUSER:\n..." so deepseek treats it as a system instruction.
+RESEARCH_SYSTEM_PROMPT = """You are a JSON-only research API for a premium educational YouTube channel.
+
+ABSOLUTE OUTPUT RULE: Your entire response MUST be a single valid JSON object and nothing else.
+- No prose. No markdown. No bullet points. No preamble. No explanation. No summary.
+- Do NOT write sentences like "Here is the research" or "I have identified...".
+- Do NOT use ```json fences. Output the raw JSON object directly.
+- The ONLY acceptable response format is: { "seed": ..., "angle": ..., ... }
+- If you cannot produce valid sourced JSON, output exactly: NO_WEB_TOOL
+
+Any response that is not a raw JSON object or the string NO_WEB_TOOL is a critical failure."""
+
 
 def build_research_prompt(seed, video_type, search_results=None):
     from episode_format import format_block
@@ -125,12 +140,15 @@ def build_research_prompt(seed, video_type, search_results=None):
             tag = "[REPUTABLE]" if r.get("reputable") else "[web]"
             lines.append(f"{tag} [{i}] {r['title']}\n    URL: {r['url']}\n    {r.get('description','')}")
         results_block = (
-            "\n\nLIVE WEB SEARCH RESULTS (real, retrieved just now — ground your claims in THESE; "
-            "you may cite their URLs directly. Do NOT invent URLs or studies not represented here. "
-            "If a result is a secondary/popular source, treat it as a pointer to the underlying "
-            "primary study and cite accordingly):\n\n" + "\n\n".join(lines))
-    return f"""You are the RESEARCHER for an educational YouTube channel. Real web search results are
-provided below. Produce sourced research material a scriptwriter can build a video from.
+            "\n\nLIVE WEB SEARCH RESULTS (retrieved just now via Brave — ground every claim in "
+            "THESE results only. Cite URLs exactly as they appear below. Do NOT invent URLs, "
+            "statistics, or studies not in these results. If a result is a secondary/popular "
+            "source, treat it as a pointer to the underlying primary study and cite accordingly):"
+            "\n\n" + "\n\n".join(lines))
+
+    user_block = f"""You are the RESEARCHER for an educational YouTube channel.
+Real web search results are provided below. Produce high-quality sourced research material
+that a scriptwriter can build a compelling, credible video from.
 
 {CHANNEL_CONTEXT}
 
@@ -139,42 +157,45 @@ provided below. Produce sourced research material a scriptwriter can build a vid
 SEED TOPIC: "{seed}"
 {results_block}
 
-SOURCE QUALITY GUIDANCE:
-PREFER sources from reputable domains (marked [REPUTABLE] above): academic journals,
-universities, business schools, management journals, reputable tech/AI publications.
-Treat blogs/listicles/marketing pages (marked [web]) as weak; use them only for leads,
-not as primary citations. TED talks and popular media = trend input ONLY, never a primary source.
+SOURCE QUALITY RULES (non-negotiable):
+- PREFER [REPUTABLE] sources: peer-reviewed journals, university research, HBR, MIT Sloan,
+  McKinsey, Nature, Science, arXiv, PubMed, IEEE, ACM, .edu domains.
+- Treat [web] sources as weak leads only — never cite as a primary source.
+- TED talks and popular media = trend signal ONLY, never a primary citation.
+- Each key_claim MUST cite a URL that appears verbatim in the results above.
+- Do NOT invent, approximate, or extrapolate statistics. Use the exact figures from sources.
+- Prefer SPECIFIC quantitative findings (percentages, study sizes, named researchers, years)
+  over vague qualitative claims.
 
 YOUR TASK:
-1. From the search results above (and your knowledge to interpret them), identify the most
-   credible, SPECIFIC, and SURPRISING findings (peer-reviewed studies, named researchers, real
-   statistics with dates). Prefer primary sources; treat popular articles as pointers to the
-   underlying study.
-2. Use at least THREE independent credible sources. For each claim you hand the writer, record
-   the EXACT source (title, author or site, year, URL FROM THE RESULTS ABOVE). Do NOT invent or
-   approximate statistics, and do NOT cite a URL that is not in the results above.
-3. Identify the single most counterintuitive / share-worthy angle for this audience.
-4. Suggest 3-5 emotional, curiosity-driven titles.
-
-TARGET: Produce 6-10 well-sourced key_claims (minimum 4, more if the material supports it).
-Do NOT pad with weak or invented claims to hit a number — quality over quantity, but do not
-stop at the bare minimum if good sources exist.
+1. Identify the most credible, specific, and SURPRISING findings from the search results.
+   Extract named statistics, study authors, publication years, and exact figures.
+2. Find the single most counterintuitive, share-worthy angle for a time-poor professional
+   audience that is skeptical of generic AI productivity content.
+3. Produce 6-10 well-sourced key_claims (minimum 4). Each claim must be a precise, factual
+   statement with an exact source citation from the results above.
+4. Write 4-8 paragraphs of synthesised background text the writer can draw from directly.
+5. Suggest 3-5 emotionally compelling, curiosity-driven titles suited to the format.
 
 SOURCING IS A LEGAL NON-NEGOTIABLE: every key_claim MUST map to a real URL from the results.
-If the results are empty or unusable, reply with EXACTLY: NO_WEB_TOOL (do not fabricate).
+If the results are empty or unusable, output exactly: NO_WEB_TOOL
 
-Return ONLY JSON:
+OUTPUT FORMAT — respond with this exact JSON structure and no other text:
 {{
   "seed": "{seed}",
-  "angle": "<the most counterintuitive, audience-relevant framing>",
+  "angle": "<single most counterintuitive, audience-relevant framing — one sentence>",
   "key_claims": [
-    {{"claim": "<precise factual statement>", "source": {{"title": "...", "author_or_site": "...", "year": "...", "url": "..."}}}}
+    {{
+      "claim": "<precise, quantitative factual statement>",
+      "source": {{"title": "...", "author_or_site": "...", "year": "...", "url": "<exact URL from results>"}}
+    }}
   ],
-  "research_text": "<4-8 paragraphs of synthesised, source-grounded background the writer can use>",
+  "research_text": "<4-8 paragraphs of synthesised, source-grounded background>",
   "sources": [{{"title": "...", "url": "...", "year": "..."}}],
   "suggested_titles": ["...", "..."]
-}}
-"""
+}}"""
+
+    return f"SYSTEM:\n{RESEARCH_SYSTEM_PROMPT}\n\nUSER:\n{user_block}"
 
 
 def _extract_json(stdout):
@@ -256,7 +277,56 @@ def gather_research(seed, video_type="short"):
     return results, prompt
 
 
-def research(seed, video_type="short", model="claude-sonnet-4.6", timeout=300,
+def call_kilo_synthesis(prompt, model=KILO_MODEL, timeout=300, verbose=False):
+    """Run kilo subprocess for research synthesis and return raw stdout (NDJSON).
+
+    Uses `kilo run --model <model> --format json` with prompt piped via stdin.
+    kilo outputs NDJSON events on stdout. The caller uses _extract_json() to parse.
+    """
+    cmd = [KILO, "run", "--model", model, "--format", "json"]
+    if verbose:
+        print(f"  cmd: {KILO} run --model {model} --format json "
+              f"[stdin: {len(prompt)} chars]", file=sys.stderr)
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           input=prompt)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"kilo did not respond within {timeout}s (model {model}). "
+            "Check `kilo models` and that your session is authenticated.")
+    elapsed = time.time() - t0
+    if verbose:
+        print(f"  elapsed: {elapsed:.1f}s, exit: {r.returncode}", file=sys.stderr)
+    if r.returncode != 0:
+        raise RuntimeError(f"kilo exited {r.returncode}: {r.stderr[:200]}")
+    # Parse NDJSON: extract text from {"type":"text","part":{"text":"..."}} events
+    parts = []
+    for line in r.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+            if event.get("type") == "text":
+                text = event.get("part", {}).get("text", "")
+                if text:
+                    parts.append(text)
+        except json.JSONDecodeError:
+            continue
+    return "".join(parts).strip() if parts else r.stdout
+
+
+# ARCHIVED: kiro-cli synthesis method, not called. Re-enable by switching research()
+# to use the kiro-cli subprocess call below.
+# cmd = [KIRO, "chat", "--no-interactive", "--model", model, "--wrap", "never",
+#        "--trust-tools=", prompt]
+# r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+#                    stdin=subprocess.DEVNULL)
+# raw = r.stdout
+
+
+def research(seed, video_type="short", model=KILO_MODEL, timeout=300,
              dry_run=False, transcript_path=None):
     """Deterministic web research: Python Brave-searches the seed, injects real results, then
     the LLM synthesizes a sourced brief. Returns (brief_dict_or_None, prompt, raw_output)."""
@@ -271,18 +341,13 @@ def research(seed, video_type="short", model="claude-sonnet-4.6", timeout=300,
                 f"# Researcher\n\nNO web results (Brave key missing or search failed).\n")
         return {"error": "NO_WEB_TOOL"}, prompt, "(no search results)"
     # 2) LLM synthesis — tool-less call (safe), results already in the prompt.
-    cmd = [KIRO, "chat", "--no-interactive", "--model", model, "--wrap", "never",
-           "--trust-tools=", prompt]
-    t0 = time.time()
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
-                       stdin=subprocess.DEVNULL)
-    raw = r.stdout
+    raw = call_kilo_synthesis(prompt, model=model, timeout=timeout)
     if transcript_path:
         Path(transcript_path).write_text(
             f"# Researcher — prompt + output\n\n## WEB SEARCH ({len(results)} results)\n\n" +
             "\n".join(f"- {x['title']} — {x['url']}" for x in results) +
             f"\n\n## PROMPT\n\n```\n{prompt}\n```\n\n"
-            f"## RAW OUTPUT ({time.time()-t0:.0f}s, model {model})\n\n```\n{raw}\n```\n")
+            f"## RAW OUTPUT (model {model})\n\n```\n{raw}\n```\n")
     data, _ = _extract_json(raw)
     return data, prompt, raw
 
@@ -291,7 +356,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("seed")
     ap.add_argument("--format", dest="video_type", default="short")
-    ap.add_argument("--model", default="claude-sonnet-4.6")
+    ap.add_argument("--model", default=KILO_MODEL)
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--output")
     ap.add_argument("--transcript")

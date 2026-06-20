@@ -304,8 +304,8 @@ def test_generate_media_async_state_machine(monkeypatch):
         mock_connect.return_value = mock_conn
         empty = MagicMock(fetchall=MagicMock(return_value=[]))
         two_units = MagicMock(fetchall=MagicMock(return_value=[
-            {"id": "ru_1", "label": "B001", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None},
-            {"id": "ru_2", "label": "B002", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "change_request_id": None}
+            {"id": "ru_1", "label": "B001", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "metadata_json": None, "change_request_id": None},
+            {"id": "ru_2", "label": "B002", "asset_type": "generated_video", "model": "kling3_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "required_duration_ms": 5000, "metadata_json": None, "change_request_id": None}
         ]))
         mock_conn.execute.side_effect = [empty, two_units, empty, empty, empty]
 
