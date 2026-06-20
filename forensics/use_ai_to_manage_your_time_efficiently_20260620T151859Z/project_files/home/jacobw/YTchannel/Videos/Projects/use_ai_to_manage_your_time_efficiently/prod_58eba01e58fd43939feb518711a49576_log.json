@@ -1,0 +1,62 @@
+{
+  "id": "prod_58eba01e58fd43939feb518711a49576",
+  "manifest": "/tmp/ytch_adapter_7wzd8v0y/tmpyzrba816.json",
+  "started_at": "2026-06-20T21:58:55+0800",
+  "formats": {
+    "16x9": {
+      "path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/prod_58eba01e58fd43939feb518711a49576_16x9.mp4",
+      "duration_s": 167.6,
+      "build_time_s": 136.3,
+      "volume": {
+        "mean_volume": -20.1,
+        "max_volume": -3.5
+      }
+    }
+  },
+  "pacing": {
+    "wps_per_segment": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "speeds": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "target_wps": null
+  },
+  "finished_at": "2026-06-20T22:01:11+0800",
+  "music": {
+    "enabled": true,
+    "path": "",
+    "filename": "",
+    "source_duration": null,
+    "final_video_duration": 167.6,
+    "volume_db": -28,
+    "fade_in": 1.5,
+    "fade_out": 2.0,
+    "loop": true,
+    "looped": null
+  }
+}

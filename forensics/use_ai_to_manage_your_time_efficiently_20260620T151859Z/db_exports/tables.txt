@@ -1,0 +1,10 @@
+approval_requests       document_dependencies   productions           
+artifact_dependencies   document_revisions      provider_jobs         
+artifacts               experiments             publications          
+change_requests         hero_covered_intervals  render_units          
+concept_memory          hero_group_members      schema_migrations     
+config_snapshots        hero_render_groups      script_segments       
+content_items           jobs                    source_citations      
+cost_events             metric_snapshots        stage_runs            
+creative_beats          outbox_messages         timeline_spans        
+deliverables            production_events       validations           

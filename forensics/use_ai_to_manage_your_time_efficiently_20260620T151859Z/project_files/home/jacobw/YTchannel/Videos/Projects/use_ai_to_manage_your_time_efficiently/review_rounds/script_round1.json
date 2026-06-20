@@ -1,0 +1,160 @@
+{
+  "report": {
+    "weighted_mean": 3.3,
+    "has_mandatory": true,
+    "veto_failed": true,
+    "passed": false,
+    "blocking_issues": [
+      {
+        "persona": "audience",
+        "issue": "No emotional charge anywhere. The script is entirely analytical \u2014 a parade of study citations (Stanford, HBR, McKinsey, MIT Sloan). A mid-career professional feels informed but not moved. Without a moment of surprise, vindication, provocation, or inspiration, there is no reason to send this to someone."
+      }
+    ],
+    "recommendations": [
+      {
+        "persona": "audience",
+        "fix": "Open with a concrete, relatable scene instead of the Stanford stat: e.g. 'You answered 40 emails, auto-generated a deck, and cleared your inbox in 15 minutes flat. So why does your calendar show an extra two hours tonight?' \u2014 makes the paradox felt, not just cited."
+      },
+      {
+        "persona": "audience",
+        "fix": "Cut one or two of the four citations (HBR or MIT Sloan). Replace that space with a single emotionally charged sentence: e.g. 'The research says 176% more efficient. And yet two-thirds of knowledge workers say they feel more overwhelmed than before AI. Something is broken.'"
+      },
+      {
+        "persona": "audience",
+        "fix": "Sharpen the CTA: replace the longer rhetorical close with a binary pinch \u2014 'Are you working smarter, or just working faster?' then cut straight to the subscribe ask. More sting, fewer words."
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Verify the '176%' figure against the actual Stanford article text before publishing. The source URL exists but the precise number is unconfirmed from the provided research material."
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Replace 'Let me know in the comments' with a more James-appropriate invitation."
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Tighten the closing sentence to under 30 words for better register fit."
+      }
+    ],
+    "verdicts": [
+      {
+        "task": "audience_review",
+        "persona": "audience",
+        "artifact": "script",
+        "status": "fail",
+        "scores": {
+          "hook": 4,
+          "reason_to_stay": 3,
+          "open_loops": 3,
+          "save_worthy": 2,
+          "share_worthy": 2,
+          "payoff": 3,
+          "cta": 4
+        },
+        "overall_score": 3.0,
+        "predicts": {
+          "watch_through": true,
+          "save": false,
+          "share": false
+        },
+        "blocking_issues": [
+          "No emotional charge anywhere. The script is entirely analytical \u2014 a parade of study citations (Stanford, HBR, McKinsey, MIT Sloan). A mid-career professional feels informed but not moved. Without a moment of surprise, vindication, provocation, or inspiration, there is no reason to send this to someone."
+        ],
+        "warnings": [
+          "Save-worthiness is near-zero: a 75-second teaser offers no actionable framework to bookmark. Tolerable for the format, but dampens algorithm signal.",
+          "Hook opens with a generalized fact rather than a specific, relatable scene. The viewer hasn't felt the paradox yet \u2014 they've been told about it."
+        ],
+        "recommended_fixes": [
+          "Open with a concrete, relatable scene instead of the Stanford stat: e.g. 'You answered 40 emails, auto-generated a deck, and cleared your inbox in 15 minutes flat. So why does your calendar show an extra two hours tonight?' \u2014 makes the paradox felt, not just cited.",
+          "Cut one or two of the four citations (HBR or MIT Sloan). Replace that space with a single emotionally charged sentence: e.g. 'The research says 176% more efficient. And yet two-thirds of knowledge workers say they feel more overwhelmed than before AI. Something is broken.'",
+          "Sharpen the CTA: replace the longer rhetorical close with a binary pinch \u2014 'Are you working smarter, or just working faster?' then cut straight to the subscribe ask. More sting, fewer words."
+        ],
+        "may_proceed": false
+      },
+      {
+        "task": "brand_voice_review",
+        "persona": "brand_voice",
+        "status": "pass",
+        "scores": {
+          "james_voice": 4,
+          "sourcing": 3,
+          "original_framework": 3,
+          "forbidden_language": 4,
+          "audience_fit": 5
+        },
+        "overall_score": 3.8,
+        "blocking_issues": [],
+        "warnings": [
+          {
+            "severity": "medium",
+            "element": "001_hook",
+            "issue": "Claim of '176% more efficient on digital tasks' attributed to Stanford study cannot be confirmed from the provided source research text. The Stanford URL (news.stanford.edu/stories/2026/04/digital-chores-productivity-boost-research) is listed but its full content is not in the research material provided. This specific statistic must be verified against the article before publication.",
+            "recommendation": "Either confirm the 176% figure from the actual Stanford article text, or replace with language tied more closely to the research provided, e.g., 'A Stanford study found that generative AI delivers significant efficiency gains on digital tasks. But those gains have an unexpected consequence.'"
+          },
+          {
+            "severity": "low",
+            "element": "004_cta",
+            "issue": "'Let me know in the comments' is a standard YouTube CTA that sits slightly below James's register. It breaks the fourth wall as a platform-request rather than an intellectual invitation.",
+            "recommendation": "Replace with something more in character: 'I would be interested to hear whether your experience matches the data. The comments are open.'"
+          },
+          {
+            "severity": "low",
+            "element": "004_cta",
+            "issue": "The closing sentence is overwritten (48 words) for James's measured style. The metaphor repetition ('saves your time \u2014 not steals it') reads as performative rather than precise.",
+            "recommendation": "Tighten: 'That is the difference between a tool that accelerates activity and one that restores capacity. Subscribe, and I will show you how to build a system that actually returns your time.'"
+          }
+        ],
+        "recommended_fixes": [
+          "Verify the '176%' figure against the actual Stanford article text before publishing. The source URL exists but the precise number is unconfirmed from the provided research material.",
+          "Replace 'Let me know in the comments' with a more James-appropriate invitation.",
+          "Tighten the closing sentence to under 30 words for better register fit."
+        ],
+        "may_proceed": true
+      }
+    ],
+    "round": 1
+  },
+  "artifact": {
+    "project_id": "productivity-industry-dirty-secret",
+    "title": "The Productivity Paradox: Why AI Makes You Busier",
+    "video_type": "teaser",
+    "narration_mode": "continuous_voiceover",
+    "segments": [
+      {
+        "id": "001_hook",
+        "audio_mode": "generated_tts",
+        "text": "The more efficient AI makes you, the less time you seem to have. A Stanford study found generative AI makes people up to 176% more efficient on digital tasks. So why do you feel busier than ever?"
+      },
+      {
+        "id": "002_intensify",
+        "audio_mode": "generated_tts",
+        "text": "As Harvard Business Review put it in 2026, without deliberate workflow architecture, AI doesn't reduce work \u2014 it intensifies it. The gains are real. The recovery is not automatic."
+      },
+      {
+        "id": "003_promise",
+        "audio_mode": "generated_tts",
+        "text": "I'm James Harrington. McKinsey's superagency framework shows that AI can repurpose time for personal fulfilment, but only when workflows are deliberately redesigned. Benjamin Laker, writing for MIT Sloan Management Review, describes how to identify the high-compression, low-judgement tasks AI should handle, reserving your hours for what requires genuine judgment."
+      },
+      {
+        "id": "004_cta",
+        "audio_mode": "generated_tts",
+        "text": "Has AI made you more productive \u2014 or just busier? Let me know in the comments. That is the difference between a tool that accelerates mere activity and one that restores your capacity for what matters. Subscribe, and I'll show you how to build the system that ensures AI saves your time \u2014 not steals it."
+      }
+    ],
+    "key_points": [
+      {
+        "text": "AI delivers extraordinary efficiency gains \u2014 up to 176% on digital tasks \u2014 but without a deliberate system for reclaiming the hours saved, those gains vanish into more work rather than buying you time."
+      }
+    ],
+    "sources": [
+      {
+        "id": "src_001",
+        "citation": "Stanford University, \"AI's Big Productivity Boost? It's Happening from the Sofa\", Stanford Report, 2026",
+        "url": "https://news.stanford.edu/stories/2026/04/digital-chores-productivity-boost-research",
+        "claims_used": [
+          "Generative AI makes people 76% to 176% more efficient on productive digital tasks"
+        ]
+      }
+    ]
+  }
+}

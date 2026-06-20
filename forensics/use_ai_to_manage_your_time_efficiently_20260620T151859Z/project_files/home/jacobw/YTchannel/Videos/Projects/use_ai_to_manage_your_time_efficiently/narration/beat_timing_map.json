@@ -1,0 +1,31 @@
+{
+  "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/continuous.mp3",
+  "total_duration": 167.549,
+  "beat_count": 4,
+  "beats": [
+    {
+      "label": "S000",
+      "start": 0.0,
+      "end": 36.253,
+      "duration": 36.253
+    },
+    {
+      "label": "S001",
+      "start": 36.253,
+      "end": 64.758,
+      "duration": 28.505
+    },
+    {
+      "label": "S002",
+      "start": 64.758,
+      "end": 112.679,
+      "duration": 47.921
+    },
+    {
+      "label": "S003",
+      "start": 112.679,
+      "end": 167.549,
+      "duration": 54.87
+    }
+  ]
+}

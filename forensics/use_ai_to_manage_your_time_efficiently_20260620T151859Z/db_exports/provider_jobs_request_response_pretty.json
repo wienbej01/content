@@ -1,0 +1,564 @@
+[
+  {
+    "provider_job_id": "pjob_dd3e79ed8bc54b3f88e63e952613ce1e",
+    "render_unit_id": "render_7e9f394b64124ce286ddc2f6e7b0e2c3",
+    "label": "S000",
+    "ordinal": 0,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "a5186546-4be6-441b-93df-af89cb2dd93d",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_7e9f394b64124ce286ddc2f6e7b0e2c3.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 12084,
+      "duration_sec": 12.084,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. The more efficient AI makes you, the less Show: The more efficient AI makes you, the less. Convey: The more efficient AI makes you, the less."
+    },
+    "response": {
+      "actual_duration_ms": 12097,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "sha256": "84c12e7fb3f211db5c7b809c131beca351d4f5f8d71d2783e674e90afd3f2870",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_c3d1c9ad4add4e62b91e31ef6a08c764",
+    "render_unit_id": "render_1bd250cc964b42ee8502f06110e3ca07",
+    "label": "S000",
+    "ordinal": 1,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "16fb0085-b706-46f9-8273-285fb8587db9",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_1bd250cc964b42ee8502f06110e3ca07.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 12084,
+      "duration_sec": 12.084,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. The more efficient AI makes you, the less Show: The more efficient AI makes you, the less. Convey: The more efficient AI makes you, the less."
+    },
+    "response": {
+      "actual_duration_ms": 12097,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "sha256": "7e3c539ca84a95e65e7ddfed3d217f0e4a1aab61f5614309a957eff645ea7292",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_9daf37c4df45442bb796e9922130d57c",
+    "render_unit_id": "render_52b60969329f4aabaa6bb4f6fa348b6f",
+    "label": "S000",
+    "ordinal": 2,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "304ddba6-91de-44dc-9a72-280fb52f8883",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_52b60969329f4aabaa6bb4f6fa348b6f.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 12085,
+      "duration_sec": 12.085,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. The more efficient AI makes you, the less Show: The more efficient AI makes you, the less. Convey: The more efficient AI makes you, the less."
+    },
+    "response": {
+      "actual_duration_ms": 12097,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "sha256": "9daa4def24e2c78f229153272943915cb7e284c79174d4d30b0f04f48195fc98",
+      "width": 864
+    },
+    "error": {
+      "error": "Download/validate failed: Higgsfield download failed: Error: unknown flag: --output\n"
+    }
+  },
+  {
+    "provider_job_id": "pjob_941080a7973f473393df1eb23160a03d",
+    "render_unit_id": "render_90eca43ad5104635b2b8f369f3c6a43d",
+    "label": "S001",
+    "ordinal": 3,
+    "asset_type": "generated_video",
+    "model": "kling3_0",
+    "audio_policy": "BROLL_FLEX",
+    "status": "completed",
+    "external_job_id": "e11ce75a-64fd-4d68-832c-8a1372d0174f",
+    "request": {
+      "asset_type": "generated_video",
+      "audio_policy": "BROLL_FLEX",
+      "duration_ms": 14252,
+      "duration_sec": 14.252,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Cinematic illustrate shot. As Harvard Business Review put it in 2026, Show: As Harvard Business Review put it in 2026,. Convey: As Harvard Business Review put it in 2026,."
+    },
+    "response": {
+      "actual_duration_ms": 14041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "7746fc6b6212d0a12ff0ee69aaa72fef5c938fa6315abe683303e58ec2a2f555",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_c9a92e038d2648688e58dab2b6c964b8",
+    "render_unit_id": "render_203f445b9e44401f82465a5423fab415",
+    "label": "S001",
+    "ordinal": 4,
+    "asset_type": "generated_video",
+    "model": "kling3_0",
+    "audio_policy": "BROLL_FLEX",
+    "status": "completed",
+    "external_job_id": "24953aa5-f83c-4ce2-9729-29b6d4b13d77",
+    "request": {
+      "asset_type": "generated_video",
+      "audio_policy": "BROLL_FLEX",
+      "duration_ms": 14252,
+      "duration_sec": 14.252,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Cinematic illustrate shot. As Harvard Business Review put it in 2026, Show: As Harvard Business Review put it in 2026,. Convey: As Harvard Business Review put it in 2026,."
+    },
+    "response": {
+      "actual_duration_ms": 14041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "c4812775b34c7ab8d10f2ada2e2ab94525b2912a6ab33c52edf73730881488ef",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_629d8be900d34a4ab128e1c1ba7842fa",
+    "render_unit_id": "render_4926e500b40c460e86fc523e7eea7b59",
+    "label": "S002",
+    "ordinal": 5,
+    "asset_type": "local_graphic",
+    "model": "kling3_0",
+    "audio_policy": "SILENT_GRAPHIC",
+    "status": "completed",
+    "external_job_id": "13fb511d-53e4-4053-93f0-e65cc3d4551e",
+    "request": {
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "duration_ms": 11980,
+      "duration_sec": 11.98,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Title card: I'M JAMES HARRINGTON. MCKINSEY'S"
+    },
+    "response": {
+      "actual_duration_ms": 11041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "cd61316f8a2d42dfd97c508f9e5ba194e2f78bdb33eec1a6c9f5136506d874b3",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_f3304823709a4339af78073ae3a67df4",
+    "render_unit_id": "render_78c0d74b115b4232832ce980dc9d683a",
+    "label": "S002",
+    "ordinal": 6,
+    "asset_type": "local_graphic",
+    "model": "kling3_0",
+    "audio_policy": "SILENT_GRAPHIC",
+    "status": "completed",
+    "external_job_id": "4223920d-8017-4f68-a996-0a8951caddb0",
+    "request": {
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "duration_ms": 11980,
+      "duration_sec": 11.98,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Title card: I'M JAMES HARRINGTON. MCKINSEY'S"
+    },
+    "response": {
+      "actual_duration_ms": 11041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "5e8b76485bcc3636134d00cfe94b5460cb2562d9eaac1b7f1a90c88cec09af57",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_204b06cef4424cd8942f2a3d4e0fb4b8",
+    "render_unit_id": "render_5303fc893fde4967b73c8e31adfae027",
+    "label": "S002",
+    "ordinal": 7,
+    "asset_type": "local_graphic",
+    "model": "kling3_0",
+    "audio_policy": "SILENT_GRAPHIC",
+    "status": "completed",
+    "external_job_id": "0e649a01-0da3-4967-847f-729d477023b4",
+    "request": {
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "duration_ms": 11980,
+      "duration_sec": 11.98,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Title card: I'M JAMES HARRINGTON. MCKINSEY'S"
+    },
+    "response": {
+      "actual_duration_ms": 11041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "823c3d510ec1e9a7a376bcd7c3234c6ad046a7529e4f775e149cd43c69189388",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_bc658d26fe4e486397cfd852f485b3e3",
+    "render_unit_id": "render_de0d4f5896de473b89cc83638d672db1",
+    "label": "S002",
+    "ordinal": 8,
+    "asset_type": "local_graphic",
+    "model": "kling3_0",
+    "audio_policy": "SILENT_GRAPHIC",
+    "status": "completed",
+    "external_job_id": "91b12ef3-d5a0-41fe-8c85-8dc846fe4cb7",
+    "request": {
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "duration_ms": 11982,
+      "duration_sec": 11.982,
+      "model": "kling3_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Title card: I'M JAMES HARRINGTON. MCKINSEY'S"
+    },
+    "response": {
+      "actual_duration_ms": 11041,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 1080,
+      "sha256": "6b8c850e6fe79816719a1acf18078d94fbe0323467d1626607cee835a9445ef7",
+      "width": 1920
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_bedae78cd63e41d3bededaf93016d599",
+    "render_unit_id": "render_e8a321c7b9db46adbd41ffe062fa790b",
+    "label": "S003",
+    "ordinal": 9,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "fc529bd5-2c71-4f21-9a19-5f2a0801daf8",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_e8a321c7b9db46adbd41ffe062fa790b.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 13.717,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 13096,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\nfc529bd5-2c71-4f21-9a19-5f2a0801daf8  2026-06-20 10:36  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_103624_fc529bd5-2c71-4f21-9a19-5f2a0801daf8.mp4",
+        "status": "completed"
+      },
+      "sha256": "2fc061113f0ac13bb77ce3564eb46bd653fe0b488ffd6d97bc96a4baea2fa9aa",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_2768a3c097c94060a82d91d0f217bf8c",
+    "render_unit_id": "render_e8a321c7b9db46adbd41ffe062fa790b",
+    "label": "S003",
+    "ordinal": 9,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "a26f6be5-4a68-4abd-8cb4-0f3d4e5c3aa0",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_e8a321c7b9db46adbd41ffe062fa790b.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 14,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 14093,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\na26f6be5-4a68-4abd-8cb4-0f3d4e5c3aa0  2026-06-20 13:37  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_133731_a26f6be5-4a68-4abd-8cb4-0f3d4e5c3aa0.mp4",
+        "status": "completed"
+      },
+      "sha256": "6d2d54bf4243ba8903c4e262f26a2a34e83e94bcbe0d9c5bd77624fcbfbef4d4",
+      "width": 864
+    },
+    "error": {
+      "error": "Submit failed: Higgsfield submit failed: Error: Cannot reach https://fnf.higgsfield.ai/agents/uploads?type=image.\n"
+    }
+  },
+  {
+    "provider_job_id": "pjob_f17db43fc779427b8eabd67d56e14b16",
+    "render_unit_id": "render_cf491993ffcf41d690e0df110e7284b5",
+    "label": "S003",
+    "ordinal": 10,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "3ccf5bc9-9f2e-46d0-b684-2f68b201944e",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_cf491993ffcf41d690e0df110e7284b5.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 13.717,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 13096,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "sha256": "ab68df019de753f5034f4b8c14f39e6e22a78529481d533242b17c460f5af9b1",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_892ee2b7d2844c6d8857f2c78d0ee5ad",
+    "render_unit_id": "render_cf491993ffcf41d690e0df110e7284b5",
+    "label": "S003",
+    "ordinal": 10,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "b893cbe6-01a4-4c6f-93e9-01c62c192500",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_cf491993ffcf41d690e0df110e7284b5.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 14,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 14093,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\nb893cbe6-01a4-4c6f-93e9-01c62c192500  2026-06-20 13:43  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_134307_b893cbe6-01a4-4c6f-93e9-01c62c192500.mp4",
+        "status": "completed"
+      },
+      "sha256": "a7f2b33c7368cadb30352f71d9ea0537ce0c8072aba175f566e41a97d581008f",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_78fb305f60c24399b8f6a2075c3fd2f4",
+    "render_unit_id": "render_9ad7bb2b9c254979b0128ad03f2c8c14",
+    "label": "S003",
+    "ordinal": 11,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "163e8a87-4ee2-44a2-9809-4837b88800df",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_9ad7bb2b9c254979b0128ad03f2c8c14.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 13.717,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 13096,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\n163e8a87-4ee2-44a2-9809-4837b88800df  2026-06-20 13:22  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_132247_163e8a87-4ee2-44a2-9809-4837b88800df.mp4",
+        "status": "completed"
+      },
+      "sha256": "a8b5a05a1fbd1aed6db0eca70923ef223890628d39311e52d4cf5db68deca3e9",
+      "width": 864
+    },
+    "error": {
+      "error": "Submit failed: Higgsfield submit failed: Error: {\"actions\":[{\"job_set_type\":\"seedance_2_0\",\"type\":\"buy_concurrent_boost_credits\"}],\"billing_period\":\"monthly\",\"concurrent_jobs_limit\":8,\"error_type\":\"rate_limit_reached\",\"job_set_type\":\"seedance_2_0\",\"plan_type\":\"max\",\"use_unlim\":false,\"workspace\":{\"role\":\"owner\",\"type\":\"private\"}}\n"
+    }
+  },
+  {
+    "provider_job_id": "pjob_96faa0d839c84b48a65b5d8addf0c954",
+    "render_unit_id": "render_9ad7bb2b9c254979b0128ad03f2c8c14",
+    "label": "S003",
+    "ordinal": 11,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "b5948bf1-5236-4901-8581-e36668f51e21",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_9ad7bb2b9c254979b0128ad03f2c8c14.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13717,
+      "duration_sec": 14,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 14093,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\nb5948bf1-5236-4901-8581-e36668f51e21  2026-06-20 13:50  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_135044_b5948bf1-5236-4901-8581-e36668f51e21.mp4",
+        "status": "completed"
+      },
+      "sha256": "1ef617c176953bba466eb52b510fdd43df9c043f0b194e445bf816e579bcbd11",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_6affe7bf415c41a1babc2ca1bdd461f5",
+    "render_unit_id": "render_1f0a8066bb9c4c7780d84550babcdd29",
+    "label": "S003",
+    "ordinal": 12,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "051dda40-9ed6-4630-aa12-9ea9e333d5c9",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_1f0a8066bb9c4c7780d84550babcdd29.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13719,
+      "duration_sec": 13.719,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 13096,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "sha256": "a46a1dfda77d0ad0a1a2e8b59f5a8f6d51890d500e2345cd3ace4cffec6f1b20",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  },
+  {
+    "provider_job_id": "pjob_1d3a61ab3def4a7dbacb76e911c4085a",
+    "render_unit_id": "render_1f0a8066bb9c4c7780d84550babcdd29",
+    "label": "S003",
+    "ordinal": 12,
+    "asset_type": "lipsync_video",
+    "model": "seedance_2_0",
+    "audio_policy": "HERO_SYNC_LOCKED",
+    "status": "completed",
+    "external_job_id": "95af4139-1815-4176-975f-2d8e4d1e3a27",
+    "request": {
+      "asset_type": "lipsync_video",
+      "audio_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_manage_your_time_efficiently/narration/hero_audio_slices/render_1f0a8066bb9c4c7780d84550babcdd29.wav",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "duration_ms": 13719,
+      "duration_sec": 14,
+      "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+      "model": "seedance_2_0",
+      "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+      "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. Has AI made you more productive — or Show: Has AI made you more productive — or. Convey: Has AI made you more productive — or."
+    },
+    "response": {
+      "actual_duration_ms": 14093,
+      "actual_usd": 0.05,
+      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+      "has_audio": 1,
+      "height": 496,
+      "provider_poll": {
+        "raw_response": "ID                                    DATE              MODEL         STATUS     URL\n95af4139-1815-4176-975f-2d8e4d1e3a27  2026-06-20 13:54  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260620_135436_95af4139-1815-4176-975f-2d8e4d1e3a27.mp4",
+        "status": "completed"
+      },
+      "sha256": "2e8b7982d88b6e8380e61b1c5636749bb6c7ccb0a2b60a74829f91f9e7d7f834",
+      "width": 864
+    },
+    "error": "null (null) only strings can be parsed"
+  }
+]

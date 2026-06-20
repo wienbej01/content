@@ -1,0 +1,43 @@
+{
+  "project_id": "productivity-industry-dirty-secret",
+  "title": "The Productivity Paradox: Why AI Makes You Busier",
+  "video_type": "teaser",
+  "narration_mode": "continuous_voiceover",
+  "segments": [
+    {
+      "id": "001_hook",
+      "audio_mode": "generated_tts",
+      "text": "The more efficient AI makes you, the less time you seem to have. A Stanford study found generative AI makes people up to 176% more efficient on digital tasks. So why do you feel busier than ever?"
+    },
+    {
+      "id": "002_intensify",
+      "audio_mode": "generated_tts",
+      "text": "As Harvard Business Review put it in 2026, without deliberate workflow architecture, AI doesn't reduce work \u2014 it intensifies it. The gains are real. The recovery is not automatic."
+    },
+    {
+      "id": "003_promise",
+      "audio_mode": "generated_tts",
+      "text": "I'm James Harrington. McKinsey's superagency framework shows that AI can repurpose time for personal fulfilment, but only when workflows are deliberately redesigned. Benjamin Laker, writing for MIT Sloan Management Review, describes how to identify the high-compression, low-judgement tasks AI should handle, reserving your hours for what requires genuine judgment."
+    },
+    {
+      "id": "004_cta",
+      "audio_mode": "generated_tts",
+      "text": "Has AI made you more productive \u2014 or just busier? Let me know in the comments. That is the difference between a tool that accelerates mere activity and one that restores your capacity for what matters. Subscribe, and I'll show you how to build the system that ensures AI saves your time \u2014 not steals it."
+    }
+  ],
+  "key_points": [
+    {
+      "text": "AI delivers extraordinary efficiency gains \u2014 up to 176% on digital tasks \u2014 but without a deliberate system for reclaiming the hours saved, those gains vanish into more work rather than buying you time."
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_001",
+      "citation": "Stanford University, \"AI's Big Productivity Boost? It's Happening from the Sofa\", Stanford Report, 2026",
+      "url": "https://news.stanford.edu/stories/2026/04/digital-chores-productivity-boost-research",
+      "claims_used": [
+        "Generative AI makes people 76% to 176% more efficient on productive digital tasks"
+      ]
+    }
+  ]
+}

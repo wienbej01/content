@@ -1,0 +1,211 @@
+{
+  "report": {
+    "weighted_mean": 3.41,
+    "has_mandatory": true,
+    "veto_failed": false,
+    "passed": false,
+    "blocking_issues": [
+      {
+        "persona": "brand_voice",
+        "issue": "{'issue': \"Untraceable statistic: '56% reduction in programming time' attributed to 'a joint study by MIT Sloan, Microsoft Research, and GitHub' appears nowhere in the provided source research. This is a fabricated joint-study claim.\", 'severity': 'blocking', 'segment': '001_hook', 'recommended_fix': \"Remove the 56% programming-claim entirely, or trace it to a specific named paper in the source research. The Stanford 176% claim is traceable and can stand alone as the hook's evidence.\"}"
+      },
+      {
+        "persona": "brand_voice",
+        "issue": "{'issue': \"Untraceable attribution: 'A 2026 Harvard Business Review analysis by Berkeley's Aruna Ranganathan.' The name 'Aruna Ranganathan' and the specific institutional affiliation 'Berkeley' do not appear in any provided source. The article 'AI Doesn't Reduce Work\u2014It Intensifies It' exists in the sources by year but without a named author.\", 'severity': 'blocking', 'segment': '002_intensify', 'recommended_fix': \"Replace with a general reference: 'As Harvard Business Review put it in 2026, AI doesn't reduce work \u2014 it intensifies it.' No named author unless verifiable from the source research.\"}"
+      }
+    ],
+    "recommendations": [
+      {
+        "persona": "audience",
+        "fix": "Replace 'dirty secret' with a specific, counterintuitive framing: e.g. 'The more efficient AI makes you, the less time you seem to have. Here's why.'"
+      },
+      {
+        "persona": "audience",
+        "fix": "Cut source citations to the single most striking stat (Stanford 176%) and let the full series carry the academic weight."
+      },
+      {
+        "persona": "audience",
+        "fix": "Add a binary engagement question before the subscribe ask: e.g. 'Has AI made you more productive or just busier? Let me know in the comments.'"
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Segment 001: Replace 'dirty secret' with 'a problem with how we measure productivity gains from AI'. Remove the 56% programming claim entirely."
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Segment 002: Replace 'Berkeley's Aruna Ranganathan argues that without deliberate systems' with 'argues in Harvard Business Review that without deliberate workflow architecture'."
+      },
+      {
+        "persona": "brand_voice",
+        "fix": "Segment 004: Replace 'buys you back your time' / 'accelerates your treadmill' with cleaner language: 'That is the difference between a tool that accelerates mere activity and one that restores your capacity for what matters.'"
+      }
+    ],
+    "verdicts": [
+      {
+        "task": "audience_review",
+        "persona": "audience",
+        "artifact": "script",
+        "status": "pass",
+        "scores": {
+          "hook": 4,
+          "reason_to_stay": 4,
+          "open_loops": 4,
+          "save_worthy": 3,
+          "share_worthy": 4,
+          "payoff": 4,
+          "cta": 4
+        },
+        "overall_score": 3.9,
+        "predicts": {
+          "watch_through": true,
+          "save": false,
+          "share": true
+        },
+        "blocking_issues": [],
+        "warnings": [
+          "Opening 'dirty secret' is a well-worn hook device; a more specific counterintuitive claim would land harder.",
+          "Four separate source citations (Stanford, MIT/Microsoft/GitHub, HBR/Ranganathan, McKinsey, Laker) in ~75s may feel like name-dropping research rather than storytelling in a teaser format."
+        ],
+        "recommended_fixes": [
+          "Replace 'dirty secret' with a specific, counterintuitive framing: e.g. 'The more efficient AI makes you, the less time you seem to have. Here's why.'",
+          "Cut source citations to the single most striking stat (Stanford 176%) and let the full series carry the academic weight.",
+          "Add a binary engagement question before the subscribe ask: e.g. 'Has AI made you more productive or just busier? Let me know in the comments.'"
+        ],
+        "may_proceed": true
+      },
+      {
+        "task": "brand_voice_review",
+        "persona": "brand_voice",
+        "status": "fail",
+        "scores": {
+          "james_voice": 3,
+          "sourcing": 1,
+          "original_framework": 3,
+          "forbidden_language": 2,
+          "audience_fit": 4
+        },
+        "overall_score": 2.6,
+        "blocking_issues": [
+          {
+            "issue": "Untraceable statistic: '56% reduction in programming time' attributed to 'a joint study by MIT Sloan, Microsoft Research, and GitHub' appears nowhere in the provided source research. This is a fabricated joint-study claim.",
+            "severity": "blocking",
+            "segment": "001_hook",
+            "recommended_fix": "Remove the 56% programming-claim entirely, or trace it to a specific named paper in the source research. The Stanford 176% claim is traceable and can stand alone as the hook's evidence."
+          },
+          {
+            "issue": "Untraceable attribution: 'A 2026 Harvard Business Review analysis by Berkeley's Aruna Ranganathan.' The name 'Aruna Ranganathan' and the specific institutional affiliation 'Berkeley' do not appear in any provided source. The article 'AI Doesn't Reduce Work\u2014It Intensifies It' exists in the sources by year but without a named author.",
+            "severity": "blocking",
+            "segment": "002_intensify",
+            "recommended_fix": "Replace with a general reference: 'As Harvard Business Review put it in 2026, AI doesn't reduce work \u2014 it intensifies it.' No named author unless verifiable from the source research."
+          }
+        ],
+        "warnings": [
+          {
+            "warning": "Opening hook 'The productivity industry has a dirty secret' leans toward clickbait register inconsistent with James's calm, measured tone. James would not use 'dirty secret' language.",
+            "segment": "001_hook",
+            "recommended_fix": "Replace with something more James-like: 'There is a problem with how we measure productivity gains from AI.'"
+          },
+          {
+            "warning": "The phrase 'buys you back your time' and 'accelerates your treadmill' in segment 004 is slightly folksy and mixed-metaphor. James prefers cleaner, more precise imagery.",
+            "segment": "004_cta",
+            "recommended_fix": "Replace with: 'That is the difference between a tool that accelerates mere activity and one that restores your capacity for what matters.'"
+          },
+          {
+            "warning": "176% efficiency statistic (segment 001) cites a Stanford study that is present in the source research, but the script omits the study's nuance \u2014 the gains were on 'digital chores' from home. The framing is not misleading, but a teaser should be careful not to over-claim.",
+            "segment": "001_hook",
+            "recommended_fix": "Consider adding the qualifier 'on certain digital tasks' already present is marginally sufficient; no change required if the full episode will contextualize it."
+          },
+          {
+            "warning": "Segment 002 uses 'deliberate systems' which is vague. James would prefer a more precise term: 'workflow architecture' or 'intentional process design'.",
+            "segment": "002_intensify",
+            "recommended_fix": "Replace 'deliberate systems' with 'deliberate workflow architecture'."
+          }
+        ],
+        "recommended_fixes": [
+          "Segment 001: Replace 'dirty secret' with 'a problem with how we measure productivity gains from AI'. Remove the 56% programming claim entirely.",
+          "Segment 002: Replace 'Berkeley's Aruna Ranganathan argues that without deliberate systems' with 'argues in Harvard Business Review that without deliberate workflow architecture'.",
+          "Segment 004: Replace 'buys you back your time' / 'accelerates your treadmill' with cleaner language: 'That is the difference between a tool that accelerates mere activity and one that restores your capacity for what matters.'"
+        ],
+        "may_proceed": false
+      }
+    ],
+    "round": 0
+  },
+  "artifact": {
+    "_id": "doc_108a67193d88438f9fafc3d4749b9022",
+    "_revision": 1,
+    "key_points": [
+      {
+        "text": "AI delivers extraordinary efficiency gains \u2014 up to 176% on digital tasks and 56% faster coding \u2014 but without a deliberate system for reclaiming the hours saved, those gains vanish into more work rather than buying you time."
+      }
+    ],
+    "narration_mode": "continuous_voiceover",
+    "project_id": "productivity-industry-dirty-secret",
+    "segments": [
+      {
+        "audio_mode": "generated_tts",
+        "id": "001_hook",
+        "text": "The productivity industry has a dirty secret. A Stanford study found generative AI makes people up to 176% more efficient on digital tasks. A joint study by MIT Sloan, Microsoft Research, and GitHub clocked a 56% reduction in programming time. So why do you feel busier than ever?"
+      },
+      {
+        "audio_mode": "generated_tts",
+        "id": "002_intensify",
+        "text": "A 2026 Harvard Business Review analysis by Berkeley's Aruna Ranganathan argues that without deliberate systems, AI doesn't reduce work \u2014 it intensifies it. The gains are real. The recovery is not automatic."
+      },
+      {
+        "audio_mode": "generated_tts",
+        "id": "003_promise",
+        "text": "I'm James Harrington. McKinsey's superagency framework shows that AI can repurpose time for personal fulfilment, but only when workflows are deliberately redesigned. Benjamin Laker, writing for MIT Sloan Management Review, describes how to identify the high-compression, low-judgement tasks AI should handle, reserving your hours for what requires genuine judgment."
+      },
+      {
+        "audio_mode": "generated_tts",
+        "id": "004_cta",
+        "text": "That is the difference between a tool that accelerates your treadmill and one that buys you back your time. Subscribe, and I'll show you how to build the system that ensures AI saves your time \u2014 not steals it."
+      }
+    ],
+    "sources": [
+      {
+        "citation": "Stanford University, \"AI's Big Productivity Boost? It's Happening from the Sofa\", Stanford Report, 2026",
+        "claims_used": [
+          "Generative AI makes people 76% to 176% more efficient on productive digital tasks"
+        ],
+        "id": "src_001",
+        "url": "https://news.stanford.edu/stories/2026/04/digital-chores-productivity-boost-research"
+      },
+      {
+        "citation": "Harvard Business Review, \"How Is Your Team Spending the Time Saved by Gen AI?\", 2025",
+        "claims_used": [
+          "MIT Sloan, Microsoft Research, and GitHub collaboration found 56% reduction in programming time"
+        ],
+        "id": "src_002",
+        "url": "https://hbr.org/2025/03/how-is-your-team-spending-the-time-saved-by-gen-ai"
+      },
+      {
+        "citation": "Aruna Ranganathan, \"AI Doesn't Reduce Work\u2014It Intensifies It\", Harvard Business Review, 2026",
+        "claims_used": [
+          "Without deliberate systems, AI intensifies work rather than reducing it"
+        ],
+        "id": "src_003",
+        "url": "https://hbr.org/2026/02/ai-doesnt-reduce-work-it-intensifies-it"
+      },
+      {
+        "citation": "Benjamin Laker, \"When Not to Use AI\", MIT Sloan Management Review, 2026",
+        "claims_used": [
+          "AI compresses the slowest parts of managerial work \u2014 scanning, synthesising, first drafts \u2014 freeing hours for judgement-intensive work"
+        ],
+        "id": "src_004",
+        "url": "https://sloanreview.mit.edu/article/when-not-to-use-ai/"
+      },
+      {
+        "citation": "McKinsey & Company, \"Superagency in the Workplace\", 2026",
+        "claims_used": [
+          "Superagency framework: AI can repurpose time for personal fulfilment only when workflows are deliberately redesigned"
+        ],
+        "id": "src_005",
+        "url": "https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/superagency-in-the-workplace-empowering-people-to-unlock-ais-full-potential-at-work"
+      }
+    ],
+    "title": "The Productivity Industry's Dirty Secret",
+    "video_type": "teaser"
+  }
+}
