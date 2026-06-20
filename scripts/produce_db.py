@@ -1120,7 +1120,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         job_row = conn.execute(
             """SELECT * FROM provider_jobs
                WHERE render_unit_id=?
-               ORDER BY COALESCE(submitted_at, ''), id DESC LIMIT 1""",
+               ORDER BY COALESCE(submitted_at, '') DESC, id DESC LIMIT 1""",
             (ru["id"],),
         ).fetchone()
         conn.close()
