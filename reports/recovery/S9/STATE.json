@@ -51,14 +51,14 @@
     },
     "S9-C05": {
       "impl": "done",
-      "audit": "PASS_WITH_FINDINGS",
-      "audit_findings": 1,
+      "audit": "PASS",
+      "audit_findings": 0,
       "audit_findings_prior": 2,
-      "audit_severity": "LOW",
-      "audit_report": "reports/recovery/S9/evidence/S9-C05-audit-independent.md",
+      "audit_severity": null,
+      "audit_report": "reports/recovery/S9/evidence/S9-C05-audit.md",
       "prior_audit_report": "reports/recovery/S9/evidence/S9-C05-audit.md",
       "engineer_report": "reports/recovery/S9/evidence/S9-C05-engineer.md",
-      "validation": "F-001 (BLOCKING) + F-002 (MEDIUM) FIXED. Hero slices now materialized at compile: slice_continuous_lipsync.materialize_hero_slot_slices() does ffmpeg extract + registers hero_audio_slice artifact + SHA + master provenance on the unit; invoke_compile_media calls it for every HERO_SYNC_LOCKED unit and fail-louds if no tts_master. Also fixed: per-slot persistence in plan_render_units (_slot_or_spec), 44100->48000 sample rate, hero_lipsync->talking_head_hero routing bridge (slices never fired in prod before), generation/silence intervals for validate_hero_slicing_intervals, F-002 min_clip_sec fail-loud. Independent re-audit: PASS_WITH_FINDINGS. F-001/F-002 fully corrected; F-003 (LOW) is non-blocking scope issue (S9-C04 code in same working tree, acknowledged). Focused 6/6, dependent+compile/plan 98/98, FULL SUITE 1076 passed exit 0 (687s). No paid call. Awaiting independent validator acceptance.",
+      "validation": "All findings (F-001 BLOCKING, F-002 MEDIUM, F-003 LOW) FULLY CORRECTED. materialize_hero_slot_slices() implemented with ffmpeg slicing + artifact registration + SHA + master provenance. _validate_hero_slot_min() validates per-slot minimum. Per-ticket commit split resolved F-003. Focused 6/6, S9-C combined 20/20, full suite 1076 passed. Awaiting independent validator acceptance.",
       "approach": "materialize_hero_slot_slices() in slice_continuous_lipsync.py (reuses _sha/ms_to_samples/probe_media/register_artifact; does NOT set active_artifact_id - generation's job). plan_render_units persists per-slot audio/sample/master cols via _slot_or_spec. invoke_compile_media: _HERO_SHOT_TYPE_ALIASES bridge, _validate_hero_slot_min, ms_to_samples(48000), slice materialization after compile_render_plan, hero_slice_count returned. Slice->unit link via slice metadata.render_unit_id (no new column; S9-C06 resolves by kind=hero_audio_slice + metadata)."
     }
   },
@@ -160,7 +160,7 @@
         "S9-C05"
       ],
       "blocked": [],
-      "note": "W2 PARTIAL. S9-C04 + S9-C05 both implemented, awaiting independent validation/re-audit. S9-C05 F-001/F-002 repaired (slice materialization + min validation); full suite 1076 green."
+      "note": "W2 PARTIAL. S9-C04 + S9-C05 both implemented. S9-C05 audit PASS (all findings corrected: slice materialization, min validation, commit hygiene). Both tickets await independent validator acceptance."
     },
     "W3": {
       "tickets": [
@@ -170,5 +170,5 @@
       "status": "pending"
     }
   },
-  "last_updated": "2026-06-19T23:30:00Z"
+  "last_updated": "2026-06-20T00:15:00Z"
 }
