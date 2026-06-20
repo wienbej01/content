@@ -89,6 +89,50 @@ SIGNAL_RE = re.compile(r"RUNNER_SIGNAL:\s*([A-Z_]+)\s*(?:\|\s*(.*))?$", re.IGNOR
 # reason; any BLOCKING finding must be emitted as REPAIR_NEEDED, not soft-passed.
 PASS_VERDICTS = {"PASS", "PASS_WITH_FINDINGS"}
 
+# Out-of-vocabulary verdicts an agent may emit; normalize to the closest in-vocab verdict
+# so the run flows back / proceeds instead of halting on an unexpected signal.
+# FAIL = blocking issues found -> engineer repair (REPAIR_NEEDED), not a halt.
+VERDICT_NORMALIZE = {
+    "FAIL_WITH_FINDINGS": "REPAIR_NEEDED",
+    "FAIL": "REPAIR_NEEDED",
+}
+
+# skill name -> role, to pick the prose-fallback token set below.
+_ROLE_FROM_SKILL = {
+    "execute-ticket": "engineer",
+    "audit-ticket": "auditor",
+    "validate-scope": "validator",
+}
+
+# When an agent states its verdict in prose but omits the RUNNER_SIGNAL line, recover it
+# from the output's conclusion. Conservative: only distinctive tokens, scoped to the last
+# few non-empty lines (where the verdict is stated), case-sensitive whole-word so "passed"
+# never matches "PASS". Tokens normalize via VERDICT_NORMALIZE (FAIL -> REPAIR_NEEDED).
+_PROSE_VERDICT_TOKENS = {
+    "auditor": ["PASS_WITH_FINDINGS", "PASS", "REPAIR_NEEDED",
+                "FAIL_WITH_FINDINGS", "FAIL", "BLOCKED"],
+    "engineer": ["ENGINEER_DONE", "BLOCKED"],
+}
+
+
+def _scan_prose_verdict(out: str, role: str):
+    """Fallback verdict recovery: scan the conclusion for a stated verdict token.
+
+    Returns (canonical_verdict, reason) or None. The latest verdict-looking line wins;
+    within a line, earlier (more-specific) tokens win.
+    """
+    tokens = _PROSE_VERDICT_TOKENS.get(role)
+    if not tokens:
+        return None
+    lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    for line in reversed(lines[-12:]):
+        for tok in tokens:
+            # whole-word, case-sensitive: "PASS" must not match "passed" or sit inside
+            # "PASS_WITH_FINDINGS" (handled by ordering + the A-Z_ lookarounds).
+            if re.search(rf"(?<![A-Z_]){re.escape(tok)}(?![A-Z_])", line):
+                return VERDICT_NORMALIZE.get(tok, tok), f"(recovered from prose) {line}"
+    return None
+
 SYSTEM_APPEND = """You are operating under an AUTOMATED sprint runner. In addition to your role skill:
 
 HARD RULES:
@@ -240,6 +284,17 @@ def run_claude(skill: str, skill_args: str, alias: str, *, permission_mode: str,
         if m:
             verdict, reason = m.group(1).upper(), (m.group(2) or "").strip()
             break
+    # Normalize out-of-vocabulary verdicts (FAIL -> REPAIR_NEEDED) so a blocking audit
+    # flows back to the engineer instead of halting as an unexpected signal.
+    verdict = VERDICT_NORMALIZE.get(verdict, verdict)
+    # Fallback: if the agent stated its verdict in prose but omitted the RUNNER_SIGNAL
+    # line, recover it from the conclusion rather than halting on "no RUNNER_SIGNAL".
+    if verdict == "HUMAN_REQUIRED" and reason.startswith("no RUNNER_SIGNAL"):
+        got = _scan_prose_verdict(out, _ROLE_FROM_SKILL.get(skill, ""))
+        if got:
+            verdict, reason = got
+            print(f"[runner] no RUNNER_SIGNAL line; recovered verdict from prose: {verdict}",
+                  flush=True)
     if verdict == "HUMAN_REQUIRED" and reason.startswith("no RUNNER_SIGNAL"):
         print(f"--- claude rc={proc.returncode} {elapsed}s ---\n{out[-2000:]}\n--- stderr ---\n{(proc.stderr or '')[-1000:]}", flush=True)
     else:
