@@ -92,6 +92,11 @@ def submit_provider_job(
             "SELECT * FROM provider_jobs WHERE idempotency_key=?", (idem,)
         ).fetchone()
         if existing:
+            if existing["render_unit_id"] and existing["status"] in ("submitted", "running"):
+                conn.execute(
+                    "UPDATE render_units SET status='generating', updated_at=? WHERE id=?",
+                    (now, existing["render_unit_id"]),
+                )
             return dict(existing)
 
         job_id = _db._id("pjob")

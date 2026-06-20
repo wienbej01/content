@@ -210,6 +210,37 @@ def test_diagnostic_audio_artifact_is_not_recovered_as_generated(tmp_path):
     assert state["active_artifact_id"] is None
 
 
+def test_idempotent_active_job_restores_render_unit_generating():
+    prod = _db.ensure_production("idempotent_restores_generating")
+    _approve_spend(prod["id"])
+    ru = _unit(prod["id"], status="ordered")
+    idem = "same-active-job"
+    first = submit_provider_job(
+        prod["id"], ru["id"], "higgsfield", "generate_video",
+        {"model": "seedance_2_0", "duration_sec": 14},
+        idempotency_key=idem,
+    )
+    with _db.transaction(None) as conn:
+        conn.execute(
+            "UPDATE render_units SET status='ordered' WHERE id=?",
+            (ru["id"],),
+        )
+
+    second = submit_provider_job(
+        prod["id"], ru["id"], "higgsfield", "generate_video",
+        {"model": "seedance_2_0", "duration_sec": 14},
+        idempotency_key=idem,
+    )
+
+    conn = _db.connect(None)
+    status = conn.execute(
+        "SELECT status FROM render_units WHERE id=?", (ru["id"],)
+    ).fetchone()["status"]
+    conn.close()
+    assert second["id"] == first["id"]
+    assert status == "generating"
+
+
 def test_capacity_full_prevents_submission_without_failed_job(monkeypatch):
     import produce_db
 
