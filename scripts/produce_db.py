@@ -1500,7 +1500,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     blockers = []
     for row in remaining:
         u = dict(row)
-        if u["status"] in ("generated", "valid") or u["status"] == "failed":
+        if u["status"] in ("generated", "valid") or u["status"] == "failed" or u["asset_type"] == "local_graphic":
             continue
         if u["asset_type"] == "local_graphic":
             blockers.append(f"{u['label'] or u['id']}=local_graphic_unrendered")
