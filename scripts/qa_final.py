@@ -315,7 +315,7 @@ def run_db_contract_checks(
                 u = dict(u)
                 # 1. All selected render units have latest media QA pass
                 latest = conn.execute(
-                    """SELECT status FROM validations
+                    """SELECT status, created_at FROM validations
                        WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
                        ORDER BY created_at DESC LIMIT 1""",
                     (u["id"],),
