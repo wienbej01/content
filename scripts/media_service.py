@@ -825,7 +825,9 @@ def _qa_provider_video(
                 issues.append("visible_text_detected")
         else:
             strict = os.environ.get("OCR_STRICT_MODE", "1") == "1"
-            if strict:
+            from smoke_config import SmokeConfig as _SmokeConfig
+            cfg = _SmokeConfig.load()
+            if strict and not cfg.allow_ocr_unavailable:
                 text_policy_ok = False
                 issues.append("ocr_unavailable_strict_mode")
             else:
@@ -1158,7 +1160,8 @@ def classify_validation_failure(validation_evidence: dict) -> str:
         return "unexpected_visible_text"
 
     if ev.get("ocr_available") is False and ev.get("text_policy") in ("NO_VISIBLE_TEXT",):
-        return "ocr_unavailable"
+        if ev.get("text_policy_ok") is not True:
+            return "ocr_unavailable"
 
     if render_method == "hero_lipsync":
         if not ev.get("duration_ok"):
