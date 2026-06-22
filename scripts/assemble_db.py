@@ -230,11 +230,16 @@ def _validate_timeline_heuristics(units: list) -> None:
         # the same graphic content repeating - likely a loop/assembly bug.
         if (prev["asset_type"] == "local_graphic" and curr["asset_type"] == "local_graphic"
                 and prev.get("label") and prev["label"] == curr.get("label")):
-            raise AssemblyError(
-                f"BLOCKED: assembly input validation failed - "
-                f"identical consecutive local_graphic render unit {prev['label']} "
-                f"at ordinal {prev['ordinal']} and {curr['ordinal']} without editorial break"
-            )
+            # Skip if both units share the same timeline_span_id — they are
+            # sub-slots from the same beat (compile_media split), not a loop error.
+            if prev.get("timeline_span_id") and prev["timeline_span_id"] == curr.get("timeline_span_id"):
+                pass  # Same span -> sub-slots, allowed
+            else:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"identical consecutive local_graphic render unit {prev['label']} "
+                    f"at ordinal {prev['ordinal']} and {curr['ordinal']} without editorial break"
+                )
 
         # Reject micro-cuts (< 1 second)
         dur = curr["required_duration_ms"] or 0
