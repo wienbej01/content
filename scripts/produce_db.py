@@ -1374,7 +1374,6 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 f"(rendered by graphics_compositing)",
                 file=sys.stderr,
             )
-            submitted_in_wave += 1
             continue
         if submitted_in_wave >= wave_size:
             break
