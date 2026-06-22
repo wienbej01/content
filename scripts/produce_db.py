@@ -1500,7 +1500,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     blockers = []
     for row in remaining:
         u = dict(row)
-        if u["status"] in ("generated", "valid"):
+        if u["status"] in ("generated", "valid") or u["status"] == "failed":
             continue
         if u["asset_type"] == "local_graphic":
             blockers.append(f"{u['label'] or u['id']}=local_graphic_unrendered")
@@ -1640,7 +1640,7 @@ def invoke_repair(inputs: dict, tmp_path: Path) -> dict:
     needs_repair = conn.execute(
         """SELECT id, label, asset_type, status
            FROM render_units
-           WHERE production_id=? AND status='needs_repair'
+           WHERE production_id=? AND status IN ('needs_repair','failed')
            ORDER BY ordinal""",
         (production_id,),
     ).fetchall()

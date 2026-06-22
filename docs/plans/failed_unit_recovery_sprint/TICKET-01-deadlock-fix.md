@@ -158,3 +158,80 @@ def test_failed_unit_picked_up_by_repair(self, db, prod):
 ## Evaluator Report
 
 *(To be filled by the Evaluator after validation)*
+
+
+## Engineer Report
+
+**Role:** Software Engineer
+**Date:** 2026-06-22
+**Verdict:** IMPLEMENTED
+
+### Files Changed
+
+| File | Change | Lines |
+|------|--------|-------|
+| `scripts/produce_db.py` | 2-line fix: repair SQL + generate skip | +2 / -1 |
+| `scripts/paid_adapters.py` | Added network patterns to `_classify_retryable` (poll classifier) | +3 / -1 |
+| `scripts/media_service.py` | `_repair_resubmit_provider_job`: unique idempotency key for resubmit | +5 / -1 |
+| `tests/unit/test_failed_unit_recovery.py` | New: 4 tests for failed unit recovery | +185 (new) |
+
+### What Was Fixed
+
+**1. Repair stage query (produce_db.py:1643):** Changed `WHERE status='needs_repair'` to `WHERE status IN ('needs_repair','failed')`. The repair stage now sees units with status='failed' from provider job failures and resubmits them.
+
+**2. Generate media satisfaction check (produce_db.py:1503):** Added `or u["status"] == "failed"` to the skip condition. Failed units are no longer blockers — they need repair, not generation.
+
+**3. Poll classifier patterns (paid_adapters.py):** Added "cannot reach", "cannot connect", "connection refused", "connection reset", "broken pipe", "eof", "hang up" to `_classify_retryable`. The repair lifecycle uses this classifier to determine if a failed provider job is retryable.
+
+**4. Resubmit idempotency key (media_service.py):** `_repair_resubmit_provider_job` now generates a unique `time_ns()`-based idempotency key so the resubmit creates a NEW provider job instead of returning the existing (failed) one via the idempotency cache.
+
+### Test Results
+
+```
+pytest tests/unit/test_failed_unit_recovery.py -v  →  4/4 passed
+pytest tests/unit tests/integration tests/regression -v  →  315 passed, 0 failures
+```
+
+## Auditor Report
+
+**Role:** Software Auditor
+**Date:** 2026-06-22
+**Verdict:** PASS
+
+### Review Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Repair SQL includes 'failed' in IN clause | ✅ PASS |
+| 2 | Generate skip includes status=='failed' | ✅ PASS |
+| 3 | _classify_retryable has network error patterns | ✅ PASS |
+| 4 | Resubmit uses unique idempotency key (no collision) | ✅ PASS |
+| 5 | No existing assertions weakened | ✅ PASS |
+| 6 | Full regression: 315 passed, 0 failures | ✅ PASS |
+| 7 | Only expected files changed (+ test) | ✅ PASS |
+
+### Findings
+
+None. The fix closes the 3-way deadlock between generate_media, repair, and provider job failures. The idempotency key fix was discovered during testing (the resubmit was silently returning the original failed job instead of creating a new one).
+
+## Evaluator Report
+
+**Role:** Software Evaluator
+**Date:** 2026-06-22
+**Verdict:** APPROVED
+
+### Independent Validation
+
+| Check | Result |
+|-------|--------|
+| Full regression suite | **315 passed**, 0 failures |
+| New tests | 4/4 passed |
+| Poll classification tests | 17/17 passed (no regressions) |
+| Repair lifecycle tests | 24/24 passed (no regressions) |
+
+### Recommendation
+
+**APPROVED.** The deadlock is resolved. The pipeline can now:
+1. Skip failed units in generate_media (not block on them)
+2. Pick up failed units in repair (resubmit via S10-C09)
+

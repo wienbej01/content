@@ -38,6 +38,8 @@ RETRYABLE_PATTERNS = [
     "timeout", "timed out", "connection", "unavailable", "429", "too many requests",
     "rate limit", "temporarily", "try again", "server error", "500", "502", "503",
     "internal error", "capacity",
+    "cannot reach", "cannot connect", "connection refused", "connection reset",
+    "broken pipe", "eof", "hang up",
 ]
 PERMANENT_PATTERNS = [
     "moderation", "rejected", "content policy", "safety", "inappropriate",

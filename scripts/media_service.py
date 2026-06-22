@@ -1232,11 +1232,17 @@ def _repair_resubmit_provider_job(
     import random
     time.sleep(1 + random.random() * 2)
 
+    # S10-C10: Use a unique idempotency key so the resubmit creates a NEW
+    # provider_job instead of returning the existing (failed) one.
+    import hashlib as _hashlib
+    import time as _time
+    resubmit_key = f"resubmit:{failed_pjob['id']}:{_time.time_ns()}"
     job = submit_provider_job(
         production_id=production_id,
         render_unit_id=render_unit["id"],
         provider="higgsfield",
         operation="generate_video",
+        idempotency_key=resubmit_key,
         request_payload=orig_payload,
         db_path=db_path,
     )
