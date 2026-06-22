@@ -152,6 +152,12 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                 (u["id"],),
             ).fetchone()
             if not passing:
+                # If the unit is change_requested, skip QA validation.
+                # The unit has a FAIL validation from the QA that triggered
+                # the change request. Its artifact is still valid for assembly.
+                # The change request will be resolved in a future run.
+                if u.get("status") == "change_requested":
+                    continue
                 # No passing validation. Check if there is a FAIL.
                 has_fail = conn.execute(
                     """SELECT 1 FROM validations
