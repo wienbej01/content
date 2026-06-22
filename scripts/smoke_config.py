@@ -34,7 +34,7 @@ _DEFAULTS: dict[str, Any] = {
     "strict_final_qa_contract": True,
     "allow_ocr_unavailable": False,
     "max_paid_provider_jobs": 2,
-    "max_total_usd": 0.25,
+    "max_total_usd": 5.00,
 }
 
 

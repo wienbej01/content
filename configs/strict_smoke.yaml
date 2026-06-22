@@ -13,4 +13,4 @@ allow_ocr_unavailable: false
 
 # Spending caps
 max_paid_provider_jobs: 2
-max_total_usd: 0.25
+max_total_usd: 5.00
