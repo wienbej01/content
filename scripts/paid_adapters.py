@@ -78,6 +78,43 @@ def _extract_table_error(table_text: str) -> str:
         return " ".join(extra).strip()
     return ""
 
+# ---------------------------------------------------------------------------
+# S10-C10: Submit error classification — retryable (network) vs permanent (app)
+# ---------------------------------------------------------------------------
+SUBMIT_RETRYABLE_PATTERNS = [
+    "cannot reach", "cannot connect", "connection refused",
+    "connection reset", "timeout", "timed out",
+    "temporarily unavailable", "service unavailable",
+    "503", "502", "504", "429",
+    "dns", "resolve", "name resolution",
+    "network", "no route to host",
+    "broken pipe", "connection closed",
+    "eof", "hang up",
+]
+SUBMIT_PERMANENT_PATTERNS = [
+    "invalid", "not found", "unauthorized", "forbidden",
+    "401", "403", "404",
+    "content policy", "moderation", "rejected",
+    "insufficient", "quota", "billing",
+    "not supported", "bad request",
+]
+
+
+def _is_submit_error_retryable(error_text: str) -> bool:
+    """Classify submit errors: retryable (network blip) vs permanent (app rejection).
+    
+    Network errors may self-resolve in seconds. App errors (invalid params,
+    content moderation, auth) must not be retried — they will keep failing.
+    """
+    text = error_text.lower()
+    for pattern in SUBMIT_PERMANENT_PATTERNS:
+        if pattern in text:
+            return False
+    for pattern in SUBMIT_RETRYABLE_PATTERNS:
+        if pattern in text:
+            return True
+    return False  # Unknown errors → safe default (don't retry)
+
 
 class HiggsfieldSeedanceAdapter(ProviderAdapter):
     """Real Higgsfield Seedance video generation via CLI."""
@@ -214,24 +251,38 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                 result["omitted_reason"] = omitted_reason
             return result
 
-        r = subprocess.run(args, capture_output=True, text=True)
-        if r.returncode != 0:
-            raise ProviderAdapterError(f"Higgsfield submit failed: {r.stderr[:500]}")
+        # S10-C10: Retry loop for transient network errors (Cannot reach, timeout, 5xx)
+        last_error = None
+        for attempt in range(1, 4):
+            r = subprocess.run(args, capture_output=True, text=True)
+            if r.returncode == 0:
+                # Higgsfield CLI may return a table or extra text, not just the UUID.
+                # Store only the UUID so later `higgsfield generate get <id>` calls work.
+                m = re.search(
+                    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                    r.stdout,
+                )
+                if not m:
+                    raise ProviderAdapterError(
+                        f"Higgsfield submit returned no UUID: stdout={r.stdout[:500]} stderr={r.stderr[:500]}"
+                    )
+                job_id = m.group(0)
 
-        # Higgsfield CLI may return a table or extra text, not just the UUID.
-        # Store only the UUID so later `higgsfield generate get <id>` calls work.
-        m = re.search(
-            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
-            r.stdout,
+                return {"external_job_id": job_id, "status": "submitted",
+                        "raw_request": json.dumps(payload, sort_keys=True, default=str),
+                        "attempts": attempt}
+
+            last_error = (r.stderr or "").strip()
+            retryable = _is_submit_error_retryable(last_error)
+            if not retryable:
+                break  # Don't retry permanent errors (invalid param, auth, moderation)
+            if attempt < 3:
+                import time as _time
+                _time.sleep(2)
+
+        raise ProviderAdapterError(
+            f"Higgsfield submit failed after {attempt} attempt(s): {last_error[:500]}"
         )
-        if not m:
-            raise ProviderAdapterError(
-                f"Higgsfield submit returned no UUID: stdout={r.stdout[:500]} stderr={r.stderr[:500]}"
-            )
-        job_id = m.group(0)
-
-        return {"external_job_id": job_id, "status": "submitted",
-                "raw_request": json.dumps(payload, sort_keys=True, default=str)}
 
     def poll(self, external_job_id: str) -> dict:
         r = subprocess.run(["higgsfield", "generate", "get", external_job_id],
