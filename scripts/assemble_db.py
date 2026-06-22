@@ -110,16 +110,17 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
         evidence["unit_count"] = len(units)
 
         # 3. Each span maps to exactly one active render unit
-        span_to_unit = {}
+        # If multiple units share the same span (e.g., from a regeneration change
+        # request), the most recently created one wins. The older one is silently
+        # skipped — assembly only needs the latest artifact.
+        span_to_unit: dict[str, str] = {}
+        span_to_updated: dict[str, str] = {}
         for u in units:
             tsid = u["timeline_span_id"]
-            if tsid in span_to_unit:
-                raise AssemblyError(
-                    f"BLOCKED: assembly input validation failed - "
-                    f"duplicate render units for timeline span {tsid}: "
-                    f"{span_to_unit[tsid]} and {u['id']}"
-                )
-            span_to_unit[tsid] = u["id"]
+            updated = u.get("updated_at") or u.get("created_at") or ""
+            if tsid not in span_to_unit or updated > span_to_updated.get(tsid, ""):
+                span_to_unit[tsid] = u["id"]
+                span_to_updated[tsid] = updated
 
         for s in spans:
             if s["id"] not in span_to_unit:

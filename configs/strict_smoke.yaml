@@ -36,6 +36,4 @@ on_failure:
   engineer_auditor_validator: true  # ENG->AUD->VAL loop per fix
   min_green_tests: 300         # test suite must pass at this level
 
-# QA config
-qa:
-  allow_ocr_unavailable: true
+allow_ocr_unavailable: true
