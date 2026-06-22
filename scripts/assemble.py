@@ -266,7 +266,7 @@ def validate_manifest(manifest, base):
         #   segment_tts (non-continuous) → an image segment needs its own audio
         is_image = seg.get("media", "").lower().split(".")[-1] in ("png", "jpg", "jpeg", "webp")
         policy = seg.get("audio_policy", "strip")
-        silent_under_master = is_continuous and policy in ("BROLL_FLEX", "strip", "post_overlay")
+        silent_under_master = is_continuous and policy in ("BROLL_FLEX", "strip", "post_overlay", "SILENT_GRAPHIC")
         if is_image and not audio and not silent_under_master:
             errors.append(f"{prefix}: image media requires 'audio' field "
                           f"(audio_policy={policy!r}, continuous={is_continuous})")
