@@ -1323,13 +1323,24 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         if new_status == "completed":
             _complete_downloaded_job(job, adapter, ext_id, poll_result)
         elif new_status == "failed":
+            # S10-C08: classify failure — retryable errors don't block the stage
+            retryable = poll_result.get("retryable", False)
+            failure_reason = poll_result.get("failure_reason", "unknown")
             fail_provider_job(
                 job["id"],
                 poll_result.get("error", "Provider returned failed status"),
                 db_path=None,
             )
+            if retryable:
+                # Transient failure: don't raise — the job will be retried
+                # on the next resume cycle via the repair/re-submit path.
+                print(f"  ⚠ Provider job {job['id']}: retryable failure "
+                      f"({failure_reason}) — will retry on next resume",
+                      file=sys.stderr)
+                continue
             raise RuntimeError(
-                f"Provider job {job['id']} failed: {poll_result.get('error', 'unknown')}"
+                f"Provider job {job['id']} failed: {poll_result.get('error', 'unknown')} "
+                f"(permanent: {failure_reason})"
             )
 
     conn = _db.connect(None)

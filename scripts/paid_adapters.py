@@ -31,6 +31,54 @@ def _get_cred(key: str) -> str:
     return os.environ.get(key) or _RUNTIME_ENV.get(key, "")
 
 
+# ---------------------------------------------------------------------------
+# Poll error classification helpers
+# ---------------------------------------------------------------------------
+RETRYABLE_PATTERNS = [
+    "timeout", "timed out", "connection", "unavailable", "429", "too many requests",
+    "rate limit", "temporarily", "try again", "server error", "500", "502", "503",
+    "internal error", "capacity",
+]
+PERMANENT_PATTERNS = [
+    "moderation", "rejected", "content policy", "safety", "inappropriate",
+    "invalid parameter", "invalid input", "unsupported", "not allowed",
+    "quota exceeded", "billing", "expired", "disabled",
+]
+
+
+def _classify_retryable(error_text: str) -> bool:
+    """Classify whether a provider failure is retryable based on error text patterns."""
+    text = error_text.lower()
+    for pattern in RETRYABLE_PATTERNS:
+        if pattern in text:
+            return True
+    for pattern in PERMANENT_PATTERNS:
+        if pattern in text:
+            return False
+    # Unknown failures are treated as non-retryable (safer)
+    return False
+
+
+def _extract_table_error(table_text: str) -> str:
+    """Try to extract error/reason columns from a Higgsfield CLI table output.
+    
+    The table format uses multi-space column separators or fixed-width layout.
+    We split on 2+ spaces to handle multi-word values like "Seedance 2.0"
+    and "2026-06-22 13:16".
+    """
+    lines = [l for l in table_text.splitlines() if l.strip()]
+    if len(lines) < 2:
+        return ""
+    # Split header row on 2+ spaces to determine column count
+    header_cols = re.split(r" {2,}", lines[0].strip())
+    data_cols = re.split(r" {2,}", lines[1].strip()) if len(lines) > 1 else []
+    # Standard columns: ID, DATE, MODEL, STATUS, URL = 5
+    if len(data_cols) > 5:
+        extra = data_cols[5:]
+        return " ".join(extra).strip()
+    return ""
+
+
 class HiggsfieldSeedanceAdapter(ProviderAdapter):
     """Real Higgsfield Seedance video generation via CLI."""
 
@@ -189,7 +237,15 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
         r = subprocess.run(["higgsfield", "generate", "get", external_job_id],
                            capture_output=True, text=True)
         if r.returncode != 0:
-            return {"status": "failed", "error": r.stderr[:500]}
+            # CLI error: capture full stderr for diagnostics
+            err_text = r.stderr.strip()
+            return {
+                "status": "failed",
+                "error": f"CLI exit {r.returncode}: {err_text[:500]}",
+                "raw_response": err_text,
+                "retryable": False,
+                "failure_reason": "cli_error",
+            }
 
         raw = r.stdout.strip()
 
@@ -207,10 +263,27 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                 "waiting": "running",
                 "queued": "running",
             }
-            return {
-                "status": state_map.get(state, "running"),
+            status = state_map.get(state, "running")
+            result = {
+                "status": status,
                 "raw_response": json.dumps(data, default=str),
             }
+            if status == "failed":
+                # Extract structured error info from JSON response
+                err_msg = data.get("error") or data.get("message") or data.get("error_message") or "unknown"
+                err_code = data.get("error_code") or data.get("code") or ""
+                reason = data.get("reason") or data.get("failure_reason") or ""
+                detail = err_msg
+                if reason:
+                    detail = f"{err_msg} (reason: {reason})"
+                if err_code:
+                    detail = f"[{err_code}] {detail}"
+                result["error"] = detail
+                result["failure_reason"] = reason or err_msg
+                result["failure_code"] = err_code
+                # Classify retryability
+                result["retryable"] = _classify_retryable(detail)
+            return result
         except json.JSONDecodeError:
             pass
 
@@ -220,7 +293,16 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
         padded = f" {lowered} "
 
         if " failed " in padded or "\nfailed" in lowered:
-            return {"status": "failed", "raw_response": raw, "error": raw[:500]}
+            # Try to extract any error/reason column from the table
+            extra_ctx = _extract_table_error(raw)
+            detail = extra_ctx or raw[:500]
+            return {
+                "status": "failed",
+                "raw_response": raw,
+                "error": detail,
+                "retryable": _classify_retryable(detail),
+                "failure_reason": extra_ctx or "provider_returned_failed",
+            }
 
         if " completed " in padded or "\ncompleted" in lowered:
             return {"status": "completed", "raw_response": raw}
