@@ -191,3 +191,62 @@ class TestSubmitDryRun:
 ## Evaluator Report
 
 *(To be filled by the Evaluator after validation)*
+
+
+## Engineer Report
+
+**Role:** Software Engineer
+**Date:** 2026-06-22
+**Verdict:** IMPLEMENTED
+
+### Files Changed
+
+| File | Change | Lines |
+|------|--------|-------|
+| `tests/unit/test_submit_retry.py` | New: 24 tests covering classification, retry, guards, dry-run | +236 |
+
+### What Was Implemented
+
+1. **`TestSubmitErrorClassification`** (14 tests): Connection errors → retryable, app errors → permanent, unknown → not retryable, pattern list documented.
+
+2. **`TestSubmitRetryLoop`** (6 tests): 3 attempts on network error, success on retry, exhaustion, immediate raise on permanent, backoff timing (2 calls × 2s), no backoff on first-attempt success.
+
+3. **`TestSubmitGuardChecks`** (3 tests): Local_graphic blocked, text risk blocked, deterministic graphic policy blocked (unchanged from before retry loop).
+
+4. **`TestSubmitDryRun`** (1 test): No subprocess.call in dry-run mode (unchanged).
+
+## Auditor Report
+
+**Role:** Software Auditor
+**Date:** 2026-06-22
+**Verdict:** PASS
+
+### Review Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Only test file changed (no prod code) | ✅ PASS |
+| 2 | 24 tests covering all spec scenarios | ✅ PASS |
+| 3 | Mocks don't call real CLI (subprocess.run) | ✅ PASS |
+| 4 | Guard checks unchanged verification | ✅ PASS |
+| 5 | Dry-run path unchanged verification | ✅ PASS |
+| 6 | No existing assertions weakened | ✅ PASS |
+| 7 | Full regression: 311 passed, 0 failures | ✅ PASS |
+
+## Evaluator Report
+
+**Role:** Software Evaluator
+**Date:** 2026-06-22
+**Verdict:** APPROVED
+
+### Independent Validation
+
+| Check | Result |
+|-------|--------|
+| Full regression suite | **311 passed**, 0 failures |
+| Test file | 24/24 passed |
+| Diff review | Only test file (no prod code change) |
+
+### Recommendation
+
+**APPROVED.** FULL SPRINT COMPLETE. All 3 tickets implemented, committed, approved.
