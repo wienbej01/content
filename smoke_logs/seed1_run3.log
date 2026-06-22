@@ -1,0 +1,26 @@
+  ✗ Stage 'gate_a_spend' failed: gate_a_spend pending approval. Use: python3 scripts/produce_db.py approve prod_b875c5b1a88f4871aebe141a4c591398 gate_a_spend --pass
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: gate_a_content
+  ✓ Stage 'gate_a_content' completed.
+
+▶ Executing stage: storyboard
+  ✓ Stage 'storyboard' completed.
+
+▶ Executing stage: review_storyboard
+  ✓ Stage 'review_storyboard' completed.
+
+▶ Executing stage: tts
+  ✓ Stage 'tts' completed.
+
+▶ Executing stage: audio_timing
+  ✓ Stage 'audio_timing' completed.
+
+▶ Executing stage: reconcile_timing
+  ✓ Stage 'reconcile_timing' completed.
+
+▶ Executing stage: compile_media
+  ✓ Stage 'compile_media' completed.
+
+▶ Executing stage: gate_a_spend

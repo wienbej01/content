@@ -1,0 +1,6 @@
+  ⚠ Provider job pjob_f58320adc1394de9a9c64d6344c8e4f5: retryable failure (provider_returned_failed) — will retry on next resume
+  ✗ Stage 'generate_media' failed: LOCAL_GRAPHIC_RENDER_NOT_IMPLEMENTED: render_unit S002 is local_graphic and will not be sent to Higgsfield/Kling. Render/register a local artifact first.
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: generate_media

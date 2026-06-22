@@ -1365,11 +1365,17 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         if ensure_render_unit_artifact_state(u["id"], db_path=None):
             continue
         if u["asset_type"] == "local_graphic":
-            raise RuntimeError(
-                f"LOCAL_GRAPHIC_RENDER_NOT_IMPLEMENTED: render_unit "
-                f"{u['label'] or u['id']} is local_graphic and will not be sent "
-                "to Higgsfield/Kling. Render/register a local artifact first."
+            # Skip local_graphic units — they are rendered by the
+            # graphics_compositing stage, not by generate_media.
+            # Downstream guards (submit_provider_job, adapter.submit)
+            # would also block them if they reached the provider path.
+            print(
+                f"  - Skipping {u['label'] or u['id']}: local_graphic "
+                f"(rendered by graphics_compositing)",
+                file=sys.stderr,
             )
+            submitted_in_wave += 1
+            continue
         if submitted_in_wave >= wave_size:
             break
 

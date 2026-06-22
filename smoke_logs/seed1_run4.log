@@ -1,0 +1,8 @@
+  ✗ Stage 'generate_media' failed: generate_media incomplete: required render units are not generated/valid: S000=generating, S000=generating, S000=generating, S001=ordered, S001=ordered, S001=ordered, S002=local_graphic_unrendered, S002=local_graphic_unrendered, S002=local_graphic_unrendered, S002=local_graphic_unrendered
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: gate_a_spend
+  ✓ Stage 'gate_a_spend' completed.
+
+▶ Executing stage: generate_media
