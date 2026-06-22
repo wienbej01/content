@@ -1360,6 +1360,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
     wave_size = max(1, int(os.environ.get("PROVIDER_SUBMISSION_WAVE_SIZE", "3")))
     submitted_in_wave = 0
+    retryable_submit_failures = 0
     for u in [dict(r) for r in units_to_generate]:
         if ensure_render_unit_artifact_state(u["id"], db_path=None):
             continue
@@ -1443,8 +1444,27 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                     db_path=None,
                 )
         except Exception as e:
-            fail_provider_job(job["id"], f"Submit failed: {e}", db_path=None)
-            raise RuntimeError(f"Provider job {job['id']} submit failed: {e}")
+            err_text = str(e)
+            from paid_adapters import _is_submit_error_retryable
+            retryable = _is_submit_error_retryable(err_text)
+            fail_provider_job(
+                job["id"],
+                f"Submit failed: {err_text[:500]}",
+                db_path=None,
+            )
+            if retryable:
+                submitted_count += 1
+                submitted_in_wave += 1
+                retryable_submit_failures += 1
+                print(
+                    f"  \u26A0 Provider job {job['id']}: retryable submit failure "
+                    f"({err_text[:120]}) — repair will resubmit",
+                    file=sys.stderr,
+                )
+                continue
+            raise RuntimeError(
+                f"Provider job {job['id']} submit failed (permanent): {err_text[:300]}"
+            )
 
         submitted_count += 1
         submitted_in_wave += 1
@@ -1457,6 +1477,15 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 resolved_by="generate_media",
                 db_path=None,
             )
+
+    # S10-C10: If ALL submissions in this wave were retryable failures, raise a
+    # stalled error instead of silently accepting zero progress.
+    if retryable_submit_failures > 0 and submitted_count == retryable_submit_failures:
+        raise RuntimeError(
+            f"generate_media stalled: {retryable_submit_failures} provider job(s) had "
+            f"retryable submit failures after exhausting retries. "
+            f"Check network/Higgsfield connectivity. Repair will resubmit."
+        )
 
     # generate_media is only successful once required units are generated/valid.
     conn = _db.connect(None)

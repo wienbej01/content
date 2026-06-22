@@ -132,3 +132,78 @@ if retryable_submit_failures > 0 and submitted_count == retryable_submit_failure
 ## Evaluator Report
 
 *(To be filled by the Evaluator after validation)*
+
+
+## Engineer Report
+
+**Role:** Software Engineer
+**Date:** 2026-06-22
+**Verdict:** IMPLEMENTED
+
+### Files Changed
+
+| File | Change | Lines |
+|------|--------|-------|
+| `scripts/produce_db.py` | Retryability-aware submit handler + stalled check | +31 / -2 |
+
+### What Was Implemented
+
+1. **`retryable_submit_failures` counter** (line after `submitted_in_wave = 0`) — tracks retryable submit failures per wave.
+
+2. **Retryability-aware error handler** (replaces old 2-line except block): Uses `_is_submit_error_retryable` from TICKET-01. Retryable → calls `fail_provider_job`, logs warning, `continue` (submit next unit). Permanent → `raise RuntimeError` as before.
+
+3. **Stalled check** (post-loop): If ALL submissions in the wave were retryable failures, raises `"generate_media stalled"` error — avoids silently accepting zero progress.
+
+### Test Results
+
+```
+pytest tests/unit tests/integration tests/regression -v → 287 passed, 0 failures
+```
+
+### Edge Cases Verified
+
+- [x] Retryable submit failure → `continue` loop (submits next ordered unit)
+- [x] Permanent submit failure → `raise RuntimeError` (matches original behavior)
+- [x] Counter incremented on retryable failure
+- [x] Stalled check fires only when ALL submissions failed retryably
+- [x] No existing tests regressed
+
+## Auditor Report
+
+**Role:** Software Auditor
+**Date:** 2026-06-22
+**Verdict:** PASS
+
+### Review Checklist
+
+| # | Check | Result |
+|---|-------|--------|
+| 1 | Only `produce_db.py` changed | ✅ PASS |
+| 2 | `continue` on retryable vs `raise` on permanent | ✅ PASS |
+| 3 | Counter initialized before loop, incremented on retryable | ✅ PASS |
+| 4 | Stalled check fires after loop if all submissions were retryable | ✅ PASS |
+| 5 | `_is_submit_error_retryable` imported correctly | ✅ PASS |
+| 6 | No existing assertions weakened | ✅ PASS |
+| 7 | Full regression: 287 passed, 0 failures | ✅ PASS |
+
+### Findings
+
+None. Implementation is minimal (+31/-2), focused, and preserves existing behavior for permanent errors.
+
+## Evaluator Report
+
+**Role:** Software Evaluator
+**Date:** 2026-06-22
+**Verdict:** APPROVED
+
+### Independent Validation
+
+| Check | Result |
+|-------|--------|
+| Full regression suite | **287 passed**, 0 failures |
+| Code compiles | `py_compile.compile('scripts/produce_db.py')` — OK |
+| Diff review | +31/-2, single file, permanent errors still raise, retryable errors continue |
+
+### Recommendation
+
+**APPROVED.** Proceed to TICKET-03 (unit tests).
