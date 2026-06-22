@@ -1,0 +1,37 @@
+# Smoke test config: 25-second teaser for end-to-end pipeline validation.
+# Saved at: docs/plans/e2e_smoke_loop/smoke_config.yaml
+# Applied via: python3 scripts/produce_db.py run <id> --config-override ...  
+# (or copy over configs/strict_smoke.yaml before starting the loop)
+
+video_type: teaser
+target_duration_sec: 25
+max_total_usd: 5.00
+max_paid_provider_jobs: 20
+formats:
+  - 16x9
+
+# Minimal shot mix for 25s video
+shot_mix:
+  hero_lipsync:  2    # at least 2 hero shots
+  generated_video: 1  # at least 1 b-roll
+  graphic: 1          # at least 1 graphic/title card
+
+# Pipeline config
+pipeline:
+  auto_approve_gates: true    # auto-approve gate_a_content, gate_a_spend, gate_b_review
+  resume_on_failure: true     # keep resuming until all stages pass
+  max_resume_attempts: 20     # fail the loop if 20 resumes don't clear a stage
+  stage_timeout_minutes: 5    # per-stage timeout
+
+# Provider config
+providers:
+  tts: elevenlabs
+  video: higgsfield_seedance_2_0
+  broll: higgsfield_kling3_0
+
+# Failure handling
+on_failure:
+  analyze_3_why: true          # perform 3-why root cause analysis
+  create_pass_gate_test: true  # write a test that proves the fix
+  engineer_auditor_validator: true  # ENG->AUD->VAL loop per fix
+  min_green_tests: 300         # test suite must pass at this level
