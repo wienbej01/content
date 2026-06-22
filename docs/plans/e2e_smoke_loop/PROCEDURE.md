@@ -65,6 +65,16 @@ python3 scripts/produce_db.py approve $PROD_ID gate_a_spend --pass 2>/dev/null |
 
 Note: Gates may not exist yet when the pipeline hasn't reached them. The `|| true` handles this.
 
+### Step 2.5: Understand the timing
+
+**LLM calls are synchronous** — the script waits. But other stages take time:
+- ElevenLabs TTS: 30-120 seconds (synchronous, script waits)
+- Higgsfield Seedance video: 2-10 minutes per job (async, needs poll + resume)
+- Higgsfield Kling b-roll: 1-5 minutes per job (async, needs poll + resume)  
+- FFmpeg assembly: 10-30 seconds (synchronous, script waits)
+
+**Each resume attempt may take 2-15 minutes.** The loop below has a cooldown to avoid hammering the API. Expected total time for a clean 25s production: **15-45 minutes.**
+
 ### Step 3: Run pipeline — resume loop
 ```bash
 ATTEMPTS=0
@@ -95,10 +105,21 @@ while [ $ATTEMPTS -lt $MAX_ATTEMPTS ] && [ "$PASSED" = "false" ]; do
     
     if echo "$OUTPUT" | grep -q "Stage.*failed\|Error\|FAILED"; then
         echo "⚠ Attempt $ATTEMPTS failed — analyzing..."
-        # Extract error and go to Phase 2
         ERROR_STAGE=$(echo "$OUTPUT" | grep -oP "Stage '\K[^']+")
         ERROR_MSG=$(echo "$OUTPUT" | grep -oP "failed: \K.*" | head -1)
         echo "$PROD_ID: FAILED at $ERROR_STAGE: $ERROR_MSG" >> smoke_logs/results.txt
+        
+        # Apply cooldown — base 15s, exponential for same-stage failures
+        PREV_STAGE="${PREV_STAGE:-}"
+        if [ "$ERROR_STAGE" = "$PREV_STAGE" ]; then
+            WAIT=$((WAIT_SEC * 2))
+            [ $WAIT -gt 300 ] && WAIT=300  # cap at 5 min
+        else
+            WAIT=15
+        fi
+        PREV_STAGE="$ERROR_STAGE"
+        echo "  ⏳ Cooling down ${WAIT}s before next resume..."
+        sleep $WAIT
     fi
 done
 

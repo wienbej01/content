@@ -37,7 +37,11 @@ pipeline:
   auto_approve_gates: true    # auto-approve gate_a_content, gate_a_spend, gate_b_review
   resume_on_failure: true     # keep resuming until all stages pass
   max_resume_attempts: 20     # fail the loop if 20 resumes don't clear a stage
-  stage_timeout_minutes: 5    # per-stage timeout
+  stage_timeout_minutes: 15    # per-stage timeout (TTS takes 30-120s, Higgsfield 2-10min)
+  cooldown_seconds: 15         # MINIMUM wait between resume attempts
+  poll_interval_seconds: 10    # wait before each Higgsfield poll (already in produce_db.py)
+  backoff_multiplier: 2.0      # exponential backoff: wait * multiplier each retry at same stage
+  max_backoff_seconds: 300    # maximum backoff wait (5 minutes)
 
 # Provider config
 providers:
