@@ -296,7 +296,9 @@ def run_db_contract_checks(
             """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256
                FROM render_units ru
                LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
-               WHERE ru.production_id=? AND ru.status!='stale'
+               WHERE ru.production_id=?
+                 AND (ru.status IN ('valid', 'generated')
+                      OR ru.active_artifact_id IS NOT NULL)
                ORDER BY ru.ordinal""",
             (production_id,),
         ).fetchall()
