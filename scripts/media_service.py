@@ -1054,9 +1054,11 @@ def route_change_request(
             ),
         )
         if target_stage == "generate_media":
-            # Set back to 'ordered' so generate_media picks it up for regeneration
+            # Set back to 'ordered' and clear artifact so generate_media
+            # picks it up for regeneration (ensure_render_unit_artifact_state
+            # would skip it if the old artifact still exists).
             conn.execute(
-                "UPDATE render_units SET status='ordered', updated_at=? WHERE id=?",
+                "UPDATE render_units SET status='ordered', active_artifact_id=NULL, updated_at=? WHERE id=?",
                 (now, render_unit_id),
             )
         else:
