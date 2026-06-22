@@ -1915,10 +1915,13 @@ def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
         )
     
     # ENG-0802: Require no unresolved failed validations for selected render units
+    # Exclude change_requested units (they have expected FAIL validations from the
+    # QA that triggered the change request; resolution is pending).
     failed_validations = conn.execute(
         "SELECT COUNT(*) as cnt FROM validations v "
+        "JOIN render_units ru ON v.subject_id = ru.id AND ru.production_id = v.production_id "
         "WHERE v.production_id=? AND v.subject_type='render_unit' "
-        "AND v.status='fail' "
+        "AND v.status='fail' AND ru.status != 'change_requested' "
         "AND v.created_at > ("
         "SELECT COALESCE(MAX(v2.created_at), '1970-01-01') "
         "FROM validations v2 "

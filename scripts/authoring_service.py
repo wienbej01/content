@@ -363,6 +363,8 @@ def record_approval_decision(
             "SELECT * FROM approval_requests WHERE production_id=? AND gate_name=?",
             (production_id, gate_name),
         ).fetchone()
+        if not row:
+            return {"status": "no_pending_request", "production_id": production_id, "gate_name": gate_name}
         return dict(row)
 
 
