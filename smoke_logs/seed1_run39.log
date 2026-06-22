@@ -1,0 +1,5 @@
+  ✗ Stage 'gate_b_review' failed: Gate B blocked: 4 render unit(s) have failed validations newer than their last pass
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: gate_b_review
