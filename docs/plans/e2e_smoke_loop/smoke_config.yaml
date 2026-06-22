@@ -43,6 +43,10 @@ pipeline:
   backoff_multiplier: 2.0      # exponential backoff: wait * multiplier each retry at same stage
   max_backoff_seconds: 300    # maximum backoff wait (5 minutes)
 
+# QA config
+qa:
+  allow_ocr_unavailable: true   # OCR (Tesseract) not available on smoke test system
+
 # Provider config
 providers:
   tts: elevenlabs
