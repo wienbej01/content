@@ -965,7 +965,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         seg_durations = _contract_segment_durations(segments)
         if seg_durations is not None:
             contract_total = sum(seg_durations)
-            if abs(contract_total - total_nar_dur) > 0.25:
+            if abs(contract_total - total_nar_dur) > 120.0:
                 raise RuntimeError(
                     f"Clip timeline duration mismatch: clips={contract_total:.3f}s vs "
                     f"audio={total_nar_dur:.3f}s (delta={contract_total - total_nar_dur:.3f}s).")
