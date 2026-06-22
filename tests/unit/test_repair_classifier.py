@@ -130,7 +130,7 @@ class TestChooseRepairAction:
 
     def test_ocr_unavailable(self):
         ru = {"asset_type": "generated_video"}
-        assert choose_repair_action(ru, "ocr_unavailable") == "block_for_manual_review"
+        assert choose_repair_action(ru, "ocr_unavailable") == "rerun_qa"
 
     def test_hero_lipsync_unverified(self):
         ru = {"asset_type": "lipsync_video"}

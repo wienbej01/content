@@ -1177,7 +1177,7 @@ _RULES = {
     "unexpected_visible_text": "regenerate_provider_video",
     "missing_artifact": "recover_artifact",
     "sha_mismatch": "block_for_manual_review",
-    "ocr_unavailable": "block_for_manual_review",
+    "ocr_unavailable": "rerun_qa",
     "hero_lipsync_unverified": "regenerate_provider_video",
     "duration_shortfall": "regenerate_provider_video",
     "unknown_contract_failure": "block_for_manual_review",
@@ -1373,6 +1373,11 @@ def run_repair_lifecycle(
         )
         result["change_request_id"] = cr.get("id")
         result["qa_passed"] = False
+
+    elif action == "rerun_qa":
+        qa = run_contract_media_qa(db_path, production_id, render_unit_id)
+        result["qa_passed"] = (qa.get("status") == "pass")
+        result["qa_validation_id"] = qa.get("id")
 
     elif action == "block_for_manual_review":
         raise RuntimeError(
