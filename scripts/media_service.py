@@ -5,15 +5,22 @@ MEDIA-602  Generation worker migration (render-unit driven, no filename inferenc
 MEDIA-603  Graphics / overlay migration (typed MIME from DB)
 QA-604     Media validation evidence store
 QA-605     Change-request routing
+QA-606     Contract-based media QA (ENG-0501/0502/0503/0504/0505)
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
+import media_contract as _contract
 import production_db as _db
 import production_repo as _repo
+
+
+CONTRACT_VERSION = "1.0"
 
 
 PROVIDER_ACTIVE_STATUSES = ("submitted", "running")
@@ -79,6 +86,27 @@ def submit_provider_job(
             f"Cannot submit provider job: gate_a_spend is "
             f"{'missing' if not spend_approval else spend_approval['status']} "
             f"for production {production_id}"
+        )
+
+    # Guard: fetch render unit and enforce media contract
+    conn = _db.connect(db_path)
+    ru = conn.execute(
+        "SELECT * FROM render_units WHERE id=?", (render_unit_id,)
+    ).fetchone()
+    conn.close()
+    if not ru:
+        raise ProviderJobError(f"render_unit {render_unit_id} not found")
+
+    ru = dict(ru)
+    try:
+        _contract.assert_provider_eligible(ru)
+        prompt = (request_payload or {}).get("prompt") or ""
+        _contract.assert_provider_prompt_text_free(prompt)
+    except _contract.MediaContractError as exc:
+        raise _contract.MediaContractError(
+            f"render_unit_id={render_unit_id} "
+            f"asset_type={ru.get('asset_type', 'unknown')}: "
+            f"{exc}"
         )
 
     idem = idempotency_key or (
@@ -433,9 +461,12 @@ def record_validation_evidence(
     stage_run_id: Optional[str] = None,
     db_path=None,
 ) -> dict:
-    """Store validation evidence and update the subject's approved_validation_id if passed.
+    """Store validation evidence and update the subject's status.
 
     A subject is only consumable when required validations pass (HARD INVARIANT #4).
+
+    PASS  → render_unit.status = 'valid'
+    FAIL  → render_unit.status = 'needs_repair' (ENG-0504)
     """
     now = _db._now()
     with _db.transaction(db_path) as conn:
@@ -455,6 +486,11 @@ def record_validation_evidence(
             conn.execute(
                 "UPDATE render_units SET approved_validation_id=?, status='valid', updated_at=? WHERE id=?",
                 (val_id, now, subject_id),
+            )
+        if not passed and subject_type == "render_unit":
+            conn.execute(
+                "UPDATE render_units SET status='needs_repair', updated_at=? WHERE id=?",
+                (now, subject_id),
             )
         return dict(conn.execute("SELECT * FROM validations WHERE id=?", (val_id,)).fetchone())
 
@@ -497,6 +533,482 @@ def run_render_unit_qa(
         production_id, "render_unit", render_unit_id,
         "qa_media", passed, checks, db_path=db_path,
     )
+
+
+# ---------------------------------------------------------------------------
+# QA-606  Contract-based media QA (ENG-0501/0502/0503/0504/0505)
+# ---------------------------------------------------------------------------
+
+CONTRACT_EVIDENCE_KEYS = frozenset({
+    "render_method", "contract_version", "file_exists", "sha_match",
+    "dimensions_ok", "duration_ok", "provenance_ok", "text_policy_ok",
+})
+
+
+def _check_file_exists(artifact_path: Path) -> bool:
+    return artifact_path.exists()
+
+
+def _probe_artifact(artifact_path: Path) -> dict:
+    """ffprobe a media file; return {} on any error."""
+    import subprocess as _subprocess
+    try:
+        out = _subprocess.run(
+            ["ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json",
+             str(artifact_path)],
+            capture_output=True, text=True, check=True, timeout=15,
+        ).stdout
+        return json.loads(out)
+    except Exception:
+        return {}
+
+
+def _ffprobe_dimensions_duration(artifact_path: Path) -> dict:
+    """Extract width, height, duration_ms from the first video stream using ffprobe."""
+    import subprocess as _subprocess
+    r = _subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height,duration",
+         "-of", "default=noprint_wrappers=1", str(artifact_path)],
+        capture_output=True, text=True, timeout=10,
+    )
+    w = h = dur_ms = None
+    for line in r.stdout.splitlines():
+        if line.startswith("width="):
+            w = int(line.split("=", 1)[1])
+        elif line.startswith("height="):
+            h = int(line.split("=", 1)[1])
+        elif line.startswith("duration="):
+            try:
+                dur_ms = int(float(line.split("=", 1)[1]) * 1000)
+            except ValueError:
+                pass
+    return {"width": w, "height": h, "duration_ms": dur_ms}
+
+
+def _check_sha_match(artifact_path: Path, expected_sha: Optional[str]) -> bool:
+    if not expected_sha:
+        return True
+    actual = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    return actual == expected_sha
+
+
+def _qa_local_graphic(
+    production_id: str, render_unit: dict, artifact: Optional[dict],
+    artifact_path: Optional[Path], db_path=None,
+) -> tuple[bool, dict]:
+    """ENG-0502: QA for local_graphic render units.
+
+    Checks:
+    - artifact exists and is linked
+    - artifact provenance says local renderer
+    - no provider job exists for render unit
+    - deterministic_text_spec exists
+    - text_spec_sha256 matches current DTS
+    - file exists (dimensions/duration if MP4)
+    """
+    evidence: dict = {}
+    issues: list[str] = []
+
+    # 1. Artifact exists
+    if not artifact or not artifact_path:
+        evidence["file_exists"] = False
+        issues.append("missing_artifact")
+        return (False, {"render_method": "local_graphic", "contract_version": CONTRACT_VERSION,
+                        "file_exists": False, "sha_match": False, "dimensions_ok": False,
+                        "duration_ok": False, "provenance_ok": False, "text_policy_ok": False,
+                        "issues": issues})
+
+    evidence["file_exists"] = True
+
+    # 2. Active artifact is linked
+    if not render_unit.get("active_artifact_id"):
+        evidence["artifact_linked"] = False
+        issues.append("artifact_not_linked")
+
+    # 3. Artifact provenance says local renderer
+    art_meta_str = artifact.get("metadata_json") or "{}"
+    art_meta = json.loads(art_meta_str) if isinstance(art_meta_str, str) else art_meta_str
+    render_method = art_meta.get("render_method", "")
+    renderer = art_meta.get("renderer", "")
+    provenance_ok = (render_method == "local_graphic" and "render_graphics.py" in renderer)
+    evidence["provenance_ok"] = provenance_ok
+    evidence["render_method"] = "local_graphic"
+    evidence["renderer"] = renderer
+    if not provenance_ok:
+        issues.append("wrong_provenance")
+
+    # 4. No provider job exists for render unit
+    conn = _db.connect(db_path)
+    pj_count = conn.execute(
+        "SELECT COUNT(*) as c FROM provider_jobs WHERE render_unit_id=?",
+        (render_unit["id"],),
+    ).fetchone()["c"]
+    conn.close()
+    no_provider_job = (pj_count == 0)
+    evidence["no_provider_job"] = no_provider_job
+    if not no_provider_job:
+        issues.append("has_provider_job")
+
+    # 5. Deterministic text spec exists in metadata
+    ru_meta_str = render_unit.get("metadata_json") or "{}"
+    ru_meta = json.loads(ru_meta_str) if isinstance(ru_meta_str, str) else ru_meta_str
+    dts = ru_meta.get("deterministic_text_spec")
+    text_spec_ok = dts is not None
+    evidence["text_spec_exists"] = text_spec_ok
+    if not text_spec_ok:
+        issues.append("missing_deterministic_text_spec")
+
+    # 6. Text spec SHA256 matches
+    spec_sha_match = True
+    if dts and "text_spec_sha256" in art_meta:
+        current_spec_sha = hashlib.sha256(_db._json(dts).encode()).hexdigest()
+        stored_sha = art_meta["text_spec_sha256"]
+        spec_sha_match = (current_spec_sha == stored_sha)
+    evidence["text_spec_sha_match"] = spec_sha_match
+    if not spec_sha_match:
+        issues.append("text_spec_hash_mismatch")
+
+    # 7. File dimensions/duration if MP4
+    dims_ok = True
+    dur_ok = True
+    if artifact_path and artifact_path.suffix.lower() == ".mp4":
+        probe = _ffprobe_dimensions_duration(artifact_path)
+        dims_ok = probe.get("width") is not None and probe.get("height") is not None
+        dur_ok = probe.get("duration_ms") is not None
+
+    # 8. SHA match between artifact DB record and disk
+    sha_ok = _check_sha_match(artifact_path, artifact.get("sha256")) if artifact_path else False
+    evidence["sha_match"] = sha_ok
+    evidence["dimensions_ok"] = dims_ok
+    evidence["duration_ok"] = dur_ok
+    evidence["text_policy_ok"] = True  # local graphic renders exact text by design
+
+    evidence["issues"] = issues
+    evidence["ocr_available"] = False
+    evidence["ocr_note"] = "OCR not applicable for local_graphic (PNG overlay)"
+
+    evidence["contract_version"] = CONTRACT_VERSION
+    evidence["render_method"] = "local_graphic"
+
+    passed = (
+        evidence["file_exists"] and evidence["provenance_ok"] and evidence["sha_match"]
+        and evidence["no_provider_job"] and text_spec_ok and spec_sha_match
+    )
+    return (passed, evidence)
+
+
+def _check_text_policy_via_ocr(artifact_path: Path) -> tuple[bool, dict]:
+    """ENG-0503: Sample video frames and attempt OCR to detect visible text.
+
+    Returns (passed, ocr_evidence). If OCR is unavailable and strict mode is
+    required, the caller must handle the fail path explicitly.
+    """
+    ocr_evidence: dict = {"ocr_available": False, "ocr_frames_checked": 0}
+
+    try:
+        import pytesseract
+    except ImportError:
+        ocr_evidence["ocr_available"] = False
+        ocr_evidence["ocr_error"] = "pytesseract not installed"
+        return (False, ocr_evidence)
+
+    import subprocess as _subprocess
+    try:
+        _subprocess.run(
+            [pytesseract.pytesseract.tesseract_cmd, "--version"],
+            capture_output=True, check=True, timeout=5,
+        )
+    except Exception:
+        ocr_evidence["ocr_available"] = False
+        ocr_evidence["ocr_error"] = "tesseract binary not available"
+        return (False, ocr_evidence)
+
+    try:
+        from PIL import Image
+    except ImportError:
+        ocr_evidence["ocr_available"] = False
+        ocr_evidence["ocr_error"] = "PIL not installed"
+        return (False, ocr_evidence)
+
+    import subprocess as _subprocess
+    import tempfile
+
+    ocr_evidence["ocr_available"] = True
+
+    with tempfile.TemporaryDirectory(prefix="ocr_frames_") as td:
+        frame_path = Path(td) / "frame_%03d.png"
+
+        # Extract one frame from middle of video
+        probe = _ffprobe_dimensions_duration(artifact_path)
+        duration_ms = probe.get("duration_ms") or 5000
+        mid_sec = duration_ms / 2000.0
+
+        try:
+            _subprocess.run(
+                ["ffmpeg", "-y", "-ss", str(mid_sec), "-i", str(artifact_path),
+                 "-vframes", "4", "-vf", "fps=1/2", str(frame_path)],
+                capture_output=True, text=True, check=True, timeout=30,
+            )
+        except Exception as exc:
+            ocr_evidence["ocr_error"] = f"frame extraction failed: {exc}"
+            return (False, ocr_evidence)
+
+        frames = sorted(Path(td).glob("frame_*.png"))
+        ocr_evidence["ocr_frames_checked"] = len(frames)
+        found_text_count = 0
+        detected_texts = []
+
+        for fp in frames:
+            try:
+                img = Image.open(fp)
+                text = pytesseract.image_to_string(img).strip()
+                if text:
+                    found_text_count += 1
+                    detected_texts.append(text[:100])
+            except Exception:
+                pass
+
+        ocr_evidence["frames_with_text"] = found_text_count
+        if detected_texts:
+            ocr_evidence["sample_detected_text"] = detected_texts[:3]
+
+        passed = found_text_count == 0
+        ocr_evidence["text_detected"] = not passed
+
+    return (passed, ocr_evidence)
+
+
+def _qa_provider_video(
+    production_id: str, render_unit: dict, artifact: Optional[dict],
+    artifact_path: Optional[Path], db_path=None,
+) -> tuple[bool, dict]:
+    """ENG-0503: QA for provider-generated video (text_policy enforcement).
+
+    For NO_VISIBLE_TEXT: attempt OCR; fail if text detected or OCR unavailable
+    in strict mode. For other text policies, pass with note.
+    """
+    evidence: dict = {
+        "render_method": "generated_video", "contract_version": CONTRACT_VERSION,
+    }
+    issues: list[str] = []
+
+    if not artifact or not artifact_path:
+        evidence["file_exists"] = False
+        issues.append("missing_artifact")
+        return (False, evidence)
+
+    evidence["file_exists"] = _check_file_exists(artifact_path)
+
+    # Mechanical checks
+    probe = _ffprobe_dimensions_duration(artifact_path)
+    dims_ok = probe.get("width") is not None and probe.get("height") is not None
+    dur_ok = probe.get("duration_ms") is not None
+    sha_ok = _check_sha_match(artifact_path, artifact.get("sha256"))
+    evidence["dimensions_ok"] = dims_ok
+    evidence["duration_ok"] = dur_ok
+    evidence["sha_match"] = sha_ok
+
+    # Text policy check
+    text_policy = (render_unit.get("text_policy") or "").strip().upper()
+    text_policy_ok = True
+    ocr_result = {}
+
+    if text_policy == "NO_VISIBLE_TEXT":
+        ocr_passed, ocr_evidence = _check_text_policy_via_ocr(artifact_path)
+        ocr_result = ocr_evidence
+        if ocr_evidence.get("ocr_available"):
+            text_policy_ok = ocr_passed
+            if not ocr_passed:
+                issues.append("visible_text_detected")
+        else:
+            strict = os.environ.get("OCR_STRICT_MODE", "1") == "1"
+            if strict:
+                text_policy_ok = False
+                issues.append("ocr_unavailable_strict_mode")
+            else:
+                ocr_result["ocr_note"] = "OCR unavailable in non-strict mode; text policy not enforced"
+
+    evidence["text_policy_ok"] = text_policy_ok
+    evidence["text_policy"] = text_policy
+    evidence.update(ocr_result)
+    evidence["provenance_ok"] = True
+    evidence["issues"] = issues
+
+    passed = (
+        evidence["file_exists"] and dims_ok and sha_ok and text_policy_ok
+    )
+    return (passed, evidence)
+
+
+def _qa_hero_lipsync(
+    production_id: str, render_unit: dict, artifact: Optional[dict],
+    artifact_path: Optional[Path], db_path=None,
+) -> tuple[bool, dict]:
+    """ENG-0505: QA for hero lipsync render units.
+
+    Checks:
+    - Artifact duration vs intended audio slice duration
+    - Fail if delta > 100ms
+    - Record exact durations in evidence
+    """
+    evidence: dict = {
+        "render_method": "hero_lipsync", "contract_version": CONTRACT_VERSION,
+    }
+    issues: list[str] = []
+
+    if not artifact or not artifact_path:
+        evidence["file_exists"] = False
+        evidence["sha_match"] = False
+        evidence["dimensions_ok"] = False
+        evidence["duration_ok"] = False
+        evidence["provenance_ok"] = False
+        evidence["text_policy_ok"] = False
+        issues.append("missing_artifact")
+        return (False, evidence)
+
+    evidence["file_exists"] = True
+    evidence["provenance_ok"] = True
+    evidence["text_policy_ok"] = True
+
+    probe = _ffprobe_dimensions_duration(artifact_path)
+    video_duration_ms = probe.get("duration_ms")
+    width = probe.get("width")
+    height = probe.get("height")
+    evidence["dimensions_ok"] = width is not None and height is not None
+    evidence["actual_width"] = width
+    evidence["actual_height"] = height
+
+    sha_ok = _check_sha_match(artifact_path, artifact.get("sha256"))
+    evidence["sha_match"] = sha_ok
+
+    intended_duration_ms = render_unit.get("required_duration_ms", 0) or 0
+
+    if video_duration_ms is not None and intended_duration_ms > 0:
+        delta_ms = abs(video_duration_ms - intended_duration_ms)
+        evidence["video_duration_ms"] = video_duration_ms
+        evidence["intended_duration_ms"] = intended_duration_ms
+        evidence["duration_delta_ms"] = delta_ms
+        DURATION_TOLERANCE_MS = 100
+        evidence["duration_tolerance_ms"] = DURATION_TOLERANCE_MS
+        evidence["duration_ok"] = delta_ms <= DURATION_TOLERANCE_MS
+        if not evidence["duration_ok"]:
+            issues.append(
+                f"duration_delta_{delta_ms}ms_exceeds_{DURATION_TOLERANCE_MS}ms"
+            )
+    else:
+        evidence["duration_ok"] = False
+        issues.append("duration_probe_failed")
+
+    evidence["issues"] = issues
+
+    passed = (
+        evidence["file_exists"] and evidence["dimensions_ok"] and evidence["sha_match"]
+        and evidence["duration_ok"]
+    )
+    return (passed, evidence)
+
+
+def _qa_still(
+    production_id: str, render_unit: dict, artifact: Optional[dict],
+    artifact_path: Optional[Path], db_path=None,
+) -> tuple[bool, dict]:
+    """QA for still/asset reuse render units (minimal mechanical checks)."""
+    evidence: dict = {
+        "render_method": "still_kenburns", "contract_version": CONTRACT_VERSION,
+    }
+    if not artifact or not artifact_path:
+        evidence["file_exists"] = False
+        evidence["sha_match"] = False
+        evidence["dimensions_ok"] = False
+        evidence["duration_ok"] = False
+        evidence["provenance_ok"] = False
+        evidence["text_policy_ok"] = False
+        evidence["issues"] = ["missing_artifact"]
+        return (False, evidence)
+
+    evidence["file_exists"] = True
+    evidence["sha_match"] = _check_sha_match(artifact_path, artifact.get("sha256"))
+    evidence["provenance_ok"] = True
+    evidence["text_policy_ok"] = True
+
+    probe = _ffprobe_dimensions_duration(artifact_path)
+    evidence["dimensions_ok"] = probe.get("width") is not None and probe.get("height") is not None
+    evidence["duration_ok"] = probe.get("duration_ms") is not None
+
+    passed = (
+        evidence["file_exists"] and evidence["sha_match"]
+        and evidence["dimensions_ok"]
+    )
+    return (passed, evidence)
+
+
+def run_contract_media_qa(
+    db, production_id: str, render_unit_id: str,
+) -> dict:
+    """ENG-0501: Dispatch media QA by render method.
+
+    Loads the render unit and its active artifact, classifies the render
+    method via ``media_contract.classify_render_method``, and dispatches
+    to the appropriate QA function.
+
+    Returns the validation evidence dict with render method, contract version,
+    and all check results. The validation is also recorded in the DB with
+    status transitions (ENG-0504).
+
+    Args:
+        db: DB path (None for env-var default)
+        production_id: target production row id
+        render_unit_id: render unit to validate
+
+    Returns:
+        The validation row dict (as returned from DB after record_validation_evidence).
+    """
+    _db.migrate(db)
+
+    conn = _db.connect(db)
+    ru = conn.execute("SELECT * FROM render_units WHERE id=?", (render_unit_id,)).fetchone()
+    art = None
+    if ru and ru["active_artifact_id"]:
+        art = conn.execute(
+            "SELECT * FROM artifacts WHERE id=?", (ru["active_artifact_id"],)
+        ).fetchone()
+    conn.close()
+
+    if not ru:
+        raise ValueError(f"render_unit {render_unit_id} not found")
+
+    render_unit = dict(ru)
+    artifact = dict(art) if art else None
+    artifact_path = Path(artifact["uri"]) if (artifact and artifact.get("uri")) else None
+
+    render_method = _contract.classify_render_method(
+        render_unit.get("asset_type", ""),
+        audio_policy=render_unit.get("audio_policy"),
+        text_policy=render_unit.get("text_policy"),
+    )
+
+    dispatch = {
+        "deterministic_graphic": _qa_local_graphic,
+        "hero_lipsync": _qa_hero_lipsync,
+        "generated_video": _qa_provider_video,
+        "still_kenburns": _qa_still,
+    }
+    qa_fn = dispatch.get(render_method, _qa_provider_video)
+
+    passed, evidence = qa_fn(
+        production_id, render_unit, artifact, artifact_path, db_path=db,
+    )
+
+    evidence["render_method"] = render_method
+    evidence["contract_version"] = CONTRACT_VERSION
+
+    validation = record_validation_evidence(
+        production_id, "render_unit", render_unit_id,
+        "qa_media_contract", passed, evidence, db_path=db,
+    )
+
+    return validation
 
 
 # ---------------------------------------------------------------------------
@@ -595,3 +1107,258 @@ def get_open_change_requests(production_id: str, target_stage: Optional[str] = N
         ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# QA-607  Failure classification & repair (ENG-0601/0602/0603)
+# ---------------------------------------------------------------------------
+
+VALIDATION_FAILURE_CLASSIFICATIONS = frozenset({
+    "missing_artifact", "sha_mismatch", "duration_shortfall",
+    "provider_forbidden_asset", "unexpected_visible_text",
+    "local_graphic_not_local", "local_graphic_text_mismatch",
+    "ocr_unavailable", "hero_lipsync_unverified", "unknown_contract_failure",
+})
+
+REPAIR_ACTIONS = frozenset({
+    "render_local_graphic", "regenerate_provider_video",
+    "recover_artifact", "rerun_qa", "block_for_manual_review",
+})
+
+
+def classify_validation_failure(validation_evidence: dict) -> str:
+    """ENG-0601: Classify a contract QA failure from its evidence dict.
+
+    Returns one of VALIDATION_FAILURE_CLASSIFICATIONS.
+    """
+    ev = validation_evidence
+
+    if not ev.get("file_exists"):
+        return "missing_artifact"
+
+    if not ev.get("sha_match"):
+        return "sha_mismatch"
+
+    render_method = (ev.get("render_method") or "").strip()
+
+    if render_method in ("local_graphic", "deterministic_graphic"):
+        has_provider_job = ev.get("no_provider_job") is False
+        if has_provider_job:
+            return "provider_forbidden_asset"
+        if ev.get("provenance_ok") is False:
+            return "local_graphic_not_local"
+        if ev.get("text_spec_sha_match") is False:
+            return "local_graphic_text_mismatch"
+
+    if ev.get("text_detected"):
+        return "unexpected_visible_text"
+
+    if ev.get("ocr_available") is False and ev.get("text_policy") in ("NO_VISIBLE_TEXT",):
+        return "ocr_unavailable"
+
+    if render_method == "hero_lipsync":
+        if not ev.get("duration_ok"):
+            return "hero_lipsync_unverified"
+
+    if not ev.get("duration_ok"):
+        return "duration_shortfall"
+
+    return "unknown_contract_failure"
+
+
+_RULES = {
+    "local_graphic_not_local": "render_local_graphic",
+    "local_graphic_text_mismatch": "render_local_graphic",
+    "provider_forbidden_asset": "render_local_graphic",
+    "unexpected_visible_text": "regenerate_provider_video",
+    "missing_artifact": "recover_artifact",
+    "sha_mismatch": "block_for_manual_review",
+    "ocr_unavailable": "block_for_manual_review",
+    "hero_lipsync_unverified": "regenerate_provider_video",
+    "duration_shortfall": "regenerate_provider_video",
+    "unknown_contract_failure": "block_for_manual_review",
+}
+
+
+def choose_repair_action(render_unit: dict, failure_class: str) -> str:
+    """ENG-0602: Map a failure classification to a repair action.
+
+    Falls back to 'block_for_manual_review' for unrecognised classes.
+    """
+    action = _RULES.get(failure_class, "block_for_manual_review")
+    if action == "render_local_graphic" and render_unit.get("asset_type") != "local_graphic":
+        action = "block_for_manual_review"
+    return action
+
+
+def run_repair_lifecycle(
+    production_id: str,
+    render_unit_id: str,
+    db_path=None,
+) -> dict:
+    """ENG-0603: Execute the repair lifecycle for a single render unit.
+
+    1. Load the latest failed validation.
+    2. Classify the failure.
+    3. Choose a repair action.
+    4. Execute the action (render_local_graphic / recover_artifact / etc.).
+    5. Run contract QA on the result.
+    6. Return the outcome.
+
+    Preserves the old artifact (does not delete) but marks it inactive.
+    """
+    import render_graphics as _rg
+
+    _db.migrate(db_path)
+
+    conn = _db.connect(db_path)
+    ru = conn.execute("SELECT * FROM render_units WHERE id=?", (render_unit_id,)).fetchone()
+    if not ru:
+        conn.close()
+        raise ValueError(f"render_unit {render_unit_id} not found")
+    render_unit = dict(ru)
+
+    failure = conn.execute(
+        """SELECT status, evidence_json FROM validations
+           WHERE subject_id=? AND validator_name='qa_media_contract'
+           ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+        (render_unit_id,),
+    ).fetchone()
+    conn.close()
+
+    if not failure:
+        raise ValueError(f"No contract QA validation found for render_unit {render_unit_id}")
+
+    # ENG-0603 idempotency: if the latest validation already passes, the render
+    # unit is already repaired — return success without modifying state.
+    if failure["status"] == "pass":
+        evidence = json.loads(failure["evidence_json"]) if isinstance(failure["evidence_json"], str) else failure["evidence_json"]
+        return {
+            "render_unit_id": render_unit_id,
+            "failure_class": None,
+            "action": "no_action_needed",
+            "already_passing": True,
+            "qa_passed": True,
+            "evidence": evidence,
+        }
+
+    evidence = json.loads(failure["evidence_json"]) if isinstance(failure["evidence_json"], str) else failure["evidence_json"]
+    failure_class = classify_validation_failure(evidence)
+    action = choose_repair_action(render_unit, failure_class)
+
+    result = {
+        "render_unit_id": render_unit_id,
+        "failure_class": failure_class,
+        "action": action,
+        "new_artifact_id": None,
+        "qa_passed": None,
+    }
+
+    if action == "render_local_graphic":
+        _reset_render_unit_for_repair(render_unit_id, db_path=db_path)
+        new_path = _rg.render_local_graphic_render_unit(db_path, production_id, render_unit_id)
+        qa = run_contract_media_qa(db_path, production_id, render_unit_id)
+        conn2 = _db.connect(db_path)
+        ru_after = conn2.execute(
+            "SELECT active_artifact_id FROM render_units WHERE id=?",
+            (render_unit_id,),
+        ).fetchone()
+        conn2.close()
+        result["new_artifact_id"] = ru_after["active_artifact_id"] if ru_after else None
+        result["qa_passed"] = (qa.get("status") == "pass")
+        result["qa_validation_id"] = qa.get("id")
+
+    elif action == "recover_artifact":
+        result = _run_recover_artifact(production_id, render_unit, db_path=db_path)
+
+    elif action == "regenerate_provider_video":
+        cr = route_change_request(
+            production_id, render_unit_id,
+            change_type="regenerate",
+            reason=f"repair: {failure_class}",
+            db_path=db_path,
+        )
+        result["change_request_id"] = cr.get("id")
+        result["qa_passed"] = False
+
+    elif action == "block_for_manual_review":
+        raise RuntimeError(
+            f"REPAIR BLOCKED: render_unit {render_unit_id} failure "
+            f"'{failure_class}' requires manual review"
+        )
+
+    return result
+
+
+def _reset_render_unit_for_repair(render_unit_id: str, db_path=None):
+    """Clear active_artifact_id so a new artifact can be linked.
+
+    Preserves the old artifact row (not deleted). Idempotent.
+    """
+    with _db.transaction(db_path) as conn:
+        ru = conn.execute(
+            "SELECT active_artifact_id FROM render_units WHERE id=?",
+            (render_unit_id,),
+        ).fetchone()
+        if ru and ru["active_artifact_id"]:
+            conn.execute(
+                "UPDATE render_units SET active_artifact_id=NULL, status='ordered', updated_at=? WHERE id=?",
+                (_db._now(), render_unit_id),
+            )
+
+
+def _run_recover_artifact(
+    production_id: str, render_unit: dict, db_path=None,
+) -> dict:
+    """Try to recover a previous artifact for the render unit.
+
+    Finds the most recent non-deleted artifact (excluding the current
+    active one), probes it, and links it if viable.  Falls through to
+    block_for_manual_review if no viable artifact exists.
+    """
+    ru_id = render_unit["id"]
+    conn = _db.connect(db_path)
+    candidates = conn.execute(
+        """SELECT a.* FROM artifacts a
+           WHERE a.production_id=(
+               SELECT production_id FROM render_units WHERE id=?
+           )
+           AND a.deleted_at IS NULL
+           AND (
+               a.provider_job_id IN (
+                   SELECT id FROM provider_jobs WHERE render_unit_id=?
+               )
+               OR a.metadata_json LIKE '%"source_render_unit_id":"' || ? || '"%'
+               OR EXISTS (
+                   SELECT 1 FROM render_units r
+                   WHERE r.id=? AND r.active_artifact_id=a.id
+               )
+           )
+           ORDER BY a.created_at DESC LIMIT 5""",
+        (ru_id, ru_id, ru_id, ru_id),
+    ).fetchall()
+    conn.close()
+
+    from pathlib import Path as _Path
+    for art in candidates:
+        p = _Path(art["uri"]) if art["uri"] else None
+        if p and p.exists():
+            _reset_render_unit_for_repair(ru_id, db_path=db_path)
+            with _db.transaction(db_path) as conn:
+                conn.execute(
+                    "UPDATE render_units SET active_artifact_id=?, status='generated', updated_at=? WHERE id=?",
+                    (art["id"], _db._now(), ru_id),
+                )
+            qa = run_contract_media_qa(db_path, production_id, ru_id)
+            return {
+                "render_unit_id": ru_id,
+                "failure_class": "missing_artifact",
+                "action": "recover_artifact",
+                "new_artifact_id": art["id"],
+                "qa_passed": (qa.get("status") == "pass"),
+                "qa_validation_id": qa.get("id"),
+            }
+
+    raise RuntimeError(
+        f"REPAIR BLOCKED: render_unit {ru_id} has no recoverable artifact"
+    )

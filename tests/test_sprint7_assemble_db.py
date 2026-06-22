@@ -82,7 +82,7 @@ class TestBuildAssemblyInputs:
             db_path=db,
         )
         # unit status is 'ordered' (not valid) → should block
-        with pytest.raises(AssemblyError, match="not valid"):
+        with pytest.raises(AssemblyError, match="BLOCKED|not valid"):
             build_assembly_inputs(prod["id"], db_path=db)
 
     def test_clips_in_ordinal_order(self, db, tmp_path):

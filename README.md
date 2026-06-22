@@ -4,7 +4,7 @@ A fully automated production pipeline for faceless educational YouTube content, 
 
 **Owner:** pseudonymous, part-time (~6–10 hrs/wk), online-only
 **Brand:** Leverage Mind | Voice: James Harrington (ElevenLabs eleven_v3)
-**Status:** 54% of plan complete (30/55 steps); first flagship video in production
+**Status:** DB-native remediation complete. 19-stage pipeline operational (258 tests pass)
 
 ---
 
@@ -27,7 +27,7 @@ python3 -m pytest -q                # run the full test suite (247 tests)
 YTchannel/
 ├── scripts/          # Production pipeline scripts (the core engine)
 ├── tools/            # Utility scripts (music, narration speed, Telegram notifications)
-├── configs/          # Model routing, voice settings, LLM profiles
+├── configs/          # Model routing, voice settings, LLM profiles, strict smoke config
 ├── docs/
 │   ├── channel_universe/  # Bibles, constraints, QA rubric (creative rules)
 │   ├── plans/             # Sprint plans, ticket boards, audits
@@ -41,7 +41,7 @@ YTchannel/
 ├── inspi/            # Inspiration/analysis (MITmonk template, competitor extracts)
 ├── research/         # Source logs, research briefs
 ├── schemas/          # JSON schemas (storyboard v2)
-├── tests/            # pytest suite (247 tests)
+├── tests/            # pytest suite (258+ tests) — unit, integration, regression, validation
 ├── Videos/Projects/  # Per-project artifacts (storyboard, media plan, gates, clips, narration)
 └── db/               # SQLite content performance DB
 ```
@@ -50,52 +50,55 @@ YTchannel/
 
 ## Production pipeline (the workflow)
 
-The pipeline transforms a topic → a published video through these stages:
+The pipeline transforms a topic → a published video through 19 stages orchestrated by `produce_db.py`:
 
 ```
-[1. Content Brief]  →  [2. Script]  →  [3. Storyboard]  →  [4. Media Plan]
-       ↓                    ↓               ↓                    ↓
-  generate_          review_script    storyboard.py +      compile_media_
-  content_brief.py   + generate_hooks  review_storyboard   prompts.py
-       ↓                    ↓               ↓                    ↓
-[5. Narration (TTS)]  →  [6. Media Generation]  →  [7. QA]  →  [8. Assembly]
-       ↓                         ↓                     ↓            ↓
-    tts.py              generate_media.py          qa_media.py   assemble.py
-                        (Seedance/Kling)                         → final MP4
+                        produce_db.py run <production_id>
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │ research → write_script → review_script → gate_a_content             │
+ │   → storyboard → review_storyboard → tts → audio_timing              │
+ │   → reconcile_timing → compile_media → gate_a_spend                  │
+ │   → generate_media → qa_media → repair → graphics_compositing        │
+ │   → assemble → qa_final → gate_b_review → publish → analytics        │
+ └──────────────────────────────────────────────────────────────────────┘
+                         Gate A (content approval)
+                         Gate A (spend cap enforcement)
+                         Gate B (final review)
 ```
 
 ### Gate system (spend control)
 
-Every billable action is blocked by `scripts/gates.py` until all prerequisite gates pass:
+Every billable action is blocked by producer gate approval until all prerequisites pass:
 
 | Gate | Enforces | Required for |
 |------|----------|-------------|
-| `script_review` (G1) | LLM script quality review | TTS, storyboard |
-| `storyboard_review` (G2) | Structural review + human approval | Compile |
-| `media_plan_review` (G3) | LLM review of compiled plan | Generation |
-| `budget` (G4) | Cost within cap ($60) | Generation |
-| `render_approval` (G7) | Human spend approval (binds to dry-run report) | Generation |
-| `canary` | Human review of single test clip | Full render |
-| `media_qa` (G8) | Technical QA pass | Assembly |
+| `gate_a_content` | Script review + human content approval | Storyboard, TTS |
+| `gate_a_spend` | Cost cap enforcement ($ from `configs/strict_smoke.yaml`), forbidden asset type guard, provider job count cap, prompt text-risk detection | Media generation (paid providers) |
+| `gate_b_review` | DB-contract QA: render unit validation state, local graphic provenance, assembly preflight evidence | Publish |
 
-Gates bind to artifact SHA-256 hashes — editing an artifact after its gate passed invalidates the gate automatically. No `--force-unsafe` in production.
+All gates are SHA-bound and recorded in the production ledger (no `--force-unsafe` in production).
 
 ### Key scripts
 
 | Script | Purpose |
 |--------|---------|
-| `storyboard.py` | Route a script into a typed-beat storyboard (6-Act, shot-mix bands, trigger engine) |
+| `produce_db.py` | DB-native orchestration CLI (create/run/resume/status/approve) — drives the 19-stage pipeline |
+| `media_contract.py` | Pure-python guardrails: provider asset-type eligibility, prompt text-risk classification |
+| `smoke_config.py` | Strict smoke test configuration (spend caps, job limits) |
+| `production_db.py` | Unified production ledger (schema, migrations, transactions) |
+| `production_repo.py` | Artifact registry, render unit planning, timeline management |
+| `media_service.py` | Provider job state machine, contract QA dispatch, repair lifecycle |
+| `assemble_db.py` | DB-native assembly, deliverable registry, final QA validation, Gate B |
+| `qa_final.py` | Final-cut gate (freeze/black/length checks) + DB-contract evidence verification |
+| `render_graphics.py` | Deterministic local graphic compositing (no AI providers) |
+| `paid_adapters.py` | Real provider adapters (Higgsfield Seedance, ElevenLabs) with capability-gated negative prompts |
 | `compile_media_prompts.py` | Compile storyboard → media_plan.json (prompts, costs, audio slices, reference rotation) |
 | `generate_media.py` | Render clips via Higgsfield (Seedance 2.0 lipsync, Kling 3.0 b-roll) |
-| `qa_media.py` | Technical QA: dimensions, audio policy, lipsync provenance, crop safety |
 | `assemble.py` | Manifest-driven assembly: lipsync baked audio, narration overlay, music bed, loudnorm |
-| `tts.py` | ElevenLabs TTS → narration audio + assembly manifest |
+| `storyboard.py` / `direct_storyboard.py` | Script → typed-beat storyboard (6-Act, shot-mix bands) |
+| `review_script.py` / `review_storyboard.py` | Multi-persona LLM reviewer gates |
 | `gates.py` | Per-project gate ledger (SHA-256 staleness, spend blocking) |
-| `approve.py` | Human approval CLI (storyboard, render, canary, budget override) |
-| `review_script.py` / `review_storyboard.py` / `review_media_plan.py` | Multi-persona LLM reviewer gates |
-| `budget.py` | Budget gate (G4): validates plan cost vs cap |
-| `generate_content_brief.py` | Packaging/ideation: topic → title/thumbnail/hook (CTR-scored) |
-| `generate_hooks.py` | Hook variant generation + scoring |
+| `tts.py` / `tts_service.py` | ElevenLabs TTS + artifact recording + cost events |
 | `llm_call.py` | Thin kiro-cli wrapper for LLM calls (creative-authority enforcement) |
 | `content_db.py` | SQLite content+performance logging |
 
@@ -103,11 +106,12 @@ Gates bind to artifact SHA-256 hashes — editing an artifact after its gate pas
 
 ## Architecture principles
 
-1. **Standalone testable scripts.** Each pipeline stage is a CLI that reads JSON in, writes JSON out. No monolithic orchestrator — stages compose via file I/O.
-2. **Gates as the spend primitive.** Higgsfield/ElevenLabs calls are impossible without passing all required gates (SHA-bound, hash-verified). The gate ledger is the single enforcement point.
-3. **Media plan as single source of truth.** After compile, the `media_plan.json` carries every prompt, cost, reference image, audio slice, and output path. Generation, QA, and assembly all read it.
-4. **Deterministic assembly.** Same manifest + same clips = same output. Assembly is ffmpeg-driven, no AI in the loop.
-5. **Human-in-the-loop at two gates:** (a) storyboard content approval, (b) render spend approval. Everything else is automated.
+1. **DB-native orchestration.** `produce_db.py` drives the 19-stage pipeline through a transactional production ledger. Every render unit, artifact, provider job, and validation is recorded in the DB.
+2. **Provider boundary hardening.** Pure-python `media_contract.py` enforces asset-type eligibility and prompt text-risk BEFORE any paid provider call. Three guard layers: contract → service → adapter.
+3. **DB-contract QA.** Media QA validates render-method contracts (provenance, text spec, provider job linkage), not just mechanical file properties. Final QA requires DB-contract evidence to pass.
+4. **Deterministic assembly.** Same manifest + same clips = same output. Assembly is ffmpeg-driven, no AI in the loop. Only active, validated DB artifacts are consumed.
+5. **Human-in-the-loop at three gates:** content approval (gate_a_content), spend approval (gate_a_spend), final review (gate_b_review). Everything else is automated.
+6. **Repair preserves history.** Validation failures are classified and repaired. Old artifacts remain in the DB (preserved, not deleted). Repair lifecycle is idempotent.
 
 ---
 
@@ -181,10 +185,10 @@ Full plan: `strategy/BUSINESS_PLAN.md`
 
 ---
 
-## Plan implementation status
+## Implementation status
 
 ```
-[################--------------] 30/55 steps complete (54%)
+[#####################----------] 42/55 steps complete (76%)
 ```
 
 | Phase | Status |
@@ -197,9 +201,10 @@ Full plan: `strategy/BUSINESS_PLAN.md`
 | P5 Viewership & Packaging | ✅ Complete |
 | P6 First Content Sprint | **In progress** (flagship_001 in production) |
 | P7–P10 | Todo |
+| **DB-Native Remediation (10 sprints)** | ✅ **Complete** — 258 tests, 9/9 invariants, all BLOCKER issues resolved |
 
-**Current focus:** P6-02 — Produce flagship video #1. Media generated (56/56 QA pass), assembly in progress.
-
+**Current focus:** First content sprint production.
+**Latest milestone:** DB-native remediation validated and approved.
 Full timeline: `strategy/TIMEPLAN.yaml` | Manager: `python3 strategy/plan.py status`
 
 ---
@@ -217,11 +222,11 @@ Full timeline: `strategy/TIMEPLAN.yaml` | Manager: `python3 strategy/plan.py sta
 ## Testing
 
 ```bash
-python3 -m pytest -q          # 247 tests, ~45s
-python3 -m pytest tests/test_assemble.py -k lipsync   # targeted
+python3 -m pytest -q          # 258+ tests, ~15s
+python3 -m pytest tests/unit tests/integration tests/regression -v   # full suite
 ```
 
-Tests cover: storyboard routing, media plan compilation, gate ledger, lipsync assembly (tone-marked fixtures), QA checks, budget enforcement, banned models, reference rotation.
+Tests cover: provider boundary hardening, prompt text-risk detection, media contract (15 unit test files), assembly preflight + timeline heuristics, local graphic rendering + DB registration, repair lifecycle + classification, final QA contract evidence, hero lipsync QA, temporal edit guards, compile-media prompt splitting, smoke config enforcement, paid adapter contracts (negative prompt capability gate, adapter second guard), plus 8 integration tests for full lifecycle paths and 2 regression tests for forensic fixture structure.
 
 ---
 
@@ -242,6 +247,8 @@ Tests cover: storyboard routing, media plan compilation, gate ledger, lipsync as
 | `inspi/failed001.md` | Post-mortem of the first failed generation attempt |
 | `docs/channel_universe/` | Creative bibles (James, studio, cat, forbidden patterns, QA rubric) |
 | `docs/reviewer_prompts/` | LLM reviewer persona prompts |
-| `docs/plans/LIPSYNC_TICKETS.md` | Lipsync implementation ticket board |
 | `docs/plans/PRODUCTION_V2_BLUEPRINT.md` | V2 pipeline architecture spec |
-| `docs/plans/audits/` | Engineer handover packets + Fable validation evidence |
+| `docs/ENHANCED_DATABASE_SYSTEM_SUMMARY.md` | DB-native architecture overview |
+| `docs/DOCUMENTATION_INDEX.md` | Full documentation index |
+| `docs/ARCHIVE_INDEX.md` | Archived documentation tracking |
+| `reports/validation/db_native_remediation_final_report.md` | Final validation report (10-sprint remediation) |

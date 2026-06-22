@@ -9,6 +9,7 @@ Usage:
   python3 scripts/render_graphics.py --batch media_plan.json --project-dir <dir>
 """
 import argparse
+import hashlib
 import json
 import sys
 import textwrap
@@ -287,6 +288,88 @@ def render_batch(media_plan_path, project_dir):
             print(f"  ✓ {beat_id} [{spec.get('layout')}] → {out_path.name}")
     print(f"  Rendered {len(rendered)} overlay(s)")
     return rendered
+
+
+def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str) -> str:
+    """DB-native: load a render unit from DB, render its deterministic text
+    as a local graphic, register the artifact, and link it to the render unit.
+
+    Returns the output path of the rendered file.
+
+    Raises:
+        RuntimeError: if render unit is not found, not local_graphic,
+                      or has no deterministic_text_spec.
+    """
+    import production_db as _db
+    import production_repo as _repo
+
+    conn = _db.connect(db)
+    ru = conn.execute(
+        "SELECT * FROM render_units WHERE id=?", (render_unit_id,)
+    ).fetchone()
+    conn.close()
+
+    if not ru:
+        raise RuntimeError(f"Render unit {render_unit_id} not found in DB")
+
+    ru = dict(ru)
+    if ru.get("asset_type") != "local_graphic":
+        raise RuntimeError(
+            f"render_local_graphic_render_unit requires asset_type='local_graphic', "
+            f"got '{ru.get('asset_type')}'"
+        )
+
+    meta = json.loads(ru["metadata_json"]) if ru["metadata_json"] else {}
+    dts = meta.get("deterministic_text_spec")
+    if not dts:
+        raise RuntimeError(
+            f"Render unit {render_unit_id} has no deterministic_text_spec "
+            f"in metadata — cannot render local graphic"
+        )
+
+    spec_type = dts.get("type", "title_card")
+    text_content = dts.get("headline") or dts.get("text") or dts.get("quote") or dts.get("label", "")
+    layout_map = {
+        "title_card": "key_line",
+        "source_card": "lower_third",
+        "quote_card": "key_line",
+        "framework_card": "stat_callout",
+    }
+    layout = layout_map.get(spec_type, "key_line")
+
+    render_spec_data = {"layout": layout, "text": text_content[:120]}
+    if spec_type == "source_card":
+        render_spec_data["subtitle"] = (dts.get("text") or "")[:80]
+
+    output_dir = ROOT / "assets" / "media" / production_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{render_unit_id}.png"
+
+    render_spec(render_spec_data, output_path)
+
+    file_sha = hashlib.sha256(output_path.read_bytes()).hexdigest()
+    dts_sha = hashlib.sha256(_db._json(dts).encode()).hexdigest()
+    expected_texts = [v for v in (dts.get("text"), dts.get("headline"), dts.get("quote"), dts.get("label")) if v]
+
+    artifact_meta = {
+        "render_method": "local_graphic",
+        "renderer": "render_graphics.py",
+        "text_spec_sha256": dts_sha,
+        "expected_text": expected_texts,
+        "source_render_unit_id": render_unit_id,
+    }
+
+    art = _repo.register_artifact(
+        production_id=production_id,
+        path=output_path,
+        kind="generated_media",
+        extra_metadata=artifact_meta,
+        db_path=db,
+    )
+
+    _repo.link_artifact_to_render_unit(art["id"], render_unit_id, db_path=db)
+
+    return str(output_path)
 
 
 def main(argv=None):

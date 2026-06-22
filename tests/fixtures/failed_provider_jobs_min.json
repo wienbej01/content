@@ -1,0 +1,50 @@
+[
+  {
+    "id": "pjob_forensic_lipsync_001",
+    "production_id": "prod_forensic_remediation_001",
+    "render_unit_id": "render_forensic_lipsync_001",
+    "provider": "higgsfield",
+    "operation": "generate_video",
+    "external_job_id": "ext_forensic_lipsync_001",
+    "idempotency_key": "pjob:prod_forensic:render_forensic_lipsync_001:higgsfield:generate_video:abc123",
+    "status": "completed",
+    "request_json": "{\"asset_type\": \"lipsync_video\", \"audio_path\": \"/fixtures/audio/slice_001.wav\", \"audio_policy\": \"HERO_SYNC_LOCKED\", \"duration_ms\": 12084, \"duration_sec\": 12.084, \"image_path\": \"/fixtures/reference/james_canonical.png\", \"model\": \"seedance_2_0\", \"negative_prompt\": \"no futuristic holograms, no cyberpunk, no garbled text, no readable generated text, no fake logos\", \"prompt\": \"Photorealistic cinematic medium close-up of James, the same person as the reference image.\"}",
+    "response_json": "{\"actual_duration_ms\": 12097, \"actual_usd\": 0.05, \"format_name\": \"mov,mp4,m4a,3gp,3g2,mj2\", \"has_audio\": 1, \"height\": 496, \"sha256\": \"aa00000000000000000000000000000000000000000000000000000000000001\", \"width\": 864}",
+    "submitted_at": "2026-06-20T18:36:08+08:00",
+    "polled_at": "2026-06-20T19:34:34+08:00",
+    "completed_at": "2026-06-20T19:34:37+08:00",
+    "error_json": null
+  },
+  {
+    "id": "pjob_forensic_broll_001",
+    "production_id": "prod_forensic_remediation_001",
+    "render_unit_id": "render_forensic_broll_001",
+    "provider": "higgsfield",
+    "operation": "generate_video",
+    "external_job_id": "ext_forensic_broll_001",
+    "idempotency_key": "pjob:prod_forensic:render_forensic_broll_001:higgsfield:generate_video:def456",
+    "status": "completed",
+    "request_json": "{\"asset_type\": \"generated_video\", \"audio_policy\": \"BROLL_FLEX\", \"duration_ms\": 14252, \"duration_sec\": 14.252, \"model\": \"kling3_0\", \"negative_prompt\": \"no futuristic holograms, no cyberpunk, no garbled text, no readable generated text, no fake logos\", \"prompt\": \"Cinematic illustrate shot. As Harvard Business Review put it in 2026, Show: As Harvard Business Review put it in 2026,. Convey: As Harvard Business Review put it in 2026,.\"}",
+    "response_json": "{\"actual_duration_ms\": 14041, \"actual_usd\": 0.05, \"format_name\": \"mov,mp4,m4a,3gp,3g2,mj2\", \"has_audio\": 1, \"height\": 1080, \"sha256\": \"bb00000000000000000000000000000000000000000000000000000000000002\", \"width\": 1920}",
+    "submitted_at": "2026-06-20T18:36:08+08:00",
+    "polled_at": "2026-06-20T19:34:34+08:00",
+    "completed_at": "2026-06-20T19:34:37+08:00",
+    "error_json": null
+  },
+  {
+    "id": "pjob_forensic_graphic_001",
+    "production_id": "prod_forensic_remediation_001",
+    "render_unit_id": "render_forensic_graphic_001",
+    "provider": "higgsfield",
+    "operation": "generate_video",
+    "external_job_id": "ext_forensic_graphic_001",
+    "idempotency_key": "pjob:prod_forensic:render_forensic_graphic_001:higgsfield:generate_video:ghi789",
+    "status": "completed",
+    "request_json": "{\"asset_type\": \"local_graphic\", \"audio_policy\": \"SILENT_GRAPHIC\", \"duration_ms\": 11980, \"duration_sec\": 11.98, \"model\": \"kling3_0\", \"negative_prompt\": \"no futuristic holograms, no cyberpunk, no garbled text, no readable generated text, no fake logos\", \"prompt\": \"Title card: I'M JAMES HARRINGTON. MCKINSEY'S\"}",
+    "response_json": "{\"actual_duration_ms\": 11041, \"actual_usd\": 0.05, \"format_name\": \"mov,mp4,m4a,3gp,3g2,mj2\", \"has_audio\": 1, \"height\": 1080, \"sha256\": \"cc00000000000000000000000000000000000000000000000000000000000003\", \"width\": 1920}",
+    "submitted_at": "2026-06-20T18:36:08+08:00",
+    "polled_at": "2026-06-20T19:34:34+08:00",
+    "completed_at": "2026-06-20T19:34:37+08:00",
+    "error_json": null
+  }
+]

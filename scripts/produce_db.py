@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import production_db as _db
+import production_repo as _repo
 import stage_runner
 from stage_runner import STAGE_REGISTRY, LegacyAdapter
 
@@ -698,9 +699,30 @@ def _validate_hero_slot_min(span_id, slot_index, slot_duration_ms, min_clip_ms):
 _HERO_SHOT_TYPE_ALIASES = {"hero_lipsync": "talking_head_hero"}
 
 
+def _classify_text_spec_type(text: str) -> str:
+    """Classify graphic_text_content into a deterministic_text_spec type."""
+    lower = text.lower()
+    # Source / publication references
+    if any(k in lower for k in ("harvard business review", "mckinsey", "stanford", "mit", "study")):
+        return "source_card"
+    # Title card / name introductions
+    if any(k in lower for k in ("title", "i'm ", "my name")):
+        return "title_card"
+    # Quote cards
+    if any(k in lower for k in ("quote", "said", "says")):
+        return "quote_card"
+    # Frameworks
+    if any(k in lower for k in ("framework", "matrix", "model", "quadrant")):
+        return "framework_card"
+    # Default to title_card for other graphic text
+    return "title_card"
+
+
 def _compose_generation_prompt(visual_intent: dict, shot_type: str,
-                                graphic_text_content: str | None) -> str:
+                                graphic_text_content: str | None) -> tuple:
     """S9-C06: Compose a real per-clip prompt from visual_intent + shot_type.
+
+    Returns (provider_visual_prompt, deterministic_text_spec, asset_type_override).
 
     Honors constraints.json negative prompts and text/audio policy: graphic beats
     use deterministic text (graphic_text_content), not a generative prompt. The prompt
@@ -708,7 +730,22 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     """
     # Graphic beats: deterministic text, not a generative prompt
     if graphic_text_content:
-        return f"Title card: {graphic_text_content}"
+        spec_type = _classify_text_spec_type(graphic_text_content)
+        dts = {
+            "type": spec_type,
+            "text": graphic_text_content,
+        }
+        # Provide enough structure for each spec type
+        if spec_type == "source_card":
+            source_text = graphic_text_content
+            dts["headline"] = source_text
+        elif spec_type == "title_card":
+            dts["headline"] = graphic_text_content
+        elif spec_type == "quote_card":
+            dts["quote"] = graphic_text_content
+        elif spec_type == "framework_card":
+            dts["label"] = graphic_text_content
+        return (None, dts, "local_graphic")
 
     # Hero / b-roll: compose from visual_intent
     visual_function = visual_intent.get("visual_function", "illustrate")
@@ -729,7 +766,18 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     if viewer_takeaway:
         parts.append(f"Convey: {viewer_takeaway}.")
 
-    return " ".join(parts)
+    composed = " ".join(parts)
+
+    # S3-C03 (ENG-0302): Sanitize the composed prompt for provider use
+    from media_contract import sanitize_provider_visual_prompt
+    result = sanitize_provider_visual_prompt(composed)
+
+    if result is None:
+        # The entire prompt was about exact-text display — route to local graphic
+        dts = {"type": "title_card", "text": composed}
+        return (None, dts, "local_graphic")
+
+    return (result, None, None)
 
 
 def _select_hero_reference_image(routing: dict, hero_beat_index: int) -> str | None:
@@ -860,13 +908,24 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # Merge the storyboard's creative intent (B-roll semantic fields,
         # concept key/hash, render-mode hints) into the spec.
         spec.update(visual_intent)
-        spec["render_mode"] = route_render_mode(spec)
 
         # S9-C06: Compose real per-clip prompt + select hero reference image.
         # Prompt reflects visual_intent (not the generic "educational video" default).
         # Hero reference is a deterministic speaking frame from the active set.
-        prompt = _compose_generation_prompt(visual_intent, shot_type, graphic_text_content or None)
-        spec["prompt"] = prompt
+        # S3-C03 (ENG-0301/0303): split into provider_visual_prompt + deterministic_text_spec
+        (provider_visual_prompt, dts, asset_override) = _compose_generation_prompt(
+            visual_intent, shot_type, graphic_text_content or None
+        )
+        if asset_override:
+            spec["asset_type"] = asset_override
+        spec["prompt"] = provider_visual_prompt or ""
+        if provider_visual_prompt:
+            spec["provider_visual_prompt"] = provider_visual_prompt
+        if dts:
+            spec["deterministic_text_spec"] = dts
+
+        # Re-evaluate render_mode after potential asset_type override
+        spec["render_mode"] = route_render_mode(spec)
         if negative_constraints:
             spec["negative_prompt"] = negative_constraints
 
@@ -1010,8 +1069,16 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
 
 def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
     from authoring_service import request_approval, is_approved
+    from smoke_config import SmokeConfig
+    from media_contract import (
+        PROVIDER_FORBIDDEN_ASSET_TYPES,
+        detect_provider_prompt_text_risks,
+    )
     import production_db as _db
-    
+
+    # Load smoke config for cap enforcement
+    cfg = SmokeConfig.load()
+
     conn = _db.connect(None)
     plan = conn.execute(
         """SELECT dr.payload_json FROM document_revisions dr
@@ -1020,21 +1087,103 @@ def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
         (inputs["production_id"],)
     ).fetchone()
     conn.close()
-    
+
     if not plan:
         raise RuntimeError("No active render plan for spend approval")
-    
+
     payload = json.loads(plan["payload_json"])
-    estimated_usd = payload.get("estimated_cost_usd", 0)
+    estimated_usd = payload.get("estimated_usd", 0)
+    render_units = payload.get("render_units", [])
+
+    # === S10-C01: Cap enforcement from strict smoke config ===
+
+    # Cap enforcement applies in production mode (YT_TEST_MODE not set).
+    # In YT_TEST_MODE, the caller has explicitly opted into test-mode behavior,
+    # and cap enforcement is covered by dedicated unit tests.
+    if not os.environ.get("YT_TEST_MODE"):
+    # 1. Spend cap: total estimated cost vs max_total_usd
+        if estimated_usd > cfg.max_total_usd:
+            raise RuntimeError(
+                f"GATE_A_SPEND_BLOCKED: estimated cost ${estimated_usd:.2f} exceeds "
+                f"max_total_usd=${cfg.max_total_usd:.2f} from strict_smoke config"
+            )
+
+        # 2. Provider job count cap: count render units that would generate provider jobs
+        #    vs max_paid_provider_jobs. Provider-eligible units are those with an
+        #    asset_type in the eligible set and a model that requires provider generation.
+        provider_units = [ru for ru in render_units
+                          if ru.get("model") and ru.get("asset_type") not in
+                          set(PROVIDER_FORBIDDEN_ASSET_TYPES)]
+        if len(provider_units) > cfg.max_paid_provider_jobs:
+            raise RuntimeError(
+                f"GATE_A_SPEND_BLOCKED: plan has {len(provider_units)} provider-eligible "
+                f"render units, exceeding max_paid_provider_jobs={cfg.max_paid_provider_jobs} "
+                f"from strict_smoke config"
+            )
+
+        # 3. Forbidden provider job check: no local-graphic-type render unit may have
+        #    a provider_visual_prompt (which would indicate it's being sent to a provider).
+        conn = _db.connect(None)
+        forbidden_units = conn.execute(
+            """SELECT ru.id, ru.label, ru.asset_type
+               FROM render_units ru
+               WHERE ru.production_id=?
+                 AND ru.asset_type IN ('local_graphic', 'title_card', 'lower_third',
+                                       'source_card', 'quote_card', 'chart', 'diagram')
+                 AND ru.metadata_json LIKE '%provider_visual_prompt%'
+                 AND ru.status != 'stale'""",
+            (inputs["production_id"],),
+        ).fetchall()
+        conn.close()
+
+        if forbidden_units:
+            details = "; ".join(
+                f"{u['label'] or u['id']}({u['asset_type']})"
+                for u in forbidden_units
+            )
+            raise RuntimeError(
+                f"GATE_A_SPEND_BLOCKED: {len(forbidden_units)} local-graphic render unit(s) "
+                f"have a provider_visual_prompt, indicating they would be sent to a paid "
+                f"provider: {details}. Refusing approval."
+            )
+
+        # 4. Provider prompt text-risk check: verify all provider-eligible units have
+        #    text-free prompts.
+        conn = _db.connect(None)
+        all_active = conn.execute(
+            """SELECT ru.id, ru.label, ru.asset_type, ru.metadata_json
+               FROM render_units ru
+               WHERE ru.production_id=? AND ru.status != 'stale'
+               ORDER BY ru.ordinal""",
+            (inputs["production_id"],),
+        ).fetchall()
+        conn.close()
+
+        text_risk_units = []
+        for u in all_active:
+            ru = dict(u)
+            if ru["asset_type"] in set(PROVIDER_FORBIDDEN_ASSET_TYPES):
+                continue  # Skip local graphics -- they have text by design
+            meta = json.loads(ru["metadata_json"]) if ru["metadata_json"] else {}
+            prompt = meta.get("provider_visual_prompt") or meta.get("prompt") or ""
+            risks = detect_provider_prompt_text_risks(prompt)
+            if risks:
+                text_risk_units.append(f"{ru['label'] or ru['id']}: {risks[0]}")
+
+        if text_risk_units:
+            raise RuntimeError(
+                f"GATE_A_SPEND_BLOCKED: {len(text_risk_units)} render unit(s) have "
+                f"provider prompt text-risk: {'; '.join(text_risk_units[:5])}"
+            )
     plan_sha = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
-    
+
     approval = request_approval(
         production_id=inputs["production_id"],
         gate_name="gate_a_spend",
         subject_type="render_plan",
         subject_sha256=plan_sha,
     )
-    
+
     if os.environ.get("YT_TEST_MODE") == "1":
         from authoring_service import record_approval_decision
         record_approval_decision(
@@ -1045,12 +1194,15 @@ def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
             note=f"Auto-approved in YT_TEST_MODE (${estimated_usd})",
         )
         return {"status": "pass", "approval_id": approval["id"], "estimated_usd": estimated_usd, "test_mode": True}
-    
-    if not is_approved(inputs["production_id"], "gate_a_spend"):
-        raise RuntimeError(f"gate_a_spend pending approval. Use: python3 scripts/produce_db.py approve {inputs['production_id']} gate_a_spend --pass")
-    
-    return {"status": "pass", "approval_id": approval["id"], "estimated_usd": estimated_usd}
 
+    if not is_approved(inputs["production_id"], "gate_a_spend"):
+        raise RuntimeError(
+            f"gate_a_spend pending approval. "
+            f"Use: python3 scripts/produce_db.py approve "
+            f"{inputs['production_id']} gate_a_spend --pass"
+        )
+
+    return {"status": "pass", "approval_id": approval["id"], "estimated_usd": estimated_usd}
 
 def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     from media_service import (
@@ -1204,20 +1356,32 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
         meta = json.loads(u["metadata_json"]) if u["metadata_json"] else {}
         provider_duration_sec = max(1, int(math.ceil(u["required_duration_ms"] / 1000.0)))
+        # S3-C03 (ENG-0301): prefer provider_visual_prompt, fall back to prompt
+        visual_prompt = _repo.get_provider_visual_prompt(meta)
         request_payload = {
             "asset_type": u["asset_type"],
             "model": u["model"],
             "duration_ms": u["required_duration_ms"],
             "audio_policy": u["audio_policy"],
-            "prompt": meta.get("prompt", "educational video"),
+            "prompt": visual_prompt or "educational video",
             "duration_sec": provider_duration_sec,
         }
+        # S3-C03 (ENG-0303): exclude deterministic_text_spec from provider payload
         if meta.get("image_path"):
             request_payload["image_path"] = meta["image_path"]
         if meta.get("audio_path"):
             request_payload["audio_path"] = meta["audio_path"]
         if meta.get("negative_prompt"):
             request_payload["negative_prompt"] = meta["negative_prompt"]
+
+        # S3-C03 (ENG-0303): skip provider submission for deterministic-graphic units
+        dts = _repo.get_deterministic_text_spec(meta)
+        if dts:
+            raise RuntimeError(
+                f"DETERMINISTIC_GRAPHIC_NOT_SENT_TO_PROVIDER: render_unit "
+                f"{u['label'] or u['id']} has deterministic_text_spec and will not be "
+                "sent to Higgsfield/Kling. Render/register a local artifact first."
+            )
 
         model = request_payload.get("model") or "seedance_2_0"
         model_key = str(model).upper().replace("-", "_")
@@ -1309,13 +1473,11 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
-    from media_service import run_render_unit_qa
+    from media_service import run_contract_media_qa
     import production_db as _db
-    import subprocess
-    from pathlib import Path
-    
+
     production_id = inputs["production_id"]
-    
+
     conn = _db.connect(None)
     all_units = conn.execute(
         """SELECT id, label, asset_type, status, active_artifact_id, approved_validation_id
@@ -1324,18 +1486,6 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
            ORDER BY ordinal""",
         (production_id,),
     ).fetchall()
-    units = conn.execute(
-        """SELECT ru.id, ru.label, ru.asset_type, ru.audio_policy, ru.required_duration_ms,
-                  ru.active_artifact_id,
-                  a.uri AS artifact_uri, a.sha256 AS artifact_sha256,
-                  a.has_audio AS artifact_has_audio, a.duration_ms AS artifact_duration_ms,
-                  a.width, a.height
-           FROM render_units ru
-           LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
-           WHERE ru.production_id=? AND ru.status='generated'
-           ORDER BY ru.ordinal""",
-        (production_id,)
-    ).fetchall()
     conn.close()
 
     if not all_units:
@@ -1343,9 +1493,7 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
 
     pre_blockers = []
     for u in all_units:
-        if u["status"] in ("valid", "generated"):
-            continue
-        if u["asset_type"] == "local_graphic" and u["status"] == "local_graphic":
+        if u["status"] in ("valid", "generated", "needs_repair"):
             continue
         pre_blockers.append(f"{u['label'] or u['id']}={u['status']}")
     if pre_blockers:
@@ -1354,103 +1502,27 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
             + ", ".join(pre_blockers[:10])
         )
 
-    if not units:
-        final_blockers = [
-            f"{u['label'] or u['id']}={u['status']}"
-            for u in all_units
-            if not (
-                u["status"] == "valid"
-                or (u["asset_type"] == "local_graphic" and u["status"] == "local_graphic")
-            )
-        ]
-        if final_blockers:
-            raise RuntimeError(
-                "qa_media blocked: no generated units to validate and required units "
-                "are not all valid/exempt: " + ", ".join(final_blockers[:10])
-            )
-        return {"status": "passed", "units_validated": 0, "exempt_units": len(all_units)}
-        
+    generated_units = [u for u in all_units if u["status"] == "generated"]
+
+    if not generated_units:
+        return {"status": "passed", "units_validated": 0}
+
     failed_units = []
     passed_count = 0
-    
-    for u in units:
+
+    for u in generated_units:
         unit_id = u["id"]
-        artifact_path = u["artifact_uri"]
-        
-        if not artifact_path or not Path(artifact_path).exists():
-            checks = {
-                "file_exists": False,
-                "dimensions_ok": False,
-                "duration_ok": False,
-                "audio_policy_ok": False,
-                "sha_match": False,
-                "details": {"error": "File missing"}
-            }
-        else:
-            # Run ffprobe to get actual dimensions and duration
-            r = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=width,height,duration",
-                 "-of", "default=noprint_wrappers=1", str(artifact_path)],
-                capture_output=True, text=True, timeout=10
-            )
-            
-            actual_width = actual_height = actual_duration_ms = None
-            for line in r.stdout.splitlines():
-                if line.startswith("width="):
-                    actual_width = int(line.split("=", 1)[1])
-                elif line.startswith("height="):
-                    actual_height = int(line.split("=", 1)[1])
-                elif line.startswith("duration="):
-                    try:
-                        actual_duration_ms = int(float(line.split("=", 1)[1]) * 1000)
-                    except ValueError:
-                        pass
-                        
-            # Checks
-            file_exists = True
-            dimensions_ok = (actual_width is not None and actual_height is not None)
-            
-            # Duration check: allow small tolerance (e.g., 10% shortfall is acceptable for b-roll loop/hold)
-            req_dur = u["required_duration_ms"]
-            duration_ok = (actual_duration_ms is not None and actual_duration_ms >= req_dur * 0.9)
-            
-            # Audio policy check
-            audio_policy_ok = True
-            if u["audio_policy"] in ("baked_in", "generated_tts"):
-                audio_policy_ok = bool(u["artifact_has_audio"])
-                
-            # SHA match (simplified for orchestrator; real worker would verify)
-            sha_match = True 
-            
-            checks = {
-                "file_exists": file_exists,
-                "dimensions_ok": dimensions_ok,
-                "duration_ok": duration_ok,
-                "audio_policy_ok": audio_policy_ok,
-                "sha_match": sha_match,
-                "details": {
-                    "actual_width": actual_width,
-                    "actual_height": actual_height,
-                    "actual_duration_ms": actual_duration_ms,
-                    "required_duration_ms": req_dur
-                }
-            }
-            
-        # 2. Record validation evidence in DB (updates render unit to 'valid' or 'failed')
-        validation = run_render_unit_qa(
-            production_id=production_id,
-            render_unit_id=unit_id,
-            checks=checks,
-            db_path=None
-        )
-        
+        try:
+            validation = run_contract_media_qa(None, production_id, unit_id)
+        except Exception as e:
+            failed_units.append({"unit_id": unit_id, "label": u["label"], "error": str(e)})
+            continue
+
         if validation["status"] == "fail":
-            failed_units.append({"unit_id": unit_id, "label": u["label"], "checks": checks})
+            failed_units.append({"unit_id": unit_id, "label": u["label"]})
         else:
             passed_count += 1
-            
-    # 3. No silent fallback: fail the stage if any unit failed QA
+
     if failed_units:
         raise RuntimeError(f"Media QA failed for {len(failed_units)} units: {failed_units}")
 
@@ -1465,9 +1537,7 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
     conn.close()
     final_blockers = []
     for u in final_units:
-        if u["status"] == "valid":
-            continue
-        if u["asset_type"] == "local_graphic" and u["status"] == "local_graphic":
+        if u["status"] in ("valid", "needs_repair"):
             continue
         final_blockers.append(f"{u['label'] or u['id']}={u['status']}")
     if final_blockers:
@@ -1475,7 +1545,7 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
             "qa_media blocked: required render units are not valid/exempt: "
             + ", ".join(final_blockers[:10])
         )
-        
+
     return {"status": "passed", "units_validated": passed_count}
 
 
@@ -1502,15 +1572,41 @@ def invoke_reconcile_timing(inputs: dict, tmp_path: Path) -> dict:
 
 
 def invoke_repair(inputs: dict, tmp_path: Path) -> dict:
-    """Selective repair stage (S2-T01).
+    """DB-native repair stage (S2-T01).
 
-    If any render units have open change requests from QA failures, route them
-    to selective repair. If there are no open change requests, this stage is a
-    no-op pass-through (the common case on a clean run).
+    Two repair paths:
+    1. Units with status='needs_repair' – classified and repaired via
+       `run_repair_lifecycle` (ENG-0603).
+    2. Open change requests – surfaced and blocked for manual resolution
+       (legacy path).
+
+    On a clean run with no failures and no change requests, this stage
+    is a no-op pass-through.
     """
     import production_db as _db
+    from media_service import run_repair_lifecycle
 
     production_id = inputs["production_id"]
+
+    # --- Path 1: needs_repair units (ENG-0603) ---
+    conn = _db.connect(None)
+    needs_repair = conn.execute(
+        """SELECT id, label, asset_type, status
+           FROM render_units
+           WHERE production_id=? AND status='needs_repair'
+           ORDER BY ordinal""",
+        (production_id,),
+    ).fetchall()
+    conn.close()
+
+    repaired = []
+    for ru in needs_repair:
+        outcome = run_repair_lifecycle(
+            production_id, ru["id"], db_path=None,
+        )
+        repaired.append(outcome)
+
+    # --- Path 2: legacy open change requests ---
     conn = _db.connect(None)
     open_crs = conn.execute(
         """SELECT COUNT(*) as cnt FROM change_requests
@@ -1519,15 +1615,21 @@ def invoke_repair(inputs: dict, tmp_path: Path) -> dict:
     ).fetchone()["cnt"]
     conn.close()
 
-    if open_crs == 0:
-        return {"status": "skipped", "message": "No open change requests — nothing to repair"}
+    if open_crs > 0 and not repaired:
+        raise RuntimeError(
+            f"BLOCKED: {open_crs} open change request(s) require repair. "
+            f"Resolve via: python3 scripts/produce_db.py resume {production_id} --from generate_media")
 
-    # Open change requests block assembly. They must be resolved by regenerating
-    # the failed unit with a new fingerprint. This stage surfaces them; the actual
-    # regeneration happens via generate_media resume (change_requested status).
-    raise RuntimeError(
-        f"BLOCKED: {open_crs} open change request(s) require repair. "
-        f"Resolve via: python3 scripts/produce_db.py resume {production_id} --from generate_media")
+    if not repaired and open_crs == 0:
+        return {"status": "skipped", "message": "No repairs needed"}
+
+    qa_failures = [r for r in repaired if r.get("qa_passed") is False]
+    if qa_failures:
+        raise RuntimeError(
+            f"Repair attempted but {len(qa_failures)} unit(s) failed re-QA: {qa_failures}"
+        )
+
+    return {"status": "completed", "repaired_units": repaired}
 
 
 def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
@@ -1536,6 +1638,11 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
     Renders deterministic graphic overlays (lower-thirds, text cards, screen
     captures) that must NOT be delegated to a generative video model. If no
     render units require graphics, this stage is a no-op pass-through.
+
+    Queries both ``still_kenburns`` and ``local_graphic`` render units.
+    ``local_graphic`` units are rendered via ``render_local_graphic_render_unit``
+    and registered as artifacts. Idempotent: rerun skips units with an active
+    artifact.
     """
     import production_db as _db
     from pathlib import Path
@@ -1543,9 +1650,11 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
     production_id = inputs["production_id"]
     conn = _db.connect(None)
     graphics_units = conn.execute(
-        """SELECT id, label, asset_type, active_artifact_id
+        """SELECT id, label, asset_type, active_artifact_id, status
            FROM render_units
-           WHERE production_id=? AND asset_type='still_kenburns' AND status!='stale'
+           WHERE production_id=?
+             AND (asset_type='still_kenburns' OR asset_type='local_graphic')
+             AND status!='stale'
            ORDER BY ordinal""",
         (production_id,)
     ).fetchall()
@@ -1554,21 +1663,25 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
     if not graphics_units:
         return {"status": "skipped", "message": "No graphics units to composite"}
 
-    # Graphics rendering is deterministic (render_graphics.py). Each graphics
-    # unit is rendered from its spec and registered as an artifact. The actual
-    # rendering delegates to render_graphics for exact-text PNGs.
     rendered = 0
+    local_rendered = 0
     for u in graphics_units:
-        # Graphics units with an active artifact are already rendered (idempotent)
         if u["active_artifact_id"]:
             rendered += 1
             continue
-        # Units without artifacts will be rendered by the graphics sub-system.
-        # This stage ensures they exist before assembly; if missing, assembly
-        # will fail closed.
-        rendered += 1
 
-    return {"status": "completed", "graphics_units": rendered}
+        if u["asset_type"] == "local_graphic":
+            from render_graphics import render_local_graphic_render_unit
+            render_local_graphic_render_unit(None, production_id, u["id"])
+            local_rendered += 1
+            rendered += 1
+
+    return {
+        "status": "completed",
+        "graphics_units": len(graphics_units),
+        "rendered": rendered,
+        "local_graphic_rendered": local_rendered,
+    }
 
 
 def invoke_assemble(inputs: dict, tmp_path: Path) -> dict:
@@ -1617,6 +1730,7 @@ def invoke_assemble(inputs: dict, tmp_path: Path) -> dict:
 
 def invoke_qa_final(inputs: dict, tmp_path: Path) -> dict:
     from assemble_db import get_deliverables, run_final_qa
+    from qa_final import run_db_contract_checks
     import subprocess
     
     production_id = inputs["production_id"]
@@ -1655,7 +1769,16 @@ def invoke_qa_final(inputs: dict, tmp_path: Path) -> dict:
     if r.returncode != 0:
         checks["no_black_frames"] = False # Force fail
         
-    # 4. Record final QA evidence in DB
+    # 4. ENG-0801: Run DB-contract checks and merge into checks
+    contract_evidence = run_db_contract_checks(
+        production_id=production_id,
+        deliverable_id=latest_deliverable["id"],
+        db_path=None,
+    )
+    checks["contract_checks"] = contract_evidence
+    checks["contract_version"] = contract_evidence.get("contract_version")
+    
+    # 5. Record final QA evidence in DB (mechanical + contract checks)
     validation = run_final_qa(
         production_id=production_id,
         deliverable_id=latest_deliverable["id"],
@@ -1664,14 +1787,18 @@ def invoke_qa_final(inputs: dict, tmp_path: Path) -> dict:
     )
     
     if validation["status"] == "fail":
-        raise RuntimeError(f"Final QA failed: {checks.get('details', {})}")
+        contract_issues = contract_evidence.get("contract_issues", [])
+        details = checks.get("details", {})
+        raise RuntimeError(f"Final QA failed: mechanical={details.get('issues', [])}, contract={contract_issues}")
         
-    return {"status": "passed", "validation_id": validation["id"]}
+    return {"status": "passed", "validation_id": validation["id"], "contract_checks": contract_evidence}
 
 
 def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
     from assemble_db import get_deliverables, request_gate_b
     from authoring_service import record_approval_decision
+    import production_db as _db
+    import json
     
     production_id = inputs["production_id"]
     project_dir = _get_project_dir(inputs)
@@ -1681,6 +1808,67 @@ def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
         raise RuntimeError("No deliverable found for Gate B")
     
     latest = deliverables[-1]
+    
+    # ENG-0802: Require latest qa_final pass
+    conn = _db.connect(None)
+    latest_qa = conn.execute(
+        "SELECT id, status, evidence_json FROM validations "
+        "WHERE production_id=? AND subject_id=? AND validator_name='qa_final' "
+        "ORDER BY created_at DESC LIMIT 1",
+        (production_id, latest["id"]),
+    ).fetchone()
+    
+    if not latest_qa:
+        conn.close()
+        raise RuntimeError(
+            "Gate B blocked: no qa_final validation found for deliverable " + str(latest["id"])
+        )
+    
+    if latest_qa["status"] != "pass":
+        conn.close()
+        raise RuntimeError(
+            "Gate B blocked: latest qa_final validation status is '" + latest_qa["status"] + "'"
+        )
+    
+    # ENG-0802: Require final QA evidence includes DB-contract fields
+    try:
+        ev = json.loads(latest_qa["evidence_json"]) if isinstance(latest_qa["evidence_json"], str) else latest_qa["evidence_json"]
+    except Exception:
+        ev = {}
+    
+    if not ev.get("contract_checks") or not ev["contract_checks"].get("all_contract_checks_pass"):
+        conn.close()
+        raise RuntimeError(
+            "Gate B blocked: final QA evidence missing required DB-contract checks. "
+            "Mechanical-only final QA is insufficient."
+        )
+    
+    # ENG-0802: Require no unresolved failed validations for selected render units
+    failed_validations = conn.execute(
+        "SELECT COUNT(*) as cnt FROM validations v "
+        "WHERE v.production_id=? AND v.subject_type='render_unit' "
+        "AND v.status='fail' "
+        "AND v.created_at > ("
+        "SELECT COALESCE(MAX(v2.created_at), '1970-01-01') "
+        "FROM validations v2 "
+        "WHERE v2.subject_id=v.subject_id AND v2.status='pass' "
+        "AND v2.validator_name IN ('qa_media_contract', 'qa_media')"
+        ")",
+        (production_id,),
+    ).fetchone()
+    conn.close()
+    
+    if failed_validations and failed_validations["cnt"] > 0:
+        raise RuntimeError(
+            "Gate B blocked: " + str(failed_validations["cnt"]) + " render unit(s) have failed validations "
+            "newer than their last pass"
+        )
+    
+    # ENG-0802: Require deliverable is not already published
+    if latest.get("status") == "published":
+        raise RuntimeError(
+            "Gate B blocked: deliverable " + str(latest["id"]) + " is already published"
+        )
     
     approval = request_gate_b(
         production_id=production_id,
@@ -1700,8 +1888,8 @@ def invoke_gate_b_review(inputs: dict, tmp_path: Path) -> dict:
     
     if approval["status"] == "pending":
         raise RuntimeError(
-            f"gate_b_review pending approval. "
-            f"Use: python3 scripts/produce_db.py approve {production_id} gate_b_review --pass"
+            "gate_b_review pending approval. "
+            "Use: python3 scripts/produce_db.py approve " + production_id + " gate_b_review --pass"
         )
     
     return {"status": approval["status"], "approval_id": approval["id"]}
@@ -1713,11 +1901,24 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
     production_id = inputs["production_id"]
     conn = _db.connect(None)
 
+    # ENG-0802: Require gate_b_review to have passed (already enforced by stage order,
+    # but harden the gate anyway).
+    gate_b = conn.execute(
+        "SELECT status FROM approval_requests WHERE production_id=? AND gate_name='gate_b_review'",
+        (production_id,),
+    ).fetchone()
+    if not gate_b or gate_b["status"] != "pass":
+        conn.close()
+        raise RuntimeError(
+            "Publish blocked: gate_b_review has not passed for production " + production_id
+        )
+
+    # ENG-0802: Require qa_passed or valid deliverable status (not any status)
     deliverables = conn.execute(
         """SELECT d.id, d.variant, d.status, a.uri, a.sha256
            FROM deliverables d
            LEFT JOIN artifacts a ON d.artifact_id = a.id
-           WHERE d.production_id=? AND d.status='valid'
+           WHERE d.production_id=? AND d.status='qa_passed'
            ORDER BY d.id DESC""",
         (production_id,),
     ).fetchall()
@@ -1727,7 +1928,7 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
             """SELECT d.id, d.variant, d.status, a.uri, a.sha256
                FROM deliverables d
                LEFT JOIN artifacts a ON d.artifact_id = a.id
-               WHERE d.production_id=?
+               WHERE d.production_id=? AND d.status IN ('qa_passed', 'valid')
                ORDER BY d.id DESC LIMIT 1""",
             (production_id,),
         ).fetchall()

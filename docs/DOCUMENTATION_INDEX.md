@@ -14,10 +14,18 @@
 ### Code Implementation
 | Module | Purpose | Location |
 |--------|---------|----------|
-| `production_db.py` | Unified production ledger | `scripts/production_db.py` |
+| `produce_db.py` | DB-native orchestrator (19 stages) | `scripts/produce_db.py` |
+| `production_db.py` | Unified production ledger + migrations | `scripts/production_db.py` |
+| `production_repo.py` | Artifact registry + render unit planning | `scripts/production_repo.py` |
+| `media_contract.py` | Provider eligibility + text-risk guardrails | `scripts/media_contract.py` |
+| `media_service.py` | Provider job state machine + contract QA + repair | `scripts/media_service.py` |
+| `assemble_db.py` | DB-native assembly + deliverable registry + Gate B | `scripts/assemble_db.py` |
+| `qa_final.py` | Final-cut QA + DB-contract evidence checks | `scripts/qa_final.py` |
+| `render_graphics.py` | Deterministic local graphic compositing | `scripts/render_graphics.py` |
+| `paid_adapters.py` | Higgsfield + ElevenLabs adapters (capability-gated) | `scripts/paid_adapters.py` |
+| `smoke_config.py` | Strict smoke test configuration | `scripts/smoke_config.py` |
 | `clip_db.py` | Clip authority database | `scripts/clip_db.py` |
 | `content_db.py` | Content performance logging | `scripts/content_db.py` |
-| `produce.py` | Database-integrated orchestrator | `scripts/produce.py` |
 
 ### Archive & Historical Context
 | Document | Purpose | Status |
@@ -31,7 +39,7 @@
 
 ### Understanding the Enhanced System
 
-1. **Start with the summary**: Read `ENHANCED_DATABASE_SYSTEM_SUMMARY.md` for architectural overview
+1. **Start with the summary**: Read `README.md` for pipeline overview; Read `ENHANCED_DATABASE_SYSTEM_SUMMARY.md` for architectural overview
 2. **Study the flow**: Review `PRODUCTION_DATA_FLOW_MAP.md` for database-driven pipeline
 3. **Understand fingerprints**: Read `HARMONIZED_CLIP_FINGERPRINTS.md` for drift elimination
 4. **Review implementation**: Check `CLIP_DB_DESIGN.md` for database schema and API
@@ -53,16 +61,18 @@
 4. Gate with invariant: `clip_db.assert_all_valid()` before progression
 
 #### Debugging Issues
-1. Check ledger state: `python3 scripts/production_db.py blockers <project>`
-2. Verify clip status: `python3 scripts/clip_db.py list <project>`
+1. Check production status: `python3 scripts/produce_db.py status <production_id>`
+2. Run/resume production: `python3 scripts/produce_db.py run <production_id> [--from-stage STAGE]`
 3. Review change requests: `python3 scripts/clip_db.py requests <project>`
 4. Check golden-truth: `python3 scripts/clip_db.py assert-valid <project>`
+5. Run validation tests: `python3 -m pytest tests/unit tests/integration tests/regression -v`
 
 #### Extending the System
-1. **New artifact type**: Register in `production_db.import_artifact()`
-2. **New validation**: Use `production_db.mirror_clip_validation()`
-3. **New change type**: Add to `clip_db.request_change()` routing table
-4. **New stage**: Mirror via `production_db.mirror_stage_state()`
+1. **New stage**: Add to `STAGE_REGISTRY` in `scripts/stage_runner.py` and invoker in `produce_db.STAGE_INVOKERS`
+2. **New artifact type**: Register via `production_repo.register_artifact()`
+3. **New validation**: Use `media_service.record_validation_evidence()` or `run_contract_media_qa()`
+4. **New provider**: Implement `ProviderAdapter` subclass and register in `paid_adapters._register()`
+5. **New guardrail**: Add to `media_contract.py` — pure Python, no DB imports, deterministic
 
 ---
 
@@ -73,8 +83,17 @@
 - Recurring failure patterns: stale reuse, path mismatch, parent/child confusion
 - Manual debugging and fix cycles
 
-### Phase 2: Database-Driven Migration (Current)
+### Phase 2: Database-Driven Migration (Complete)
 - ✅ Unified production ledger (`production_db.py`)
+- ✅ DB-native orchestrator (`produce_db.py`) — 19 stages, gate approval workflow
+- ✅ Provider boundary hardening (`media_contract.py`) — 3-layer guard: contract → service → adapter
+- ✅ Contract-based QA (`media_service.py`, `qa_final.py`) — render-method dispatch, DB-contract evidence
+- ✅ Local graphic compositing (`render_graphics.py`) — deterministic, no AI provider calls
+- ✅ DB-native assembly (`assemble_db.py`) — preflight validation, timeline heuristics, deliverable registry
+- ✅ Repair lifecycle (`media_service.py`) — failure classification, action routing, history preservation, idempotent
+- ✅ Capability-gated adapters (`paid_adapters.py`) — negative prompt omission based on model capability
+- ✅ Smoke config enforcement (`smoke_config.py`) — spend caps, provider job limits, strict mode
+- ✅ 258 tests passing (unit + integration + regression + validation)
 - ✅ Clip authority database (`clip_db.py`)
 - ✅ Harmonized clip fingerprints
 - ✅ Golden-truth invariant enforcement

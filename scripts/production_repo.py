@@ -64,6 +64,20 @@ def _probe_media(path: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# S3-C03: Render metadata split helpers
+# ---------------------------------------------------------------------------
+
+def get_provider_visual_prompt(metadata: dict) -> str | None:
+    """Return the provider-safe visual prompt, falling back to legacy 'prompt'."""
+    return metadata.get("provider_visual_prompt") or metadata.get("prompt")
+
+
+def get_deterministic_text_spec(metadata: dict) -> dict | None:
+    """Return the deterministic text spec if present."""
+    return metadata.get("deterministic_text_spec")
+
+
+# ---------------------------------------------------------------------------
 # R2-003: Typed media probe output
 # ---------------------------------------------------------------------------
 
@@ -529,6 +543,11 @@ def plan_render_units(
                 # S9-C06: Store prompt + image_path in metadata so generate can read them
                 if spec.get("prompt"):
                     md["prompt"] = spec["prompt"]
+                # S3-C03 (ENG-0301): Store split prompt fields when present
+                if spec.get("provider_visual_prompt"):
+                    md["provider_visual_prompt"] = spec["provider_visual_prompt"]
+                if spec.get("deterministic_text_spec"):
+                    md["deterministic_text_spec"] = spec["deterministic_text_spec"]
                 if spec.get("image_path"):
                     md["image_path"] = spec["image_path"]
                 # S9-C06 F-002: Store negative_prompt so adapter can pass --negative_prompt

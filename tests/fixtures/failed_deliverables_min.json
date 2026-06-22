@@ -1,0 +1,12 @@
+[
+  {
+    "id": "del_forensic_001",
+    "production_id": "prod_forensic_remediation_001",
+    "variant": "16x9",
+    "artifact_id": "art_forensic_deliverable_001",
+    "status": "published",
+    "assembly_revision": null,
+    "qa_validation_id": "val_forensic_qa_final_pass_001",
+    "approved_at": null
+  }
+]

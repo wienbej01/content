@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Optional
 from provider_adapter import ProviderAdapter, ProviderAdapterError
 
+import media_contract as _contract
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -39,6 +41,18 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
         rate = 0.06 if "pro" in model else 0.04
         return round(rate * duration, 2)
 
+    # Provider capability mapping: which features each model supports
+    PROVIDER_CAPABILITIES = {
+        "seedance_2_0": {
+            "supports_negative_prompt": False,
+            "supports_audio_path": True,
+        },
+        "kling3_0": {
+            "supports_negative_prompt": False,
+            "supports_audio_path": False,
+        },
+    }
+
     # Per-model param schemas (from `higgsfield model get <model>`)
     MODEL_PARAMS = {
         "seedance_2_0": {
@@ -57,6 +71,25 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
     }
 
     def submit(self, payload: dict, idempotency_key: str) -> dict:
+        # ENG-0202: Adapter-level second guard — enforce contract before any args build
+        asset_type = payload.get("asset_type")
+        if asset_type and not _contract.is_provider_eligible_asset_type(asset_type):
+            raise ProviderAdapterError(
+                f"BLOCKED: provider adapter received forbidden asset_type={asset_type}"
+            )
+        prompt = payload.get("prompt", "")
+        reasons = _contract.detect_provider_prompt_text_risks(prompt)
+        if reasons:
+            raise ProviderAdapterError(
+                "BLOCKED: provider adapter received risky prompt. "
+                + "; ".join(reasons)
+            )
+        text_policy = payload.get("text_policy", "")
+        if text_policy and text_policy.strip().upper() == "DETERMINISTIC_GRAPHIC":
+            raise ProviderAdapterError(
+                "BLOCKED: provider adapter received deterministic text spec"
+            )
+
         prompt = payload.get("prompt", "educational video")
         duration = payload.get("duration_sec", payload.get("duration", 5))
         duration_cli = max(1, int(math.ceil(float(duration))))
@@ -110,14 +143,28 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
                 )
             args.extend(["--audio", str(audio_path)])
 
+        # ENG-0203: Capability-gate negative_prompt
+        negative_prompt = payload.get("negative_prompt")
+        omitted_reason = None
+        cap = self.PROVIDER_CAPABILITIES.get(model, {})
+        if negative_prompt:
+            if cap.get("supports_negative_prompt"):
+                args.extend(["--negative_prompt", str(negative_prompt)])
+            else:
+                omitted_reason = "provider_capability"
+
         # S9-C06: Dry-run mode returns constructed args without calling subprocess
         if os.environ.get("HIGGSFIELD_DRY_RUN") == "1":
-            return {
+            result = {
                 "dry_run": True,
                 "args": args,
                 "payload": payload,
                 "idempotency_key": idempotency_key,
             }
+            if omitted_reason:
+                result["negative_prompt_omitted"] = True
+                result["omitted_reason"] = omitted_reason
+            return result
 
         r = subprocess.run(args, capture_output=True, text=True)
         if r.returncode != 0:

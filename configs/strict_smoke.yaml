@@ -1,0 +1,16 @@
+# Strict smoke config for DB-native media platform remediation.
+# Controls contract enforcement strictness and spending caps.
+# Consumed by smoke_config.py at runtime.
+
+# Strict enforcement flags
+strict_media_contract: true
+strict_provider_prompt_text_free: true
+strict_local_graphics: true
+strict_final_qa_contract: true
+
+# OCR behavior
+allow_ocr_unavailable: false
+
+# Spending caps
+max_paid_provider_jobs: 2
+max_total_usd: 0.25

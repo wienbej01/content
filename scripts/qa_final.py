@@ -211,6 +211,201 @@ def run_final_qa(video_path, exempt_spans=None):
     return report, not issues
 
 
+
+# ---------------------------------------------------------------------------
+# ENG-0801: DB-contract checks for final QA
+# ---------------------------------------------------------------------------
+
+CONTRACT_EVIDENCE_VERSION = "2.0"
+
+
+def run_db_contract_checks(
+    production_id: str,
+    deliverable_id: str,
+    db_path=None,
+) -> dict:
+    """Run DB-contract checks against final QA inputs.
+
+    Checks:
+    1. All selected render units have latest media QA pass.
+    2. All local graphics have local provenance (no provider jobs).
+    3. No provider-generated local graphics.
+    4. All expected local graphics represented in assembly.
+    5. Final deliverable artifact exists and SHA is recorded.
+    6. Assembly preflight evidence exists.
+    7. No failed validation newer than last pass for selected render units.
+
+    Returns a dict with contract_version, per-check booleans,
+    all_contract_checks_pass, and descriptive contract_issues list.
+    Raises ValueError for missing DB state.
+    """
+    import production_db as _db
+    from pathlib import Path
+
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+
+    evidence: dict = {
+        "contract_version": CONTRACT_EVIDENCE_VERSION,
+    }
+    issues: list[str] = []
+    
+    try:
+        # Load deliverable
+        del_row = conn.execute(
+            "SELECT * FROM deliverables WHERE id=?", (deliverable_id,)
+        ).fetchone()
+        if not del_row:
+            raise ValueError(f"Deliverable {deliverable_id} not found")
+        evidence["deliverable_exists"] = True
+        evidence["deliverable_id"] = deliverable_id
+        evidence["deliverable_status"] = del_row["status"]
+
+        # 5. Final deliverable artifact exists and SHA is recorded
+        artifact = None
+        if del_row["artifact_id"]:
+            artifact = conn.execute(
+                "SELECT * FROM artifacts WHERE id=?", (del_row["artifact_id"],)
+            ).fetchone()
+        if artifact and artifact["sha256"]:
+            art_path = Path(artifact["uri"]) if artifact["uri"] else None
+            file_ok = art_path and art_path.exists()
+            evidence["deliverable_file_exists"] = bool(file_ok)
+            evidence["deliverable_sha256"] = artifact["sha256"]
+            if not file_ok:
+                issues.append("deliverable artifact file missing")
+            if not artifact["sha256"]:
+                issues.append("deliverable artifact SHA not recorded")
+        else:
+            evidence["deliverable_file_exists"] = False
+            evidence["deliverable_sha256"] = None
+            issues.append("deliverable has no linked artifact")
+
+        # 6. Assembly preflight evidence exists — verify by calling validate_assembly_inputs
+        # which ensures the assembly stage would pass its own preflight checks.
+        from assemble_db import validate_assembly_inputs as _validate_preflight
+        try:
+            _validate_preflight(production_id, db_path=db_path)
+            evidence["assembly_preflight_passed"] = True
+        except Exception as exc:
+            evidence["assembly_preflight_passed"] = False
+            issues.append(f"assembly preflight validation failed: {exc}")
+
+        # Load render units and their artifacts
+        units = conn.execute(
+            """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256
+               FROM render_units ru
+               LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
+               WHERE ru.production_id=? AND ru.status!='stale'
+               ORDER BY ru.ordinal""",
+            (production_id,),
+        ).fetchall()
+
+        if not units:
+            evidence["render_unit_count"] = 0
+            issues.append("no render units found")
+        else:
+            evidence["render_unit_count"] = len(units)
+            all_passing_qa = True
+            all_local_provenance = True
+            no_provider_local = True
+            local_graphic_ids = []
+
+            for u in units:
+                u = dict(u)
+                # 1. All selected render units have latest media QA pass
+                latest = conn.execute(
+                    """SELECT status FROM validations
+                       WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (u["id"],),
+                ).fetchone()
+                if not latest or latest["status"] != "pass":
+                    all_passing_qa = False
+                    issues.append(
+                        f"render unit {u['id']} ({u.get('label', '')}) lacks passing media QA"
+                    )
+
+                # 7. No failed validation newer than last pass
+                fail_newer = conn.execute(
+                    """SELECT created_at FROM validations
+                       WHERE subject_id=? AND status='fail'
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (u["id"],),
+                ).fetchone()
+                if fail_newer and latest:
+                    if fail_newer["created_at"] > latest["created_at"]:
+                        issues.append(
+                            f"render unit {u['id']} has failed validation newer than last pass"
+                        )
+
+                # 2/3. Local graphic provenance
+                if u["asset_type"] == "local_graphic":
+                    local_graphic_ids.append(u["id"])
+                    pj = conn.execute(
+                        "SELECT COUNT(*) as c FROM provider_jobs WHERE render_unit_id=?", (u["id"],)
+                    ).fetchone()
+                    if pj["c"] > 0:
+                        no_provider_local = False
+                        all_local_provenance = False
+                        issues.append(
+                            f"local graphic {u['id']} has {pj['c']} provider job(s)"
+                        )
+                    if not u["active_artifact_id"]:
+                        all_local_provenance = False
+                        issues.append(
+                            f"local graphic {u['id']} has no active artifact"
+                        )
+                    # Check artifact provenance metadata
+                    if u["active_artifact_id"]:
+                        art = conn.execute(
+                            "SELECT metadata_json FROM artifacts WHERE id=?", (u["active_artifact_id"],)
+                        ).fetchone()
+                        if art:
+                            meta = json.loads(art["metadata_json"]) if isinstance(art["metadata_json"], str) else art["metadata_json"]
+                            renderer = (meta or {}).get("renderer", "")
+                            if "render_graphics.py" not in renderer:
+                                issues.append(
+                                    f"local graphic {u['id']} artifact provenance is not local_graphic"
+                                )
+
+            evidence["all_passing_qa"] = all_passing_qa
+            evidence["all_local_provenance"] = all_local_provenance
+            evidence["no_provider_local_graphic"] = no_provider_local
+            evidence["local_graphic_count"] = len(local_graphic_ids)
+
+        # 4. All expected local graphics represented in assembly
+        # Check creative_beats with shot_type='local_graphic' against render units
+        gfx_beats = conn.execute(
+            """SELECT cb.id, cb.label, cb.shot_type
+               FROM creative_beats cb
+               JOIN timeline_spans ts ON cb.id = ts.creative_beat_id
+               WHERE ts.production_id=? AND ts.status='active' AND cb.shot_type='local_graphic'""",
+            (production_id,),
+        ).fetchall()
+        expected_gfx = [dict(g) for g in gfx_beats]
+        evidence["expected_local_graphic_beats"] = len(expected_gfx)
+        missing_gfx = [g["label"] or g["id"] for g in expected_gfx
+                       if not any(u["asset_type"] == "local_graphic" for u in
+                                  [dict(r) for r in units])]
+        if missing_gfx:
+            issues.append(f"expected local graphics not in assembly: {missing_gfx}")
+
+        all_pass = (
+            evidence.get("deliverable_file_exists", False)
+            and evidence.get("all_passing_qa", False)
+            and evidence.get("all_local_provenance", True)
+            and evidence.get("no_provider_local_graphic", True)
+            and evidence.get("assembly_preflight_passed", False)
+            and len(issues) == 0
+        )
+        evidence["all_contract_checks_pass"] = all_pass
+        evidence["contract_issues"] = issues
+        return evidence
+
+    finally:
+        conn.close()
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Final-cut gate (G9) — validates assembled output.")
     ap.add_argument("video", help="Path to the assembled final mp4")

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "val_forensic_qa_media_pass_001",
+    "production_id": "prod_forensic_remediation_001",
+    "subject_type": "render_unit",
+    "subject_id": "render_forensic_lipsync_001",
+    "validator_name": "qa_media",
+    "status": "pass",
+    "ruleset_version": null,
+    "evidence_json": "{\"file_exists\": true, \"dimensions_ok\": true, \"duration_ok\": true, \"audio_policy_ok\": true, \"sha_match\": true, \"details\": {\"actual_duration_ms\": 12041, \"actual_height\": 496, \"actual_width\": 864, \"required_duration_ms\": 12084}}",
+    "created_by_stage_run_id": null,
+    "created_at": "2026-06-20T21:25:45+08:00",
+    "artifact_sha256": null,
+    "algorithm_version": null,
+    "threshold_version": null
+  },
+  {
+    "id": "val_forensic_qa_media_pass_002",
+    "production_id": "prod_forensic_remediation_001",
+    "subject_type": "render_unit",
+    "subject_id": "render_forensic_broll_001",
+    "validator_name": "qa_media",
+    "status": "pass",
+    "ruleset_version": null,
+    "evidence_json": "{\"file_exists\": true, \"dimensions_ok\": true, \"duration_ok\": true, \"audio_policy_ok\": true, \"sha_match\": true, \"details\": {\"actual_duration_ms\": 14041, \"actual_height\": 1080, \"actual_width\": 1920, \"required_duration_ms\": 14252}}",
+    "created_by_stage_run_id": null,
+    "created_at": "2026-06-20T21:25:45+08:00",
+    "artifact_sha256": null,
+    "algorithm_version": null,
+    "threshold_version": null
+  },
+  {
+    "id": "val_forensic_qa_media_pass_003",
+    "production_id": "prod_forensic_remediation_001",
+    "subject_type": "render_unit",
+    "subject_id": "render_forensic_graphic_001",
+    "validator_name": "qa_media",
+    "status": "pass",
+    "ruleset_version": null,
+    "evidence_json": "{\"file_exists\": true, \"dimensions_ok\": true, \"duration_ok\": true, \"audio_policy_ok\": true, \"sha_match\": true, \"details\": {\"actual_duration_ms\": 11041, \"actual_height\": 1080, \"actual_width\": 1920, \"required_duration_ms\": 11980}}",
+    "created_by_stage_run_id": null,
+    "created_at": "2026-06-20T21:25:45+08:00",
+    "artifact_sha256": null,
+    "algorithm_version": null,
+    "threshold_version": null
+  },
+  {
+    "id": "val_forensic_qa_final_pass_001",
+    "production_id": "prod_forensic_remediation_001",
+    "subject_type": "deliverable",
+    "subject_id": "del_forensic_001",
+    "validator_name": "qa_final",
+    "status": "pass",
+    "ruleset_version": null,
+    "evidence_json": "{\"dimensions_ok\": true, \"duration_ok\": true, \"loudnorm_ok\": true, \"no_black_frames\": true, \"details\": {\"audio_duration\": 167.6, \"black_spans\": [], \"container_duration\": 167.6, \"frame_count\": 4019, \"freeze_spans\": [], \"issues\": [], \"status\": \"pass\", \"thresholds\": {\"length_tol_sec\": 0.25, \"max_black_sec\": 0.2, \"max_freeze_sec\": 1.5, \"tail_tol_sec\": 0.25, \"transition_window_sec\": 0.3}, \"video\": \"/fixtures/output/prod_forensic_16x9.mp4\", \"video_duration\": 167.46}}",
+    "created_by_stage_run_id": null,
+    "created_at": "2026-06-20T22:01:18+08:00",
+    "artifact_sha256": null,
+    "algorithm_version": null,
+    "threshold_version": null
+  }
+]

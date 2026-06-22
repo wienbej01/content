@@ -9,6 +9,7 @@ ASM-705  JSON export compatibility
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 from typing import Optional
 
@@ -30,6 +31,209 @@ class AssemblyError(Exception):
     pass
 
 
+
+# ---------------------------------------------------------------------------
+# ENG-0701 / ENG-0702 / ENG-0703  Assembly input validator + timeline heuristics
+# ---------------------------------------------------------------------------
+
+TIMELINE_GAP_TOLERANCE_MS = 100
+LOCAL_GRAPHIC_MAX_DURATION_MS = 15000
+MICRO_CUT_MIN_DURATION_MS = 1000
+
+
+def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+    """Validate all assembly inputs before building the clip manifest.
+
+    Checks:
+    1. Active timeline spans exist.
+    2. No gaps/overlaps beyond tolerance.
+    3. Each span maps to exactly one active render unit.
+    4. Each selected render unit has active artifact.
+    5. Each selected render unit has latest passing contract QA.
+    6. No stale render units selected.
+    7. No provider-generated local graphic selected.
+    8. Files exist on disk.
+    9. Artifact set hash can be computed.
+    10. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
+
+    Raises AssemblyError with descriptive message on first failure.
+    Returns preflight evidence dict on success.
+    """
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    evidence = {"production_id": production_id, "variant": variant}
+
+    try:
+        # 1. Active timeline spans exist
+        spans = conn.execute(
+            """SELECT id, ordinal, label, start_ms, end_ms, duration_ms, creative_beat_id
+               FROM timeline_spans WHERE production_id=? AND status='active'
+               ORDER BY ordinal""",
+            (production_id,),
+        ).fetchall()
+        if not spans:
+            raise AssemblyError(
+                f"BLOCKED: assembly input validation failed - no active timeline spans"
+            )
+        evidence["span_count"] = len(spans)
+        spans = [dict(s) for s in spans]
+
+        # 2. No gaps/overlaps beyond tolerance
+        for i in range(1, len(spans)):
+            prev_end = spans[i - 1]["end_ms"]
+            curr_start = spans[i]["start_ms"]
+            gap = curr_start - prev_end
+            if gap < 0:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"timeline overlap between span {spans[i-1]['id']} (end={prev_end}) "
+                    f"and span {spans[i]['id']} (start={curr_start})"
+                )
+            if gap > TIMELINE_GAP_TOLERANCE_MS:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"timeline gap {gap}ms between span {spans[i-1]['id']} (end={prev_end}) "
+                    f"and span {spans[i]['id']} (start={curr_start})"
+                )
+
+        # Load non-stale render units
+        raw_units = conn.execute(
+            """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256,
+                      a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
+               FROM render_units ru
+               LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
+               WHERE ru.production_id=? AND ru.status!='stale'
+               ORDER BY ru.ordinal""",
+            (production_id,),
+        ).fetchall()
+        units = [dict(u) for u in raw_units]
+        evidence["unit_count"] = len(units)
+
+        # 3. Each span maps to exactly one active render unit
+        span_to_unit = {}
+        for u in units:
+            tsid = u["timeline_span_id"]
+            if tsid in span_to_unit:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"duplicate render units for timeline span {tsid}: "
+                    f"{span_to_unit[tsid]} and {u['id']}"
+                )
+            span_to_unit[tsid] = u["id"]
+
+        for s in spans:
+            if s["id"] not in span_to_unit:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"no active render unit for timeline span {s['id']} ({s.get('label', '')})"
+                )
+
+        # 4. Each render unit has active artifact
+        for u in units:
+            if not u["active_artifact_id"]:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"render unit {u['id']} ({u.get('label', '')}) has no active artifact"
+                )
+
+        # 5. Each render unit has latest passing contract QA
+        for u in units:
+            latest = conn.execute(
+                """SELECT status FROM validations
+                   WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                   ORDER BY created_at DESC LIMIT 1""",
+                (u["id"],),
+            ).fetchone()
+            if not latest or latest["status"] != "pass":
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"
+                )
+
+        # 6. No stale render units (already excluded by SQL WHERE status!='stale')
+
+        # 7. No provider-generated local graphic selected
+        for u in units:
+            if u["asset_type"] == "local_graphic":
+                pj = conn.execute(
+                    "SELECT COUNT(*) as c FROM provider_jobs WHERE render_unit_id=?", (u["id"],)
+                ).fetchone()
+                if pj["c"] > 0:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"local graphic {u['id']} has {pj['c']} provider job(s) - "
+                        f"local_graphic assets must never be sent to paid providers"
+                    )
+
+        # 8. Files exist on disk
+        for u in units:
+            if u["artifact_uri"]:
+                if not Path(u["artifact_uri"]).exists():
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"artifact file missing: {u['artifact_uri']}"
+                    )
+
+        # 9. Artifact set hash
+        sha256s = [u["artifact_sha256"] for u in units if u["artifact_sha256"]]
+        evidence["artifact_set_hash"] = hashlib.sha256(
+            "|".join(sorted(sha256s)).encode()
+        ).hexdigest()
+
+        # 10. Timeline heuristics (ENG-0703)
+        _validate_timeline_heuristics(units)
+
+        evidence["validation_passed"] = True
+        evidence["render_unit_ids"] = [u["id"] for u in units]
+        evidence["artifact_ids"] = [u["active_artifact_id"] for u in units if u["active_artifact_id"]]
+        return evidence
+
+    finally:
+        conn.close()
+
+
+def _validate_timeline_heuristics(units: list) -> None:
+    """ENG-0703: Validate timeline for loops, long holds, and micro-cuts.
+
+    Raises AssemblyError on violation.
+    """
+    for i in range(1, len(units)):
+        prev = units[i - 1]
+        curr = units[i]
+
+        # Reject identical consecutive local_graphic render units without explicit break.
+        # Render unit IDs are unique, so we compare by label (content identity).
+        # If two consecutive local_graphic units have the same label, they represent
+        # the same graphic content repeating - likely a loop/assembly bug.
+        if (prev["asset_type"] == "local_graphic" and curr["asset_type"] == "local_graphic"
+                and prev.get("label") and prev["label"] == curr.get("label")):
+            raise AssemblyError(
+                f"BLOCKED: assembly input validation failed - "
+                f"identical consecutive local_graphic render unit {prev['label']} "
+                f"at ordinal {prev['ordinal']} and {curr['ordinal']} without editorial break"
+            )
+
+        # Reject micro-cuts (< 1 second)
+        dur = curr["required_duration_ms"] or 0
+        if 0 < dur < MICRO_CUT_MIN_DURATION_MS:
+            raise AssemblyError(
+                f"BLOCKED: assembly input validation failed - "
+                f"micro-cut detected: render unit {curr['id']} at ordinal {curr['ordinal']} "
+                f"has duration {dur}ms (< {MICRO_CUT_MIN_DURATION_MS}ms)"
+            )
+
+    # Reject long holds (> 15s) for local_graphic without 'hold' marker
+    for u in units:
+        if u["asset_type"] == "local_graphic":
+            dur = u["required_duration_ms"] or 0
+            if dur > LOCAL_GRAPHIC_MAX_DURATION_MS:
+                label = (u.get("label") or "").lower()
+                if "hold" not in label:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"local graphic {u['id']} duration {dur}ms exceeds "
+                        f"{LOCAL_GRAPHIC_MAX_DURATION_MS}ms without 'hold' marker"
+                    )
 def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
     """Build a complete assembly input object purely from DB state.
 
@@ -74,6 +278,9 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
     if not production:
         raise AssemblyError(f"Production {production_id} not found")
 
+    # ENG-0702: Run preflight validation before building assembly inputs
+    preflight_evidence = validate_assembly_inputs(production_id, variant=variant, db_path=db_path)
+
     # Validate: all units must be valid or local_graphic
     invalid = [
         u for u in units
@@ -116,6 +323,7 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
         "clips": clips,
         "span_count": len(spans),
         "unit_count": len(units),
+        "preflight": preflight_evidence,
     }
 
 
@@ -306,12 +514,20 @@ def run_final_qa(
         "no_black_frames": bool,
         "captions_present": bool,  # optional
         "details": {...}
+        # ENG-0801: DB-contract evidence
+        "contract_checks": {...}  # optional; if present, contract_version and all_contract_checks_pass are required
     }
 
     Returns validation row.
     """
     required = ["dimensions_ok", "duration_ok", "loudnorm_ok", "no_black_frames"]
     passed = all(bool(checks.get(k, True)) for k in required)
+
+    # ENG-0801: DB-contract pass is required when contract_checks field is present
+    contract = checks.get("contract_checks")
+    if contract is not None:
+        if not contract.get("all_contract_checks_pass", False):
+            passed = False
 
     now = _db._now()
     with _db.transaction(db_path) as conn:
