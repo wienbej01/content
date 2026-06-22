@@ -12,5 +12,5 @@ strict_final_qa_contract: true
 allow_ocr_unavailable: false
 
 # Spending caps
-max_paid_provider_jobs: 2
+max_paid_provider_jobs: 20
 max_total_usd: 5.00

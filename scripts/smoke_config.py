@@ -33,7 +33,7 @@ _DEFAULTS: dict[str, Any] = {
     "strict_local_graphics": True,
     "strict_final_qa_contract": True,
     "allow_ocr_unavailable": False,
-    "max_paid_provider_jobs": 2,
+    "max_paid_provider_jobs": 20,
     "max_total_usd": 5.00,
 }
 
