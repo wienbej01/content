@@ -106,7 +106,7 @@ class TestHeroLipsyncQA:
             _make_hero_span(spans[0]["id"], duration_ms=5000),
         ], db_path=db)
 
-        _create_synthetic_hero_video(db, prod["id"], units[0], video_duration_sec=4.5)
+        _create_synthetic_hero_video(db, prod["id"], units[0], video_duration_sec=4.0)
 
         validation = run_contract_media_qa(db, prod["id"], units[0]["id"])
         assert validation["status"] == "fail", (
