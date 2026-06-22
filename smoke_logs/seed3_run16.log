@@ -1,0 +1,6 @@
+  ✗ Stage 'qa_media' failed: qa_media blocked: required render units are not ready for QA: S000=ordered, S000=ordered, S000=ordered
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Invalidating stages from 'repair' onward...
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: qa_media

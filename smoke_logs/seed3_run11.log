@@ -1,0 +1,8 @@
+  ✗ Stage 'repair' failed: Repair attempted but 3 unit(s) failed re-QA: [{'render_unit_id': 'render_9af10dfc430644109027292110a87c85', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_136bafb5516a41a8bfc7a35538633547'}, {'render_unit_id': 'render_0d76bde4bcb94746a55a01fdc574f02c', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_8cc1c15f76ec4123b97dbb5018190d5f'}, {'render_unit_id': 'render_fcbd2bf1f8554d209536dd0408d55cb2', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_62ba4c5c628b4738ae720d67bc8930fa'}]
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair

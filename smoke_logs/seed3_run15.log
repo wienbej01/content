@@ -1,0 +1,14 @@
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  ✗ Stage 'qa_media' failed: Media QA failed for 3 units: [{'unit_id': 'render_9af10dfc430644109027292110a87c85', 'label': 'S000'}, {'unit_id': 'render_0d76bde4bcb94746a55a01fdc574f02c', 'label': 'S000'}, {'unit_id': 'render_fcbd2bf1f8554d209536dd0408d55cb2', 'label': 'S000'}]
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Invalidating stages from 'generate_media' onward...
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: generate_media
+  ✓ Stage 'generate_media' completed.
+
+▶ Executing stage: qa_media

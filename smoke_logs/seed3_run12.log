@@ -1,0 +1,5 @@
+  ✗ Stage 'repair' failed: BLOCKED: 3 open change request(s) require repair. Resolve via: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9 --from generate_media
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: repair

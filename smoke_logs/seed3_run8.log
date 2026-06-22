@@ -1,0 +1,10 @@
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  ✗ Stage 'generate_media' failed: generate_media incomplete: required render units are not generated/valid: S001=generating, S001=generating
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: generate_media

@@ -1,0 +1,6 @@
+  ✗ Stage 'generate_media' failed: Provider job pjob_3d7c400d543241c6a894b13b9f59d7e1 submit failed (permanent): Higgsfield submit failed after 1 attempt(s): Error: {"billing_period":"monthly","error_type":"not_enough_credits","plan_type":"max","workspace":{"role":"owner","type":"private"}}
+Resume with: python3 scripts/produce_db.py resume prod_42279b0de3824de1afcfb2748e9af4f9
+Invalidating stages from 'generate_media' onward...
+Running production: replace_three_tools_with_one_ai_assistan (prod_42279b0de3824de1afcfb2748e9af4f9)
+
+▶ Executing stage: generate_media
