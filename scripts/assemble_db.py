@@ -293,7 +293,10 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
                   a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
            FROM render_units ru
            LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
-           WHERE ru.production_id=? AND ru.status!='stale' ORDER BY ru.ordinal""",
+           WHERE ru.production_id=?
+             AND (ru.status IN ('valid', 'generated')
+                  OR ru.active_artifact_id IS NOT NULL)
+           ORDER BY ru.ordinal""",
         (production_id,),
     ).fetchall()
 
@@ -312,7 +315,7 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
     # Validate: all units must be valid or local_graphic
     invalid = [
         u for u in units
-        if u["status"] not in ("valid", "local_graphic")
+        if u["status"] not in ("valid", "generated", "local_graphic", "change_requested")
         and u["asset_type"] != "local_graphic"
     ]
     if invalid:
