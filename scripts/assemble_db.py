@@ -102,7 +102,9 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                       a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
                FROM render_units ru
                LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
-               WHERE ru.production_id=? AND ru.status!='stale'
+               WHERE ru.production_id=?
+                 AND (ru.status IN ('valid', 'generated')
+                      OR ru.active_artifact_id IS NOT NULL)
                ORDER BY ru.ordinal""",
             (production_id,),
         ).fetchall()
