@@ -34,6 +34,11 @@ from timeline_utils import (
     MASTER_SAMPLE_RATE, ms_to_samples, samples_to_ms, TimeInterval,
 )
 
+# ENG-0604: Clamp tolerance for sub-ms boundary drift between audio_timing (rounds
+# up on 3rd decimal) and probe_media (truncates). 96 samples = 2ms at 48kHz,
+# which covers the proven 1ms (48-sample) divergence with 2x headroom.
+CLAMP_TOLERANCE_SAMPLES = 96
+
 
 def _sha(path: Path) -> str:
     h = hashlib.sha256()
@@ -98,8 +103,21 @@ def slice_hero_units(
 
         if ss_start >= ss_end:
             raise ValueError(f"render_unit {unit_id}: speech_start >= speech_end")
-        if ss_start < 0 or ss_end > master_duration_samples:
-            raise ValueError(f"render_unit {unit_id}: speech bounds [{ss_start},{ss_end}] outside master [0,{master_duration_samples}]")
+        if ss_start < 0:
+            raise ValueError(f"render_unit {unit_id}: speech_start {ss_start} is negative")
+        if ss_end > master_duration_samples:
+            overshoot = ss_end - master_duration_samples
+            if overshoot <= CLAMP_TOLERANCE_SAMPLES:
+                ss_end = master_duration_samples
+                # Re-derive gen_end if it was tied to ss_end
+                if gen_end >= ss_end:
+                    gen_end = master_duration_samples
+            else:
+                raise ValueError(
+                    f"render_unit {unit_id}: speech bounds [{ss_start},{ss_end}] "
+                    f"outside master [0,{master_duration_samples}] "
+                    f"(overshoot {overshoot} samples > tolerance {CLAMP_TOLERANCE_SAMPLES})"
+                )
 
         speech_len = ss_end - ss_start
         gen_len = gen_end - gen_start
@@ -316,11 +334,18 @@ def materialize_hero_slot_slices(
         ss_end = int(bounds["speech_end_sample"])
         if ss_start >= ss_end:
             raise ValueError(f"render_unit {unit_id}: speech_start >= speech_end")
-        if ss_start < 0 or ss_end > master_duration_samples:
-            raise ValueError(
-                f"render_unit {unit_id}: speech bounds [{ss_start},{ss_end}] "
-                f"outside master [0,{master_duration_samples}]"
-            )
+        if ss_start < 0:
+            raise ValueError(f"render_unit {unit_id}: speech_start {ss_start} is negative")
+        if ss_end > master_duration_samples:
+            overshoot = ss_end - master_duration_samples
+            if overshoot <= CLAMP_TOLERANCE_SAMPLES:
+                ss_end = master_duration_samples
+            else:
+                raise ValueError(
+                    f"render_unit {unit_id}: speech bounds [{ss_start},{ss_end}] "
+                    f"outside master [0,{master_duration_samples}] "
+                    f"(overshoot {overshoot} samples > tolerance {CLAMP_TOLERANCE_SAMPLES})"
+                )
 
         # Sample-exact extraction (re-encode to PCM, never -c copy on a master that
         # may be MP3). -ss/-t before -i matches the slice_hero_units convention.
