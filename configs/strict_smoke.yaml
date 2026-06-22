@@ -35,3 +35,7 @@ on_failure:
   create_pass_gate_test: true  # write a test that proves the fix
   engineer_auditor_validator: true  # ENG->AUD->VAL loop per fix
   min_green_tests: 300         # test suite must pass at this level
+
+# QA config
+qa:
+  allow_ocr_unavailable: true
