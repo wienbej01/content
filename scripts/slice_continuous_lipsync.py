@@ -79,10 +79,16 @@ def slice_hero_units(
     if not master_path.exists():
         raise FileNotFoundError(f"Master audio file missing: {master_path}")
 
-    master_probe = probe_media(master_path)
-    if master_probe is None:
-        raise RuntimeError(f"Master audio is not valid media: {master_path}")
-    master_duration_samples = int(master_probe.duration_ms * MASTER_SAMPLE_RATE / 1000)
+    # Read canonical duration from artifact record (single source of truth).
+    # Fall back to probe_media only if the artifact has no stored duration (legacy data).
+    master_duration_ms = master.get("duration_ms")
+    if master_duration_ms:
+        master_duration_samples = ms_to_samples(master_duration_ms)
+    else:
+        master_probe = probe_media(master_path)
+        if master_probe is None:
+            raise RuntimeError(f"Master audio is not valid media: {master_path}")
+        master_duration_samples = ms_to_samples(master_probe.duration_ms)
     master_sha = master["sha256"]
 
     LIPSYNC_MIN, LIPSYNC_MAX = _load_lipsync_limits()
@@ -318,10 +324,16 @@ def materialize_hero_slot_slices(
     master_path = Path(master["uri"])
     if not master_path.exists():
         raise FileNotFoundError(f"Master audio file missing: {master_path}")
-    master_probe = probe_media(master_path)
-    if master_probe is None:
-        raise RuntimeError(f"Master audio is not valid media: {master_path}")
-    master_duration_samples = int(master_probe.duration_ms * MASTER_SAMPLE_RATE / 1000)
+    # Read canonical duration from artifact record (single source of truth).
+    # Fall back to probe_media only if the artifact has no stored duration (legacy data).
+    master_duration_ms = master.get("duration_ms")
+    if master_duration_ms:
+        master_duration_samples = ms_to_samples(master_duration_ms)
+    else:
+        master_probe = probe_media(master_path)
+        if master_probe is None:
+            raise RuntimeError(f"Master audio is not valid media: {master_path}")
+        master_duration_samples = ms_to_samples(master_probe.duration_ms)
     master_sha = master["sha256"]
 
     output_dir = master_path.parent / "hero_audio_slices"

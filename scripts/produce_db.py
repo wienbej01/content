@@ -311,21 +311,24 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     if not storyboard:
         raise RuntimeError("No active storyboard found. Run storyboard and review_storyboard stages first.")
         
-    # 2. Build timing map
-    timing = build_storyboard_timing_map(str(audio_path), storyboard["beats"])
-    
-    # 3. Get latest TTS artifact ID for this production
+    # 2. Get latest TTS artifact (has canonical duration_ms)
     conn = _db.connect(None)
     art_row = conn.execute(
-        "SELECT id FROM artifacts WHERE production_id=? AND kind='tts_master' ORDER BY created_at DESC LIMIT 1",
+        "SELECT id, duration_ms FROM artifacts WHERE production_id=? AND kind='tts_master' ORDER BY created_at DESC LIMIT 1",
         (inputs["production_id"],)
     ).fetchone()
     conn.close()
     
     if not art_row:
         raise RuntimeError("No TTS artifact found for production")
-        
+    
     tts_artifact_id = art_row["id"]
+    canonical_duration_sec = (art_row["duration_ms"] or 0) / 1000.0
+    timing = build_storyboard_timing_map(
+        str(audio_path), storyboard["beats"],
+        canonical_duration_sec=canonical_duration_sec if canonical_duration_sec > 0 else None,
+    )
+    
     
     # 4. Commit timing spans to DB
     spans = []

@@ -94,7 +94,7 @@ def extract_beats_from_script(script_path):
     return beats
 
 
-def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_THRESH_DB, min_dur=SILENCE_MIN_DUR):
+def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_THRESH_DB, min_dur=SILENCE_MIN_DUR, canonical_duration_sec=None):
     """Map storyboard beats (ordered, with narration_text) to [start, end] in continuous audio.
 
     Each beat gets a proportional share of the master duration based on word count,
@@ -108,9 +108,12 @@ def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_T
     Returns:
         dict with 'beats' list [{beat_id, start, end, duration}, ...] and metadata.
     """
-    total_dur = probe_duration(audio_path)
-    if not total_dur:
-        raise RuntimeError(f"Cannot probe duration: {audio_path}")
+    if canonical_duration_sec is not None:
+        total_dur = canonical_duration_sec
+    else:
+        total_dur = probe_duration(audio_path)
+        if not total_dur:
+            raise RuntimeError(f"Cannot probe duration: {audio_path}")
 
     # Word counts per beat
     word_counts = []
