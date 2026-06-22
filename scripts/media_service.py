@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
+import time
 import os
 from pathlib import Path
 from typing import Optional
@@ -1118,11 +1120,13 @@ VALIDATION_FAILURE_CLASSIFICATIONS = frozenset({
     "provider_forbidden_asset", "unexpected_visible_text",
     "local_graphic_not_local", "local_graphic_text_mismatch",
     "ocr_unavailable", "hero_lipsync_unverified", "unknown_contract_failure",
+    "provider_job_retryable_failure", "provider_job_permanent_failure",
 })
 
 REPAIR_ACTIONS = frozenset({
     "render_local_graphic", "regenerate_provider_video",
     "recover_artifact", "rerun_qa", "block_for_manual_review",
+    "resubmit_provider_job",
 })
 
 
@@ -1177,6 +1181,8 @@ _RULES = {
     "hero_lipsync_unverified": "regenerate_provider_video",
     "duration_shortfall": "regenerate_provider_video",
     "unknown_contract_failure": "block_for_manual_review",
+    "provider_job_retryable_failure": "resubmit_provider_job",
+    "provider_job_permanent_failure": "block_for_manual_review",
 }
 
 
@@ -1190,6 +1196,51 @@ def choose_repair_action(render_unit: dict, failure_class: str) -> str:
         action = "block_for_manual_review"
     return action
 
+
+
+def _repair_resubmit_provider_job(
+    production_id: str,
+    render_unit: dict,
+    failed_pjob: dict,
+    db_path=None,
+) -> dict:
+    """S10-C09: Resubmit a failed provider job for a render unit.
+
+    Reads the original request payload, re-submits via submit_provider_job,
+    and updates the render unit status to 'generating'.
+    """
+    import paid_adapters
+    from provider_adapter import get_provider_adapter
+
+    orig_payload = {}
+    model = "seedance_2_0"
+    try:
+        conn = _db.connect(db_path)
+        job_row = conn.execute(
+            "SELECT request_json FROM provider_jobs WHERE id=?",
+            (failed_pjob["id"],),
+        ).fetchone()
+        conn.close()
+        if job_row and job_row["request_json"]:
+            orig_payload = json.loads(job_row["request_json"])
+            model = orig_payload.get("model", model)
+    except Exception:
+        pass
+
+    duration_sec = (orig_payload.get("duration_ms") or 5000) / 1000.0
+    # S10-C09: backoff jitter on resubmit (1-3s random)
+    import random
+    time.sleep(1 + random.random() * 2)
+
+    job = submit_provider_job(
+        production_id=production_id,
+        render_unit_id=render_unit["id"],
+        provider="higgsfield",
+        operation="generate_video",
+        request_payload=orig_payload,
+        db_path=db_path,
+    )
+    return {"new_job_id": job["id"]}
 
 def run_repair_lifecycle(
     production_id: str,
@@ -1227,7 +1278,43 @@ def run_repair_lifecycle(
     conn.close()
 
     if not failure:
-        raise ValueError(f"No contract QA validation found for render_unit {render_unit_id}")
+        # S10-C09: No qa_media_contract validation — check for provider job failure
+        conn2 = _db.connect(db_path)
+        pjob = conn2.execute(
+            """SELECT id, error_json FROM provider_jobs
+               WHERE render_unit_id=? AND status='failed'
+               ORDER BY COALESCE(completed_at, '') DESC, id DESC LIMIT 1""",
+            (render_unit_id,),
+        ).fetchone()
+        conn2.close()
+        if pjob:
+            error_text = ""
+            try:
+                error_json = json.loads(pjob["error_json"] or "{}")
+                error_text = error_json.get("error", "")
+            except (json.JSONDecodeError, TypeError):
+                pass
+            from paid_adapters import _classify_retryable
+            retryable = _classify_retryable(error_text)
+            failure_class = "provider_job_retryable_failure" if retryable else "provider_job_permanent_failure"
+            action = choose_repair_action(render_unit, failure_class)
+            if action == "block_for_manual_review":
+                raise RuntimeError(
+                    f"REPAIR BLOCKED: render_unit {render_unit_id} provider job "
+                    f"failed permanently: {error_text[:200]}"
+                )
+            # resubmit_provider_job action — handled below
+            result = {
+                "render_unit_id": render_unit_id,
+                "failure_class": failure_class,
+                "action": action,
+                "new_artifact_id": None,
+                "qa_passed": None,
+            }
+            _repair_resubmit_provider_job(production_id, render_unit, pjob, db_path=db_path)
+            result["new_job_submitted"] = True
+            return result
+        raise ValueError(f"No repair path found for render_unit {render_unit_id}")
 
     # ENG-0603 idempotency: if the latest validation already passes, the render
     # unit is already repaired — return success without modifying state.

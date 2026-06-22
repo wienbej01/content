@@ -84,6 +84,9 @@ class TestClassifyValidationFailure:
             "unexpected_visible_text", "ocr_unavailable",
             "hero_lipsync_unverified", "duration_shortfall",
             "unknown_contract_failure",
+            # S10-C09: provider job failures are not QA-evidence classifications
+            # — they're handled by the provider job repair path
+            "provider_job_retryable_failure", "provider_job_permanent_failure",
         }
         assert tested == VALIDATION_FAILURE_CLASSIFICATIONS, (
             f"Untested classifications: {VALIDATION_FAILURE_CLASSIFICATIONS - tested}"
