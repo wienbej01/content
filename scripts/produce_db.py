@@ -1552,7 +1552,7 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
     for u in all_units:
         if u["status"] in ("valid", "generated", "needs_repair"):
             continue
-        if u["status"] == "failed":
+        if u["status"] in ("failed", "ordered"):
             continue  # Handled by repair stage
         if u["asset_type"] == "local_graphic":
             continue  # Handled by graphics_compositing stage
@@ -1689,9 +1689,25 @@ def invoke_repair(inputs: dict, tmp_path: Path) -> dict:
     conn.close()
 
     if open_crs > 0 and not repaired:
-        raise RuntimeError(
-            f"BLOCKED: {open_crs} open change request(s) require repair. "
-            f"Resolve via: python3 scripts/produce_db.py resume {production_id} --from generate_media")
+        # Check if ALL open CRs target units that are already 'ordered' (in progress).
+        # The route_change_request function sets units to 'ordered' when creating
+        # a CR for generate_media. If all units are queued, no block needed.
+        if open_crs > 0:
+            conn = _db.connect(None)
+            still_blocked = conn.execute(
+                "SELECT COUNT(*) as c FROM change_requests cr "
+                "JOIN render_units ru ON cr.subject_id = ru.id "
+                "WHERE cr.production_id=? AND cr.status='open' "
+                "AND (ru.status IS NULL OR ru.status != 'ordered')",
+                (production_id,),
+            ).fetchone()["c"]
+            conn.close()
+        else:
+            still_blocked = open_crs
+        if still_blocked > 0:
+            raise RuntimeError(
+                f"BLOCKED: {open_crs} open change request(s) require repair. "
+                f"Resolve via: python3 scripts/produce_db.py resume {production_id} --from generate_media")
 
     if not repaired and open_crs == 0:
         return {"status": "skipped", "message": "No repairs needed"}
