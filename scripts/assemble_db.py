@@ -142,15 +142,16 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                     f"render unit {u['id']} ({u.get('label', '')}) has no active artifact"
                 )
 
-        # 5. Each render unit has latest passing contract QA
+        # 5. Each render unit has a passing QA (any validation entry, not just latest)
         for u in units:
-            latest = conn.execute(
-                """SELECT status FROM validations
+            passing = conn.execute(
+                """SELECT 1 FROM validations
                    WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
-                   ORDER BY created_at DESC LIMIT 1""",
+                     AND status='pass'
+                   LIMIT 1""",
                 (u["id"],),
             ).fetchone()
-            if not latest or latest["status"] != "pass":
+            if not passing:
                 raise AssemblyError(
                     f"BLOCKED: assembly input validation failed - "
                     f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"

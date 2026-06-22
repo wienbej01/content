@@ -90,7 +90,7 @@ class TestValidateAssemblyInputs:
               "provider_audio_usage": "diagnostic_only"}],
             db_path=db,
         )
-        with pytest.raises(AssemblyError, match="BLOCKED.*no active artifact"):
+        with pytest.raises(AssemblyError, match="BLOCKED.*no active render unit"):
             validate_assembly_inputs(prod["id"], db_path=db)
 
     def test_failed_qa_fails(self, db, prod, tmp_path):
