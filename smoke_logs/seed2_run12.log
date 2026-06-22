@@ -1,0 +1,14 @@
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  ✗ Stage 'qa_media' failed: Media QA failed for 4 units: [{'unit_id': 'render_a1ea37defef046e09c20f83d8cabe4a4', 'label': 'S000'}, {'unit_id': 'render_1c1448cbaf254c6b98d069cbb808b6c6', 'label': 'S000'}, {'unit_id': 'render_95af4ee30dab44c8881be6438bfac7ad', 'label': 'S006'}, {'unit_id': 'render_544608ad5fa84faf836cd4365a734603', 'label': 'S006'}]
+Resume with: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567
+Running production: let_ai_schedule_your_entire_week_from_a (prod_4c06fa30ad5c474cba853ec323931567)
+
+▶ Executing stage: generate_media
+  ✓ Stage 'generate_media' completed.
+
+▶ Executing stage: qa_media

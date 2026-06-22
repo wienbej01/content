@@ -1,0 +1,21 @@
+  ✗ Stage 'gate_b_review' failed: gate_b_review pending approval. Use: python3 scripts/produce_db.py approve prod_4c06fa30ad5c474cba853ec323931567 gate_b_review --pass
+Resume with: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567
+Invalidating stages from 'qa_media' onward...
+Running production: let_ai_schedule_your_entire_week_from_a (prod_4c06fa30ad5c474cba853ec323931567)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair
+  ✓ Stage 'repair' completed.
+
+▶ Executing stage: graphics_compositing
+  ✓ Stage 'graphics_compositing' completed.
+
+▶ Executing stage: assemble
+  ✓ Stage 'assemble' completed.
+
+▶ Executing stage: qa_final
+  ✓ Stage 'qa_final' completed.
+
+▶ Executing stage: gate_b_review

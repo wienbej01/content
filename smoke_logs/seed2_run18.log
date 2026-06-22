@@ -1,0 +1,6 @@
+  ✗ Stage 'repair' failed: BLOCKED: 8 open change request(s) require repair. Resolve via: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567 --from generate_media
+Resume with: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567
+Invalidating stages from 'repair' onward...
+Running production: let_ai_schedule_your_entire_week_from_a (prod_4c06fa30ad5c474cba853ec323931567)
+
+▶ Executing stage: repair

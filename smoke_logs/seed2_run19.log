@@ -1,0 +1,15 @@
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  - Skipping S004: local_graphic (rendered by graphics_compositing)
+  ✗ Stage 'qa_media' failed: qa_media blocked: required render units are not valid/exempt: S002=ordered, S002=ordered, S004=ordered, S004=ordered, S004=ordered, S004=ordered
+Resume with: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567
+Invalidating stages from 'generate_media' onward...
+Running production: let_ai_schedule_your_entire_week_from_a (prod_4c06fa30ad5c474cba853ec323931567)
+
+▶ Executing stage: generate_media
+  ✓ Stage 'generate_media' completed.
+
+▶ Executing stage: qa_media

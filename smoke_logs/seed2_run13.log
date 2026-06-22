@@ -1,0 +1,8 @@
+  ✗ Stage 'repair' failed: Repair attempted but 4 unit(s) failed re-QA: [{'render_unit_id': 'render_a1ea37defef046e09c20f83d8cabe4a4', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_067515d4e6534ea4b35ffeb95142eb34'}, {'render_unit_id': 'render_1c1448cbaf254c6b98d069cbb808b6c6', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_45105f000e1143348af8908380667c89'}, {'render_unit_id': 'render_95af4ee30dab44c8881be6438bfac7ad', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_d58ffa1ffae041c38cd9370d19fb3337'}, {'render_unit_id': 'render_544608ad5fa84faf836cd4365a734603', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_bc33d7f1db9d43eaa2cc632bf3ef0f0f'}]
+Resume with: python3 scripts/produce_db.py resume prod_4c06fa30ad5c474cba853ec323931567
+Running production: let_ai_schedule_your_entire_week_from_a (prod_4c06fa30ad5c474cba853ec323931567)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair
