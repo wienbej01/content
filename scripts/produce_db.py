@@ -1552,6 +1552,10 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
     for u in all_units:
         if u["status"] in ("valid", "generated", "needs_repair"):
             continue
+        if u["status"] == "failed":
+            continue  # Handled by repair stage
+        if u["asset_type"] == "local_graphic":
+            continue  # Handled by graphics_compositing stage
         pre_blockers.append(f"{u['label'] or u['id']}={u['status']}")
     if pre_blockers:
         raise RuntimeError(
