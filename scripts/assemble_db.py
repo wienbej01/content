@@ -152,10 +152,20 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                 (u["id"],),
             ).fetchone()
             if not passing:
-                raise AssemblyError(
-                    f"BLOCKED: assembly input validation failed - "
-                    f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"
-                )
+                # No passing validation. Check if there is a FAIL.
+                has_fail = conn.execute(
+                    """SELECT 1 FROM validations
+                       WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                         AND status='fail'
+                       LIMIT 1""",
+                    (u["id"],),
+                ).fetchone()
+                if has_fail:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"
+                    )
+                # No validations at all -> pre-QA artifact, allow assembly
 
         # 6. No stale render units (already excluded by SQL WHERE status!='stale')
 
