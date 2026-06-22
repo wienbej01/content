@@ -1,0 +1,8 @@
+  ✗ Stage 'repair' failed: REPAIR BLOCKED: render_unit render_9896b4e8f0dc4d7c9e86e8c6e17d77dc failure 'ocr_unavailable' requires manual review
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair

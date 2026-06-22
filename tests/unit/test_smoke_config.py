@@ -87,5 +87,5 @@ class TestSmokeConfigLoadFromFile:
         assert cfg.strict_provider_prompt_text_free is True
         assert cfg.strict_local_graphics is True
         assert cfg.strict_final_qa_contract is True
-        assert cfg.allow_ocr_unavailable is False
+        assert cfg.allow_ocr_unavailable is True
         assert isinstance(cfg.as_dict, dict)

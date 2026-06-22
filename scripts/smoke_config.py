@@ -19,6 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
+import os
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,7 +97,8 @@ class SmokeConfig:
         Returns:
             SmokeConfig with values merged over safe defaults.
         """
-        p = path or _DEFAULT_CONFIG_PATH
+        env_path = os.environ.get("SMOKE_CONFIG_PATH")
+        p = path or (Path(env_path) if env_path else _DEFAULT_CONFIG_PATH)
         data: dict[str, Any] = {}
         if p.exists():
             raw = p.read_text(encoding="utf-8")

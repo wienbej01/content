@@ -16,6 +16,7 @@ Tests:
 import json
 import os
 from pathlib import Path
+import tempfile
 
 import pytest
 
@@ -370,7 +371,14 @@ class TestProviderVideoQA:
         link_artifact_to_render_unit(art["id"], units[0]["id"], db_path=db)
 
         os.environ["OCR_STRICT_MODE"] = "1"
-        validation = run_contract_media_qa(db, prod["id"], units[0]["id"])
+        # Override to a strict config without allow_ocr_unavailable for this test
+        test_cfg_path = Path(tempfile.mkdtemp()) / "test_strict.yaml"
+        test_cfg_path.write_text("allow_ocr_unavailable: false\n")
+        os.environ["SMOKE_CONFIG_PATH"] = str(test_cfg_path)
+        try:
+            validation = run_contract_media_qa(db, prod["id"], units[0]["id"])
+        finally:
+            os.environ.pop("SMOKE_CONFIG_PATH", None)
         assert validation["status"] == "fail", "OCR unavailable + strict should fail"
 
         evidence = json.loads(validation["evidence_json"])

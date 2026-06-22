@@ -1,0 +1,10 @@
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  - Skipping S002: local_graphic (rendered by graphics_compositing)
+  ✗ Stage 'generate_media' failed: WAITING_ON_PROVIDER_CAPACITY: higgsfield/kling3_0 has 3 active job(s), cap 3. No new job submitted.
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: generate_media
