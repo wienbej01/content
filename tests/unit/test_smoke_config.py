@@ -20,19 +20,19 @@ class TestSmokeConfigDefaults:
         assert cfg.strict_local_graphics is True
         assert cfg.strict_final_qa_contract is True
         assert cfg.allow_ocr_unavailable is False
-        assert cfg.max_paid_provider_jobs == 2
-        assert cfg.max_total_usd == 0.25
+        assert cfg.max_paid_provider_jobs == 20
+        assert cfg.max_total_usd == 5.00
 
     def test_load_returns_defaults_for_none(self):
         cfg = SmokeConfig({})
-        assert cfg.max_paid_provider_jobs == 2
-        assert cfg.max_total_usd == 0.25
+        assert cfg.max_paid_provider_jobs == 20
+        assert cfg.max_total_usd == 5.00
 
     def test_load_from_missing_file_returns_defaults(self, tmp_path):
         missing = tmp_path / "does_not_exist.yaml"
         cfg = SmokeConfig.load(missing)
         assert cfg.strict_media_contract is True
-        assert cfg.max_total_usd == 0.25
+        assert cfg.max_total_usd == 5.00
 
 
 class TestSmokeConfigValues:
@@ -81,8 +81,8 @@ class TestSmokeConfigLoadFromFile:
     def test_load_smoke_contract_yaml_exists(self):
         """The real config file must exist at the expected path."""
         cfg = SmokeConfig.load()
-        assert cfg.max_paid_provider_jobs == 2
-        assert cfg.max_total_usd == 0.25
+        assert cfg.max_paid_provider_jobs == 20
+        assert cfg.max_total_usd == 5.00
         assert cfg.strict_media_contract is True
         assert cfg.strict_provider_prompt_text_free is True
         assert cfg.strict_local_graphics is True

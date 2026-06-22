@@ -1300,6 +1300,10 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             job["provider"],
             config={"duration_sec": (req_payload.get("duration_ms") or 5000) / 1000.0},
         )
+        # S10-C07: 10s cooldown between poll attempts to avoid
+        # hammering the Higgsfield API rate limit.
+        import time
+        time.sleep(10)
         try:
             poll_result = adapter.poll(ext_id)
         except Exception as e:
@@ -1343,7 +1347,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     ).fetchall()
     conn.close()
 
-    wave_size = max(1, int(os.environ.get("PROVIDER_SUBMISSION_WAVE_SIZE", "1")))
+    wave_size = max(1, int(os.environ.get("PROVIDER_SUBMISSION_WAVE_SIZE", "3")))
     submitted_in_wave = 0
     for u in [dict(r) for r in units_to_generate]:
         if ensure_render_unit_artifact_state(u["id"], db_path=None):
@@ -1391,7 +1395,7 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         cap = int(
             os.environ.get(f"HIGGSFIELD_CAPACITY_{model_key}")
             or os.environ.get("HIGGSFIELD_MAX_CONCURRENT")
-            or "1"
+            or "3"
         )
         active_count = count_active_provider_jobs(
             production_id, provider="higgsfield", model=model, db_path=None

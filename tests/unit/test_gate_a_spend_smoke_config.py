@@ -111,7 +111,7 @@ class TestGateASpendCapEnforcement:
                 (prod["id"],),
             ).fetchone()
             plan = json.loads(plan_record["payload_json"])
-            plan["estimated_usd"] = 0.50
+            plan["estimated_usd"] = 100.0
             json_str = json.dumps(plan)
             conn.execute(
                 "UPDATE document_revisions SET payload_json=?, payload_sha256=? WHERE id=?",
@@ -127,29 +127,10 @@ class TestGateASpendCapEnforcement:
         """Requirement 2: Blocks if provider jobs exceed max_paid_provider_jobs (default=2)."""
         from scripts.produce_db import invoke_gate_a_spend
 
+        # 30 provider-eligible units exceeds max_paid_provider_jobs=20
         units = _plan_units(prod["id"], [
-            {"asset_type": "generated_video", "model": "seedance_2_0",
-             "audio_policy": "BROLL_FLEX", "final_audio_source": "none",
-             "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
-             "visual_function": "illustrate", "narrative_claim": "test",
-             "information_to_show": "test", "viewer_takeaway": "test",
-             "required_action": "slow pan", "distinctness_requirement": "test",
-             "semantic_acceptance_criteria": "matches", "concept_key": "test"},
-            {"asset_type": "generated_video", "model": "kling3_0",
-             "audio_policy": "BROLL_FLEX", "final_audio_source": "none",
-             "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
-             "visual_function": "illustrate", "narrative_claim": "test",
-             "information_to_show": "test", "viewer_takeaway": "test",
-             "required_action": "slow pan", "distinctness_requirement": "test",
-             "semantic_acceptance_criteria": "matches", "concept_key": "test"},
-            {"asset_type": "generated_video", "model": "kling3_0",
-             "audio_policy": "BROLL_FLEX", "final_audio_source": "none",
-             "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT",
-             "visual_function": "illustrate", "narrative_claim": "test",
-             "information_to_show": "test", "viewer_takeaway": "test",
-             "required_action": "slow pan", "distinctness_requirement": "test",
-             "semantic_acceptance_criteria": "matches", "concept_key": "test"},
-        ], db_path=db)
+            {"asset_type": "generated_video", "model": "seedance_2_0", "audio_policy": "BROLL_FLEX", "final_audio_source": "none", "provider_audio_usage": "discarded", "text_policy": "NO_VISIBLE_TEXT", "visual_function": "illustrate", "narrative_claim": "test", "information_to_show": "test", "viewer_takeaway": "test", "required_action": "slow pan", "distinctness_requirement": "test", "semantic_acceptance_criteria": "matches", "concept_key": "test"},
+        ] * 30, db_path=db)
 
         _save_render_plan(prod["id"], units, db_path=db)
 
