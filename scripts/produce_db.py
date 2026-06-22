@@ -1418,10 +1418,15 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
             production_id, provider="higgsfield", model=model, db_path=None
         )
         if active_count >= cap:
-            raise RuntimeError(
-                f"WAITING_ON_PROVIDER_CAPACITY: higgsfield/{model} has "
-                f"{active_count} active job(s), cap {cap}. No new job submitted."
+            # Skip this unit — different model might have capacity.
+            # If all units are capacity-blocked, the stalled check
+            # after the loop will catch it.
+            print(
+                f"  - Skipping {u['label'] or u['id']}: {model} at capacity "
+                f"({active_count}/{cap})",
+                file=sys.stderr,
             )
+            continue
 
         job = submit_provider_job(
             production_id=production_id,
