@@ -111,16 +111,19 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
 
         # 3. Each span maps to exactly one active render unit
         # If multiple units share the same span (e.g., from a regeneration change
-        # request), the most recently created one wins. The older one is silently
-        # skipped — assembly only needs the latest artifact.
+        # request), the unit with a valid artifact wins (preferred over one
+        # without). If both have artifacts or both lack them, the latest wins.
         span_to_unit: dict[str, str] = {}
-        span_to_updated: dict[str, str] = {}
+        span_to_priority: dict[str, int] = {}
         for u in units:
             tsid = u["timeline_span_id"]
-            updated = u.get("updated_at") or u.get("created_at") or ""
-            if tsid not in span_to_unit or updated > span_to_updated.get(tsid, ""):
+            has_art = 1 if u.get("active_artifact_id") else 0
+            ordinal = u.get("ordinal", 0)
+            # Priority: has artifact (1) > no artifact (0), then ordinal higher = newer
+            priority = (has_art, ordinal)
+            if tsid not in span_to_unit or priority > span_to_priority.get(tsid, (0, 0)):
                 span_to_unit[tsid] = u["id"]
-                span_to_updated[tsid] = updated
+                span_to_priority[tsid] = priority
 
         for s in spans:
             if s["id"] not in span_to_unit:
