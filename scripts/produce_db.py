@@ -1585,7 +1585,17 @@ def invoke_qa_media(inputs: dict, tmp_path: Path) -> dict:
             passed_count += 1
 
     if failed_units:
-        raise RuntimeError(f"Media QA failed for {len(failed_units)} units: {failed_units}")
+        # Set failed units to needs_repair so the repair stage picks them up
+        conn = _db.connect(None)
+        for fu in failed_units:
+            conn.execute(
+                "UPDATE render_units SET status='needs_repair', updated_at=? WHERE id=?",
+                (_db._now(), fu["unit_id"]),
+            )
+        conn.close()
+        raise RuntimeError(
+            f"Media QA failed for {len(failed_units)} units: {failed_units}"
+        )
 
     conn = _db.connect(None)
     final_units = conn.execute(
