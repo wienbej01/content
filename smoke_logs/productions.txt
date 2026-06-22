@@ -1,2 +1,3 @@
 Use AI to batch process your morning email inbox in under 60 seconds → prod_b875c5b1a88f4871aebe141a4c591398
 Use AI to batch process your morning email inbox in under 60 seconds → prod_b875c5b1a88f4871aebe141a4c591398
+Let AI schedule your entire week from a single voice memo on Monday → prod_4c06fa30ad5c474cba853ec323931567

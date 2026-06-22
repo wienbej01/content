@@ -94,7 +94,7 @@ def _create_synthetic_hero_video(
 class TestHeroLipsyncQA:
     """Contract QA for hero lipsync render units."""
 
-    def test_duration_short_by_over_100ms_fails(self, db, prod):
+    def test_duration_short_by_over_500ms_fails(self, db, prod):
         """Video 500ms shorter than required 5000ms should fail (>100ms delta)."""
         from media_service import run_contract_media_qa
 

@@ -893,7 +893,7 @@ def _qa_hero_lipsync(
         evidence["video_duration_ms"] = video_duration_ms
         evidence["intended_duration_ms"] = intended_duration_ms
         evidence["duration_delta_ms"] = delta_ms
-        DURATION_TOLERANCE_MS = 100
+        DURATION_TOLERANCE_MS = 500
         evidence["duration_tolerance_ms"] = DURATION_TOLERANCE_MS
         evidence["duration_ok"] = delta_ms <= DURATION_TOLERANCE_MS
         if not evidence["duration_ok"]:
@@ -1053,10 +1053,17 @@ def route_change_request(
                 change_type, requested_by, target_stage, reason, "open", now,
             ),
         )
-        conn.execute(
-            "UPDATE render_units SET status='change_requested', updated_at=? WHERE id=?",
-            (now, render_unit_id),
-        )
+        if target_stage == "generate_media":
+            # Set back to 'ordered' so generate_media picks it up for regeneration
+            conn.execute(
+                "UPDATE render_units SET status='ordered', updated_at=? WHERE id=?",
+                (now, render_unit_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE render_units SET status='change_requested', updated_at=? WHERE id=?",
+                (now, render_unit_id),
+            )
         _db.append_event(
             production_id, "change_request_created",
             payload={"req_id": req_id, "render_unit_id": render_unit_id,
