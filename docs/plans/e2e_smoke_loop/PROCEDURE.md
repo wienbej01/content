@@ -8,6 +8,18 @@
 
 ## Phase 0: Setup
 
+### 0.0 VERIFY LIVE MODE — NO MOCKS, NO TEST DATA
+
+**This is a LIVE SMOKE TEST.** Before anything else, confirm:
+```bash
+# These MUST be UNSET or empty
+echo "YT_TEST_MODE=$YT_TEST_MODE"          # MUST be empty
+echo "HIGGSFIELD_DRY_RUN=$HIGGSFIELD_DRY_RUN"  # MUST be empty
+```
+
+If either is set, the smoke test is INVALID. Stop and fix.
+Billable APIs will be called: ElevenLabs, Higgsfield Seedance, Higgsfield Kling.
+
 ### 0.1 Copy the smoke config
 ```bash
 cp docs/plans/e2e_smoke_loop/smoke_config.yaml configs/strict_smoke.yaml

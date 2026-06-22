@@ -13,6 +13,8 @@ This plan executes **25 diverse smoke productions** (25-second teasers with mixe
 
 ## Key Design Decisions
 
+**⚠️ LIVE SMOKE TEST — All stages use real, billable API calls. No mocks. No test data. No dry-run.**
+
 ### Why 25 seconds?
 Short enough to render quickly, long enough to exercise the full pipeline (research → storyboard → TTS → audio_timing → compile → generate → QA → repair → graphics → assemble → publish). A 25s video requires at least 4-6 render units across hero, b-roll, and graphics.
 
@@ -28,7 +30,24 @@ Without a regression test, future changes can reintroduce the same bug. Each fix
 ### Why stop on every failure?
 If we keep running after a failure, we accumulate unfixed bugs. Each failure gets root-caused and fixed before the loop continues. This ensures the pipeline gets progressively more robust.
 
-## Expected Bug Categories
+## Live API Policy (EXPLICIT)
+
+**This is a LIVE smoke test.** Every stage uses real, billable API calls:
+
+| Stage | Provider | Type |
+|-------|----------|------|
+| `tts` | ElevenLabs | Real TTS audio generation |
+| `generate_media` | Higgsfield Seedance 2.0 | Real hero lipsync video |
+| `generate_media` | Higgsfield Kling 3.0 | Real b-roll video |
+| `graphics_compositing` | render_graphics.py | Real PIL/Pillow compositing |
+| `assemble` | FFmpeg | Real encoding, loudnorm |
+
+**ABSOLUTELY FORBIDDEN:**
+- `YT_TEST_MODE=1` — would skip TTS with pre-provided audio
+- `HIGGSFIELD_DRY_RUN=1` — would skip video generation
+- Any mock/fake/stub adapter
+
+## ## Expected Bug Categories
 
 Based on the errors observed so far, bugs will fall into these categories:
 
