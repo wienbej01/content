@@ -234,6 +234,16 @@ def ensure_render_unit_artifact_state(render_unit_id: str, db_path=None) -> Opti
         conn.close()
         return None
 
+    # If the unit has an open change request for regeneration, skip
+    # artifact recovery — the unit needs a fresh generation.
+    open_cr = conn.execute(
+        "SELECT 1 FROM change_requests WHERE subject_id=? AND status='open' AND target_stage='generate_media' LIMIT 1",
+        (render_unit_id,),
+    ).fetchone()
+    if open_cr:
+        conn.close()
+        return None
+
     art = None
     if ru["active_artifact_id"]:
         art = conn.execute(
