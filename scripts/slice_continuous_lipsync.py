@@ -208,7 +208,7 @@ def slice_hero_units(
 
             # 5. Pad to LIPSYNC_MIN if needed
             slice_probe = probe_media(slice_path)
-            actual_samples = int(slice_probe.duration_ms * MASTER_SAMPLE_RATE / 1000) if slice_probe else gen_len
+            actual_samples = ms_to_samples(slice_probe.duration_ms) if slice_probe else gen_len
             if actual_samples < lipsync_min_samples:
                 pad_total = lipsync_min_samples - actual_samples
                 pad_dur = samples_to_ms(pad_total) / 1000.0
@@ -561,8 +561,8 @@ def slice_hero_from_master(project_dir, production_id=None, db_path=None):
         lead_silence = pad_samples // 2
         trail_silence = pad_samples - lead_silence
 
-        ss_start = int(speech_start_sec * 48000)
-        ss_end = int(speech_end_sec * 48000)
+        ss_start = ms_to_samples(int(speech_start_sec * 1000))
+        ss_end = ms_to_samples(int(speech_end_sec * 1000))
         gen_start = max(0, ss_start - lead_silence)
         gen_end = min(master_duration_samples, ss_end + trail_silence)
 

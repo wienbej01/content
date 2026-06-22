@@ -81,7 +81,7 @@ def canonicalize_master(
         extra_metadata={
             "sample_rate": probe.sample_rate,
             "channels": probe.channels,
-            "total_samples": int(probe.duration_ms * CANONICAL_SAMPLE_RATE / 1000),
+            "total_samples": ms_to_samples(probe.duration_ms),
             "duration_ms": probe.duration_ms,
             "source_artifact_id": source_artifact_id,
             "conversion": "pcm_s16le",
@@ -96,7 +96,7 @@ def canonicalize_master(
         "path": canonical_path,
         "sample_rate": probe.sample_rate,
         "channels": probe.channels,
-        "total_samples": int(probe.duration_ms * CANONICAL_SAMPLE_RATE / 1000),
+        "total_samples": ms_to_samples(probe.duration_ms),
         "duration_ms": probe.duration_ms,
         "sha256": sha,
         "source_artifact_id": source_artifact_id,

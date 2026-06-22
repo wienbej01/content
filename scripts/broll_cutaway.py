@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from timeline_utils import MASTER_SAMPLE_RATE, ms_to_samples
 from typing import List, Optional, Dict, Any
 
 import production_db as _db
@@ -165,7 +166,7 @@ def _probe_samples(path: Path) -> int:
     ], capture_output=True, text=True)
     try:
         dur_sec = float(r.stdout.strip())
-        return int(dur_sec * 48000)
+        return ms_to_samples(int(dur_sec * 1000))
     except ValueError:
         raise CutawayError(f"Cannot probe {path}")
 
