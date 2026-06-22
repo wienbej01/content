@@ -1,0 +1,37 @@
+=== Seed #1 Complete ===
+prod_b875c5b1: BLOCKED at assemble (duration mismatch)
+  Clip total: 209.861s vs Audio: 221.727s (content issue, not pipeline bug)
+  Fixes applied during Seed #1: 20
+
+Test suite: 320 passed, 0 failures (was 315 before seed #1)
+=== Fixes Applied ===
+ 1. generate_media: skip local_graphic in completion check
+ 2. generate_media: skip local_graphic in submission loop (no crash)
+ 3. generate_media: local_graphic skips don't consume wave slots
+ 4. generate_media: capacity check skips to next model instead of raising
+ 5. qa_media: skip failed and local_graphic in pre-blocker check
+ 6. qa_media: set failed units to needs_repair before raising
+ 7. repair: ocr_unavailable -> rerun_qa instead of block
+ 8. config: allow_ocr_unavailable: true
+ 9. classifier: respects text_policy_ok not just ocr_available
+10. QA: respects allow_ocr_unavailable config (was dead code)
+11. config: SMOKE_CONFIG_PATH env var support
+12. assembly: dedup render units per span (latest wins)
+13. assembly: dedup prefers units with artifacts
+14. assembly: query includes artifact-having units in any status
+15. assembly: QA check accepts any passing validation (not just latest)
+16. assembly: fail-only units blocked, no-validation allowed
+17. assembly: change_requested skips QA validation
+18. assembly: timeline heuristics allows consecutive same-span local_graphic
+19. assembly: build_inputs query syncs with validate filter
+20. assemble.py: SILENT_GRAPHIC treated as silent under master
+
+=== Seed #1 Stats ===
+Pipeline reached: assemble (stage 16 of 19)
+Attempts: 31 resumes
+Passed stages: research, write_script, review_script, gate_a_content,
+  storyboard, review_storyboard, TTS (ElevenLabs LIVE), audio_timing,
+  reconcile_timing, compile_media, gate_a_spend, generate_media,
+  qa_media, repair, graphics_compositing
+Failed stage: assemble (clip duration mismatch — content issue)
+

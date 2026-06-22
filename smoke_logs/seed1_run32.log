@@ -1,0 +1,8 @@
+  ✗ Stage 'assemble' failed: Assembly failed: /home/jacobw/YTchannel/scripts/assemble.py:1276: UserWarning: UCI-04: clip_ids present but no clips registered in DB — skipping gate (transitional)
+  warnings.warn("UCI-04: clip_ids present but no clips registered in DB — skipping gate (transitional)")
+ERROR: Visual bed duration mismatch: visual=209.958s vs audio=221.727s (delta=-11.769s). Cannot mux — fix short clips first.
+
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: assemble

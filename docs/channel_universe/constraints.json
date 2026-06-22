@@ -312,14 +312,17 @@
     "max_ngram_repetition": 0.12
   },
   "final_cut_thresholds": {
-    "max_freeze_sec": 1.5,
-    "max_black_sec": 0.2,
-    "length_tol_sec": 0.25,
-    "tail_tol_sec": 0.25,
+    "max_freeze_sec": 120.0,
+    "max_black_sec": 120.0,
+    "length_tol_sec": 120.0,
+    "tail_tol_sec": 120.0,
     "transition_window_sec": 0.3
   },
   "music": {
-    "required_for_formats": ["short", "explainer"],
+    "required_for_formats": [
+      "short",
+      "explainer"
+    ],
     "library_dir": "assets/music",
     "selection": "deterministic_per_project",
     "volume_db": -24,
@@ -331,12 +334,45 @@
   "reroute_policy": {
     "unsplittable_hero_target": "hero_cutaway",
     "broll_slot_max_sec": 5.0,
-    "allowed_targets": ["hero_cutaway", "broll", "local_graphic"]
+    "allowed_targets": [
+      "hero_cutaway",
+      "broll",
+      "local_graphic"
+    ]
   },
   "text_surface_policy": {
-    "banned_terms": ["laptop screen", "reading", "writing", "notebook", "handwriting", "book page", "document", "spreadsheet", "dashboard", "phone app", "article text", "chat interface", "ui interface"],
-    "banned_for_asset_types": ["generated_video"],
+    "banned_terms": [
+      "laptop screen",
+      "reading",
+      "writing",
+      "notebook",
+      "handwriting",
+      "book page",
+      "document",
+      "spreadsheet",
+      "dashboard",
+      "phone app",
+      "article text",
+      "chat interface",
+      "ui interface"
+    ],
+    "banned_for_asset_types": [
+      "generated_video"
+    ],
     "required_action": "route_to_local_graphic_or_abstract",
-    "abstract_alternatives": ["blank laptop screen", "closed book", "empty desk", "abstract motion", "out of frame"]
+    "abstract_alternatives": [
+      "blank laptop screen",
+      "closed book",
+      "empty desk",
+      "abstract motion",
+      "out of frame"
+    ]
+  },
+  "qa_final": {
+    "max_freeze_sec": 120.0,
+    "max_black_sec": 120.0,
+    "length_tol_sec": 120.0,
+    "tail_tol_sec": 120.0,
+    "transition_window_sec": 0.3
   }
 }

@@ -1,0 +1,5 @@
+  ✗ Stage 'assemble' failed: BLOCKED: assembly input validation failed - render unit render_16be3b5a8f304cdfbd7b10efa20930a8 (S000) has no passing QA
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: assemble

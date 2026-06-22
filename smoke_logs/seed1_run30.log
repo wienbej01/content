@@ -1,0 +1,10 @@
+  ✗ Stage 'assemble' failed: Assembly failed: ERROR: Manifest validation failed:
+  segments[5]: image media requires 'audio' field (audio_policy='SILENT_GRAPHIC', continuous=True)
+  segments[6]: image media requires 'audio' field (audio_policy='SILENT_GRAPHIC', continuous=True)
+  segments[7]: image media requires 'audio' field (audio_policy='SILENT_GRAPHIC', continuous=True)
+  segments[8]: image media requires 'audio' field (audio_policy='SILENT_GRAPHIC', continuous=True)
+  segments[9]: image media requires 'audio' field (audio_policy='SILE
+Resume with: python3 scripts/produce_db.py resume prod_b875c5b1a88f4871aebe141a4c591398
+Running production: use_ai_to_batch_process_your_morning_ema (prod_b875c5b1a88f4871aebe141a4c591398)
+
+▶ Executing stage: assemble
