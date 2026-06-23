@@ -35,7 +35,7 @@ FORMAT_PROFILES = {
         "label": "25s SMOKE TEST",
         "target_sec": 30,
         "target_sec_range": [20, 40],
-        "word_range": [20, 35],
+        "word_range": [20, 40],
         "structure": "ONE micro-insight in 15-25 words: hook (3s) → one vivid proof (12s) "
                      "→ takeaway (5s). NO multi-part framework. NO deep elaboration. "
                      "Must fit in 25 seconds of narration at normal speaking pace.",
