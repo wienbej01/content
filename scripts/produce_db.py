@@ -258,9 +258,12 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
         _narration_cfg = (yaml.safe_load((ROOT / "configs" / "james" / "model_routing.yaml").read_text())
                           or {}).get("narration", {})
         adapter = paid_adapters.ElevenLabsAdapter({})
+        # Use speed=0.7 to stretch 14s of audio to ~20s (20-40s target for smoke)
+        tts_payload = {"text": tts_text, "duration": 30,
+                       "model_id": _narration_cfg.get("model", "eleven_v3"),
+                       "voice_settings": {"stability": 0.5, "similarity_boost": 0.75, "speed": 0.7}}
         result = adapter.submit(
-            {"text": tts_text, "duration": 30,
-             "model_id": _narration_cfg.get("model", "eleven_v3")},
+            tts_payload,
             idempotency_key=f"tts:{inputs['production_id']}")
         if result.get("audio_path"):
             audio_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,7 +291,7 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
         script_revision_id=script_revision_id,
         voice_id="elevenlabs",
         model="eleven_multilingual_v2",
-        voice_settings={},
+        voice_settings={"speed": 0.7},
         request_fingerprint=request_fingerprint,
     )
 
