@@ -237,7 +237,7 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     segs = conn.execute(
         "SELECT ss.text FROM script_segments ss"
         " JOIN document_revisions dr ON ss.script_revision_id = dr.id"
-        " WHERE dr.production_id=?",
+        " WHERE dr.production_id=? AND dr.status='active'",
         (inputs["production_id"],),
     ).fetchall()
     conn.close()
