@@ -150,6 +150,19 @@ def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_T
         if snapped[i] <= snapped[i - 1]:
             snapped[i] = snapped[i - 1] + 0.01
 
+    # Enforce minimum beat duration (4s for beats with no narration)
+    MIN_BEAT_SEC = 4.0
+    for i in range(1, len(snapped) - 1):
+        dur = snapped[i + 1] - snapped[i]
+        if dur < MIN_BEAT_SEC:
+            needed = MIN_BEAT_SEC - dur
+            # Steal from left neighbor if possible
+            if i > 0 and snapped[i] - snapped[i - 1] > needed + 0.1:
+                snapped[i] -= needed
+            # Otherwise steal from right neighbor
+            elif i < len(snapped) - 2:
+                snapped[i + 1] += needed
+
     # Build output
     beat_timings = []
     for i, b in enumerate(storyboard_beats):
