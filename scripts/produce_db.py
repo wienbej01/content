@@ -434,7 +434,9 @@ def _assign_shot_mix(n: int, video_type: str) -> list[str]:
 
 def _beat_duration_sec(narration_text: str) -> float:
     words = len((narration_text or "").split())
-    return round(words / _NARRATION_WPS, 2) if words else 0.0
+    if not words:
+        return 4.0  # minimum 4s for beats with no narration (b-roll, graphic)
+    return round(words / _NARRATION_WPS, 2)
 
 
 def _first_clause(text: str, words: int = 8) -> str:
