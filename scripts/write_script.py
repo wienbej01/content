@@ -96,9 +96,11 @@ BRAND BIBLES (voice + forbidden patterns):
     if prior_script and fixes:
         base += f"""
 
-=== REVISION TASK ===
-This is a REVISION. Incorporate EVERY reviewer fix below while staying within the FORMAT word
-budget. Do NOT expand a short into a long video to satisfy a fix — adapt the fix to the format.
+=== REVISION TASK (HARD CONSTRAINT) ===
+This is a REVISION. Incorporate EVERY reviewer fix while staying within the FORMAT word budget.
+HARD CONSTRAINT: The FINAL output MUST have [20,40] words total. Count your words and verify
+before returning. Do NOT expand — adapt every fix to fit within the budget.
+If the fix cannot be accommodated within [20,40] words, skip it or summarize it concisely.
 
 PRIOR SCRIPT:
 {json.dumps(prior_script, indent=2)}
