@@ -1065,12 +1065,12 @@ def route_change_request(
             # would skip it if the old artifact still exists).
             conn.execute(
                 "UPDATE render_units SET status='ordered', active_artifact_id=NULL, updated_at=? WHERE id=?",
+                (now, render_unit_id),
+            )
             # Fail old provider jobs so they don't block capacity checks
             conn.execute(
                 "UPDATE provider_jobs SET status='failed' WHERE render_unit_id=? AND status IN ('submitted','running')",
                 (render_unit_id,),
-            )
-                (now, render_unit_id),
             )
         else:
             conn.execute(
