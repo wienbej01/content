@@ -4,7 +4,7 @@
 # (or copy over configs/strict_smoke.yaml before starting the loop)
 
 video_type: teaser
-target_duration_sec: 25
+target_duration_sec: 30
 max_total_usd: 5.00
 max_paid_provider_jobs: 20
 formats:
