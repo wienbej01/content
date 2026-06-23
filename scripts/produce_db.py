@@ -2235,7 +2235,7 @@ def main():
     
     create = sub.add_parser("create")
     create.add_argument("--seed", required=True)
-    create.add_argument("--format", dest="video_type", default="short", choices=["short", "explainer", "teaser"])
+    create.add_argument("--format", dest="video_type", default="short", choices=["short", "explainer", "teaser", "smoke"])
     
     run_cmd = sub.add_parser("run")
     run_cmd.add_argument("production_id")

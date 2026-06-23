@@ -88,7 +88,7 @@ def build_director_prompt(script, source_text, bibles, video_type="explainer",
     segments = [{"id": s["id"], "text": s.get("text", "")} for s in script.get("segments", [])]
     key_points = script.get("key_points", [])
     fmt = get_format(video_type)
-    budget_tokens = {"short": 510, "explainer": 1224, "teaser": 200}.get(video_type, 1224)
+    budget_tokens = {"short": 510, "explainer": 1224, "teaser": 200, "smoke": 80}.get(video_type, 1224)
     prompt = f"""You are the STORYBOARD DIRECTOR for a premium faceless educational YouTube channel
 (host: James Harrington). Your output feeds the production pipeline directly.
 
@@ -233,7 +233,7 @@ def hydrate_beats(beats, project_id, video_type):
         "totals": {
             "est_tokens": total_tokens,
             "est_usd": round(total_tokens * 0.049, 2),
-            "budget_cap_tokens": {"short": 510, "explainer": 1224, "teaser": 200}.get(video_type, 1224),
+            "budget_cap_tokens": {"short": 510, "explainer": 1224, "teaser": 200, "smoke": 80}.get(video_type, 1224),
             "target_runtime_sec": round(total_dur, 1),
         },
     }

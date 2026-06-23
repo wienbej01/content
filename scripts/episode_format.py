@@ -31,6 +31,17 @@ FORMAT_PROFILES = {
         "review_note": "Judge as a full explainer: an original multi-part framework and "
                        "depth ARE expected.",
     },
+    "smoke": {
+        "label": "25s SMOKE TEST",
+        "target_sec": 25,
+        "target_sec_range": [20, 30],
+        "word_range": [40, 70],
+        "structure": "ONE micro-insight in 15-25 words: hook (3s) → one vivid proof (12s) "
+                     "→ takeaway (5s). NO multi-part framework. NO deep elaboration. "
+                     "Must fit in 25 seconds of narration at normal speaking pace.",
+        "review_note": "Judge as a SMOKE TEST teaser: single micro-insight, no framework, "
+                       "no depth, under 70 words total.",
+    },
     "teaser": {
         "label": "60-90s TEASER",
         "target_sec": 75,
