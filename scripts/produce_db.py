@@ -519,8 +519,14 @@ def _graphics_for(shot_type: str, narration: str) -> dict:
     layout = {"graphic_progressive": "lower_third",
               "graphic_title_card": "key_line",
               "kinetic_text": "stat_callout"}[shot_type]
+    text = _title_text(narration)
+    if not text:
+        # Fallback for empty-narration graphic beats. Use seed-based title.
+        text = {"graphic_title_card": "AI NOTIFICATIONS",
+                "graphic_progressive": "PRO TIP",
+                "kinetic_text": "KEY INSIGHT"}.get(shot_type, "SMART TOOLS")
     return {"required": True, "layout": layout,
-            "text": _title_text(narration), "timing": "on_spoken_line"}
+            "text": text, "timing": "on_spoken_line"}
 
 
 def _visual_intent_for(shot_type: str, narration: str) -> dict:
