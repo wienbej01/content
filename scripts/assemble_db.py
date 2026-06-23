@@ -129,10 +129,21 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
 
         for s in spans:
             if s["id"] not in span_to_unit:
-                raise AssemblyError(
-                    f"BLOCKED: assembly input validation failed - "
-                    f"no active render unit for timeline span {s['id']} ({s.get('label', '')})"
-                )
+                # Check if this span has open change requests (re-generation in progress)
+                open_cr = conn.execute(
+                    "SELECT 1 FROM change_requests cr "
+                    "JOIN render_units ru ON cr.subject_id = ru.id "
+                    "WHERE ru.timeline_span_id=? AND cr.status='open' AND cr.target_stage='generate_media' "
+                    "LIMIT 1",
+                    (s["id"],),
+                ).fetchone()
+                if not open_cr:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"no active render unit for timeline span {s['id']} ({s.get('label', '')})"
+                    )
+                # Span with open CR — skip (re-generation is pending)
+                continue
 
         # 4. Each render unit has active artifact
         for u in units:
