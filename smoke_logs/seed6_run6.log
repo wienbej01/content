@@ -1,0 +1,8 @@
+  ✗ Stage 'generate_media' failed: generate_media incomplete: required render units are not generated/valid: S000=generating, S000=generating, S000=generating, S000=ordered, S000=ordered
+Resume with: python3 scripts/produce_db.py resume prod_6603ba05f00b45c1ac35922ccc8ff40f
+Running production: train_an_ai_to_write_your_weekly_status (prod_6603ba05f00b45c1ac35922ccc8ff40f)
+
+▶ Executing stage: gate_a_spend
+  ✓ Stage 'gate_a_spend' completed.
+
+▶ Executing stage: generate_media

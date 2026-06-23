@@ -1,0 +1,12 @@
+  ✗ Stage 'gate_a_content' failed: gate_a_content pending approval. Use: python3 scripts/produce_db.py approve prod_6603ba05f00b45c1ac35922ccc8ff40f gate_a_content --pass
+Resume with: python3 scripts/produce_db.py resume prod_6603ba05f00b45c1ac35922ccc8ff40f
+Invalidating stages from 'write_script' onward...
+Running production: train_an_ai_to_write_your_weekly_status (prod_6603ba05f00b45c1ac35922ccc8ff40f)
+
+▶ Executing stage: write_script
+  ✓ Stage 'write_script' completed.
+
+▶ Executing stage: review_script
+  ✓ Stage 'review_script' completed.
+
+▶ Executing stage: gate_a_content

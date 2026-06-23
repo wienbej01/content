@@ -1,0 +1,26 @@
+  ✗ Stage 'gate_a_spend' failed: gate_a_spend pending approval. Use: python3 scripts/produce_db.py approve prod_918dede37971434e8bcfe15b40a482df gate_a_spend --pass
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: gate_a_content
+  ✓ Stage 'gate_a_content' completed.
+
+▶ Executing stage: storyboard
+  ✓ Stage 'storyboard' completed.
+
+▶ Executing stage: review_storyboard
+  ✓ Stage 'review_storyboard' completed.
+
+▶ Executing stage: tts
+  ✓ Stage 'tts' completed.
+
+▶ Executing stage: audio_timing
+  ✓ Stage 'audio_timing' completed.
+
+▶ Executing stage: reconcile_timing
+  ✓ Stage 'reconcile_timing' completed.
+
+▶ Executing stage: compile_media
+  ✓ Stage 'compile_media' completed.
+
+▶ Executing stage: gate_a_spend

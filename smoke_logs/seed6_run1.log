@@ -1,0 +1,11 @@
+  ✗ Stage 'review_script' failed: Reviewed script non-compliant with smoke format: 29 words outside the 15-25 word budget (target ~25s). The reviewer revision loop produced an over-budget script; shorten and re-run.
+Resume with: python3 scripts/produce_db.py resume prod_6603ba05f00b45c1ac35922ccc8ff40f
+Running production: train_an_ai_to_write_your_weekly_status (prod_6603ba05f00b45c1ac35922ccc8ff40f)
+
+▶ Executing stage: research
+  ✓ Stage 'research' completed.
+
+▶ Executing stage: write_script
+  ✓ Stage 'write_script' completed.
+
+▶ Executing stage: review_script

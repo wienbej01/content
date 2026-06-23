@@ -1,0 +1,8 @@
+  ✗ Stage 'qa_media' failed: Media QA failed for 3 units: [{'unit_id': 'render_33d9a724345c4c528cbcde0913348ff7', 'label': 'S000'}, {'unit_id': 'render_ba1b347b152f43ebb5334af5e47d81d8', 'label': 'S000'}, {'unit_id': 'render_67ad19c2a05542e08a070c342d52150f', 'label': 'S000'}]
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: generate_media
+  ✓ Stage 'generate_media' completed.
+
+▶ Executing stage: qa_media

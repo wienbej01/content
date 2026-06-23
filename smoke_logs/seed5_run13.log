@@ -1,0 +1,6 @@
+  ✗ Stage 'generate_media' failed: generate_media incomplete: required render units are not generated/valid: S000=ordered, S000=ordered, S000=ordered
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Invalidating stages from 'generate_media' onward...
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: generate_media

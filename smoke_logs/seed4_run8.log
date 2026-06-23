@@ -1,0 +1,5 @@
+  ✗ Stage 'gate_b_review' failed: gate_b_review pending approval. Use: python3 scripts/produce_db.py approve prod_0a629bdcc82c44beabca27a647f2faa9 gate_b_review --pass
+Resume with: python3 scripts/produce_db.py resume prod_0a629bdcc82c44beabca27a647f2faa9
+Running production: how_ai_meeting_summaries_save_two_hours (prod_0a629bdcc82c44beabca27a647f2faa9)
+
+▶ Executing stage: gate_b_review

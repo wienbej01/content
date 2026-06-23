@@ -1,0 +1,9 @@
+  ✗ Stage 'repair' failed: Repair attempted but 3 unit(s) failed re-QA: [{'render_unit_id': 'render_33d9a724345c4c528cbcde0913348ff7', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_0fda07cf37ba406dbbc392932ff49075'}, {'render_unit_id': 'render_ba1b347b152f43ebb5334af5e47d81d8', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_487f5a5860a44c37a7f03e7ce650f37c'}, {'render_unit_id': 'render_67ad19c2a05542e08a070c342d52150f', 'failure_class': 'hero_lipsync_unverified', 'action': 'regenerate_provider_video', 'new_artifact_id': None, 'qa_passed': False, 'change_request_id': 'change_6f0ba61d20f946df80bc7b587a30eda4'}]
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Invalidating stages from 'qa_media' onward...
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair

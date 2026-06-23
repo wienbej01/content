@@ -1,0 +1,12 @@
+  ✗ Stage 'assemble' failed: BLOCKED: assembly input validation failed - no active render unit for timeline span span_70e91c42c5ba43eb9ffdfd8925b75989 (S000)
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Invalidating stages from 'repair' onward...
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: repair
+  ✓ Stage 'repair' completed.
+
+▶ Executing stage: graphics_compositing
+  ✓ Stage 'graphics_compositing' completed.
+
+▶ Executing stage: assemble

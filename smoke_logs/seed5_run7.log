@@ -1,0 +1,8 @@
+  ✗ Stage 'repair' failed: 'sqlite3.Cursor' object is not callable
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: qa_media
+  ✓ Stage 'qa_media' completed.
+
+▶ Executing stage: repair

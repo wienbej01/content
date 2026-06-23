@@ -1,0 +1,6 @@
+  ✗ Stage 'write_script' failed: Script non-compliant with smoke format: 38 words outside the 20-35 word budget (target ~30s, acceptable 20-40s). Shorten the script and re-run write_script.
+Resume with: python3 scripts/produce_db.py resume prod_6603ba05f00b45c1ac35922ccc8ff40f
+Invalidating stages from 'write_script' onward...
+Running production: train_an_ai_to_write_your_weekly_status (prod_6603ba05f00b45c1ac35922ccc8ff40f)
+
+▶ Executing stage: write_script

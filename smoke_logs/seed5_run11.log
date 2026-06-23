@@ -1,0 +1,8 @@
+  ✗ Stage 'assemble' failed: Assembly failed: ERROR: Manifest validation failed:
+  'segments' must be a non-empty array
+
+Resume with: python3 scripts/produce_db.py resume prod_918dede37971434e8bcfe15b40a482df
+Invalidating stages from 'assemble' onward...
+Running production: ai_calendar_blocking_turn_your_to_do_lis (prod_918dede37971434e8bcfe15b40a482df)
+
+▶ Executing stage: assemble

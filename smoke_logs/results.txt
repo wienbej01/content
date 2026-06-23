@@ -62,3 +62,9 @@ Pipeline completion rate: 3/3 = 100%
 prod_0a629bd8: ALL 19 STAGES PASSED in 9 resumes, 0 new bugs
 Video format: smoke (25s target, 40-70 words)
 Cumulative fixes: 35 (no new fixes needed)
+
+=== SEED #6 — ALL 19 STAGES PASSED (0 bugs) ===
+prod_6603ba05: 13 resumes, 0 new bugs
+Video: 65s, audio: 65s, words: 27
+Cumulative fixes: 40 (5 from Seed #5 + 1 format)
+Test suite: 320 passed, 0 failures
