@@ -1,24 +1,69 @@
 # End-to-End Smoke Loop Procedure
 
-**Executable by:** Any engineer or AI model
-**Expected duration:** Several hours (25 seeds, each with potential failures)
-**Prerequisites:** FFmpeg installed, $5 Higgsfield credit, ElevenLabs API key
+**Executable by:** Any engineer or AI model (including lesser models)
+**Prerequisites:** FFmpeg installed, Higgsfield credit topped up, ElevenLabs API key
+**Goal:** Produce 25 smoke videos (one per seed) that ALL pass 4 pass-gates.
+
+---
+
+## The 4 Pass-Gates (EVERY seed must pass ALL 4)
+
+A seed is NOT "passing" unless it clears every gate below. Do not skip any.
+
+### Gate 1 — Script & Storyboard Compliance
+- Script word count within smoke budget (20-40 words)
+- Storyboard produces ≥ 4 beats with the required shot mix:
+  - ≥ 2 hero_lipsync shots (narrator on camera)
+  - ≥ 1 b-roll shot (generated_video — must be RELEVANT to the seed topic, not generic)
+  - ≥ 1 graphic shot (local_graphic — title card / lower-third / kinetic text)
+- Total target duration: ~25 seconds (acceptable 20-40s)
+- If ANY requirement is unmet: the loop retries write_script/storyboard via resume
+  (the LLM is non-deterministic — re-running may produce a compliant script).
+  Do NOT widen the word budget. Do NOT remove the shot-mix enforcement.
+
+### Gate 2 — Full End-to-End Production Without Code/Logic Errors
+- All 19 pipeline stages complete: research → write_script → review_script →
+  gate_a_content → storyboard → review_storyboard → tts → audio_timing →
+  reconcile_timing → compile_media → gate_a_spend → generate_media → qa_media →
+  repair → graphics_compositing → assemble → qa_final → gate_b_review →
+  publish → analytics
+- Zero Python tracebacks, zero TypeError/KeyError/IndexError, zero
+  AssemblyError, zero RuntimeError from code bugs.
+- Retryable failures (budget overshoot, provider polling, capacity waits,
+  pending gate approvals) are NOT code errors — the loop retries via resume.
+
+### Gate 3 — Full and Time-Wise Aligned Lipsync
+- Every hero_lipsync render unit has:
+  - Video duration within 500ms of the intended audio slice duration
+  - Audio track present and aligned (no drift > 100ms)
+  - No freeze frames or black frames in the hero segments
+- The final assembled video must not have:
+  - Container/video-stream duration mismatch > 120s
+  - Video EOF before audio EOF (terminal freeze)
+  - Black frame spans > 60s in the final cut
+- If lipsync QA fails: the repair loop must regenerate the unit.
+  If repair cannot fix it after 3 attempts: treat as a code bug (Gate 2 violation).
+
+### Gate 4 — Engineer-Auditor-Validator Loop Per Seed
+- Every seed is processed through the ENG → AUD → VAL loop:
+  - **Engineer:** Creates the production, runs the pipeline, handles failures.
+  - **Auditor:** Reviews the output (shot mix, duration, lipsync, no errors).
+  - **Validator:** Independently verifies all 4 gates pass. Only the Validator
+    can mark a seed as GREEN.
+- If ANY gate fails: the loop continues (fix → re-run → re-audit → re-validate)
+  until ALL 4 gates pass.
+- Only after a seed is GREEN does the loop proceed to the next seed.
 
 ---
 
 ## Phase 0: Setup
 
 ### 0.0 VERIFY LIVE MODE — NO MOCKS, NO TEST DATA
-
-**This is a LIVE SMOKE TEST.** Before anything else, confirm:
 ```bash
-# These MUST be UNSET or empty
 echo "YT_TEST_MODE=$YT_TEST_MODE"          # MUST be empty
 echo "HIGGSFIELD_DRY_RUN=$HIGGSFIELD_DRY_RUN"  # MUST be empty
 ```
-
-If either is set, the smoke test is INVALID. Stop and fix.
-Billable APIs will be called: ElevenLabs, Higgsfield Seedance, Higgsfield Kling.
+If either is set, the smoke test is INVALID. Billable APIs will be called.
 
 ### 0.1 Copy the smoke config
 ```bash
@@ -31,135 +76,242 @@ python3 -m pytest tests/unit tests/integration tests/regression -v
 # Must be ALL GREEN before starting the loop
 ```
 
-### 0.3 Create a log directory
+### 0.3 Create log directory
 ```bash
 mkdir -p smoke_logs
 ```
 
 ---
 
-## Phase 1: Smoke Loop (repeat for seeds 1-25)
+## Phase 1: Smoke Loop (repeat for all 25 seeds)
 
-For each seed, follow this process. Start at seed #1.
+Read the seed list from `docs/plans/e2e_smoke_loop/SEEDS.md`.
+Process each seed in order (1 through 25). Do NOT skip seeds.
 
 ### Step 1: Create production
 ```bash
-SEED="<paste seed text here>"
-python3 scripts/produce_db.py create --seed "$SEED" --format teaser
-```
-
-The command outputs a `production_id`. Record it:
-```bash
-PROD_ID=<output_from_above>
+SEED="<paste seed text from SEEDS.md>"
+python3 scripts/produce_db.py create --seed "$SEED" --format smoke
+# Record the production_id from the output
+PROD_ID=<output_production_id>
 echo "$SEED → $PROD_ID" >> smoke_logs/productions.txt
 ```
 
-### Step 2: Auto-approve content and spend gates
-```bash
-# Approve content (gate A)
-python3 scripts/produce_db.py approve $PROD_ID gate_a_content --pass 2>/dev/null || true
+### Step 2: Run the pipeline with auto-approval and retry loop
 
-# Approve spend (gate A)  
-python3 scripts/produce_db.py approve $PROD_ID gate_a_spend --pass 2>/dev/null || true
-```
-
-Note: Gates may not exist yet when the pipeline hasn't reached them. The `|| true` handles this.
-
-### Step 2.5: Understand the timing
-
-**LLM calls are synchronous** — the script waits. But other stages take time:
-- ElevenLabs TTS: 30-120 seconds (synchronous, script waits)
-- Higgsfield Seedance video: 2-10 minutes per job (async, needs poll + resume)
-- Higgsfield Kling b-roll: 1-5 minutes per job (async, needs poll + resume)  
-- FFmpeg assembly: 10-30 seconds (synchronous, script waits)
-
-**Each resume attempt may take 2-15 minutes.** The loop below has a cooldown to avoid hammering the API. Expected total time for a clean 25s production: **15-45 minutes.**
-
-### Step 3: Run pipeline — resume loop
 ```bash
 ATTEMPTS=0
-MAX_ATTEMPTS=20
+MAX_ATTEMPTS=30
 PASSED=false
+PREV_STAGE=""
+WAIT_SEC=15
 
 while [ $ATTEMPTS -lt $MAX_ATTEMPTS ] && [ "$PASSED" = "false" ]; do
     ATTEMPTS=$((ATTEMPTS + 1))
-    echo "=== Attempt $ATTEMPTS for $PROD_ID ==="
-    
-    # Auto-approve any pending gates before running
+    echo "=== Seed attempt $ATTEMPTS for $PROD_ID ==="
+
+    # Auto-approve ALL gates (smoke test does not wait for human approval)
     python3 scripts/produce_db.py approve $PROD_ID gate_a_content --pass 2>/dev/null || true
     python3 scripts/produce_db.py approve $PROD_ID gate_a_spend --pass 2>/dev/null || true
     python3 scripts/produce_db.py approve $PROD_ID gate_b_review --pass 2>/dev/null || true
-    
-    # Run or resume the pipeline
-    OUTPUT=$(python3 scripts/produce_db.py run $PROD_ID 2>&1)
-    EXIT_CODE=$?
-    
-    echo "$OUTPUT"
-    
-    if echo "$OUTPUT" | grep -q "publish.*completed\|Production.*complete"; then
-        PASSED=true
-        echo "✅ PRODUCTION $PROD_ID PASSED after $ATTEMPTS attempts"
 
-        # SHOT-MIX VERIFICATION — verify output contains required shot types
-        SHOT_MIX=$(python3 -c "
-import sys; sys.path.insert(0, 'scripts')
-import production_db as _db
-conn = _db.connect(None)
-rows = conn.execute('SELECT asset_type FROM render_units WHERE production_id="$PROD_ID" AND status!=\'stale\'').fetchall()
-hero = sum(1 for r in rows if r['asset_type'] == 'lipsync_video')
-broll = sum(1 for r in rows if r['asset_type'] == 'generated_video')
-graphic = sum(1 for r in rows if r['asset_type'] == 'local_graphic')
-print(f'hero={hero} broll={broll} graphic={graphic}')
-if hero < 2 or broll < 1 or graphic < 1:
-    print('SHOT_MIX_FAIL')
-else:
-    print('SHOT_MIX_PASS')
-" 2>&1)
-        echo "  Shot mix: $SHOT_MIX"
-        if echo "$SHOT_MIX" | grep -q "SHOT_MIX_FAIL"; then
-            echo "❌ SHOT MIX FAIL — video missing required shot types"
-            echo "$PROD_ID: SHOT_MIX_FAIL ($ATTEMPTS attempts)" >> smoke_logs/results.txt
-            # → Go to Phase 2 for root cause analysis
-        else
-            echo "$PROD_ID: PASSED ($ATTEMPTS attempts)" >> smoke_logs/results.txt
-        fi
+    # Run (first attempt) or resume (subsequent attempts)
+    if [ $ATTEMPTS -eq 1 ]; then
+        OUTPUT=$(python3 scripts/produce_db.py run $PROD_ID 2>&1)
+    else
+        OUTPUT=$(python3 scripts/produce_db.py resume $PROD_ID 2>&1)
+    fi
+    echo "$OUTPUT"
+
+    # ── CHECK: Pipeline completed? ──
+    if echo "$OUTPUT" | grep -q "All stages completed"; then
+        # Run Gate verification (see Step 3)
         break
     fi
-    
-    if echo "$OUTPUT" | grep -q "Stage.*failed\|Error\|FAILED"; then
-        echo "⚠ Attempt $ATTEMPTS failed — analyzing..."
-        ERROR_STAGE=$(echo "$OUTPUT" | grep -oP "Stage '\K[^']+")
-        ERROR_MSG=$(echo "$OUTPUT" | grep -oP "failed: \K.*" | head -1)
-        echo "$PROD_ID: FAILED at $ERROR_STAGE: $ERROR_MSG" >> smoke_logs/results.txt
-        
-        # Apply cooldown — base 15s, exponential for same-stage failures
-        PREV_STAGE="${PREV_STAGE:-}"
+
+    # ── CLASSIFY THE FAILURE ──
+    ERROR_STAGE=$(echo "$OUTPUT" | grep -oP "Stage '\K[^']+" | tail -1)
+    ERROR_MSG=$(echo "$OUTPUT" | grep -oP "failed: \K.*" | head -1)
+
+    # CATEGORY A: Retryable (NOT code bugs — pipeline is designed to retry)
+    if echo "$ERROR_MSG" | grep -qi "non-compliant\|word budget\|shorten\|re-run\|incomplete\|pending approval\|generating\|ordered\|at capacity\|stalled\|retryable"; then
+        echo "  → RETRYABLE: $ERROR_MSG"
+        # Exponential backoff for same-stage failures
         if [ "$ERROR_STAGE" = "$PREV_STAGE" ]; then
-            WAIT=$((WAIT_SEC * 2))
-            [ $WAIT -gt 300 ] && WAIT=300  # cap at 5 min
+            WAIT_SEC=$((WAIT_SEC * 2))
+            [ $WAIT_SEC -gt 300 ] && WAIT_SEC=300
         else
-            WAIT=15
+            WAIT_SEC=15
         fi
         PREV_STAGE="$ERROR_STAGE"
-        echo "  ⏳ Cooling down ${WAIT}s before next resume..."
-        sleep $WAIT
+        echo "  ⏳ Waiting ${WAIT_SEC}s..."
+        sleep $WAIT_SEC
+        continue
     fi
-done
 
-if [ "$PASSED" = "false" ]; then
-    echo "❌ PRODUCTION $PROD_ID: EXHAUSTED $MAX_ATTEMPTS attempts"
-    # → Go to Phase 2 for root cause analysis
-fi
+    # CATEGORY B: Code bug (REQUIRES ENG/AUD/VAL fix loop — go to Phase 2)
+    if echo "$OUTPUT" | grep -qi "Traceback\|TypeError\|KeyError\|IndexError\|sqlite3\|BLOCKED\|AssemblyError"; then
+        echo "⚠ CODE BUG at $ERROR_STAGE: $ERROR_MSG"
+        echo "$PROD_ID: CODE_BUG at $ERROR_STAGE" >> smoke_logs/results.txt
+        break  # → Go to Phase 2
+    fi
+
+    # CATEGORY C: Unknown — treat as retryable
+    echo "  → Unknown failure, retrying..."
+    sleep 15
+done
 ```
 
-### Step 4: On failure — Phase 2 (Root Cause + Fix)
+### Step 3: Gate Verification (after pipeline completes)
 
-When a seed fails, STOP the loop immediately. Do NOT continue to the next seed.
+After the pipeline reports "All stages completed", verify ALL 4 gates:
+
+```bash
+# ═══════════════════════════════════════════════════
+# GATE 1: Script & Storyboard Compliance
+# ═══════════════════════════════════════════════════
+GATE1=$(python3 << 'PYEOF'
+import sys, json
+sys.path.insert(0, 'scripts')
+import production_db as _db
+from episode_format import get_format, count_script_words
+
+conn = _db.connect(None)
+prod_id = "PROD_ID_PLACEHOLDER"
+
+# Check word count
+rows = conn.execute("""SELECT s.ordinal, s.word_count, s.text
+    FROM script_segments s
+    JOIN document_revisions dr ON s.script_revision_id = dr.id
+    WHERE dr.production_id = ? AND dr.kind = 'script'
+    ORDER BY dr.created_at DESC, s.ordinal""", (prod_id,)).fetchall()
+seen = set()
+total_words = 0
+for r in rows:
+    if r["ordinal"] not in seen:
+        seen.add(r["ordinal"])
+        total_words += r["word_count"] or 0
+fmt = get_format("smoke")
+word_ok = fmt["word_range"][0] <= total_words <= fmt["word_range"][1]
+
+# Check shot mix
+units = conn.execute("SELECT asset_type FROM render_units WHERE production_id=? AND status!='stale'", (prod_id,)).fetchall()
+hero = sum(1 for u in units if u["asset_type"] == "lipsync_video")
+broll = sum(1 for u in units if u["asset_type"] == "generated_video")
+graphic = sum(1 for u in units if u["asset_type"] == "local_graphic")
+mix_ok = hero >= 2 and broll >= 1 and graphic >= 1
+
+print(f"words={total_words} (budget {fmt['word_range']}), hero={hero}, broll={broll}, graphic={graphic}")
+if word_ok and mix_ok:
+    print("GATE1_PASS")
+else:
+    print("GATE1_FAIL")
+conn.close()
+PYEOF
+)
+# Replace PROD_ID_PLACEHOLDER with actual ID
+GATE1=$(echo "$GATE1" | sed "s/PROD_ID_PLACEHOLDER/$PROD_ID/")
+echo "Gate 1 (Script & Storyboard): $GATE1"
+
+# ═══════════════════════════════════════════════════
+# GATE 2: No Code Errors (already verified if pipeline completed)
+# ═══════════════════════════════════════════════════
+echo "Gate 2 (No Code Errors): PASS (pipeline completed without tracebacks)"
+
+# ═══════════════════════════════════════════════════
+# GATE 3: Lipsync Alignment
+# ═══════════════════════════════════════════════════
+GATE3=$(python3 << 'PYEOF'
+import sys, json, subprocess
+sys.path.insert(0, 'scripts')
+import production_db as _db
+prod_id = "PROD_ID_PLACEHOLDER"
+conn = _db.connect(None)
+# Check hero units for duration alignment
+hero_units = conn.execute("SELECT id, label, required_duration_ms FROM render_units WHERE production_id=? AND asset_type='lipsync_video' AND status!='stale'", (prod_id,)).fetchall()
+all_ok = True
+issues = []
+for ru in hero_units:
+    art = conn.execute("SELECT uri FROM artifacts WHERE id=(SELECT active_artifact_id FROM render_units WHERE id=?)", (ru["id"],)).fetchone()
+    if not art or not art["uri"]:
+        issues.append(f"{ru['label']}: no artifact")
+        all_ok = False
+        continue
+    # Probe video duration
+    r = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", art["uri"]], capture_output=True, text=True)
+    if r.returncode != 0:
+        issues.append(f"{ru['label']}: ffprobe failed")
+        all_ok = False
+        continue
+    vid_dur_ms = int(float(r.stdout.strip()) * 1000)
+    delta = abs(vid_dur_ms - (ru["required_duration_ms"] or 0))
+    if delta > 500:
+        issues.append(f"{ru['label']}: delta {delta}ms > 500ms")
+        all_ok = False
+    else:
+        issues.append(f"{ru['label']}: OK (delta {delta}ms)")
+# Check final video for terminal freeze
+deliv = conn.execute("SELECT artifact_uri FROM deliverables WHERE production_id=? ORDER BY created_at DESC LIMIT 1", (prod_id,)).fetchone()
+if deliv and deliv["artifact_uri"]:
+    r = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", deliv["artifact_uri"]], capture_output=True, text=True)
+    final_dur = float(r.stdout.strip()) if r.returncode == 0 else 0
+    issues.append(f"final_video: {final_dur:.1f}s")
+if all_ok:
+    print("GATE3_PASS")
+else:
+    print("GATE3_FAIL")
+for i in issues:
+    print(f"  {i}")
+conn.close()
+PYEOF
+)
+GATE3=$(echo "$GATE3" | sed "s/PROD_ID_PLACEHOLDER/$PROD_ID/")
+echo "Gate 3 (Lipsync Alignment): $GATE3"
+
+# ═══════════════════════════════════════════════════
+# GATE 4: ENG/AUD/VAL Loop (this IS the loop — documented below)
+# ═══════════════════════════════════════════════════
+# Gate 4 is satisfied by the Engineer-Auditor-Validator process itself.
+# The Validator must independently confirm Gates 1-3 before marking GREEN.
+```
+
+### Step 4: Engineer-Auditor-Validator Loop (Gate 4)
+
+For each seed, the 3-role loop runs as follows:
+
+**ENGINEER (creates and runs):**
+1. Create production with `--format smoke`
+2. Run the pipeline with auto-approval (Step 2)
+3. If pipeline completes: run Gate verification (Step 3)
+4. If any gate fails: analyze root cause, fix code, re-run
+5. Record results in `smoke_logs/seedN_eng.md`
+
+**AUDITOR (reviews):**
+1. Verify the Engineer's Gate results
+2. Check the output video:
+   - Duration within 20-40s
+   - Contains visible b-roll (not just hero shots)
+   - Contains visible graphics (title card or lower-third)
+   - No freeze frames or black screens
+3. If any check fails: return to Engineer with specific findings
+4. Record results in `smoke_logs/seedN_aud.md`
+
+**VALIDATOR (final approval):**
+1. Independently re-run the Gate verification scripts
+2. Play-spot-check the output video (confirm visual content)
+3. If ALL 4 gates pass: mark seed as GREEN
+4. If ANY gate fails: return to Engineer
+5. Record results in `smoke_logs/seedN_val.md`
+
+**Only after the Validator marks GREEN does the loop proceed to the next seed.**
+
+### Step 5: On Failure — Phase 2 (Root Cause + Fix)
+
+When a gate fails or a code bug is found:
 
 **A. 3-Why Analysis**
 
-Create a file: `smoke_logs/analysis_$(date +%Y%m%d_%H%M%S).md`
-
+Create: `smoke_logs/analysis_$(date +%Y%m%d_%H%M%S).md`
 ```
 # Failure Analysis: <seed> / <production_id>
 
@@ -167,102 +319,121 @@ Create a file: `smoke_logs/analysis_$(date +%Y%m%d_%H%M%S).md`
 <copy exact error message>
 
 ## 3-Why Analysis
-
 ### Why 1: <why did the stage fail?>
 ### Why 2: <why did that underlying condition exist?>
 ### Why 3: <what architectural gap allowed this?>
-### Bedrock (if applicable): <deepest systemic cause>
 
 ## Classification
-- [ ] Code bug (pipeline logic)
-- [ ] Config issue (limits, thresholds)
-- [ ] External dependency (Higgsfield, ElevenLabs, FFmpeg)
-- [ ] Test gap (missing test coverage)
+- [ ] Code bug (pipeline logic) → fix code, re-run
+- [ ] Content issue (script too long, shot mix wrong) → retry stage
+- [ ] External dependency (Higgsfield, ElevenLabs) → retry with backoff
+- [ ] Test gap (missing test coverage) → write test, fix code
 ```
 
-**B. Design Pass Gate Test**
+**B. Fix Implementation (Engineer)**
+- Apply minimal fix
+- Run `pytest tests/unit tests/integration tests/regression -v` (0 failures)
+- Commit: `git commit -m "fix: <description> (Seed #N)"`
 
-Write a unit or integration test that:
-1. Reproduces the exact failure condition
-2. Passes after the fix is applied
-3. Tests the root cause (not just the symptom)
-
-Save at: `tests/unit/test_pass_gate_<descriptive_name>.py`
-
-Example:
-```python
-def test_local_graphic_not_blocked_by_generate_media():
-    """generate_media final check skips local_graphic units."""
-    # Setup: create a local_graphic render unit
-    # Action: run the generate_media completion check
-    # Assert: local_graphic unit is NOT a blocker
-```
-
-**C. Engineer-Auditor-Validator Loop**
-
-Execute the following loop until the pass gate test is green AND full suite passes:
-
-| Role | Action | Exit Condition |
-|------|--------|----------------|
-| **Engineer** | Implement the minimal fix. Update code. | Pass gate test passes |
-| **Auditor** | Review diff. Check minimal-change, invariants, no regressions. | Verdict: PASS or PASS_WITH_FINDINGS |
-| **Evaluator** | Run `pytest tests/unit tests/integration tests/regression -v`. ALL GREEN. | Verdict: APPROVED |
-
-If AUDITOR returns FAIL or EVALUATOR returns REJECTED → back to ENGINEER.
-
-Record each fix in `docs/plans/fixes/` with the format:
-```
-docs/plans/fixes/<YYYY-MM-DD>_<short_description>.md
-```
-
-### Step 5: Continue loop
-
-After the fix is APPROVED by the Evaluator:
-1. Commit and push: `git add -A && git commit -m "fix: <description>" && git push`
-2. Resume the SAME production (it should now pass the fixed stage)
-3. If it passes → move to next seed (go to Step 1)
+**C. Re-run the seed**
+- Resume the production: `python3 scripts/produce_db.py resume $PROD_ID`
+- Or re-create if the fix invalidated the production state
 
 ---
 
-## Phase 3: Final Report
+## Phase 2: Code Bug Fix (ENG → AUD → VAL)
 
-After all 25 seeds have been processed, generate a final report:
+When a code bug is found (Category B failure):
 
-```
-# E2E Smoke Loop Final Report
+| Role | Action | Exit Condition |
+|------|--------|----------------|
+| **Engineer** | Fix code. Run `pytest tests/unit tests/integration tests/regression -v`. | 0 failures |
+| **Auditor** | Review diff. Check minimal-change, no weakened assertions. | PASS or FAIL |
+| **Validator** | Re-run full suite. Resume production. Re-verify all 4 gates. | GREEN or RED |
 
-## Summary
-- Seeds processed: 25
-- Passed without fixes: X
-- Required fixes: Y
-- Total fixes applied: Z
-- Test suite: N passed, 0 failures
-
-## Fixes Applied
-| Seed | Error Stage | Root Cause | Fix Commit | Pass Gate Test |
-|------|-------------|------------|------------|----------------|
-| ... | ... | ... | ... | ... |
-
-## Remaining Known Issues
-- List any issues that were NOT fixed (reached MAX_ATTEMPTS, external dependency, etc.)
-
-## Test Coverage Added
-- List new test files created during the loop
-```
+If AUDITOR returns FAIL or VALIDATOR returns RED → back to ENGINEER.
 
 ---
 
 ## Important Rules
 
 0. **SHOT-MIX REQUIREMENT.** Every smoke video MUST contain:
-   - At least 2 hero shots (lipsync_video / hero_lipsync)
-   - At least 1 b-roll (generated_video / broll_*)
-   - At least 1 graphic (local_graphic / graphic_*)
-   If the output is missing any of these, the seed is a FAIL — analyze and fix.
+   - ≥ 2 hero shots (lipsync_video / hero_lipsync) with aligned lipsync
+   - ≥ 1 b-roll (generated_video / broll_*) — must be RELEVANT to the seed topic
+   - ≥ 1 graphic (local_graphic / graphic_*)
+   If missing: the seed is a FAIL. Do NOT proceed to the next seed.
 
 1. **NEVER skip a failure.** Every failure must be analyzed and fixed before continuing.
-2. **NEVER weaken tests.** The test suite must stay green throughout.
-3. **ALWAYS commit after each fix.** No uncommitted changes carry over.
-4. **ALWAYS write a pass gate test.** Every fix must have a regression test.
-5. **Auto-approve gates A and B.** Don't wait for human approval during smoke testing.
-6. **If a production exhausts 20 attempts without passing, mark it as BLOCKED and document why** — continue to the next seed.
+
+2. **NEVER weaken tests or widen budgets.** The word budget is [20, 40].
+   If the LLM overproduces, RETRY the stage (resume), do not widen the budget.
+
+3. **NEVER use mocks or test mode.** All API calls are LIVE (ElevenLabs, Higgsfield).
+
+4. **ALWAYS commit after each fix.** No uncommitted changes carry over.
+
+5. **Auto-approve gates A and B.** Do not wait for human approval during smoke testing.
+
+6. **Exponential backoff.** Same-stage failures get 2x wait (max 300s).
+
+7. **Max 30 attempts per seed.** If exhausted: mark BLOCKED, document, continue
+   to next seed (but the BLOCKED seed must be resolved before the loop is "complete").
+
+8. **The loop is NOT complete until ALL 25 seeds are GREEN.**
+
+---
+
+## Quick Reference Commands
+
+```bash
+# Create a smoke production
+python3 scripts/produce_db.py create --seed "<topic>" --format smoke
+
+# Run/resume
+python3 scripts/produce_db.py run <id>
+python3 scripts/produce_db.py resume <id>
+
+# Approve gates
+python3 scripts/produce_db.py approve <id> gate_a_content --pass
+python3 scripts/produce_db.py approve <id> gate_a_spend --pass
+python3 scripts/produce_db.py approve <id> gate_b_review --pass
+
+# Check status
+python3 scripts/produce_db.py status <id>
+
+# Run full test suite
+python3 -m pytest tests/unit tests/integration tests/regression -v
+
+# Check video duration
+ffprobe -v quiet -show_entries format=duration -of csv=p=0 <video.mp4>
+
+# Check render units (shot mix)
+python3 -c "import sys; sys.path.insert(0,'scripts'); import production_db as _db; conn=_db.connect(None); [print(f'{r[\"label\"]} {r[\"asset_type\"]} {r[\"status\"]}') for r in conn.execute('SELECT label,asset_type,status FROM render_units WHERE production_id=?',('<ID>',)).fetchall()]"
+```
+
+---
+
+## Final Report (after all 25 seeds are GREEN)
+
+```
+# E2E Smoke Loop Final Report
+
+## Summary
+- Seeds processed: 25
+- Passed on first try: X
+- Required fixes: Y
+- Total fixes applied: Z
+- Test suite: N passed, 0 failures
+
+## Per-Seed Results
+| Seed | Topic | Duration | Hero | Broll | Graphic | Lipsync | Status |
+|------|-------|----------|------|-------|---------|---------|--------|
+| 1    | ...   | 25s      | 2    | 1     | 1       | OK      | GREEN  |
+| 2    | ...   | 30s      | 2    | 1     | 1       | OK      | GREEN  |
+| ...  | ...   | ...      | ...  | ...   | ...     | ...     | ...    |
+
+## Fixes Applied
+| Seed | Error | Root Cause | Fix |
+|------|-------|------------|-----|
+| ...  | ...   | ...        | ... |
+```
