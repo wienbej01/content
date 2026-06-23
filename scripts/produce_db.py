@@ -406,7 +406,7 @@ def _assign_shot_mix(n: int, video_type: str) -> list[str]:
     if n <= 0:
         return []
     # Smoke format: enforce minimum 4 beats (2 hero, 1 broll, 1 graphic)
-    if video_type == "smoke" and n < 4:
+    if video_type == "smoke" and n <= 4:
         return ["hero_lipsync", "broll_archival", "hero_lipsync", "graphic_title_card"]
     if n == 1:
         return ["hero_lipsync"]
