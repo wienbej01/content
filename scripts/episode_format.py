@@ -35,7 +35,7 @@ FORMAT_PROFILES = {
         "label": "25-40s SMOKE TEST",
         "target_sec": 30,
         "target_sec_range": [20, 40],
-        "word_range": [20, 45],
+        "word_range": [20, 40],
         "structure": "MUST produce at least 4 beats: 2 hero_lipsync (narrator on camera), "
                      "1 broll_environment or broll_tactical (supporting visual), and "
                      "1 graphic_title_card (title/lower-third overlay). "
