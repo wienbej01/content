@@ -1014,12 +1014,16 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
 
             spec["slots"] = slots
         else:
-            # Single slot for short beats.
+            # Single slot for short beats. Pad to min_clip if hero is too short.
+            slot_end = s["end_ms"]
+            if audio_policy == "HERO_SYNC_LOCKED" and span_duration_ms < min_clip_ms:
+                slot_end = s["start_ms"] + min_clip_ms
+                span_duration_ms = min_clip_ms
             slot_data = {
                 "slot_index": 0,
                 "slot_total": 1,
                 "start_ms": s["start_ms"],
-                "end_ms": s["end_ms"],
+                "end_ms": slot_end,
             }
             if audio_policy == "HERO_SYNC_LOCKED":
                 _validate_hero_slot_min(s["span_id"], 0, span_duration_ms, min_clip_ms)
