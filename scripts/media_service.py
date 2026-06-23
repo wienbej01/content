@@ -1395,8 +1395,7 @@ def run_repair_lifecycle(
             db_path=db_path,
         )
         result["change_request_id"] = cr.get("id")
-            result["qa_passed"] = True
-        result["qa_passed"] = False
+        result["qa_passed"] = True
 
     elif action == "rerun_qa":
         qa = run_contract_media_qa(db_path, production_id, render_unit_id)
