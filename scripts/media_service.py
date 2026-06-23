@@ -127,7 +127,15 @@ def submit_provider_job(
                     "UPDATE render_units SET status='generating', updated_at=? WHERE id=?",
                     (now, existing["render_unit_id"]),
                 )
-            return dict(existing)
+                return dict(existing)
+            # Failed/cancelled job: re-activate so submission can proceed
+            conn.execute(
+                "UPDATE provider_jobs SET status='submitted', submitted_at=? WHERE id=?",
+                (now, existing["id"]),
+            )
+            return dict(conn.execute(
+                "SELECT * FROM provider_jobs WHERE id=?", (existing["id"],)
+            ).fetchone())
 
         job_id = _db._id("pjob")
         conn.execute(
