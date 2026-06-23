@@ -151,7 +151,7 @@ def build_storyboard_timing_map(audio_path, storyboard_beats, noise_db=SILENCE_T
             snapped[i] = snapped[i - 1] + 0.01
 
     # Enforce minimum beat duration (4s for beats with no narration)
-    MIN_BEAT_SEC = 4.0
+    MIN_BEAT_SEC = 3.0
     for i in range(1, len(snapped) - 1):
         dur = snapped[i + 1] - snapped[i]
         if dur < MIN_BEAT_SEC:
