@@ -2,3 +2,4 @@ Use AI to batch process your morning email inbox in under 60 seconds → prod_b8
 Use AI to batch process your morning email inbox in under 60 seconds → prod_b875c5b1a88f4871aebe141a4c591398
 Let AI schedule your entire week from a single voice memo on Monday → prod_4c06fa30ad5c474cba853ec323931567
 Replace three tools with one AI assistant for project management → prod_42279b0de3824de1afcfb2748e9af4f9
+How AI meeting summaries save two hours of re-reading notes every day → prod_0a629bdcc82c44beabca27a647f2faa9
