@@ -432,6 +432,22 @@ def save_document_revision(
         if existing and existing["status"] == "active":
             return dict(existing)
 
+        # If same payload exists but is stale/superseded, reactivate it
+        if existing:
+            previous_active = conn.execute(
+                """SELECT * FROM document_revisions WHERE production_id=? AND kind=? AND status='active'
+                   ORDER BY revision DESC LIMIT 1""",
+                (production_id, kind),
+            ).fetchone()
+            if previous_active and previous_active["id"] != existing["id"]:
+                conn.execute(
+                    "UPDATE document_revisions SET status='superseded' WHERE id=?", (previous_active["id"],)
+                )
+            conn.execute(
+                "UPDATE document_revisions SET status='active' WHERE id=?", (existing["id"],)
+            )
+            return dict(existing)
+
         previous = conn.execute(
             """SELECT * FROM document_revisions WHERE production_id=? AND kind=? AND status='active'
                ORDER BY revision DESC LIMIT 1""",
