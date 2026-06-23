@@ -10,7 +10,7 @@ Each seed produces a ~25-second teaser video with 2 hero shots, 1 b-roll, 1 grap
 4. "How AI meeting summaries save two hours of re-reading notes every day"
 5. "AI calendar blocking: turn your to-do list into a complete daily schedule"
 6. "Train an AI to write your weekly status reports from Slack messages"
-7. "Use AI to triage your notifications and silence 90 percent of interruptions"
+7. ✓ "Use AI to triage your notifications and silence 90 percent of interruptions"
 8. "How to delegate research tasks to AI and get summaries while you sleep"
 9. "AI-powered Pomodoro: dynamically adjust work blocks based on energy levels"
 10. "Build a personal AI dashboard that tracks your deep work hours automatically"

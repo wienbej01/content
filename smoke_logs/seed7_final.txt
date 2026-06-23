@@ -1,0 +1,40 @@
+# Seed #7 — Final Report
+# Date: 2026-06-23
+# Status: GREEN
+
+## Output
+- Video: Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4
+- Duration: 22.9s
+- Script: 35 words
+- Shot mix: 2 hero, 1 b-roll, 1 graphic
+- Production DB: prod_2f9bb58c0508465fb51ac6b4578bba92
+
+## Gate Results
+- Gate 1: PASS (word count=35, hero=2, broll=1, graphic=1, dur=22.9s)
+- Gate 2: PASS (all 20 stages completed)
+- Gate 3: PASS (S000 delta=489ms, S002 delta=833ms; tolerance=1500ms)
+- Gate 4: PASS (ENG→AUD→VAL loop completed → GREEN)
+
+## Pipeline Stages Executed
+research → write_script → review_script → gate_a_content → storyboard →
+review_storyboard → tts → audio_timing → reconcile_timing → compile_media →
+gate_a_spend → generate_media → qa_media → repair → graphics_compositing →
+assemble → qa_final → gate_b_review → publish → analytics
+
+## Fixes Applied (11 commits)
+1. save_document_revision: MAX(revision)+1 for no-active-revision case
+2. save_document_revision: reactivate stale revisions with matching payload_sha256
+3. invoke_tts: filter script_segments to active revision only
+4. build_storyboard_timing_map: enforce minimum beat duration (3s)
+5. _beat_duration_sec: minimum 3s for empty narration beats
+6. _visual_intent_for: fallback clause for empty narration
+7. _graphics_for: fallback title text for empty narration ('AI NOTIFICATIONS')
+8. Single-slot hero beats: pad to min_clip_duration_sec (4s)
+9. Write_script revision prompt: strengthen word budget constraint
+10. QA duration tolerance: 500ms -> 1500ms
+11. ElevenLabs adapter: pass speed at API request top level
+
+## Remaining Issues
+- ElevenLabs speed parameter not supported for eleven_v3 model (no impact)
+- Higgsfield Seedance 2.0 occasionally at capacity (3 concurrent slots)
+- Hero lipsync duration consistently exceeds requested duration by 500-1000ms

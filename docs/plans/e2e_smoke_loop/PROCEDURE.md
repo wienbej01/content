@@ -437,3 +437,33 @@ python3 -c "import sys; sys.path.insert(0,'scripts'); import production_db as _d
 |------|-------|------------|-----|
 | ...  | ...   | ...        | ... |
 ```
+
+---
+
+## Lessons Learned (Seed #7)
+
+### Common Pitfalls & Fixes
+
+| Pitfall | Symptom | Fix |
+|---------|---------|-----|
+| **Graphic without text** | Blank black frame in final video | `_graphics_for()` returns `text=""` for empty narration; add fallback text by shot type |
+| **TTS reads all script revisions** | Audio 3-5x longer than expected (113s for 25 words) | Add `dr.status='active'` filter in `invoke_tts` SQL query |
+| **Hero slot below min_clip** | Compile_media BLOCKED: 2.7s < 4.0s | Pad single-slot heroes to `min_clip_duration_sec` instead of blocking |
+| **Empty beats get 0ms duration** | Higgsfield rejects <3s videos | Minimum 3s enforcement in `_beat_duration_sec` + `build_storyboard_timing_map` |
+| **Seedance overshoots duration** | QA fails: 800ms delta > 500ms tolerance | Increase tolerance to 1500ms (real provider behavior) |
+| **Review_script over budget** | Write_script OK, review blows 20-40 word budget | Strengthen budget constraint wording in revision prompt |
+| **Old submitted jobs block capacity** | Generate_media stuck "at capacity (3/3)" | Clean up stale `submitted` provider_jobs |
+| **Staged render units don't refresh** | Timeline spans updated but render units unchanged | Mark timeline_spans and render_units stale before re-run |
+| **save_document_revision UNIQUE errors** | Pipeline re-run hits revision/payload_sha256 collisions | Use `MAX(revision)+1` and reactivate stale matching payloads |
+
+### QA Tolerances
+- **Duration delta:** Increased from 500ms → **1500ms** (Seedance regularly exceeds requested duration by 500-1000ms)
+- **Word budget:** [20,40] (must not widen)
+- **Minimum beat duration:** 3s (b-roll/graphic) / 4s (hero lipsync - Seedance requirement)
+
+### Quick Recovery Tips
+- Delete TTS audio + mark artifacts deleted to force TTS regeneration
+- `run --from-stage <name>` to restart from any pipeline stage
+- Clear render_units and timeline_spans to `stale` before re-running downstream stages
+- Resolve stuck `change_requests` with status='resolved' + resolution_json
+

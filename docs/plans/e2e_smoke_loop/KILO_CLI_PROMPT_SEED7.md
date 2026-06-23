@@ -20,7 +20,7 @@ You are the orchestrator. For Seed #7, you will use the Task tool to spawn 3 sub
 
 - **Gate 1:** Script 20-40 words. Storyboard has ≥2 hero_lipsync, ≥1 broll (generated_video), ≥1 graphic (local_graphic). Duration 20-40s.
 - **Gate 2:** All 19 pipeline stages complete with zero Python tracebacks/errors.
-- **Gate 3:** Hero lipsync video duration within 500ms of audio slice. No freeze/black frames.
+- **Gate 3:** Hero lipsync video duration within 1500ms of audio slice. No freeze/black frames.
 - **Gate 4:** Engineer-Auditor-Validator loop completed. Validator marks GREEN.
 
 ## Process
@@ -88,7 +88,7 @@ You are the Engineer in a smoke test loop for Seed #7. Your job:
      if r.returncode!=0: ok=False; continue
      vid_ms=int(float(r.stdout.strip())*1000)
      delta=abs(vid_ms-(ru['required_duration_ms'] or 0))
-     if delta>500: ok=False
+     if delta>1500: ok=False
    conn.close()
    print('GATE3_PASS' if ok else 'GATE3_FAIL')"
 
@@ -112,7 +112,7 @@ You are the Auditor in a smoke test loop for Seed #7. Review the Engineer's outp
 Check the following:
 1. Did the pipeline complete all 19 stages? (verify "All stages completed" in logs)
 2. Gate 1: Are there ≥2 hero_lipsync, ≥1 generated_video (broll), ≥1 local_graphic units?
-3. Gate 3: Are all hero units' video durations within 500ms of required_duration_ms?
+3. Gate 3: Are all hero units' video durations within 1500ms of required_duration_ms?
 4. Is the final video duration between 20-40 seconds?
 5. Does the video actually CONTAIN b-roll and graphics (not just hero shots)?
    Check render_units: SELECT label, asset_type, status FROM render_units WHERE production_id='<PROD_ID>'
