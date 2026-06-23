@@ -5,3 +5,4 @@ Replace three tools with one AI assistant for project management → prod_42279b
 How AI meeting summaries save two hours of re-reading notes every day → prod_0a629bdcc82c44beabca27a647f2faa9
 AI calendar blocking turn your to-do list into a complete daily schedule → prod_918dede37971434e8bcfe15b40a482df
 Train an AI to write your weekly status reports from Slack messages → prod_6603ba05f00b45c1ac35922ccc8ff40f
+Use AI to triage your notifications and silence 90 percent of interruptions → prod_2f9bb58c0508465fb51ac6b4578bba92
