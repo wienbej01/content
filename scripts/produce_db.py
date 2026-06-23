@@ -525,7 +525,16 @@ def _visual_intent_for(shot_type: str, narration: str) -> dict:
     """Structured R7 B-roll semantic contract (read by compile_media), seeded
     deterministically from the segment narration. Non-empty for every beat."""
     clause = _first_clause(narration)
+    if not clause:
+        # Fallback for empty-narration beats (review_script may produce segments
+        # with no text). Use a type-appropriate claim so b-roll/graphic beats
+        # always satisfy the R7 semantic contract.
+        import re
+        label = shot_type.replace("_", " ").title()
+        clause = "Visual illustration of " + label
     concept = _concept_key(narration)
+    if not concept or concept == "concept":
+        concept = shot_type
     is_graphic = _CANONICAL_SHOTS.get(shot_type, {}).get("graphic", False)
     action = {
         "hero_lipsync": "Locked-off medium shot with a subtle push-in.",
