@@ -497,8 +497,14 @@ class ElevenLabsAdapter(ProviderAdapter):
         import urllib.request, urllib.error
         voice_id = self._voice_id or payload.get("voice_id", "")
         text = payload.get("text", "")
-        data = json.dumps({"text": text, "model_id": payload.get("model_id", "eleven_multilingual_v2"),
-                          "voice_settings": payload.get("voice_settings", {"stability": 0.5, "similarity_boost": 0.75})}).encode()
+        body = {"text": text, "model_id": payload.get("model_id", "eleven_multilingual_v2"),
+                "voice_settings": payload.get("voice_settings", {"stability": 0.5, "similarity_boost": 0.75})}
+        # Pass speed at top level if provided (ElevenLabs v1 API supports it for newer models)
+        vs = payload.get("voice_settings", {})
+        speed = vs.get("speed") if isinstance(vs, dict) else None
+        if speed is not None:
+            body["speed"] = speed
+        data = json.dumps(body).encode()
         req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
                                      data=data, headers={"Content-Type": "application/json", "xi-api-key": self._api_key}, method="POST")
         try:
