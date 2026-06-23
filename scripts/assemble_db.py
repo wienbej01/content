@@ -103,8 +103,8 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                FROM render_units ru
                LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
                WHERE ru.production_id=?
-                 AND (ru.status IN ('valid', 'generated')
-                      OR ru.active_artifact_id IS NOT NULL)
+              AND ru.status != 'stale'
+              AND (ru.status IN ('valid', 'generated')                      OR ru.active_artifact_id IS NOT NULL)
                ORDER BY ru.ordinal""",
             (production_id,),
         ).fetchall()
@@ -305,7 +305,8 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
            FROM render_units ru
            LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
            WHERE ru.production_id=?
-             AND (ru.status IN ('valid', 'generated')
+              AND ru.status != "stale"
+              AND (ru.status IN ("valid", "generated")
                   OR ru.active_artifact_id IS NOT NULL)
            ORDER BY ru.ordinal""",
         (production_id,),
