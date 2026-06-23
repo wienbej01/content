@@ -32,15 +32,18 @@ FORMAT_PROFILES = {
                        "depth ARE expected.",
     },
     "smoke": {
-        "label": "25s SMOKE TEST",
+        "label": "25-40s SMOKE TEST",
         "target_sec": 30,
         "target_sec_range": [20, 40],
         "word_range": [20, 40],
-        "structure": "ONE micro-insight in 15-25 words: hook (3s) → one vivid proof (12s) "
-                     "→ takeaway (5s). NO multi-part framework. NO deep elaboration. "
-                     "Must fit in 25 seconds of narration at normal speaking pace.",
-        "review_note": "Judge as a SMOKE TEST teaser: single micro-insight, no framework, "
-                       "no depth, under 70 words total.",
+        "structure": "MUST produce at least 4 beats: 2 hero_lipsync (narrator on camera), "
+                     "1 broll_environment or broll_tactical (supporting visual), and "
+                     "1 graphic_title_card (title/lower-third overlay). "
+                     "Micro-insight: hook (hero) → proof (broll) → takeaway (hero) → "
+                     "title card (graphic). Each beat 5-15 seconds.",
+        "review_note": "Judge as a SMOKE TEST: must contain 2+ hero shots, 1+ b-roll, "
+                       "1+ graphic. Single micro-insight, no framework, under 40 words.",
+        "min_shot_mix": {"hero_lipsync": 2, "broll": 1, "graphic": 1},
     },
     "teaser": {
         "label": "60-90s TEASER",

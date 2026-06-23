@@ -99,7 +99,30 @@ while [ $ATTEMPTS -lt $MAX_ATTEMPTS ] && [ "$PASSED" = "false" ]; do
     if echo "$OUTPUT" | grep -q "publish.*completed\|Production.*complete"; then
         PASSED=true
         echo "✅ PRODUCTION $PROD_ID PASSED after $ATTEMPTS attempts"
-        echo "$PROD_ID: PASSED ($ATTEMPTS attempts)" >> smoke_logs/results.txt
+
+        # SHOT-MIX VERIFICATION — verify output contains required shot types
+        SHOT_MIX=$(python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+import production_db as _db
+conn = _db.connect(None)
+rows = conn.execute('SELECT asset_type FROM render_units WHERE production_id="$PROD_ID" AND status!=\'stale\'').fetchall()
+hero = sum(1 for r in rows if r['asset_type'] == 'lipsync_video')
+broll = sum(1 for r in rows if r['asset_type'] == 'generated_video')
+graphic = sum(1 for r in rows if r['asset_type'] == 'local_graphic')
+print(f'hero={hero} broll={broll} graphic={graphic}')
+if hero < 2 or broll < 1 or graphic < 1:
+    print('SHOT_MIX_FAIL')
+else:
+    print('SHOT_MIX_PASS')
+" 2>&1)
+        echo "  Shot mix: $SHOT_MIX"
+        if echo "$SHOT_MIX" | grep -q "SHOT_MIX_FAIL"; then
+            echo "❌ SHOT MIX FAIL — video missing required shot types"
+            echo "$PROD_ID: SHOT_MIX_FAIL ($ATTEMPTS attempts)" >> smoke_logs/results.txt
+            # → Go to Phase 2 for root cause analysis
+        else
+            echo "$PROD_ID: PASSED ($ATTEMPTS attempts)" >> smoke_logs/results.txt
+        fi
         break
     fi
     
@@ -230,6 +253,12 @@ After all 25 seeds have been processed, generate a final report:
 ---
 
 ## Important Rules
+
+0. **SHOT-MIX REQUIREMENT.** Every smoke video MUST contain:
+   - At least 2 hero shots (lipsync_video / hero_lipsync)
+   - At least 1 b-roll (generated_video / broll_*)
+   - At least 1 graphic (local_graphic / graphic_*)
+   If the output is missing any of these, the seed is a FAIL — analyze and fix.
 
 1. **NEVER skip a failure.** Every failure must be analyzed and fixed before continuing.
 2. **NEVER weaken tests.** The test suite must stay green throughout.

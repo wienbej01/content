@@ -405,6 +405,9 @@ def _assign_shot_mix(n: int, video_type: str) -> list[str]:
     """
     if n <= 0:
         return []
+    # Smoke format: enforce minimum 4 beats (2 hero, 1 broll, 1 graphic)
+    if video_type == "smoke" and n < 4:
+        return ["hero_lipsync", "broll_archival", "hero_lipsync", "graphic_title_card"]
     if n == 1:
         return ["hero_lipsync"]
     if n == 2:
@@ -614,6 +617,16 @@ def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
     video_type = inputs.get("video_type", "short")
     n = len(segments)
     plan = _assign_shot_mix(n, video_type)
+
+    # Smoke format: pad segments to match the 4-beat plan if needed
+    if video_type == "smoke" and len(plan) > n:
+        for i in range(n, len(plan)):
+            segments.append({
+                "id": f"pad_{i}",
+                "label": f"S{i:03d}",
+                "text": "",
+            })
+        n = len(segments)
 
     beats = []
     for i, (seg, shot_type) in enumerate(zip(segments, plan)):
