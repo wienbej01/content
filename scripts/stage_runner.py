@@ -443,7 +443,13 @@ def save_document_revision(
                 "UPDATE document_revisions SET status='superseded' WHERE id=?", (previous["id"],)
             )
 
-        revision = (previous["revision"] + 1) if previous else 1
+        if previous:
+            revision = previous["revision"] + 1
+        else:
+            max_row = conn.execute(
+                "SELECT COALESCE(MAX(revision), 0) FROM document_revisions WHERE production_id=? AND kind=?", (production_id, kind),
+            ).fetchone()
+            revision = (max_row[0] or 0) + 1
         doc_id = _db._id("doc")
         conn.execute(
             """INSERT INTO document_revisions

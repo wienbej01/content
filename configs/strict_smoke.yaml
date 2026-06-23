@@ -1,10 +1,26 @@
+# ═══════════════════════════════════════════════════════════════════
+# LIVE SMOKE TEST — NO MOCKS, NO TEST DATA, NO DRY-RUN
+# ═══════════════════════════════════════════════════════════════════
+# This config drives REAL API calls:
+#  - ElevenLabs TTS (real audio generation, billable)
+#  - Higgsfield Seedance 2.0 (real video generation, billable)
+#  - Higgsfield Kling 3.0 (real b-roll generation, billable)
+#  - render_graphics.py (real PIL/Pillow compositing)
+#  - FFmpeg (real assembly, loudnorm, encoding)
+#
+# FORBIDDEN environment variables during execution:
+#  - YT_TEST_MODE=1  (would skip TTS, use pre-provided audio)
+#  - HIGGSFIELD_DRY_RUN=1  (would skip video generation)
+#
+# If either env var is set, the smoke test is INVALID.
+# ═══════════════════════════════════════════════════════════════════
 # Smoke test config: 25-second teaser for end-to-end pipeline validation.
 # Saved at: docs/plans/e2e_smoke_loop/smoke_config.yaml
 # Applied via: python3 scripts/produce_db.py run <id> --config-override ...  
 # (or copy over configs/strict_smoke.yaml before starting the loop)
 
 video_type: teaser
-target_duration_sec: 30
+target_duration_sec: 25
 max_total_usd: 5.00
 max_paid_provider_jobs: 20
 formats:
@@ -21,7 +37,13 @@ pipeline:
   auto_approve_gates: true    # auto-approve gate_a_content, gate_a_spend, gate_b_review
   resume_on_failure: true     # keep resuming until all stages pass
   max_resume_attempts: 20     # fail the loop if 20 resumes don't clear a stage
-  stage_timeout_minutes: 5    # per-stage timeout
+  stage_timeout_minutes: 15    # per-stage timeout (TTS takes 30-120s, Higgsfield 2-10min)
+  cooldown_seconds: 15         # MINIMUM wait between resume attempts
+  poll_interval_seconds: 10    # wait before each Higgsfield poll (already in produce_db.py)
+  backoff_multiplier: 2.0      # exponential backoff: wait * multiplier each retry at same stage
+  max_backoff_seconds: 300    # maximum backoff wait (5 minutes)
+
+# QA config
 
 # Provider config
 providers:
@@ -36,4 +58,5 @@ on_failure:
   engineer_auditor_validator: true  # ENG->AUD->VAL loop per fix
   min_green_tests: 300         # test suite must pass at this level
 
+# Allow OCR-unavailable to pass QA (Tesseract not available on smoke test system)
 allow_ocr_unavailable: true

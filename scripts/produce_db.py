@@ -746,6 +746,7 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     """
     # Graphic beats: deterministic text, not a generative prompt
     _GRAPHIC_SHOT_TYPES = {"graphic_progressive", "graphic_title_card", "kinetic_text", "local_graphic"}
+    _GRAPHIC_SHOT_TYPES = {"graphic_progressive", "graphic_title_card", "kinetic_text", "local_graphic"}
     if graphic_text_content:
         spec_type = _classify_text_spec_type(graphic_text_content)
         dts = {
@@ -763,6 +764,8 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
         elif spec_type == "framework_card":
             dts["label"] = graphic_text_content
         return (None, dts, "local_graphic")
+    if shot_type in _GRAPHIC_SHOT_TYPES:
+        return (None, {"type": "title_card", "text": ""}, "local_graphic")
     if shot_type in _GRAPHIC_SHOT_TYPES:
         return (None, {"type": "title_card", "text": ""}, "local_graphic")
 
