@@ -1395,6 +1395,7 @@ def run_repair_lifecycle(
             db_path=db_path,
         )
         result["change_request_id"] = cr.get("id")
+            result["qa_passed"] = True
         result["qa_passed"] = False
 
     elif action == "rerun_qa":
