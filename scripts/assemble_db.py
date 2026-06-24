@@ -185,7 +185,31 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                     )
                 # No validations at all -> pre-QA artifact, allow assembly
 
-        # 6. No stale render units (already excluded by SQL WHERE status!='stale')
+                # S08-T004: SyncNet gate for HERO_SYNC_LOCKED units
+        for u in units:
+            if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
+                offset_ok = conn.execute(
+                    "SELECT 1 FROM validations WHERE "
+                    "(subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?)) "
+                    "AND validator_name='audio_offset' "
+                    "AND status='pass' AND ABS(CAST(json_extract(evidence_json,'$.offset_ms') AS REAL)) < 160 "
+                    "LIMIT 1", (u["id"], u["id"],),
+                ).fetchone()
+                sync_ok = conn.execute(
+                    "SELECT 1 FROM validations WHERE "
+                    "(subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?)) "
+                    "AND validator_name='syncnet_offset' "
+                    "AND status='pass' LIMIT 1", (u["id"], u["id"],),
+                ).fetchone()
+                if not offset_ok and not sync_ok:
+                    raise AssemblyError(
+                        "BLOCKED_HERO_SYNC_UNVERIFIED: render unit " + u["id"] + " "
+                        "(" + (u.get("label", "") or "") + ") has no passing SyncNet or "
+                        "audio_offset validation. Compensated hero lip sync "
+                        "must be verified before assembly."
+                    )
+
+        # 6. No stale render units (already excluded by SQL WHERE status!=stale)
 
         # 7. No provider-generated local graphic selected
         for u in units:
@@ -353,8 +377,24 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
         raise AssemblyError(f"Assembly blocked: {len(missing_art)} units missing artifact: {labels}")
 
     # Build segment/clip entries compatible with assemble.py manifest
+    # Load compensated_artifact_paths for hero units
+    pj_conn = _db.connect(db_path)
+    compensated = {}
+    for u in units:
+        if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
+            pj = pj_conn.execute(
+                "SELECT compensated_artifact_path FROM provider_jobs "
+                "WHERE render_unit_id=? AND compensated_artifact_path IS NOT NULL "
+                "ORDER BY rowid DESC LIMIT 1",
+                (u["id"],),
+            ).fetchone()
+            if pj and pj["compensated_artifact_path"]:
+                compensated[u["id"]] = pj["compensated_artifact_path"]
+    pj_conn.close()
+
     clips = []
     for u in units:
+        cap = compensated.get(u["id"])
         clips.append({
             "clip_id": u["id"],
             "label": u["label"],
@@ -366,6 +406,7 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
             "end_ms": u["required_end_ms"],
             "duration_ms": u["required_duration_ms"],
             "path": u["artifact_uri"],
+            "compensated_artifact_path": cap,
             "sha256": u["artifact_sha256"],
             "has_audio": bool(u["artifact_has_audio"]),
         })
@@ -417,6 +458,7 @@ def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=N
             "beat_id": c.get("label"),
             "clip_id": c.get("clip_id"),
             "media": c.get("path"),
+            "compensated_artifact_path": c.get("compensated_artifact_path"),
             "asset_type": c.get("asset_type"),
             "audio_policy": c.get("audio_policy"),
             "timing_in": start_sec,

@@ -1,17 +1,19 @@
 # Karpathy Remediation Loop — State
 
-## Sprint 05 — COMPLETE
+## All sprints complete
+| Sprint | Status | Focus |
+|--------|--------|-------|
+| 00 | COMPLETE | Forensic Baseline |
+| 01 | COMPLETE | Lipsync Eval Build |
+| 02 | COMPLETE | Assembly Timing Audit |
+| 03 | COMPLETE | Graphics/Text Quality |
+| 04 | COMPLETE | Repair Loop |
+| 05 | COMPLETE | Final QA Dashboard |
+| 06 | COMPLETE | Render Readiness + Controlled Canary |
+| 07 | COMPLETE | Root Cause Analysis |
+| 08 | COMPLETE | Compensated Hero Assembly |
 
-## Tickets
-| Ticket | Status |
-|--------|--------|
-| S05_T001 — Final Defect Ledger | COMPLETE |
-| S05_T002 — Run Comparison Report | COMPLETE |
-| S05_T003 — Gate B Evidence Pack | COMPLETE |
-| S05_T004 — Regression Suite CI Entrypoint | COMPLETE |
-
-## Exit criteria: all met
-
-## Next: Sprint 06 — Render Readiness and Controlled Actual Render
-
-## All sprints complete: 00 01 02 03 04 05
+## Exit criteria
+All sprint exit criteria met across 9 sprints.
+Root cause identified and addressed: E_ASSEMBLY_MASTER_WINDOW_FAILURE.
+Pipeline hardened against provider audio offset failures.

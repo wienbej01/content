@@ -490,30 +490,47 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
 
     is_image = media.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
 
-    # --- LB-202: Hero lipsync span: STRIP provider audio, use master spine ---
-    # Hero lipsync clips are generated using the master narration. To prevent
-    # audio artifacts, drift, or duplication, we MUST strip the provider's baked
-    # audio (-an) and rely exclusively on the master narration spine in the final mix.
+    # --- LB-202: Hero lipsync span: use compensated path or strip+overlay ---
+    # S08-T003: If a compensated_artifact_path is set (provider audio offset
+    # measured and compensated), use that pre-compensated video directly.
+    # This preserves the provider's internally-synced video while applying
+    # the measured audio offset correction.
     if _is_hero_lipsync(seg):
+        cap = seg.get("compensated_artifact_path")
+        if cap:
+            cap_path = Path(cap)
+            if cap_path.exists():
+                # Use compensated video directly (already has corrected audio)
+                # Scale/crop to match target resolution
+                run(["ffmpeg", "-y", "-i", str(cap_path),
+                     "-vf", f"{scale_crop},{grade}",
+                     "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+                     "-pix_fmt", "yuv420p",
+                     "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
+                     str(dst)], f"seg_{idx}_compensated_hero")
+                return dst
+            else:
+                print(f"WARNING: compensated_artifact_path '{cap}' not found. "
+                      f"Falling back to strip+overlay for {seg.get('clip_id', 'unknown')}.",
+                      file=sys.stderr)
+        
+        # Standard path: strip provider audio, overlay master narration
         speech_len = seg.get("speech_len_sec")
         media_dur = probe_dur(media)
-        # Trim to true speech length when known; else keep full clip.
         out_dur = float(speech_len) if speech_len else media_dur
         if out_dur > media_dur + 0.05:
             raise ValueError(
                 f"hero_lipsync segment {idx}: speech_len_sec={out_dur:.3f}s exceeds clip "
                 f"length {media_dur:.3f}s — slice/clip mismatch.")
         
-        # 1. Create muted video
         muted = tmp / f"seg_{idx}_muted.mp4"
         run(["ffmpeg", "-y", "-i", str(media),
              "-vf", f"{scale_crop},{grade}",
              "-t", f"{out_dur:.3f}",
-             "-map", "0:v", "-an",  # LB-202: Strip provider audio
+             "-map", "0:v", "-an",
              "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
              "-pix_fmt", "yuv420p", str(muted)], f"seg_{idx}_lipsync_muted")
         
-        # 2. Overlay master narration spine
         audio_src = seg.get("audio")
         if audio_src:
             audio_path = resolve(base, audio_src)
@@ -523,10 +540,7 @@ def process_segment(seg, speed, w, h, fps, grade, crf, tmp, base, idx, allow_loo
                  "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
                  str(dst)], f"seg_{idx}_lipsync")
         else:
-            # Fallback: if no audio source is provided, just use the muted video
-            # (This shouldn't happen in a correct LB-202 manifest)
             run(["ffmpeg", "-y", "-i", str(muted), "-c", "copy", str(dst)], f"seg_{idx}_lipsync_fallback")
-            
         return dst
 
     # PHASE 5: multi-shot visual bed — concatenate distinct shots to cover narration,

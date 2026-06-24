@@ -1,0 +1,12 @@
+{
+  "total_frames": 121,
+  "resolution": "320x184",
+  "mean_frame_diff": 2.0977584352355074,
+  "min_diff": 0.7150815217391304,
+  "max_diff": 4.701511548913044,
+  "freeze_frames": 120,
+  "black_frames": 0,
+  "face_detected": true,
+  "face_frames": 121,
+  "face_percentage": 100.0
+}

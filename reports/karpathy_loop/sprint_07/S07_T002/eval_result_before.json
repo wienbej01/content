@@ -1,0 +1,47 @@
+{
+  "eval_id": "S07_T002_audio_alignment",
+  "source_duration_sec": 4.572,
+  "diagnostic_duration_sec": 5.062,
+  "canary_duration_sec": 5.062,
+  "source_leading_silence_sec": 0.0,
+  "source_trailing_silence_sec": 0.082,
+  "diagnostic_leading_silence_sec": 0.24,
+  "diagnostic_trailing_silence_sec": 0.035,
+  "comparisons": {
+    "raw xcorr (src vs diag)": {
+      "offset_ms": -574.94,
+      "confidence": 0.1736
+    },
+    "trimmed xcorr (src vs diag)": {
+      "offset_ms": -334.56,
+      "confidence": 0.1711
+    },
+    "envelope xcorr (src vs diag)": {
+      "offset_ms": null,
+      "confidence": 0.0
+    },
+    "raw xcorr (canary vs diag)": {
+      "offset_ms": 0.0,
+      "confidence": 1.0
+    },
+    "trimmed xcorr (canary vs diag)": {
+      "offset_ms": 0.0,
+      "confidence": 1.0
+    }
+  },
+  "summary": {
+    "methods_reporting": 4,
+    "mean_offset_ms": -227.4,
+    "median_offset_ms": -167.3,
+    "offset_range_ms": [
+      -574.9,
+      0.0
+    ],
+    "mean_confidence": 0.4689,
+    "stable_across_methods": false,
+    "sign_convention": "negative = diagnostic audio LEADS source (provider prepended silence or shifted audio)",
+    "recommended_correction_ms": -167.0,
+    "status": "fail"
+  },
+  "classification": "B_AUDIO_SLICE_SHIFTED_OR_PADDED"
+}

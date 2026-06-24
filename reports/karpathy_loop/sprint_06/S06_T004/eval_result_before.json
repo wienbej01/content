@@ -1,0 +1,105 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "baseline": {
+    "path": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+    "exists": true,
+    "size_bytes": 10357752,
+    "duration_sec": 22.9,
+    "bitrate": 3618428,
+    "video": {
+      "resolution": "1920x1080",
+      "fps": "24/1",
+      "codec": "h264"
+    },
+    "audio": {
+      "sample_rate": 96000,
+      "channels": 2,
+      "codec": "aac"
+    }
+  },
+  "canary": {
+    "path": "assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/canary_pjob_fe40c769ad84418fb1091449e63d4da6.mp4",
+    "exists": true,
+    "size_bytes": 1017910,
+    "duration_sec": 5.062,
+    "bitrate": 1608723,
+    "video": {
+      "resolution": "864x496",
+      "fps": "24/1",
+      "codec": "h264"
+    },
+    "audio": {
+      "sample_rate": 44100,
+      "channels": 2,
+      "codec": "aac"
+    }
+  },
+  "provenance": {
+    "source_slice_sha256": "8e72630b726ab148586eb8445052be7c272efbee75e42f5c852a4a5bb6e8416b",
+    "diagnostic_audio_sha256": "2e2adf12366655ab55182fcf3abc4ec7f9d6585dc77c82f8841d6e5da4bcf85b",
+    "diagnostic_audio_matches_source_slice": false,
+    "diagnostic_audio_duration_sec": 5.061958,
+    "diagnostic_audio_exists": true,
+    "generated_media_sha256": "0a8de9e75ff0afc1b2aa5222a2840a0fa06a361c2537cbc9badcb48b20efc12d",
+    "generated_media_exists": true,
+    "expected_source_duration_ms": 4572,
+    "expected_source_duration_sec": 4.572
+  },
+  "lipsync": {
+    "baseline_offset_ms": -4950.0,
+    "baseline_confidence": 0.1369,
+    "baseline_method": "mouth_motion_proxy",
+    "canary_offset_ms": -2450.0,
+    "canary_confidence": 0.2735,
+    "canary_method": "mouth_motion_proxy",
+    "offset_change_ms": 2500.0,
+    "method": "mouth_motion_proxy (fallback \u2014 no SyncNet)",
+    "note": "Both results are provisional. Without face tracking or SyncNet, offset values are frame-diff vs audio-envelope correlations, not actual mouth-motion measurements. Do not use for publish decision."
+  },
+  "findings": [
+    {
+      "key": "duration_scope",
+      "severity": "info",
+      "detail": "Baseline is full 22.9s video. Canary is S000 segment only (~5.06s). Direct comparison limited."
+    },
+    {
+      "key": "resolution_change",
+      "severity": "warn",
+      "detail": "Provider output resolution changed from 1920x1080 (baseline) to 864x496 (canary). Check if this affects assembly compatibility."
+    },
+    {
+      "key": "lipsync_offset",
+      "severity": "fail",
+      "detail": "Canary offset -2450.0ms vs baseline -4950.0ms. Changed by 2500.0ms. Still exceeds 160ms fail threshold."
+    },
+    {
+      "key": "lipsync_method",
+      "severity": "fail",
+      "detail": "No SyncNet available. Cannot evaluate true lipsync quality. All measurements are provisional."
+    },
+    {
+      "key": "diagnostic_audio_hash",
+      "severity": "warn",
+      "detail": "Diagnostic audio SHA256 does not match source slice SHA256. This is EXPECTED \u2014 diagnostic audio is the provider's rendered audio output, not the input. Comparison requires audio-to-audio correlation."
+    },
+    {
+      "key": "canary_has_audio",
+      "severity": "pass",
+      "detail": "Canary has audio track."
+    },
+    {
+      "key": "canary_duration_vs_expected",
+      "severity": "pass",
+      "detail": "Canary duration 5062ms vs expected 4572ms (delta=490ms)."
+    }
+  ],
+  "overall": "fail",
+  "summary": {
+    "total_findings": 7,
+    "pass": 2,
+    "warn": 2,
+    "fail": 2
+  },
+  "decision": "FAIL_NEEDS_PROVIDER_RERENDER",
+  "decision_reason": "Canary lipsync offset (-2450ms) still exceeds 160ms fail threshold. Method is provisional mouth_motion_proxy. SyncNet required for definitive assessment. Production is NOT publishable with current lipsync quality."
+}

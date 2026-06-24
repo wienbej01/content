@@ -1,0 +1,23 @@
+[
+  {
+    "offset_ms": -574.94,
+    "confidence": 0.1736,
+    "source_duration_ms": 4572.0,
+    "diagnostic_duration_ms": 5061.9,
+    "source_leading_silence_ms": 0.0,
+    "source_trailing_silence_ms": 82.4,
+    "diagnostic_leading_silence_ms": 240.4,
+    "diagnostic_trailing_silence_ms": 35.3,
+    "sample_rate": 16000,
+    "method": "numpy_cross_correlation",
+    "sign_convention": "negative = diagnostic LEADS source",
+    "source_slice_artifact_id": "art_ae323485111b4d97ac5582ac5fe8e01f",
+    "source_slice_sha256": "8e72630b726ab148586eb8445052be7c272efbee75e42f5c852a4a5bb6e8416b",
+    "diagnostic_audio_artifact_id": "art_c36b28d1049f4c97bf621095cdb12888",
+    "diagnostic_audio_sha256": "2e2adf12366655ab55182fcf3abc4ec7f9d6585dc77c82f8841d6e5da4bcf85b",
+    "provider_job_id": "pjob_fe40c769ad84418fb1091449e63d4da6",
+    "render_unit_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+    "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+    "validation_id": "val_811dffb444fb4ae1bc914baf2f77c7ec"
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "eval_id": "S06_T003_canary_render_report",
+  "canary_status": "SUCCESS",
+  "freshness_gate": "PASS_FRESH_CANARY",
+  "provider_job_id": "pjob_fe40c769ad84418fb1091449e63d4da6",
+  "external_job_id": "1362aed5-bce6-4cc1-b57a-8fa9a1c888ca",
+  "canary_attempt_id": "canary_ca41251e947f4038",
+  "freshness_checks": {
+    "unlock_file_exists": true,
+    "unlock_has_canary_attempt_id": true,
+    "submitted_at_after_unlock": true,
+    "completed_at_after_unlock": true,
+    "artifact_created_after_unlock": true,
+    "artifact_job_id_matches": true,
+    "idempotency_key_includes_attempt_id": true,
+    "new_provider_job_not_duplicate": true,
+    "diagnostic_audio_extracted": true,
+    "source_slice_sha256_present": true
+  },
+  "lipsync_eval": {
+    "method": "mouth_motion_proxy",
+    "status": "fail",
+    "offset_ms": -2450.0,
+    "confidence": 0.2735,
+    "provisional": true
+  },
+  "artifact": {
+    "path": "assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/canary_pjob_fe40c769ad84418fb1091449e63d4da6.mp4",
+    "sha256": "0a8de9e75ff0afc1b2aa5222a2840a0fa06a361c2537cbc9badcb48b20efc12d",
+    "duration_ms": 5061,
+    "size_bytes": 1017910,
+    "resolution": "864x496",
+    "has_audio": true
+  },
+  "render_lock_reengaged": true
+}

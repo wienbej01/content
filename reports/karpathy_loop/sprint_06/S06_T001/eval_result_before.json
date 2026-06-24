@@ -1,0 +1,92 @@
+{
+  "eval_id": "S06_T001_readiness_scorecard",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "ready_for_actual_render": false,
+  "ready_for_canary_unlock": true,
+  "passed_sprints": [
+    "Sprint 00",
+    "Sprint 01",
+    "Sprint 02",
+    "Sprint 03",
+    "Sprint 04",
+    "Sprint 05"
+  ],
+  "missing_requirements": [
+    "Unlock file exists (user-created)"
+  ],
+  "results": [
+    {
+      "check": "Sprint 00 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_00/sprint_summary.md"
+    },
+    {
+      "check": "Sprint 01 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_01/sprint_summary.md"
+    },
+    {
+      "check": "Sprint 02 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_02/sprint_summary.md"
+    },
+    {
+      "check": "Sprint 03 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_03/sprint_summary.md"
+    },
+    {
+      "check": "Sprint 04 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_04/sprint_summary.md"
+    },
+    {
+      "check": "Sprint 05 passed",
+      "pass": true,
+      "detail": "reports/karpathy_loop/sprint_05/sprint_summary.md"
+    },
+    {
+      "check": "Lipsync eval",
+      "pass": true,
+      "detail": "scripts/evals/eval_lipsync.py"
+    },
+    {
+      "check": "Source slice ledger",
+      "pass": true,
+      "detail": "scripts/evals/eval_master_window.py"
+    },
+    {
+      "check": "Provider audio compare",
+      "pass": true,
+      "detail": "scripts/evals/provider_audio_compare.py"
+    },
+    {
+      "check": "Assembly transform ledger",
+      "pass": true,
+      "detail": "scripts/evals/assembly_transform_ledger.py"
+    },
+    {
+      "check": "Final defect ledger",
+      "pass": true,
+      "detail": "scripts/evals/eval_final_defect_ledger.py"
+    },
+    {
+      "check": "Regression suite",
+      "pass": true,
+      "detail": "scripts/evals/run_video_regression_suite.py"
+    },
+    {
+      "check": "Regression suite passes",
+      "pass": true,
+      "detail": "Regression Suite: 15/15 checks pass (0 failed)"
+    },
+    {
+      "check": "Unlock file exists (user-created)",
+      "pass": false,
+      "detail": "NOT FOUND \u2014 user must create after readiness"
+    }
+  ],
+  "recommendation": "allow_one_canary",
+  "unlock_instructions": "All core checks pass. To unlock actual render, create:\n  ops/ACTUAL_RENDER_UNLOCK.json\nwith content:\n  {\"allow_actual_video_render\": true, \"max_provider_jobs\": 1,\n   \"production_id\": \"prod_2f9bb58c0508465fb51ac6b4578bba92\",\n   \"approved_by\": \"human\",\n   \"reason\": \"controlled canary after readiness gates\",\n   \"created_at\": \"<ISO8601>\"}\nAfter creating the file, proceed to S06_T002 (dry-run audit) then S06_T003 (canary render)."
+}

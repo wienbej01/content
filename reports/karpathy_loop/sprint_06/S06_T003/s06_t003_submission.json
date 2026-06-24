@@ -1,0 +1,12 @@
+{
+  "submission": {
+    "provider_job_id": "pjob_fe40c769ad84418fb1091449e63d4da6",
+    "external_job_id": null,
+    "status": "submitted",
+    "idempotency_key": "pjob:prod_2f9bb58c0508465fb51ac6b4578bba92:render_f91a245c14b341b6a7975e2a8d5716fc:higgsfield:generate_video:15f76b3bbf1b25f9:canary_ca41251e947f4038",
+    "canary_attempt_id": "canary_ca41251e947f4038",
+    "submitted_at": "2026-06-24T12:32:38+08:00"
+  },
+  "fresh": true,
+  "source_slice_sha256": "8e72630b726ab148586eb8445052be7c272efbee75e42f5c852a4a5bb6e8416b"
+}
