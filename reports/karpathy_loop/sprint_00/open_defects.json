@@ -1,0 +1,88 @@
+{
+  "sprint": "Sprint 00 — Forensic Baseline",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "defects": [
+    {
+      "failure_class": "F-LIP-001",
+      "severity": "critical",
+      "status": "provisional",
+      "description": "Mouth/audio offset suspected. AV duration mismatch 67ms. No SyncNet score available.",
+      "detected_in": ["S00_T001", "S00_T002"],
+      "next_ticket": "S01_T003"
+    },
+    {
+      "failure_class": "F-LIP-004",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "Both hero units share same master audio. No per-slice window proof.",
+      "detected_in": ["S00_T003"],
+      "next_ticket": "S01_T002"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "Shared master audio — no per-slice lineage proof. Sub-defect: audio_slice_provenance.",
+      "detected_in": ["S00_T003"],
+      "next_ticket": "S01_T002"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "Deliverable path collision — 4 deliverables write to same path. Published version lost.",
+      "detected_in": ["S00_T001", "S00_T003"],
+      "next_ticket": "S01_T006"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "Provider job for S002 has status 'submitted' instead of 'completed'.",
+      "detected_in": ["S00_T003"],
+      "next_ticket": "S01_T004"
+    },
+    {
+      "failure_class": "F-QA-001",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "qa_final passes all contract checks but has zero lipsync/audio-sync gates.",
+      "detected_in": ["S00_T001", "S00_T003"],
+      "next_ticket": "S01_T001"
+    },
+    {
+      "failure_class": "F-QA-002",
+      "severity": "high",
+      "status": "confirmed",
+      "description": "No lipsync evaluation artifact exists in any validation or artifact record.",
+      "detected_in": ["S00_T001"],
+      "next_ticket": "S01_T001"
+    },
+    {
+      "failure_class": "F-GFX-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "7.125s static black hold (31.1% of 22.9s video).",
+      "detected_in": ["S00_T002"],
+      "next_ticket": "S01_T005"
+    },
+    {
+      "failure_class": "F-GFX-002",
+      "severity": "minor",
+      "status": "confirmed",
+      "description": "Static black graphic with no animation or beat structure.",
+      "detected_in": ["S00_T002"],
+      "next_ticket": "S01_T005"
+    },
+    {
+      "failure_class": "F-TEXT-001",
+      "severity": "minor",
+      "status": "confirmed",
+      "description": "Phone b-roll (4.583-10.458s) may contain readable text in violation of policy.",
+      "detected_in": ["S00_T002"],
+      "next_ticket": "S01_T007"
+    }
+  ],
+  "created_at": "2026-06-23T23:25:00+08:00"
+}

@@ -1,0 +1,17 @@
+{
+  "ticket_id": "",
+  "eval_name": "",
+  "eval_type": "",
+  "subject": {
+    "production_id": "",
+    "artifact_path": "",
+    "render_unit_id": null,
+    "timeline_span_id": null
+  },
+  "command": "",
+  "status": "blocked",
+  "expected_on_bad_fixture": "fail",
+  "metrics": {},
+  "thresholds": {},
+  "issues": []
+}

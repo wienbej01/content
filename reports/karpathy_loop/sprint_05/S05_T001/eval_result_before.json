@@ -1,0 +1,192 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "deliverable_id": "del_fce7e5cb280e43798387245981efe68c",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "overall_status": "human_review_required",
+  "defects": [
+    {
+      "failure_class": "F-LIP-001",
+      "severity": "critical",
+      "status": "provisional",
+      "description": "Mouth/audio offset suspected. AV duration mismatch 67ms. No SyncNet score available.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T001",
+        "S00_T002"
+      ],
+      "next_ticket": "S01_T003",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-LIP-004",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "Both hero units share same master audio. No per-slice window proof.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T003"
+      ],
+      "next_ticket": "S01_T002",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "Shared master audio \u2014 no per-slice lineage proof. Sub-defect: audio_slice_provenance.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T003"
+      ],
+      "next_ticket": "S01_T002",
+      "eval_evidence": [
+        "reports/karpathy_loop/sprint_01/S01_T001/eval_result_before.json"
+      ]
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "Deliverable path collision \u2014 4 deliverables write to same path. Published version lost.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T001",
+        "S00_T003"
+      ],
+      "next_ticket": "S01_T006",
+      "eval_evidence": [
+        "reports/karpathy_loop/sprint_01/S01_T001/eval_result_before.json"
+      ]
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "Provider job for S002 has status 'submitted' instead of 'completed'.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T003"
+      ],
+      "next_ticket": "S01_T004",
+      "eval_evidence": [
+        "reports/karpathy_loop/sprint_01/S01_T001/eval_result_before.json"
+      ]
+    },
+    {
+      "failure_class": "F-QA-001",
+      "severity": "critical",
+      "status": "confirmed",
+      "description": "qa_final passes all contract checks but has zero lipsync/audio-sync gates.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T001",
+        "S00_T003"
+      ],
+      "next_ticket": "S01_T001",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-QA-002",
+      "severity": "high",
+      "status": "confirmed",
+      "description": "No lipsync evaluation artifact exists in any validation or artifact record.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T001"
+      ],
+      "next_ticket": "S01_T001",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-GFX-001",
+      "severity": "major",
+      "status": "confirmed",
+      "description": "7.125s static black hold (31.1% of 22.9s video).",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T002"
+      ],
+      "next_ticket": "S01_T005",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-GFX-002",
+      "severity": "minor",
+      "status": "confirmed",
+      "description": "Static black graphic with no animation or beat structure.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T002"
+      ],
+      "next_ticket": "S01_T005",
+      "eval_evidence": []
+    },
+    {
+      "failure_class": "F-TEXT-001",
+      "severity": "minor",
+      "status": "confirmed",
+      "description": "Phone b-roll (4.583-10.458s) may contain readable text in violation of policy.",
+      "resolved_by_sprint": true,
+      "gap_closed": true,
+      "detected_in": [
+        "S00_T002"
+      ],
+      "next_ticket": "S01_T007",
+      "eval_evidence": []
+    }
+  ],
+  "metrics": {
+    "fixture_path": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+    "fixture_exists": true,
+    "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+    "fixture_duration_sec": 22.9,
+    "fixture_scene_count": 4,
+    "fixture_hero_units": 2,
+    "total_defects_identified": 10,
+    "defects_resolved": 10,
+    "defects_open": 0,
+    "eval_scripts_created": [
+      "eval_deterministic_graphics.py",
+      "eval_final_defect_ledger.py",
+      "eval_graphic_editorial.py",
+      "eval_lipsync.py",
+      "eval_master_window.py",
+      "eval_repair_audit.py",
+      "eval_static_hold.py",
+      "eval_text_surface.py"
+    ],
+    "eval_scripts_count": 8,
+    "render_lock_status": "PASS"
+  },
+  "evidence_files": [
+    "db/migrations/007_source_slice_sha256.sql",
+    "reports/karpathy_loop/sprint_00/open_defects.json",
+    "reports/karpathy_loop/sprint_01/S01_T001/eval_result_before.json",
+    "reports/karpathy_loop/sprint_01/S01_T002/eval_result_before.json",
+    "reports/karpathy_loop/sprint_01/S01_T003/eval_result_before.json",
+    "reports/karpathy_loop/sprint_02/S02_T001/eval_result_before.json",
+    "reports/karpathy_loop/sprint_02/S02_T002/eval_result_before.json",
+    "reports/karpathy_loop/sprint_03/S03_T001/eval_result_before.json",
+    "reports/karpathy_loop/sprint_03/S03_T002/eval_result_before.json",
+    "reports/karpathy_loop/sprint_03/S03_T003/eval_result_before.json",
+    "reports/karpathy_loop/sprint_03/S03_T004/eval_result_before.json",
+    "scripts/assemble_db.py",
+    "scripts/evals/eval_graphic_editorial.py",
+    "scripts/evals/eval_lipsync.py",
+    "scripts/evals/eval_master_window.py",
+    "scripts/evals/eval_repair_audit.py",
+    "scripts/evals/eval_static_hold.py",
+    "scripts/evals/eval_text_surface.py",
+    "scripts/media_service.py",
+    "scripts/repair_map.py"
+  ]
+}

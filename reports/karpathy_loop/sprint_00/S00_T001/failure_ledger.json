@@ -1,0 +1,129 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture_path": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "failures": [
+    {
+      "id": "F-QA-002-001",
+      "class": "F-QA-002",
+      "label": "Missing lipsync eval artifact",
+      "severity": "high",
+      "description": "No lipsync/audio-sync evaluation exists in 30 validation records. 26 qa_media_contract and 4 qa_final validations all pass but none measure audio-visual temporal alignment.",
+      "evidence": [
+        "validations table: 30 rows, all status=pass, zero contain lipsync/SyncNet/Wav2Lip references",
+        "qa_final result val_841873b: keys=[all_contract_checks_pass, all_local_provenance, all_passing_qa, assembly_preflight_passed, deliverable_exists] — no audio sync check",
+        "qa_media_contract validators check format/codec/duration only"
+      ],
+      "affected_artifacts": [
+        "val_de81853f4b704a66980dbfaf465198c7",
+        "val_841873b3981d4c859a012db515569c22",
+        "val_c636c036a1f5450a910a5d593cbc57e6",
+        "val_80ad7deed5fb47208cbac2af9a0458d8"
+      ],
+      "repair_candidates": [
+        "Implement lipsync eval using SyncNet or similar",
+        "Add lipsync threshold to qa_final gates",
+        "Require lipsync eval artifact before publish"
+      ]
+    },
+    {
+      "id": "F-PROV-001-001",
+      "class": "F-PROV-001",
+      "label": "Broken provenance: fixture is not published deliverable",
+      "severity": "high",
+      "description": "The fixture file (10.4MB, sha256 35b972d4) is deliverable del_fce7e5cb with status 'assembled', NOT 'published'. The last published deliverable del_fe7a12bb (32MB, sha256 36ff77fd) was overwritten on disk by a subsequent assembly. The final published MP4 is not recoverable from the filesystem without DB artifact storage or backup.",
+      "evidence": [
+        "artifacts: art_4890d923 (10.4MB, assembled) is file on disk",
+        "artifacts: art_f31f203b (32MB, published) exists only in DB record",
+        "deliverables: del_fce7e5cb (assembled) vs del_fe7a12bb (published)",
+        "All 4 16x9 deliverables write to same file path; last writer wins"
+      ],
+      "affected_artifacts": [
+        "art_4890d923e831493cba2ab6fd49014ce6",
+        "art_f31f203b7e024ecaa6f170833d8d4821",
+        "art_01596f5e2f3e4439aef095ca421b7bd5",
+        "art_1a83d92bbff842528a36ed39492d9234"
+      ],
+      "repair_candidates": [
+        "Ensure deliverables write to unique, versioned paths",
+        "Store artifact files in content-addressable storage",
+        "Tag each assembly with its own output path"
+      ]
+    },
+    {
+      "id": "F-LIP-001-001",
+      "class": "F-LIP-001",
+      "label": "Suspected mouth/audio offset",
+      "severity": "high",
+      "description": "Primary defect reported. Manual review indicates mouth motion does not align with audio. No quantitative score exists. Requires eval harness (SyncNet/Wav2Lip) to confirm.",
+      "evidence": [
+        "01_CONTEXT_CURRENT_STATE.md: suspected severe mouth/audio lipsync offset",
+        "No SyncNet/Wav2Lip/etc score in any validation record",
+        "30 validations exist, none measure lipsync"
+      ],
+      "affected_artifacts": [
+        "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4"
+      ],
+      "repair_candidates": [
+        "Run SyncNet on fixture video to obtain quantitative offset score",
+        "Audit audio provenance from source slice through provider to final assembly"
+      ]
+    },
+    {
+      "id": "F-QA-001-001",
+      "class": "F-QA-001",
+      "label": "Fake-green QA: final passes without lipsync check",
+      "severity": "high",
+      "description": "qa_final validation passes (val_841873b) on contract checks only. No lipsync/audio-temporal alignment gate exists. QA emits 'passed' status while the primary defect (lipsync offset) remains undetected.",
+      "evidence": [
+        "qa_final run_36486397: validation_id=val_841873b, status=passed",
+        "result_summary_json keys: all_contract_checks_pass, all_local_provenance, all_passing_qa, assembly_preflight_passed, deliverable_exists",
+        "No audio sync/offset/lipsync key in any validation evidence_json"
+      ],
+      "affected_artifacts": [
+        "val_841873b3981d4c859a012db515569c22",
+        "run_3648639730af4974a11bf67c1cfc72e7"
+      ],
+      "repair_candidates": [
+        "Add lipsync score threshold to qa_final gates",
+        "Require per-hero-unit lipsync validation before assemble",
+        "Add objective audio-timing check to contract validator"
+      ]
+    },
+    {
+      "id": "F-PROV-001-002",
+      "class": "F-PROV-001",
+      "label": "Missing audio slice lineage proof",
+      "severity": "medium",
+      "description": "Cannot prove that source audio slice used for provider generation matches the master-audio window used in final assembly without full artifact chain reconstruction. The render_units table has final_audio_source and master_audio_artifact_id columns but they are null or unpopulated for many units.",
+      "evidence": [
+        "render_units: many HERO_SYNC_LOCKED units have null active_artifact_id",
+        "render_units: final_audio_source, master_audio_artifact_id, master_audio_sha256 columns need inspection",
+        "57 HERO_SYNC_LOCKED units across multiple generations with different audio slices"
+      ],
+      "affected_artifacts": [],
+      "repair_candidates": [
+        "Audit each hero unit's audio slice hash vs final master window hash",
+        "Add provenance verification step to assembly preflight"
+      ]
+    },
+    {
+      "id": "F-GFX-001-001",
+      "class": "F-GFX-001",
+      "label": "Static graphic hold (7.23s of 22.9s total)",
+      "severity": "medium",
+      "description": "Final 7.23 seconds (31.6% of video) is a static black graphic/title card. QA shows 5 local graphics exist but there is no hold-time policy or progressive animation.",
+      "evidence": [
+        "qa_final report: local_graphic_count=5",
+        "Manual scene timeline: 15.67-22.90s = static black graphic"
+      ],
+      "affected_artifacts": [],
+      "repair_candidates": [
+        "Add max hold duration policy for static graphics",
+        "Split long graphic spans into progressive beats",
+        "Add animation/motion treatment to graphics"
+      ]
+    }
+  ],
+  "created_at": "2026-06-23T22:59:00+08:00"
+}

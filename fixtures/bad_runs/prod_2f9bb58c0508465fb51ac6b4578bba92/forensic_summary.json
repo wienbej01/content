@@ -1,0 +1,73 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "duration_sec": 22.9,
+  "resolution": "1920x1080",
+  "fps": 24,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "audio_sample_rate": 96000,
+  "audio_channels": 2,
+  "video_duration_sec": 22.833,
+  "audio_duration_sec": 22.900,
+  "audio_video_duration_diff_sec": 0.067,
+  "frame_count": 548,
+  "bitrate_bps": 3618428,
+  "scene_count": 4,
+  "scene_transitions_sec": [4.583, 10.458, 15.667],
+  "scene_threshold": 0.1,
+  "black_hold": {
+    "start_sec": 15.667,
+    "end_sec": 22.792,
+    "duration_sec": 7.125,
+    "detection_method": "ffmpeg blackdetect d=0.5 pic_th=0.98",
+    "percentage_of_total": 31.1
+  },
+  "hero_talking_head_segments": [
+    {"scene": 1, "start_sec": 0.000, "end_sec": 4.583, "duration_sec": 4.583, "label": "S000"},
+    {"scene": 3, "start_sec": 10.458, "end_sec": 15.667, "duration_sec": 5.209, "label": "S002"}
+  ],
+  "broll_segments": [
+    {"scene": 2, "start_sec": 4.583, "end_sec": 10.458, "duration_sec": 5.875, "type": "phone_screen"}
+  ],
+  "mean_volume_db": -19.5,
+  "max_volume_db": -2.9,
+  "audio_continuous": true,
+  "silence_gaps_detected": false,
+  "suspected_lipsync_offset_ms": null,
+  "lipsync_assessment": "provisional",
+  "lipsync_detection_method": null,
+  "lipsync_note": "SyncNet/Wav2Lip not run. Manual review indicates possible offset in hero talking head segments. No quantitative score available. Requires eval harness.",
+  "failures_identified": [
+    {
+      "class": "F-GFX-001",
+      "label": "Static graphic hold excessive",
+      "evidence": "7.125s black hold at end (31.1% of total duration). 3 of 4 black-keyed frames at 17s, 19s, 21s are identical size (40264 bytes), confirming static content.",
+      "value_sec": 7.125
+    },
+    {
+      "class": "F-GFX-002",
+      "label": "Graphic editorial value weak",
+      "evidence": "Black static title card with no progressive animation, no motion treatment, no beat structure.",
+      "value_sec": 7.125
+    },
+    {
+      "class": "F-TEXT-001",
+      "label": "Provider text-risk surface",
+      "evidence": "Scene 2 (phone b-roll) may contain screen text. HERO_SYNC_LOCKED units have NO_VISIBLE_TEXT policy but phone screen segment is not a hero unit and may contain readable text.",
+      "value_sec": null
+    },
+    {
+      "class": "F-LIP-001",
+      "label": "Mouth/audio offset (provisional)",
+      "evidence": "No quantitative measurement available. Reported as primary defect. Requires SyncNet eval.",
+      "value_sec": null
+    }
+  ],
+  "frame_extraction_paths": {
+    "contact_sheet": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/contact_sheet.jpg",
+    "key_frames": "reports/karpathy_loop/sprint_00/S00_T002/frame_*.jpg"
+  },
+  "created_at": "2026-06-23T23:17:00+08:00"
+}

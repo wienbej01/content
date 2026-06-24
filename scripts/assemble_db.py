@@ -37,7 +37,8 @@ class AssemblyError(Exception):
 # ---------------------------------------------------------------------------
 
 TIMELINE_GAP_TOLERANCE_MS = 100
-LOCAL_GRAPHIC_MAX_DURATION_MS = 15000
+LOCAL_GRAPHIC_MAX_DURATION_MS = 4000  # warn threshold (S03-T003)
+LOCAL_GRAPHIC_FAIL_DURATION_MS = 6000  # fail threshold (S03-T003)
 MICRO_CUT_MIN_DURATION_MS = 1000
 
 
@@ -261,18 +262,28 @@ def _validate_timeline_heuristics(units: list) -> None:
                 f"has duration {dur}ms (< {MICRO_CUT_MIN_DURATION_MS}ms)"
             )
 
-    # Reject long holds (> 15s) for local_graphic without 'hold' marker
+    # S03-T003: Static graphic hold with graduated thresholds.
+    # Warn at LOCAL_GRAPHIC_MAX_DURATION_MS (4s), fail at LOCAL_GRAPHIC_FAIL_DURATION_MS (6s).
+    # Allow longer only if "hold" in label (explicit hold_policy=true).
+    import logging as _logging
+    _log = _logging.getLogger("assemble_db")
     for u in units:
         if u["asset_type"] == "local_graphic":
             dur = u["required_duration_ms"] or 0
-            if dur > LOCAL_GRAPHIC_MAX_DURATION_MS:
-                label = (u.get("label") or "").lower()
-                if "hold" not in label:
-                    raise AssemblyError(
-                        f"BLOCKED: assembly input validation failed - "
-                        f"local graphic {u['id']} duration {dur}ms exceeds "
-                        f"{LOCAL_GRAPHIC_MAX_DURATION_MS}ms without 'hold' marker"
-                    )
+            label = (u.get("label") or "").lower()
+            is_hold = "hold" in label
+
+            if dur > LOCAL_GRAPHIC_FAIL_DURATION_MS and not is_hold:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - "
+                    f"local graphic {u['id']} duration {dur}ms exceeds "
+                    f"{LOCAL_GRAPHIC_FAIL_DURATION_MS}ms fail threshold without 'hold' marker"
+                )
+            elif dur > LOCAL_GRAPHIC_MAX_DURATION_MS and not is_hold:
+                _log.warning(
+                    f"Local graphic {u['id']} duration {dur}ms exceeds "
+                    f"{LOCAL_GRAPHIC_MAX_DURATION_MS}ms warn threshold without 'hold' marker"
+                )
 def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
     """Build a complete assembly input object purely from DB state.
 

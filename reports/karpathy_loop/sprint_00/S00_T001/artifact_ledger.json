@@ -1,0 +1,72 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture_path": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "fixture_size_bytes": 10357752,
+  "fixture_status": "committed",
+  "source_path": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4",
+  "artifacts": [
+    {
+      "id": "art_4890d923e831493cba2ab6fd49014ce6",
+      "kind": "deliverable_16x9",
+      "sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+      "size_bytes": 10357752,
+      "mime_type": "video/mp4",
+      "uri": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4",
+      "deliverable_id": "del_fce7e5cb280e43798387245981efe68c",
+      "deliverable_status": "assembled",
+      "assembly_attempt": 11,
+      "assembly_run_id": "run_f9cd14794e4a410ca7a20d33745fd623",
+      "committed": true
+    },
+    {
+      "id": "art_f31f203b7e024ecaa6f170833d8d4821",
+      "kind": "deliverable_16x9",
+      "sha256": "36ff77fd544d5c3f7a6aee1e88b8dfb9aa8c03d5427f92fa5fec31df7aca1f02",
+      "size_bytes": 32024594,
+      "mime_type": "video/mp4",
+      "deliverable_id": "del_fe7a12bb3f2e4e949115b4e5f069efac",
+      "deliverable_status": "published",
+      "assembly_attempt": 7,
+      "assembly_run_id": "run_ec8b18f781ab41d5a34222363cfd648c",
+      "qa_final_validation_id": "val_841873b3981d4c859a012db515569c22",
+      "committed": false,
+      "note": "Last published deliverable; 32MB; overwritten on disk by subsequent assembly"
+    },
+    {
+      "id": "art_01596f5e2f3e4439aef095ca421b7bd5",
+      "kind": "deliverable_16x9",
+      "sha256": "f5dc348a9b381eea3e1ddf6b7eedc34d363b759302aa3f0f6779a6ad2e357e62",
+      "size_bytes": 36705899,
+      "mime_type": "video/mp4",
+      "deliverable_id": "del_66f357a262e44b00a3625034f94e687d",
+      "deliverable_status": "published",
+      "assembly_attempt": 1,
+      "qa_final_validation_id": "val_de81853f4b704a66980dbfaf465198c7",
+      "committed": false
+    },
+    {
+      "id": "art_1a83d92bbff842528a36ed39492d9234",
+      "kind": "deliverable_16x9",
+      "sha256": "8dfc8edc53e486073de87ee26ead3104f4875904b51e5d68bb7087c8b2c7418e",
+      "size_bytes": 5313636,
+      "mime_type": "video/mp4",
+      "deliverable_id": "del_24e9c309bedf4f8385269610c468565d",
+      "deliverable_status": "assembled",
+      "assembly_attempts": [8, 10],
+      "committed": false
+    }
+  ],
+  "render_units_total": 95,
+  "hero_sync_locked_units": 57,
+  "provider_jobs_total": 26,
+  "validations_total": 30,
+  "validation_types": {
+    "qa_media_contract": 26,
+    "qa_final": 4
+  },
+  "stage_runs_total": 287,
+  "assembly_attempts": 11,
+  "db_path": "db/production.db",
+  "created_at": "2026-06-23T22:59:00+08:00"
+}

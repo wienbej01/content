@@ -1,0 +1,67 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "count": 4,
+  "status": "inconclusive",
+  "results": [
+    {
+      "render_unit_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+      "label": "S000",
+      "text_policy": "NO_VISIBLE_TEXT",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "asset_type": "lipsync_video",
+      "has_qa": true,
+      "qa_status": "pass",
+      "ocr_available": null,
+      "ocr_frames_checked": 0,
+      "text_detected": null,
+      "text_policy_ok": true,
+      "ocr_error": null,
+      "status": "pass"
+    },
+    {
+      "render_unit_id": "render_d4e6ca191a5a4dc18e029e82d77d06df",
+      "label": "S001",
+      "text_policy": "NO_VISIBLE_TEXT",
+      "audio_policy": "BROLL_FLEX",
+      "asset_type": "generated_video",
+      "has_qa": true,
+      "qa_status": "pass",
+      "ocr_available": false,
+      "ocr_frames_checked": 0,
+      "text_detected": null,
+      "text_policy_ok": true,
+      "ocr_error": "tesseract binary not available",
+      "status": "pass"
+    },
+    {
+      "render_unit_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+      "label": "S002",
+      "text_policy": "NO_VISIBLE_TEXT",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "asset_type": "lipsync_video",
+      "has_qa": true,
+      "qa_status": "pass",
+      "ocr_available": null,
+      "ocr_frames_checked": 0,
+      "text_detected": null,
+      "text_policy_ok": true,
+      "ocr_error": null,
+      "status": "pass"
+    },
+    {
+      "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+      "label": "S003",
+      "text_policy": "NO_VISIBLE_TEXT",
+      "audio_policy": "SILENT_GRAPHIC",
+      "asset_type": "local_graphic",
+      "has_qa": false,
+      "qa_status": null,
+      "ocr_available": null,
+      "ocr_frames_checked": 0,
+      "text_detected": null,
+      "text_policy_ok": null,
+      "status": "inconclusive",
+      "note": "requires_human_review: ocr_not_performed"
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "duration_sec": 22.9,
+  "scene_count": 4,
+  "failures": [
+    {
+      "failure_class": "F-LIP-001",
+      "severity": "critical",
+      "label": "Mouth/audio offset suspected",
+      "description": "AV duration mismatch of 67ms (exceeds 1 frame = 41.7ms at 24fps). Manual review reports severe offset. No SyncNet/Wav2Lip score exists.",
+      "evidence": [
+        "01_CONTEXT_CURRENT_STATE.md: suspected severe mouth/audio lipsync offset (manual review)",
+        "video_forensic_summary.json: audio_dur=22.900s vs video_dur=22.833s, diff=0.067s",
+        "30 validations exist, zero measure lipsync"
+      ],
+      "eval_status": "diagnostic",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T002/video_forensic_summary.json",
+      "next_ticket": "S01_T003"
+    },
+    {
+      "failure_class": "F-LIP-004",
+      "severity": "critical",
+      "label": "Final master window mismatch (suspected)",
+      "description": "Both hero units (S000, S002) reference the same master audio artifact (art_67a51ece, sha256 9437f770). No per-slice provenance proves which audio window was sent to Higgsfield.",
+      "evidence": [
+        "eval_result_before.json (T003): SHARED_MASTER_AUDIO check FAIL — 2 HERO units share 1 master audio artifact",
+        "render_units: render_f91a245c (S000) and render_a34a0a170 (S002) both reference art_67a51ece",
+        "No hero_audio_slice artifacts linked to valid render units"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T003/eval_result_before.json",
+      "next_ticket": "S01_T002"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "critical",
+      "label": "Broken provenance — shared master audio, no per-slice proof",
+      "description": "Cannot prove which source audio slice was sent to provider for each hero unit. Both units reference the same master TTS with no per-slice hash or offset record.",
+      "evidence": [
+        "eval_result_before.json (T003): SHARED_MASTER_AUDIO check FAIL",
+        "forensic_report.md (T001): deliverable fixture is NOT published version"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T003/eval_result_before.json",
+      "next_ticket": "S01_T002"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "label": "Broken provenance — deliverable path collision",
+      "description": "All 4 16x9 deliverables write to the same file path. Last writer overwrites previous versions. Published deliverable (32MB) was lost.",
+      "evidence": [
+        "eval_result_before.json (T003): DELIVERABLE_PATH_COLLISION check FAIL — 3 collisions among 4 deliverables",
+        "deliverables: del_fe7a12bb (published, 32MB) overwritten by del_fce7e5cb (assembled, 10.4MB)"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T003/eval_result_before.json",
+      "next_ticket": "S01_T006"
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "label": "Broken provenance — provider job status mismatch",
+      "description": "Provider job pjob_425b4302 for render unit a34a0a170 (S002) has status 'submitted', not 'completed', yet the render unit is marked 'valid'.",
+      "evidence": [
+        "eval_result_before.json (T003): PROVIDER_JOB_STATUS check FAIL — 1 of 3 jobs not completed",
+        "provider_jobs: pjob_425b43027559456 — status=submitted"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T003/eval_result_before.json",
+      "next_ticket": "S01_T004"
+    },
+    {
+      "failure_class": "F-QA-001",
+      "severity": "critical",
+      "label": "Fake-green QA — no lipsync gate",
+      "description": "qa_final validation passes (val_841873b) with all_contract_checks_pass=true but no lipsync/audio-sync check exists. 30 validations, 0 measure lipsync.",
+      "evidence": [
+        "eval_result_before.json (T003): QA_LIPSYNC_GATE check FAIL — 5 qa_final runs, lipsync check absent",
+        "validations: val_841873b evidence_json keys — no lipsync/SyncNet/Wav2Lip reference"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T003/eval_result_before.json",
+      "next_ticket": "S01_T001"
+    },
+    {
+      "failure_class": "F-QA-002",
+      "severity": "high",
+      "label": "Missing lipsync eval artifact",
+      "description": "No lipsync evaluation artifact exists in any validation or artifact record.",
+      "evidence": [
+        "validations: 30 rows, zero contain lipsync/audio sync references",
+        "artifacts: no lipsync score artifact exists"
+      ],
+      "eval_status": "missing",
+      "eval_artifact": null,
+      "next_ticket": "S01_T001"
+    },
+    {
+      "failure_class": "F-GFX-001",
+      "severity": "major",
+      "label": "Static graphic hold excessive",
+      "description": "Black static hold of 7.125 seconds (31.1% of total 22.9s video). Detected by ffmpeg blackdetect from 15.667s to 22.792s.",
+      "evidence": [
+        "video_forensic_summary.json (T002): max_static_hold_sec=7.125, black_hold_start_sec=15.667, black_hold_end_sec=22.792",
+        "3 key frames at 17s, 19s, 21s are identical (40264 bytes each)"
+      ],
+      "eval_status": "failing",
+      "eval_artifact": "reports/karpathy_loop/sprint_00/S00_T002/video_forensic_summary.json",
+      "next_ticket": "S01_T005"
+    },
+    {
+      "failure_class": "F-GFX-002",
+      "severity": "minor",
+      "label": "Graphic editorial value weak",
+      "description": "Static black title card with no progressive animation, no motion treatment, no beat structure.",
+      "evidence": [
+        "scene_timeline.csv: Scene 4 is static_black for 7.166s",
+        "contact_sheet.jpg: frames at 17s, 19s, 21s are identical black"
+      ],
+      "eval_status": "diagnostic",
+      "eval_artifact": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/forensic_summary.json",
+      "next_ticket": "S01_T005"
+    },
+    {
+      "failure_class": "F-TEXT-001",
+      "severity": "minor",
+      "label": "Provider text-risk surface",
+      "description": "Scene 2 (phone b-roll, 4.583-10.458s) may contain visible screen text. NO_VISIBLE_TEXT policy applies to hero lipsync units but b-roll may contain readable text.",
+      "evidence": [
+        "scene_timeline.csv: Scene 2 = phone b-roll (5.875s duration)",
+        "forensic_summary.json (fixture): broll_segments contains phone_screen type"
+      ],
+      "eval_status": "diagnostic",
+      "eval_artifact": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/forensic_summary.json",
+      "next_ticket": "S01_T007"
+    }
+  ],
+  "created_at": "2026-06-23T23:24:00+08:00",
+  "sprint": "Sprint 00",
+  "next_sprint": "Sprint 01"
+}

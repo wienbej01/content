@@ -1,0 +1,65 @@
+{
+  "eval_id": "S00_T004_ledger_validation",
+  "subject": "reports/karpathy_loop/sprint_00/S00_T004/failure_ledger.json",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "timestamp": "2026-06-23T23:25:00+08:00",
+  "overall_pass": true,
+  "total_checks": 6,
+  "checks_passed": 6,
+  "checks_failed": 0,
+  "checks": [
+    {
+      "check": "LEDGER_EXISTS",
+      "pass": true,
+      "detail": "valid JSON, 10 failures",
+      "threshold": "file exists and parseable"
+    },
+    {
+      "check": "ALL_DEFECTS_CAPTURED",
+      "pass": true,
+      "detail": "expected=['F-GFX-001', 'F-GFX-002', 'F-LIP-001', 'F-LIP-004', 'F-PROV-001', 'F-QA-001', 'F-QA-002', 'F-TEXT-001'] observed=['F-GFX-001', 'F-GFX-002', 'F-LIP-001', 'F-LIP-004', 'F-PROV-001', 'F-QA-001', 'F-QA-002', 'F-TEXT-001'] missing=[] extra=[]",
+      "threshold": "all 8 failure classes captured"
+    },
+    {
+      "check": "REQUIRED_FIELDS",
+      "pass": true,
+      "detail": "10 failures; 0 with missing fields: {}",
+      "threshold": "each failure must have: failure_class, severity, evidence, eval_status, next_ticket"
+    },
+    {
+      "check": "NEXT_TICKETS_ASSIGNED",
+      "pass": true,
+      "detail": "0 failures without next_ticket",
+      "threshold": "all failures must point to a future ticket"
+    },
+    {
+      "check": "EVAL_STATUS_COVERAGE",
+      "pass": true,
+      "detail": "statuses: {'missing', 'diagnostic', 'failing'} (missing=True, diag=True, failing=True)",
+      "threshold": "at least one of each: missing, diagnostic, failing"
+    },
+    {
+      "check": "SEVERITY_DISTRIBUTION",
+      "pass": true,
+      "detail": "severities: {'major', 'critical', 'minor', 'high'}",
+      "threshold": "at least one critical severity entry"
+    }
+  ],
+  "issues": [],
+  "failure_count": 10,
+  "failure_classes": [
+    "F-GFX-001",
+    "F-GFX-002",
+    "F-LIP-001",
+    "F-LIP-004",
+    "F-PROV-001",
+    "F-QA-001",
+    "F-QA-002",
+    "F-TEXT-001"
+  ],
+  "summary": {
+    "pass": 6,
+    "fail": 0,
+    "total": 6
+  }
+}

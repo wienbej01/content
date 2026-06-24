@@ -111,6 +111,19 @@ def submit_provider_job(
             f"{exc}"
         )
 
+    # S01-T001: Source-slice provenance gate for HERO_SYNC_LOCKED units.
+    # A hero lipsync unit must have a verified source_slice_sha256 before
+    # it can be submitted to a provider. This proves which exact audio window
+    # was sent for generation.
+    if ru.get("audio_policy") == "HERO_SYNC_LOCKED":
+        ru_slice_sha = ru.get("source_slice_sha256")
+        if not ru_slice_sha:
+            raise ProviderJobError(
+                f"Cannot submit provider job for HERO_SYNC_LOCKED render_unit "
+                f"{render_unit_id}: source_slice_sha256 is missing. "
+                f"Run audio slicing first (slice_continuous_lipsync.py)."
+            )
+
     idem = idempotency_key or (
         f"pjob:{production_id}:{render_unit_id}:{provider}:{operation}:"
         f"{_db._sha256_bytes(_db._json(request_payload).encode())[:16]}"
@@ -685,6 +698,26 @@ def _qa_local_graphic(
     if not spec_sha_match:
         issues.append("text_spec_hash_mismatch")
 
+    # 6a. Text length within safe bounds (S03-T001)
+    text_len_ok = True
+    if dts and isinstance(dts, dict):
+        text_val = dts.get("text", "")
+        if isinstance(text_val, str):
+            text_len = len(text_val)
+            evidence["text_length"] = text_len
+            if text_len < 1:
+                text_len_ok = False
+                issues.append("text_empty")
+            elif text_len > 500:
+                text_len_ok = False
+                issues.append(f"text_length_{text_len}_exceeds_{500}")
+        else:
+            text_len_ok = False
+            issues.append("text_not_string")
+    else:
+        evidence["text_length"] = None
+    evidence["text_length_ok"] = text_len_ok
+
     # 7. File dimensions/duration if MP4
     dims_ok = True
     dur_ok = True
@@ -921,9 +954,34 @@ def _qa_hero_lipsync(
 
     evidence["issues"] = issues
 
+    # S01-T004: Integrate lipsync drift check into hero lipsync QA
+    if artifact_path is not None and artifact_path.exists():
+        try:
+            from qa_lipsync import detect_lipsync_drift_ms
+            has_drift, drift_ms, drift_msg = detect_lipsync_drift_ms(
+                artifact_path, render_unit.get("required_duration_ms", 0) or 0
+            )
+            evidence["lipsync_drift_ms"] = drift_ms
+            evidence["lipsync_drift_ok"] = not has_drift
+            evidence["lipsync_qa_method"] = "qa_lipsync.detect_lipsync_drift_ms"
+            if has_drift:
+                issues.append(f"lipsync_drift_{drift_ms}ms")
+        except Exception as exc:
+            evidence["lipsync_drift_ms"] = None
+            evidence["lipsync_drift_ok"] = False
+            evidence["lipsync_qa_method"] = "blocked_dependency"
+            issues.append(f"lipsync_qa_unavailable: {exc}")
+    else:
+        evidence["lipsync_drift_ms"] = None
+        evidence["lipsync_drift_ok"] = False
+        evidence["lipsync_qa_method"] = "blocked"
+        issues.append("lipsync_qa_blocked: no artifact path")
+
+    evidence["issues"] = issues
+
     passed = (
         evidence["file_exists"] and evidence["dimensions_ok"] and evidence["sha_match"]
-        and evidence["duration_ok"]
+        and evidence["duration_ok"] and evidence.get("lipsync_drift_ok", True)
     )
     return (passed, evidence)
 
@@ -1033,6 +1091,39 @@ def run_contract_media_qa(
 # ---------------------------------------------------------------------------
 # QA-605  Change-request routing
 # ---------------------------------------------------------------------------
+
+# S04-T003: Minimal stage routing map
+# Maps change_type to the minimal affected stage (avoids full rerun).
+_CHANGE_TYPE_TO_STAGE = {
+    "re_generate": "render_media",
+    "re_slice": "audio_timing",
+    "re_assemble": "assemble",
+    "re_plan": "graphics_compositing",
+    "re_render_local": "graphics_compositing",
+    "add_gate": "qa_final",
+    "block_pipeline": "qa_final",
+    "fix_provenance": "audio_slicing",
+    "fix_column": "production_db",
+    "unlock_render": "production_db",
+    "add_idempotency": "production_db",
+}
+
+
+def route_minimal_stage(failure_class: str, change_type: str) -> str:
+    """Return the minimal affected stage for a failure class and change type.
+
+    Uses repair_map for primary mapping, falls back to _CHANGE_TYPE_TO_STAGE,
+    then defaults to 'assemble'.
+    """
+    try:
+        from repair_map import target_stage_for
+        stage = target_stage_for(failure_class)
+        if stage:
+            return stage
+    except ImportError:
+        pass
+    return _CHANGE_TYPE_TO_STAGE.get(change_type, "assemble")
+
 
 def route_change_request(
     production_id: str,
@@ -1371,10 +1462,38 @@ def run_repair_lifecycle(
     failure_class = classify_validation_failure(evidence)
     action = choose_repair_action(render_unit, failure_class)
 
+    # S04-T002: Evidence validation -- refuse repair when evidence is missing
+    if not evidence or not isinstance(evidence, dict):
+        raise RuntimeError(
+            f"REPAIR BLOCKED: render_unit {render_unit_id} has no failure evidence. "
+            f"Repair must be driven by validations, not vague complaints."
+        )
+
+    # S04-T002: Create change_request with failure_class and evidence link
+    import json as _crjson
+    cr_id = _db._id("change")
+    from repair_map import target_stage_for as _map_stage
+    mapped_stage = _map_stage(failure_class) or action.replace('_', '_media')
+    with _db.transaction(db_path) as conn:
+        conn.execute(
+            "INSERT INTO change_requests "
+            "(id, production_id, subject_type, subject_id, change_type, "
+            " requested_by_stage, target_stage, reason, status, created_at, "
+            " failure_evidence_json, repair_routing_stage) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                cr_id, production_id, "render_unit", render_unit_id,
+                action, "qa_media", mapped_stage,
+                "repair: " + failure_class, "open", _db._now(),
+                _crjson.dumps(evidence), mapped_stage,
+            ),
+        )
+
     result = {
         "render_unit_id": render_unit_id,
         "failure_class": failure_class,
         "action": action,
+        "change_request_id": cr_id,
         "new_artifact_id": None,
         "qa_passed": None,
     }

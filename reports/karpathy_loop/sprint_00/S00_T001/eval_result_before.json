@@ -1,0 +1,75 @@
+{
+  "eval_id": "S00_T001_fixture_integrity",
+  "subject": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "timestamp": "2026-06-23T22:59:00+08:00",
+  "overall_pass": true,
+  "checks": [
+    {
+      "check": "FILE_EXISTS",
+      "pass": true,
+      "detail": "fixture exists, size=10357752 bytes",
+      "threshold": "> 5MB"
+    },
+    {
+      "check": "SHA256_MATCH",
+      "pass": true,
+      "detail": "sha256=35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+      "threshold": "=35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386"
+    },
+    {
+      "check": "FFMPEG_READABLE",
+      "pass": true,
+      "detail": "ffprobe exit=0, 2 streams",
+      "threshold": "exit code 0, valid JSON"
+    },
+    {
+      "check": "VIDEO_STREAM",
+      "pass": true,
+      "detail": "codec=h264 w=1920 h=1080 fps=24/1 dur=22.833s frames=548",
+      "threshold": "codec=h264, 1920x1080, 24fps"
+    },
+    {
+      "check": "VIDEO_DURATION",
+      "pass": true,
+      "detail": "video_duration=22.833s",
+      "threshold": "22.0-24.0s"
+    },
+    {
+      "check": "FRAME_COUNT",
+      "pass": true,
+      "detail": "frame_count=548",
+      "threshold": "548 frames"
+    },
+    {
+      "check": "AUDIO_STREAM",
+      "pass": true,
+      "detail": "codec=aac sr=96000 ch=2 dur=22.900s",
+      "threshold": "codec=aac, 96kHz, stereo"
+    },
+    {
+      "check": "AUDIO_VIDEO_DURATION_DIFF",
+      "pass": true,
+      "detail": "audio_dur=22.900s vs video_dur=22.833s diff=0.067s",
+      "threshold": "difference < 1.0s"
+    },
+    {
+      "check": "RENDER_LOCK",
+      "pass": true,
+      "detail": "YT_TEST_MODE=1; HIGGSFIELD_DRY_RUN=1; KARPATHY_LOOP_RENDER_LOCK=1",
+      "threshold": "YT_TEST_MODE=1, HIGGSFIELD_DRY_RUN=1, KARPATHY_LOOP_RENDER_LOCK=1"
+    },
+    {
+      "check": "FORMAT_DURATION",
+      "pass": true,
+      "detail": "format_duration=22.900s",
+      "threshold": "22.0-24.0s"
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "pass": 10,
+    "fail": 0
+  }
+}

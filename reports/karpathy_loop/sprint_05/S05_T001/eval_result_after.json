@@ -1,0 +1,16 @@
+{
+  "eval_id": "S05_T001_final_defect_ledger_after",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "deliverable_id": "del_fce7e5cb280e43798387245981efe68c",
+  "overall_status": "human_review_required",
+  "tests_passed": 13,
+  "tests_total": 13,
+  "defects_total": 10,
+  "defects_resolved": 10,
+  "defects_open": 0,
+  "evidence_files_count": 20,
+  "eval_scripts_count": 8,
+  "render_lock": "PASS",
+  "validator_verdict": "PASS",
+  "timestamp": "2026-06-24T11:33:00+08:00"
+}

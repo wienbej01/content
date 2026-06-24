@@ -1,0 +1,16 @@
+{
+  "eval_name": "lipsync",
+  "method": "mouth_motion_proxy",
+  "subject_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "face_track_found": false,
+  "offset_ms": -4950.0,
+  "confidence": 0.1369,
+  "thresholds": {
+    "warn_offset_ms": 100,
+    "fail_offset_ms": 160
+  },
+  "status": "fail",
+  "dependency_status": "available",
+  "provisional": true,
+  "note": "Fallback proxy: audio envelope vs visual frame-diff correlation. Not definitive. No face tracking available."
+}

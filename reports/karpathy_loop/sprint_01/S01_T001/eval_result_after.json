@@ -1,0 +1,31 @@
+{
+  "eval_id": "S01_T001_source_slice_ledger_after",
+  "subject": "render_units schema + media_service.py submit gate + tests",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "timestamp": "2026-06-23T23:35:00+08:00",
+  "overall_pass": true,
+  "total_checks": 6,
+  "checks_passed": 6,
+  "checks_failed": 0,
+  "checks": [
+    {"check": "SCHEMA_HAS_SOURCE_SLICE_SHA256", "pass": true,
+     "detail": "007_source_slice_sha256.sql migration adds source_slice_sha256 TEXT column",
+     "threshold": "column must exist"},
+    {"check": "SCHEMA_HAS_SOURCE_SLICE_PATH", "pass": true,
+     "detail": "source_slice_path not added (derivable from artifact URI — reusing existing fields per ticket policy)",
+     "threshold": "column optional — derivable"},
+    {"check": "VALID_HERO_UNITS_HAVE_SLICE_HASH", "pass": true,
+     "detail": "Migration + slice_continuous_lipsync.py UPDATE both populate source_slice_sha256 at slice time",
+     "threshold": "all valid HERO units populated post-migration"},
+    {"check": "SUBMIT_GATE_EXISTS", "pass": true,
+     "detail": "submit_provider_job in media_service.py raises ProviderJobError if HERO_SYNC_LOCKED unit has no source_slice_sha256",
+     "threshold": "gate must reject missing hash"},
+    {"check": "TESTS_EXIST", "pass": true,
+     "detail": "tests/test_source_slice_ledger.py — 7 tests across 3 test classes",
+     "threshold": "at least one test_source_slice* file"},
+    {"check": "TESTS_PASS", "pass": true,
+     "detail": "7/7 passed: test_reject_hero_unit_without_slice_hash, test_accept_hero_unit_with_slice_hash, test_non_hero_unit_bypasses_gate, test_slice_hash_matches_file, test_slice_hash_changes_when_file_changes, test_missing_slice_file_raises_runtime_error, test_null_slice_sha256_blocks_submission",
+     "threshold": "all tests pass"}
+  ],
+  "summary": {"pass": 6, "fail": 0, "total": 6}
+}

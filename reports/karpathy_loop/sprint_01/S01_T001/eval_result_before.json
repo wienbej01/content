@@ -1,0 +1,74 @@
+{
+  "eval_id": "S01_T001_source_slice_ledger",
+  "subject": "render_units schema + media_service.py submit gate",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "timestamp": "2026-06-23T23:30:00+08:00",
+  "overall_pass": false,
+  "total_checks": 6,
+  "checks_passed": 2,
+  "checks_failed": 4,
+  "checks": [
+    {
+      "check": "SCHEMA_HAS_SOURCE_SLICE_SHA256",
+      "pass": false,
+      "detail": "source_slice_sha256 in render_units: False",
+      "threshold": "column must exist"
+    },
+    {
+      "check": "SCHEMA_HAS_SOURCE_SLICE_PATH",
+      "pass": false,
+      "detail": "source_slice_path in render_units: False",
+      "threshold": "column must exist"
+    },
+    {
+      "check": "VALID_HERO_UNITS_HAVE_SLICE_HASH",
+      "pass": false,
+      "detail": "column does not exist \u2014 cannot verify",
+      "threshold": "all valid HERO units have source_slice_sha256"
+    },
+    {
+      "check": "SUBMIT_GATE_EXISTS",
+      "pass": true,
+      "detail": "media_service.py references source_slice_sha256: True",
+      "threshold": "submit_provider_job must check source_slice_sha256 before submission"
+    },
+    {
+      "check": "TESTS_EXIST",
+      "pass": true,
+      "detail": "test_source_slice* files: ['tests/test_source_slice_ledger.py']",
+      "threshold": "at least one test_source_slice* file exists"
+    },
+    {
+      "check": "TESTS_PASS",
+      "pass": false,
+      "detail": "Tests not run yet (pre-implementation eval)",
+      "threshold": "python3 -m pytest tests/test_source_slice*.py -q"
+    }
+  ],
+  "issues": [
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "render_units table missing source_slice_sha256 column",
+      "detail": "Cannot prove slice-to-provider provenance without column"
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "minor",
+      "description": "render_units table missing source_slice_path column",
+      "detail": "Can be derived from artifact URI but first-class column preferred"
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "critical",
+      "description": "Cannot check hero unit slice hashes \u2014 column source_slice_sha256 does not exist",
+      "detail": "Schema must be migrated first"
+    }
+  ],
+  "expected_to_fail": true,
+  "summary": {
+    "pass": 2,
+    "fail": 4,
+    "total": 6
+  }
+}

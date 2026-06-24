@@ -317,7 +317,7 @@ def run_db_contract_checks(
                 u = dict(u)
                 # 1. All selected render units have latest media QA pass
                 latest = conn.execute(
-                    """SELECT status, created_at FROM validations
+                    """SELECT id, status, created_at, evidence_json FROM validations
                        WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
                        ORDER BY created_at DESC LIMIT 1""",
                     (u["id"],),
@@ -337,6 +337,26 @@ def run_db_contract_checks(
                         issues.append(
                             f"render unit {u['id']} ({u.get('label', '')}) lacks passing media QA"
                         )
+
+                # S01-T004: HERO_SYNC_LOCKED units must have lipsync evidence in QA
+                if u.get("audio_policy") == "HERO_SYNC_LOCKED":
+                    if latest and latest["status"] == "pass":
+                        latest_dict = dict(latest)
+                        ej_str = latest_dict.get("evidence_json") or "{}"
+                        ej = json.loads(ej_str)
+                        lipsync_method = ej.get("lipsync_qa_method")
+                        if not lipsync_method:
+                            # QA passed but no lipsync evidence — fake-green guard
+                            all_passing_qa = False
+                            issues.append(
+                                f"HERO unit {u['id']} ({u.get('label', '')}) "
+                                f"has passing QA but no lipsync evidence (F-QA-001)"
+                            )
+                        elif lipsync_method == "blocked_dependency":
+                            issues.append(
+                                f"HERO unit {u['id']} ({u.get('label', '')}) "
+                                f"lipsync QA blocked: {ej.get('lipsync_drift_ms', 'unknown')}"
+                            )
 
                 # 7. No failed validation newer than last pass
                 fail_newer = conn.execute(

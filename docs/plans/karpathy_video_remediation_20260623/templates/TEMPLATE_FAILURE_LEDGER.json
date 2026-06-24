@@ -1,0 +1,14 @@
+{
+  "ticket_id": "",
+  "production_id": "",
+  "fixture": "",
+  "failure_classes": [],
+  "evidence_artifacts": [],
+  "db_evidence": {
+    "available": false,
+    "missing_tables": [],
+    "suspicious_rows": []
+  },
+  "render_lock_status": "UNKNOWN",
+  "recommended_eval": ""
+}

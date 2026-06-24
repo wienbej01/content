@@ -258,6 +258,7 @@ def slice_hero_units(
                        generation_start_sample=?, generation_end_sample=?,
                        leading_silence_samples=?, trailing_silence_samples=?,
                        master_audio_artifact_id=?, master_audio_sha256=?,
+                       source_slice_sha256=?,
                        updated_at=?
                        WHERE id=?""",
                     (
@@ -265,6 +266,7 @@ def slice_hero_units(
                         gen_start, gen_end,
                         lead_silence, trail_silence,
                         master_artifact_id, master_sha,
+                        slice_sha,
                         _db._now(), unit_id,
                     ),
                 )
@@ -401,9 +403,10 @@ def materialize_hero_slot_slices(
                 """UPDATE render_units SET
                    speech_start_sample=?, speech_end_sample=?,
                    master_audio_artifact_id=?, master_audio_sha256=?,
+                   source_slice_sha256=?,
                    updated_at=?
                    WHERE id=?""",
-                (ss_start, ss_end, master_artifact_id, master_sha, _db._now(), unit_id),
+                (ss_start, ss_end, master_artifact_id, master_sha, slice_sha, _db._now(), unit_id),
             )
 
         results.append({

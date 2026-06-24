@@ -1,0 +1,610 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+  "fixture_size_bytes": 10357752,
+  "fixture_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+  "candidate_available": false,
+  "candidate_path": null,
+  "candidate_note": "No candidate output available \u2014 render lock active (Sprint 05: RENDER_LEVEL <= 3). Candidate can be produced in Sprint 06 after readiness unlock.",
+  "baseline_count": 8,
+  "baseline_passed": 8,
+  "baseline_failed": 0,
+  "baseline_results": [
+    {
+      "eval_name": "lipsync_mouth_motion_proxy",
+      "script": "scripts/evals/eval_lipsync.py",
+      "success": true,
+      "result": {
+        "eval_name": "lipsync",
+        "method": "mouth_motion_proxy",
+        "subject_id": "",
+        "face_track_found": false,
+        "offset_ms": -4950.0,
+        "confidence": 0.1369,
+        "thresholds": {
+          "warn_offset_ms": 100,
+          "fail_offset_ms": 160
+        },
+        "status": "fail",
+        "dependency_status": "available",
+        "provisional": true,
+        "note": "Fallback proxy: audio envelope vs visual frame-diff correlation. Not definitive. No face tracking available."
+      },
+      "stdout": "Lipsync eval for final_16x9.mp4\n  Method: mouth_motion_proxy\n  Status: fail\n  Offset: -4950.00ms\n  Confidence: 0.1369\n  Output: /tmp/eval_comparison_lipsync_mouth_motion_proxy.json",
+      "error": ""
+    },
+    {
+      "eval_name": "static_hold",
+      "script": "scripts/evals/eval_static_hold.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "count": 1,
+        "status": "fail",
+        "thresholds": {
+          "warn_static_graphic_hold_ms": 4000,
+          "fail_static_graphic_hold_ms": 6000
+        },
+        "results": [
+          {
+            "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+            "label": "S003",
+            "duration_ms": 7167,
+            "hold_ms": 7167,
+            "start_ms": 15664,
+            "end_ms": 22831,
+            "warn_threshold_ms": 4000,
+            "fail_threshold_ms": 6000,
+            "is_explicit_hold": false,
+            "status": "fail",
+            "issue": "hold_7167ms_exceeds_6000ms"
+          }
+        ]
+      },
+      "stdout": "Static hold eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Graphics: 1, Status: fail\n  Thresholds: warn=4000ms fail=6000ms\n  [S003] 7167ms status=fail",
+      "error": ""
+    },
+    {
+      "eval_name": "graphic_editorial",
+      "script": "scripts/evals/eval_graphic_editorial.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "count": 1,
+        "weak_count": 0,
+        "empty_text_count": 0,
+        "status": "pass",
+        "graphics": [
+          {
+            "graphic_id": "render_e26c3ea1572545d68aa21751c0371718",
+            "label": "S003",
+            "ordinal": 95,
+            "text": "WHICH COSTS MORE: SLACK",
+            "duration_sec": 7.167,
+            "duration_ms": 7167,
+            "editorial_role": "callout",
+            "is_complete_thought": true,
+            "has_capitalization": true,
+            "text_empty": false,
+            "duration_too_short": false,
+            "duration_too_long": false,
+            "is_weak": false,
+            "recommended_revision": ""
+          }
+        ]
+      },
+      "stdout": "Graphic editorial eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Graphics: 1, Weak: 0\n  Empty text: 0, Status: pass\n  [S003] role=callout    dur= 7167ms text_empty=False weak=False",
+      "error": ""
+    },
+    {
+      "eval_name": "text_surface",
+      "script": "scripts/evals/eval_text_surface.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "count": 4,
+        "status": "inconclusive",
+        "results": [
+          {
+            "render_unit_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+            "label": "S000",
+            "text_policy": "NO_VISIBLE_TEXT",
+            "audio_policy": "HERO_SYNC_LOCKED",
+            "asset_type": "lipsync_video",
+            "has_qa": true,
+            "qa_status": "pass",
+            "ocr_available": null,
+            "ocr_frames_checked": 0,
+            "text_detected": null,
+            "text_policy_ok": true,
+            "ocr_error": null,
+            "status": "pass"
+          },
+          {
+            "render_unit_id": "render_d4e6ca191a5a4dc18e029e82d77d06df",
+            "label": "S001",
+            "text_policy": "NO_VISIBLE_TEXT",
+            "audio_policy": "BROLL_FLEX",
+            "asset_type": "generated_video",
+            "has_qa": true,
+            "qa_status": "pass",
+            "ocr_available": false,
+            "ocr_frames_checked": 0,
+            "text_detected": null,
+            "text_policy_ok": true,
+            "ocr_error": "tesseract binary not available",
+            "status": "pass"
+          },
+          {
+            "render_unit_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+            "label": "S002",
+            "text_policy": "NO_VISIBLE_TEXT",
+            "audio_policy": "HERO_SYNC_LOCKED",
+            "asset_type": "lipsync_video",
+            "has_qa": true,
+            "qa_status": "pass",
+            "ocr_available": null,
+            "ocr_frames_checked": 0,
+            "text_detected": null,
+            "text_policy_ok": true,
+            "ocr_error": null,
+            "status": "pass"
+          },
+          {
+            "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+            "label": "S003",
+            "text_policy": "NO_VISIBLE_TEXT",
+            "audio_policy": "SILENT_GRAPHIC",
+            "asset_type": "local_graphic",
+            "has_qa": false,
+            "qa_status": null,
+            "ocr_available": null,
+            "ocr_frames_checked": 0,
+            "text_detected": null,
+            "text_policy_ok": null,
+            "status": "inconclusive",
+            "note": "requires_human_review: ocr_not_performed"
+          }
+        ]
+      },
+      "stdout": "Text surface eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Units: 4, Status: inconclusive\n  [S000] policy=NO_VISIBLE_TEXT status=pass ocr=ok\n  [S001] policy=NO_VISIBLE_TEXT status=pass ocr=ok\n  [S",
+      "error": ""
+    },
+    {
+      "eval_name": "master_window",
+      "script": "scripts/evals/eval_master_window.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "hero_unit_count": 2,
+        "status": "warn",
+        "results": [
+          {
+            "render_unit_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+            "label": "S000",
+            "source_slice_sha256": null,
+            "master_audio_sha256": "9437f77002c8ce98eab9b4ee244414d850f2fe7d50bf71a97510c7e32a277408",
+            "master_window_start_ms": 0,
+            "master_window_end_ms": 4572,
+            "padded_window_start_ms": 0,
+            "padded_window_end_ms": 4572,
+            "required_start_ms": 0,
+            "required_end_ms": 4572,
+            "estimated_offset_ms": 0,
+            "duration_delta_ms": 0,
+            "status": "warn",
+            "issues": [
+              "source_slice_sha256_missing"
+            ]
+          },
+          {
+            "render_unit_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+            "label": "S002",
+            "source_slice_sha256": null,
+            "master_audio_sha256": "9437f77002c8ce98eab9b4ee244414d850f2fe7d50bf71a97510c7e32a277408",
+            "master_window_start_ms": 10437,
+            "master_window_end_ms": 15664,
+            "padded_window_start_ms": 10437,
+            "padded_window_end_ms": 15664,
+            "required_start_ms": 10437,
+            "required_end_ms": 15664,
+            "estimated_offset_ms": 0,
+            "duration_delta_ms": 0,
+            "status": "warn",
+            "issues": [
+              "source_slice_sha256_missing"
+            ]
+          }
+        ]
+      },
+      "stdout": "Master window eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Hero units: 2\n  Overall: warn\n  [S000] status=warn window=0->4572ms delta=0ms issues=['source_slice_sha256_missing']\n  [S002] status=war",
+      "error": ""
+    },
+    {
+      "eval_name": "deterministic_graphics",
+      "script": "scripts/evals/eval_deterministic_graphics.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "count": 17,
+        "status": "fail",
+        "results": [
+          {
+            "render_unit_id": "render_01e6d91a49524ba3afbdbb3e4c7a7733",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": false,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_92fd02dbd172489fb4a013fcdcd358f5",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_961db0cc028d407d808ed16d2181cf1f",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_91dfd37c34ff4c5cb6388a25b000b380",
+            "label": "S003",
+            "has_active_artifact": true,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_56ba6ce5d04c44c69641c9540ae975ff",
+            "label": "S003",
+            "has_active_artifact": true,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_5055b57985c94a6698cfe321f4dc9342",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_29c90bdf4cfa4fdeb729e66c04d5fd69",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_a5e1c40c8487413096d5e3216c8da00f",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_2cf8059354a44509ad89e099b3d49b47",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_bc7c75fa96c241edb77652bebdd3ce5c",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_a3a65279bd17488ba14c7a345785f35a",
+            "label": "S003",
+            "has_active_artifact": true,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_b8843c86e5734034b1627680315d4904",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_88e7bc1184f54f79bd994c254cbdf4ca",
+            "label": "S003",
+            "has_active_artifact": true,
+            "has_deterministic_text_spec": true,
+            "text_length": 0,
+            "text_length_ok": false,
+            "has_qa_validation": true,
+            "qa_status": "pass",
+            "qa_text_spec_exists": true,
+            "qa_text_spec_sha_match": true,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_5b10e5399a4e4206b9741dd411abb1b9",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 16,
+            "text_length_ok": true,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_c8d32781a3f947d3b996811fb71fba79",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 16,
+            "text_length_ok": true,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_2025c970222f448c95bd11c728a7c076",
+            "label": "S003",
+            "has_active_artifact": false,
+            "has_deterministic_text_spec": true,
+            "text_length": 16,
+            "text_length_ok": true,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          },
+          {
+            "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+            "label": "S003",
+            "has_active_artifact": true,
+            "has_deterministic_text_spec": true,
+            "text_length": 23,
+            "text_length_ok": true,
+            "has_qa_validation": false,
+            "qa_status": null,
+            "qa_text_spec_exists": null,
+            "qa_text_spec_sha_match": null,
+            "qa_text_length_ok": null
+          }
+        ]
+      },
+      "stdout": "Graphics eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Units: 17, Status: fail\n  [S003] dts=False text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=N",
+      "error": ""
+    },
+    {
+      "eval_name": "repair_audit",
+      "script": "scripts/evals/eval_repair_audit.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "change_requests": [],
+        "failed_validation_count": 0,
+        "open_change_request_count": 0,
+        "would_call_provider_render": false,
+        "render_lock_status": "PASS",
+        "minimality_ok": true,
+        "issues": []
+      },
+      "stdout": "Repair audit for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Open change requests: 0\n  Would call provider render: False\n  Render lock status: PASS\n  Minimality OK: True",
+      "error": ""
+    },
+    {
+      "eval_name": "assembly_transform_ledger",
+      "script": "scripts/evals/assembly_transform_ledger.py",
+      "success": true,
+      "result": {
+        "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+        "deliverable": null,
+        "clips": [
+          {
+            "render_unit_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+            "label": "S000",
+            "timeline_span_id": null,
+            "source_artifact": "e7e1c342e3f87beffd31a7e9bda005128dd653650a48a428d8c3562ce8ce8648",
+            "source_artifact_id": "art_18a80cc65e6c4b0180c3c76952fb9ef4",
+            "start_ms": 0,
+            "end_ms": 4572,
+            "duration_ms": 4572,
+            "asset_type": "lipsync_video",
+            "audio_policy": "HERO_SYNC_LOCKED",
+            "is_hero_lipsync": true,
+            "operations": [
+              "scale_crop",
+              "grade",
+              "mute_audio",
+              "replace_audio",
+              "trim"
+            ],
+            "forbidden_operations": [
+              "setpts",
+              "speed_change",
+              "loop",
+              "freeze_extension",
+              "trim_through_speech",
+              "audio_retime"
+            ],
+            "forbidden_hero_operation_detected": false,
+            "notes": [
+              "hero_lipsync"
+            ]
+          },
+          {
+            "render_unit_id": "render_d4e6ca191a5a4dc18e029e82d77d06df",
+            "label": "S001",
+            "timeline_span_id": null,
+            "source_artifact": "854099c6145c94d490554ec152a96ccda10aa7cc9cb3eb6eb86686c902c03deb",
+            "source_artifact_id": "art_55e1bf6dbb5d4cd39c9e9ab91d2d686e",
+            "start_ms": 4572,
+            "end_ms": 10437,
+            "duration_ms": 5865,
+            "asset_type": "generated_video",
+            "audio_policy": "BROLL_FLEX",
+            "is_hero_lipsync": 0,
+            "operations": [
+              "scale_crop",
+              "grade",
+              "mute_audio",
+              "overlay_narration"
+            ],
+            "forbidden_operations": [
+              "speed_change"
+            ],
+            "forbidden_hero_operation_detected": false,
+            "notes": [
+              "muted_visual_BROLL_FLEX"
+            ]
+          },
+          {
+            "render_unit_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+            "label": "S002",
+            "timeline_span_id": null,
+            "source_artifact": "a3c002fc447032d82174e8e7cd7d3098b12c47c9b43ea40e4581b2714235b553",
+            "source_artifact_id": "art_419c9df3b35d4897aed530165d962130",
+            "start_ms": 10437,
+            "end_ms": 15664,
+            "duration_ms": 5227,
+            "asset_type": "lipsync_video",
+            "audio_policy": "HERO_SYNC_LOCKED",
+            "is_hero_lipsync": true,
+            "operations": [
+              "scale_crop",
+              "grade",
+              "mute_audio",
+              "replace_audio",
+              "trim"
+            ],
+            "forbidden_operations": [
+              "setpts",
+              "speed_change",
+              "loop",
+              "freeze_extension",
+              "trim_through_speech",
+              "audio_retime"
+            ],
+            "forbidden_hero_operation_detected": false,
+            "notes": [
+              "hero_lipsync"
+            ]
+          },
+          {
+            "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+            "label": "S003",
+            "timeline_span_id": null,
+            "source_artifact": "3e2b3214ae63434751b74e5b5605dbe741f58986598173d881c00da965f9698c",
+            "source_artifact_id": "art_f6c2830e111c458da9617eb2b786e28c",
+            "start_ms": 15664,
+            "end_ms": 22831,
+            "duration_ms": 7167,
+            "asset_type": "local_graphic",
+            "audio_policy": "SILENT_GRAPHIC",
+            "is_hero_lipsync": 0,
+            "operations": [
+              "drawtext_overlay",
+              "fade_in",
+              "fade_out",
+              "scale_crop"
+            ],
+            "forbidden_operations": [],
+            "forbidden_hero_operation_detected": false,
+            "notes": [
+              "local_graphic"
+            ]
+          }
+        ],
+        "clip_count": 4,
+        "hero_count": 2,
+        "forbidden_operations_count": 0
+      },
+      "stdout": "Transform ledger for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Clips: 4\n  Hero lipsync: 2\n  Forbidden operations: 0\n  [S000...] scale_crop, grade, mute_audio, replace_audio, trim\n  [S001...] scale_crop",
+      "error": ""
+    }
+  ],
+  "comparison": {
+    "status": "baseline_only",
+    "note": "Diagnostic baseline-only report. No candidate to compare against."
+  }
+}

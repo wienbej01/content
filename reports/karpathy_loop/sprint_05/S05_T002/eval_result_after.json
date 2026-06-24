@@ -1,0 +1,13 @@
+{
+  "eval_id": "S05_T002_run_comparison_after",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "baseline_count": 8,
+  "baseline_passed": 8,
+  "candidate_available": false,
+  "comparison_status": "baseline_only",
+  "tests_passed": 7,
+  "tests_total": 7,
+  "render_lock": "PASS",
+  "validator_verdict": "PASS",
+  "timestamp": "2026-06-24T11:37:00+08:00"
+}

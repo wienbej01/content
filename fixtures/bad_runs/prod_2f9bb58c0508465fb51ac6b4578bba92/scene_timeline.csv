@@ -1,0 +1,5 @@
+scene,start_sec,end_sec,duration_sec,type,description,notes
+1,0.000,4.583,4.583,hero_talking_head,"James hero talking head, lipsync unit (S000)","Provider-generated lipsync video. NO_VISIBLE_TEXT policy. Provisional: lipsync offset suspected."
+2,4.583,10.458,5.875,broll_phone,"Phone b-roll / screen recording","B-roll segment. No lipsync requirement. Policy: NO_VISIBLE_TEXT."
+3,10.458,15.667,5.209,hero_talking_head,"James hero talking head with small caption (S002)","Provider-generated lipsync video. Provisional: lipsync offset suspected."
+4,15.667,22.833,7.166,static_black,"Static black graphic/title card","Deterministic local graphic. Black hold duration: 7.125s (blackdetect). F-GFX-001: static hold excessive."

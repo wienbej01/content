@@ -1,0 +1,24 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "count": 1,
+  "status": "fail",
+  "thresholds": {
+    "warn_static_graphic_hold_ms": 4000,
+    "fail_static_graphic_hold_ms": 6000
+  },
+  "results": [
+    {
+      "render_unit_id": "render_e26c3ea1572545d68aa21751c0371718",
+      "label": "S003",
+      "duration_ms": 7167,
+      "hold_ms": 7167,
+      "start_ms": 15664,
+      "end_ms": 22831,
+      "warn_threshold_ms": 4000,
+      "fail_threshold_ms": 6000,
+      "is_explicit_hold": false,
+      "status": "fail",
+      "issue": "hold_7167ms_exceeds_6000ms"
+    }
+  ]
+}

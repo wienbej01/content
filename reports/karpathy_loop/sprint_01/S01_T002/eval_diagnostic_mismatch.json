@@ -1,0 +1,13 @@
+{
+  "source_duration_sec": 3.0,
+  "provider_duration_sec": 4.0,
+  "duration_delta_ms": 1000.0,
+  "estimated_offset_ms": 1216.67,
+  "correlation_confidence": 0.0002,
+  "pass": false,
+  "dependency_status": "available",
+  "source_path": "/tmp/tmpb7om_y_o/source.wav",
+  "provider_path": "/tmp/tmpb7om_y_o/provider_mismatched.wav",
+  "source_sample_rate": 48000,
+  "provider_sample_rate": 48000
+}

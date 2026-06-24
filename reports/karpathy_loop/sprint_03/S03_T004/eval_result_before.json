@@ -1,0 +1,25 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "count": 1,
+  "weak_count": 0,
+  "empty_text_count": 0,
+  "status": "pass",
+  "graphics": [
+    {
+      "graphic_id": "render_e26c3ea1572545d68aa21751c0371718",
+      "label": "S003",
+      "ordinal": 95,
+      "text": "WHICH COSTS MORE: SLACK",
+      "duration_sec": 7.167,
+      "duration_ms": 7167,
+      "editorial_role": "callout",
+      "is_complete_thought": true,
+      "has_capitalization": true,
+      "text_empty": false,
+      "duration_too_short": false,
+      "duration_too_long": false,
+      "is_weak": false,
+      "recommended_revision": ""
+    }
+  ]
+}

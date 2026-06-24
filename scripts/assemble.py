@@ -965,7 +965,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         seg_durations = _contract_segment_durations(segments)
         if seg_durations is not None:
             contract_total = sum(seg_durations)
-            if abs(contract_total - total_nar_dur) > 120.0:
+            if abs(contract_total - total_nar_dur) > 3.0:
                 raise RuntimeError(
                     f"Clip timeline duration mismatch: clips={contract_total:.3f}s vs "
                     f"audio={total_nar_dur:.3f}s (delta={contract_total - total_nar_dur:.3f}s).")
@@ -1071,7 +1071,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
 
         # Change 2: Pre-mux visual bed duration check
         visual_bed_dur = probe_dur(visual_bed)
-        if abs(visual_bed_dur - total_nar_dur) > 120.0:
+        if abs(visual_bed_dur - total_nar_dur) > 3.0:
             raise RuntimeError(
                 f"Visual bed duration mismatch: visual={visual_bed_dur:.3f}s vs "
                 f"audio={total_nar_dur:.3f}s (delta={visual_bed_dur - total_nar_dur:.3f}s). "
@@ -1107,7 +1107,7 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
 
         # Change 3: Post-mux stream integrity check
         joined_vid_dur = probe_dur(joined)
-        if abs(joined_vid_dur - total_nar_dur) > 120.0:
+        if abs(joined_vid_dur - total_nar_dur) > 1.5:
             Path(joined).unlink(missing_ok=True)
             raise RuntimeError(
                 f"Post-mux integrity failure: output={joined_vid_dur:.3f}s vs "

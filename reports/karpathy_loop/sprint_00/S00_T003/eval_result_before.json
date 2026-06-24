@@ -1,0 +1,97 @@
+{
+  "eval_id": "S00_T003_provenance",
+  "subject": "db/production.db",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "timestamp": "2026-06-23T23:22:00+08:00",
+  "overall_pass": false,
+  "total_checks": 7,
+  "checks_passed": 3,
+  "checks_failed": 4,
+  "checks": [
+    {
+      "check": "EXPORT_COMPLETE",
+      "pass": true,
+      "detail": "11 JSONL files; missing=[]",
+      "threshold": "all 11 tables exported"
+    },
+    {
+      "check": "VALID_UNITS_PROVENANCE",
+      "pass": true,
+      "detail": "3 valid units; 0 without artifact",
+      "threshold": "all valid units have active_artifact_id"
+    },
+    {
+      "check": "HERO_AUDIO_PROVENANCE",
+      "pass": true,
+      "detail": "2 HERO units; 0 without master_audio",
+      "threshold": "all HERO units have master_audio_artifact_id"
+    },
+    {
+      "check": "SHARED_MASTER_AUDIO",
+      "pass": false,
+      "detail": "2 HERO units share 1 master audio artifacts",
+      "threshold": "each HERO unit should have its own audio slice reference"
+    },
+    {
+      "check": "PROVIDER_JOB_STATUS",
+      "pass": false,
+      "detail": "3 provider jobs for valid units; 1 not completed",
+      "threshold": "all provider jobs for valid units have status=completed"
+    },
+    {
+      "check": "DELIVERABLE_PATH_COLLISION",
+      "pass": false,
+      "detail": "4 deliverables; 3 path collisions",
+      "threshold": "0 path collisions"
+    },
+    {
+      "check": "QA_LIPSYNC_GATE",
+      "pass": false,
+      "detail": "5 qa_final validations; lipsync check present: False",
+      "threshold": "qa_final should include lipsync/audio-sync check"
+    }
+  ],
+  "issues": [
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "Both hero units share the same master audio hash (9437f77002c8ce98...) \u2014 no per-slice provenance",
+      "detail": "Cannot prove which audio slice was sent to provider for each hero unit"
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "Provider job for S002 has status=submitted, not 'completed'",
+      "detail": "job_id=pjob_425b43027559456... ext_id=4a0ceb43-7213-45..."
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "Path collision: /home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4 \u2014 del_66f357a262e44b00a3625034f94e687d and del_24e9c309bedf4f8385269610c468565d share same path",
+      "detail": "Deliverables overwrite each other on disk"
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "Path collision: /home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4 \u2014 del_24e9c309bedf4f8385269610c468565d and del_fce7e5cb280e43798387245981efe68c share same path",
+      "detail": "Deliverables overwrite each other on disk"
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "major",
+      "description": "Path collision: /home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/prod_2f9bb58c0508465fb51ac6b4578bba92_16x9.mp4 \u2014 del_fce7e5cb280e43798387245981efe68c and del_fe7a12bb3f2e4e949115b4e5f069efac share same path",
+      "detail": "Deliverables overwrite each other on disk"
+    },
+    {
+      "class": "F-QA-001",
+      "severity": "major",
+      "description": "qa_final validation does not check lipsync/audio sync",
+      "detail": "4 qa_final validations exist, none reference lipsync/audio_offset/SyncNet/Wav2Lip"
+    }
+  ],
+  "summary": {
+    "pass": 3,
+    "fail": 4,
+    "total": 7
+  }
+}

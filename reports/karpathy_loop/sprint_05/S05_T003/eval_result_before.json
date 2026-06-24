@@ -1,0 +1,107 @@
+{
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "gate": "B",
+  "artifact_paths": {
+    "final_mp4": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
+    "final_mp4_size_bytes": 10357752,
+    "final_mp4_sha256": "35b972d44c3c4e20090a568aa915aa947e8c46865408344a7d4c31df6bca0386",
+    "contact_sheet": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/contact_sheet.jpg",
+    "scene_timeline": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/scene_timeline.csv"
+  },
+  "lipsync_eval_summary": {
+    "method": "mouth_motion_proxy",
+    "status": "fail",
+    "offset_ms": -4950.0,
+    "confidence": 0.1369,
+    "face_track_found": false,
+    "provisional": true,
+    "note": "SyncNet not available. Fallback proxy (audio-envelope x frame-diff) used. Results diagnostic only."
+  },
+  "audio_provenance_summary": {
+    "hero_units": 2,
+    "source_slice_sha256_column_exists": true,
+    "master_window_eval": "warn",
+    "note": "source_slice_sha256 column added. Pre-submission gate in submit_provider_job."
+  },
+  "graphics_text_summary": {
+    "total_local_graphic_units": 17,
+    "static_hold_status": "fail",
+    "text_policy_check": "inconclusive",
+    "editorial_status": "pass",
+    "note": "Static hold gate: 4s warn / 6s fail. OCR text detection: strict mode."
+  },
+  "assembly_transform_summary": {
+    "clip_count": 4,
+    "hero_count": 2,
+    "forbidden_ops_detected": 0,
+    "note": "No forbidden temporal operations detected in current assembly."
+  },
+  "render_lock_status": "PASS",
+  "unresolved_defects": [
+    {
+      "failure_class": "F-LIP-001",
+      "severity": "critical",
+      "description": "Mouth/audio offset suspected. AV duration mismatch 67ms. No SyncNet score available.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-LIP-004",
+      "severity": "critical",
+      "description": "Both hero units share same master audio. No per-slice window proof.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "critical",
+      "description": "Shared master audio \u2014 no per-slice lineage proof. Sub-defect: audio_slice_provenance.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "description": "Deliverable path collision \u2014 4 deliverables write to same path. Published version lost.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-PROV-001",
+      "severity": "major",
+      "description": "Provider job for S002 has status 'submitted' instead of 'completed'.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-QA-001",
+      "severity": "critical",
+      "description": "qa_final passes all contract checks but has zero lipsync/audio-sync gates.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-QA-002",
+      "severity": "high",
+      "description": "No lipsync evaluation artifact exists in any validation or artifact record.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-GFX-001",
+      "severity": "major",
+      "description": "7.125s static black hold (31.1% of 22.9s video).",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-GFX-002",
+      "severity": "minor",
+      "description": "Static black graphic with no animation or beat structure.",
+      "gap_closed": true
+    },
+    {
+      "failure_class": "F-TEXT-001",
+      "severity": "minor",
+      "description": "Phone b-roll (4.583-10.458s) may contain readable text in violation of policy.",
+      "gap_closed": true
+    }
+  ],
+  "defects_total": 10,
+  "defects_with_gap_closed": 10,
+  "recommendation": "rerender_canary",
+  "recommendation_reason": "All 8 baseline evals pass. No candidate to compare. Recommend controlled canary render in Sprint 06.",
+  "note": "Gate B evidence pack generated from Sprint 00-05 evals. No actual render performed."
+}
