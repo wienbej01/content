@@ -13,14 +13,14 @@
       "stdout": "Static hold eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Graphics: 1, Status: fail\n  Thresholds: warn=4000ms fail=6000ms\n  [S003] 7167ms status=fail\n",
       "stderr": "",
       "eval_name": "static_hold",
-      "command": "scripts/evals/eval_static_hold.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_hold.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_static_hold.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_hold.json --db-path db/production.db"
     },
     {
       "returncode": 0,
       "stdout": "Master window eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Hero units: 2\n  Overall: warn\n  [S000] status=warn window=0->4572ms delta=0ms issues=['source_slice_sha256_missing']\n  [S002] status=warn window=10437->15664ms delta=0ms issues=['source_slice_sha256_missing']\n",
       "stderr": "",
       "eval_name": "master_window",
-      "command": "scripts/evals/eval_master_window.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_window.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_master_window.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_window.json --db-path db/production.db"
     },
     {
       "returncode": 0,
@@ -34,35 +34,35 @@
       "stdout": "Graphic editorial eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Graphics: 1, Weak: 0\n  Empty text: 0, Status: pass\n  [S003] role=callout    dur= 7167ms text_empty=False weak=False\n",
       "stderr": "",
       "eval_name": "graphic_editorial",
-      "command": "scripts/evals/eval_graphic_editorial.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_editorial.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_graphic_editorial.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_editorial.json --db-path db/production.db"
     },
     {
       "returncode": 0,
       "stdout": "Text surface eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Units: 4, Status: inconclusive\n  [S000] policy=NO_VISIBLE_TEXT status=pass ocr=ok\n  [S001] policy=NO_VISIBLE_TEXT status=pass ocr=ok\n  [S002] policy=NO_VISIBLE_TEXT status=pass ocr=ok\n  [S003] policy=NO_VISIBLE_TEXT status=inconclusive ocr=pending\n",
       "stderr": "",
       "eval_name": "text_surface",
-      "command": "scripts/evals/eval_text_surface.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_text.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_text_surface.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_text.json --db-path db/production.db"
     },
     {
       "returncode": 0,
       "stdout": "Graphics eval for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Units: 17, Status: fail\n  [S003] dts=False text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=True text_len=0 qa_ok=None\n  [S003] dts=Tru",
       "stderr": "",
       "eval_name": "deterministic_graphics",
-      "command": "scripts/evals/eval_deterministic_graphics.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_dg.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_deterministic_graphics.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_dg.json --db-path db/production.db"
     },
     {
       "returncode": 0,
       "stdout": "Repair audit for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Open change requests: 0\n  Would call provider render: False\n  Render lock status: PASS\n  Minimality OK: True\n",
       "stderr": "",
       "eval_name": "repair_audit",
-      "command": "scripts/evals/eval_repair_audit.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_audit.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/eval_repair_audit.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --out /tmp/reg_audit.json --db-path db/production.db"
     },
     {
       "returncode": 0,
       "stdout": "Transform ledger for prod_2f9bb58c0508465fb51ac6b4578bba92:\n  Clips: 4\n  Hero lipsync: 2\n  Forbidden operations: 0\n  [S000...] scale_crop, grade, mute_audio, replace_audio, trim\n  [S001...] scale_crop, grade, mute_audio, overlay_narration\n  [S002...] scale_crop, grade, mute_audio, replace_audio, trim\n  [S003...] drawtext_overlay, fade_in, fade_out, scale_crop\n",
       "stderr": "",
       "eval_name": "assembly_transform_ledger",
-      "command": "scripts/evals/assembly_transform_ledger.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --output /tmp/reg_assembly.json --db-path /home/jacobw/YTchannel/db/production.db"
+      "command": "scripts/evals/assembly_transform_ledger.py --production-id prod_2f9bb58c0508465fb51ac6b4578bba92 --output /tmp/reg_assembly.json --db-path db/production.db"
     },
     {
       "returncode": 0,
@@ -72,7 +72,7 @@
     },
     {
       "returncode": 0,
-      "stdout": "......                                                                   [100%]\n6 passed in 0.18s\n",
+      "stdout": "......                                                                   [100%]\n6 passed in 0.17s\n",
       "stderr": "",
       "eval_name": "pytest:tests/test_repair_from_validations.py"
     },
@@ -84,13 +84,13 @@
     },
     {
       "returncode": 0,
-      "stdout": ".......                                                                  [100%]\n7 passed in 0.17s\n",
+      "stdout": ".......                                                                  [100%]\n7 passed in 0.16s\n",
       "stderr": "",
       "eval_name": "pytest:tests/test_repair_audit.py"
     },
     {
       "returncode": 0,
-      "stdout": ".............                                                            [100%]\n13 passed in 0.03s\n",
+      "stdout": ".............                                                            [100%]\n13 passed in 0.04s\n",
       "stderr": "",
       "eval_name": "pytest:tests/test_final_defect_ledger.py"
     },
