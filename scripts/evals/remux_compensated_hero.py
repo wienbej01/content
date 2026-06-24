@@ -9,7 +9,7 @@ Usage:
   python3 scripts/evals/remux_compensated_hero.py \
       --video <provider_video.mp4> \
       --source-audio <source_slice.wav> \
-      --offset-ms -575 \
+      --offset-ms 0 \
       --out /tmp/compensated.mp4 \
       --provider-job-id <id>  # optional: stores path in DB
 """
@@ -83,7 +83,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Compensated hero remux")
     ap.add_argument("--video", type=Path, required=True, help="Provider video MP4")
     ap.add_argument("--source-audio", type=Path, required=True, help="Source slice WAV")
-    ap.add_argument("--offset-ms", type=int, default=-575, help="Measured offset in ms")
+    ap.add_argument("--offset-ms", type=int, default=0, help="Measured offset in ms")
     ap.add_argument("--out", type=Path, required=True, help="Output MP4 path")
     ap.add_argument("--provider-job-id", default=None, help="Store path in provider_jobs DB")
     ap.add_argument("--db-path", default=None)

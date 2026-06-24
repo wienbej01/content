@@ -1,0 +1,153 @@
+{
+  "preflight_id": "s10a_s002_preflight",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "target_render_unit": "render_a34a0a170f24457893fcac0ad77e45b5",
+  "target_label": "S002",
+  "trigger": "S002_HERO_SYNC_FAILED_OR_UNVERIFIED",
+  "decision": "GO",
+  "decision_reason": "All checks pass.",
+  "checks": [
+    {
+      "check": "S002_render_unit_found",
+      "pass": true,
+      "detail": "id=render_a34a0a170f24457893fcac0ad77e45b5"
+    },
+    {
+      "check": "S002_audio_policy",
+      "pass": true,
+      "detail": "policy=HERO_SYNC_LOCKED"
+    },
+    {
+      "check": "S002_timeline_ms",
+      "pass": true,
+      "detail": "start=10437 end=15664 dur=5227"
+    },
+    {
+      "check": "S002_lipsync_required",
+      "pass": true,
+      "detail": "lipsync_required=1"
+    },
+    {
+      "check": "S002_active_artifact_exists",
+      "pass": true,
+      "detail": "id=art_419c9df3b35d4897aed530165d962130"
+    },
+    {
+      "check": "S002_active_artifact_file_ok",
+      "pass": true,
+      "detail": "file=/home/jacobw/YTchannel/assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/pjob_425b4302755945679f937451076a65ae.mp4"
+    },
+    {
+      "check": "S002_source_slice_artifact",
+      "pass": true,
+      "detail": "found=True"
+    },
+    {
+      "check": "source_slice_file_exists",
+      "pass": true,
+      "detail": "uri=/home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/narration/hero_audio_slices/render_a34a0a170f24457893fcac0ad77e45b5.wav"
+    },
+    {
+      "check": "source_slice_sha256_matches",
+      "pass": true,
+      "detail": "hash_check=OK"
+    },
+    {
+      "check": "source_slice_duration_recorded",
+      "pass": true,
+      "detail": "duration=5.227s"
+    },
+    {
+      "check": "source_slice_duration_compatible",
+      "pass": true,
+      "detail": "slice=5.227s vs expected=5.227s"
+    },
+    {
+      "check": "S002_provider_prompt_exists",
+      "pass": true,
+      "detail": "prompt_len=262"
+    },
+    {
+      "check": "S002_model_has_audio",
+      "pass": true,
+      "detail": "model=seedance_2_0"
+    },
+    {
+      "check": "S002_audio_path_valid",
+      "pass": true,
+      "detail": "audio=/home/jacobw/YTchannel/Videos/Projects/use_ai_to_t"
+    },
+    {
+      "check": "S002_image_path_valid",
+      "pass": true,
+      "detail": "image=/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png"
+    },
+    {
+      "check": "S002_prompt_text_risk_clean",
+      "pass": true,
+      "detail": "clean"
+    },
+    {
+      "check": "S002_negative_prompt_present",
+      "pass": true,
+      "detail": "neg_len=747"
+    },
+    {
+      "check": "S002_duration_reasonable",
+      "pass": true,
+      "detail": "dur=5227ms"
+    },
+    {
+      "check": "render_lock_engaged",
+      "pass": true,
+      "detail": "{'YT_TEST_MODE': '1', 'HIGGSFIELD_DRY_RUN': '1', 'KARPATHY_LOOP_RENDER_LOCK': '1'}"
+    },
+    {
+      "check": "provider_job_count_recorded",
+      "pass": true,
+      "detail": "total=149 latest=2026-06-24T12:42:05+08:00"
+    },
+    {
+      "check": "unlock_file_active",
+      "pass": true,
+      "detail": "status=ACTIVE"
+    },
+    {
+      "check": "pipeline_eval_audio_offset.py",
+      "pass": true,
+      "detail": "available"
+    },
+    {
+      "check": "pipeline_remux_compensated_hero.py",
+      "pass": true,
+      "detail": "available"
+    },
+    {
+      "check": "pipeline_syncnet_model",
+      "pass": true,
+      "detail": "available"
+    },
+    {
+      "check": "pipeline_assembly_gate_blocks",
+      "pass": true,
+      "detail": "BLOCKED_HERO_SYNC_UNVERIFIED in assemble_db.py"
+    }
+  ],
+  "summary": {
+    "total": 25,
+    "pass": 25,
+    "fail": 0
+  },
+  "render_lock": {
+    "YT_TEST_MODE": "1",
+    "HIGGSFIELD_DRY_RUN": "1",
+    "KARPATHY_LOOP_RENDER_LOCK": "1"
+  },
+  "provider_job_count_before": 149,
+  "latest_provider_job": {
+    "id": "pjob_fe40c769ad84418fb1091449e63d4da6",
+    "submitted_at": "2026-06-24T12:42:05+08:00"
+  },
+  "unlock_file_active": true,
+  "timestamp": "2026-06-24T19:41:00+08:00"
+}
