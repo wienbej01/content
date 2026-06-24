@@ -1,0 +1,1 @@
+{"checks": {"1_evidence_integrity": true, "2_hardcoded_offsets": false, "3_assembly_path": true}, "blockers": [], "majors": ["Hardcoded offset 575ms in scripts/evals/remux_compensated_hero.py:12", "Hardcoded offset 575ms in scripts/evals/remux_compensated_hero.py:86"]}

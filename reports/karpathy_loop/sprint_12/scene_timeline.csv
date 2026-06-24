@@ -1,0 +1,5 @@
+label,start_s,end_s,duration_s,type,policy
+S000,0.0,4.572,4.572,lipsync_video,HERO_SYNC_LOCKED
+S001,4.572,10.437,5.865,generated_video,BROLL_FLEX
+S002,10.437,15.664,5.227,lipsync_video,HERO_SYNC_LOCKED
+S003,15.664,21.564,5.9,local_graphic,SILENT_GRAPHIC

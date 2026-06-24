@@ -1,0 +1,8 @@
+{
+  "label": "final_assembly",
+  "raw_results": [
+    "2026-06-24 22:00:58,170 SyncNetInstance INFO: AV offset: \t2",
+    "2026-06-24 22:00:58,170 SyncNetInstance INFO: Min dist: \t13.429",
+    "2026-06-24 22:00:58,170 SyncNetInstance INFO: Confidence: \t1.681"
+  ]
+}

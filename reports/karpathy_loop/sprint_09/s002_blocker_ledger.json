@@ -1,0 +1,29 @@
+{
+  "blocker_id": "S002_HERO_SYNC_FAILED_OR_UNVERIFIED",
+  "severity": "blocker",
+  "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "render_unit_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+  "label": "S002",
+  "timeline_window_ms": [10437, 15664],
+  "description": "Hero lipsync unit S002 (10.437-15.664s) has no compensated remux. Original SyncNet: -15 frames (-600ms), confidence 0.791 — FAIL. Full production assembly blocked until S002 is re-rendered, compensated, and SyncNet-verified.",
+  "evidence": {
+    "syncnet_offset_frames": -15,
+    "syncnet_offset_ms": -600,
+    "syncnet_confidence": 0.791,
+    "syncnet_min_dist": 12.944,
+    "compensated_artifact_path": null,
+    "has_passing_validation": false,
+    "compensation_pipeline_run": false
+  },
+  "known_good_analog": {
+    "unit": "S000",
+    "compensated_artifact": "/tmp/compensated_S000_proper.mp4",
+    "syncnet_offset_ms": 80,
+    "syncnet_confidence": 2.897,
+    "status": "PASS"
+  },
+  "next_required_action": "CONTROLLED_S002_CANARY_RENDER",
+  "created_at": "2026-06-24T19:38:00+08:00",
+  "updated_at": null,
+  "resolved_at": null
+}

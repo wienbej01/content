@@ -33,3 +33,9 @@ ffmpeg2pass*
 *.db
 *.sqlite*
 !db/migrations/*.sql
+
+# SyncNet clone (external repo — too large for git)
+syncnet_python/
+
+# Operational — do not commit
+ops/

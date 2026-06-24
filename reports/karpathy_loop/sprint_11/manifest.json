@@ -1,0 +1,85 @@
+{
+  "id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
+  "project_slug": "use_ai_to_triage_your_notifications_and",
+  "variant": "16x9",
+  "narration_mode": "continuous_voiceover",
+  "continuous_audio": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and/narration/continuous.mp3",
+  "pacing": {
+    "reference": 0,
+    "baseline_speed": 1.0
+  },
+  "output": {
+    "directory": "/home/jacobw/YTchannel/Videos/Projects/use_ai_to_triage_your_notifications_and"
+  },
+  "segments": [
+    {
+      "id": "S000",
+      "beat_id": "S000",
+      "clip_id": "render_f91a245c14b341b6a7975e2a8d5716fc",
+      "media": "/home/jacobw/YTchannel/assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/canary_pjob_fe40c769ad84418fb1091449e63d4da6.mp4",
+      "compensated_artifact_path": "/tmp/compensated_S000_proper.mp4",
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "timing_in": 0.0,
+      "timing_out": 4.572,
+      "duration_required": 4.572,
+      "speech_len_sec": 4.572,
+      "lipsync_provenance": {
+        "slice_sha256": "0a8de9e75ff0afc1b2aa5222a2840a0fa06a361c2537cbc9badcb48b20efc12d",
+        "parent_mp3_sha256": "9437f77002c8ce98eab9b4ee244414d850f2fe7d50bf71a97510c7e32a277408"
+      }
+    },
+    {
+      "id": "S001",
+      "beat_id": "S001",
+      "clip_id": "render_d4e6ca191a5a4dc18e029e82d77d06df",
+      "media": "/home/jacobw/YTchannel/assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/pjob_2995dcecc0cf43859737213b2c5c233e.mp4",
+      "compensated_artifact_path": null,
+      "asset_type": "generated_video",
+      "audio_policy": "BROLL_FLEX",
+      "timing_in": 4.572,
+      "timing_out": 10.437,
+      "duration_required": 5.865,
+      "words": 0
+    },
+    {
+      "id": "S002",
+      "beat_id": "S002",
+      "clip_id": "render_a34a0a170f24457893fcac0ad77e45b5",
+      "media": "/home/jacobw/YTchannel/assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/pjob_425b4302755945679f937451076a65ae.mp4",
+      "compensated_artifact_path": "/tmp/compensated_S002.mp4",
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "timing_in": 10.437,
+      "timing_out": 15.664,
+      "duration_required": 5.227,
+      "speech_len_sec": 5.227,
+      "lipsync_provenance": {
+        "slice_sha256": "a3c002fc447032d82174e8e7cd7d3098b12c47c9b43ea40e4581b2714235b553",
+        "parent_mp3_sha256": "9437f77002c8ce98eab9b4ee244414d850f2fe7d50bf71a97510c7e32a277408"
+      }
+    },
+    {
+      "id": "S003",
+      "beat_id": "S003",
+      "clip_id": "render_e26c3ea1572545d68aa21751c0371718",
+      "media": "assets/media/prod_2f9bb58c0508465fb51ac6b4578bba92/sprint11_s003_motion.mp4",
+      "compensated_artifact_path": null,
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "timing_in": 15.664,
+      "timing_out": 21.564,
+      "duration_required": 5.9,
+      "words": 0
+    }
+  ],
+  "graphics": [],
+  "music": {
+    "enabled": true,
+    "mood": "calm",
+    "seed": 7,
+    "volume_db": -28,
+    "fade_in": 1.5,
+    "fade_out": 2.0
+  }
+}

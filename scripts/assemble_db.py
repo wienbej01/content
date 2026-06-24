@@ -378,9 +378,10 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
 
     # Build segment/clip entries compatible with assemble.py manifest
     # Load compensated_artifact_paths for hero units
+    units_dicts = [dict(u) for u in units]
     pj_conn = _db.connect(db_path)
     compensated = {}
-    for u in units:
+    for u in units_dicts:
         if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
             pj = pj_conn.execute(
                 "SELECT compensated_artifact_path FROM provider_jobs "
@@ -393,7 +394,7 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
     pj_conn.close()
 
     clips = []
-    for u in units:
+    for u in units_dicts:
         cap = compensated.get(u["id"])
         clips.append({
             "clip_id": u["id"],

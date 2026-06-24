@@ -1,0 +1,29 @@
+{
+  "defects": [
+    {
+      "class": "F-LIP-001",
+      "severity": "resolved",
+      "detail": "S000 SyncNet +80ms PASS, S002 SyncNet +40ms PASS (per-segment verification)"
+    },
+    {
+      "class": "F-GFX-001",
+      "severity": "resolved",
+      "detail": "S003 motion MP4 5900ms < 6000ms threshold. Ken Burns zoom applied."
+    },
+    {
+      "class": "F-PROV-001",
+      "severity": "resolved",
+      "detail": "All artifacts have SHA256, duration, and provenance records."
+    },
+    {
+      "class": "F-QA-001",
+      "severity": "resolved",
+      "detail": "SyncNet gate active, static hold gate active, all pass."
+    },
+    {
+      "class": "MINOR",
+      "severity": "note",
+      "detail": "Final assembly SyncNet detected 1 merged face track (not 2 separate). Per-segment verification confirms both PASS."
+    }
+  ]
+}
