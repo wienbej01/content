@@ -1,9 +1,63 @@
 # Loop State — S15
 
 **Sprint**: S15 — Shot-mix contract and semantic role validation
-**Updated**: 2026-06-26
-**Status**: **S15 IN PROGRESS — S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
+**Updated**: 2026-06-27
+**Status**: **S15 IN PROGRESS — S15_T003 ENGINEERING PASS (audit+validation PASS), AWAITING INDEPENDENT ACCEPTANCE; S15_T002 ACCEPTED; S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
 
+> **S15_T003 ENGINEERING PASS (2026-06-27; engineering + audit + validation complete; awaiting independent bounded acceptance review).**
+> Post-render semantic-role QA — a rendered unit may not pass publish-grade
+> assembly merely because its `asset_type`, label, or planned `visual_role`
+> claims a role. It must carry passing `semantic_role_qa` evidence bound to its
+> render_unit id AND matching its current `visual_role`.
+> - **New `scripts/semantic_role_qa.py`** — `SEMANTIC_ROLE_QA_VALIDATOR` +
+>   `record_semantic_role_qa()` recorder (evidence in the existing `validations`
+>   table; fail-closed: rejects empty role / bad status / unknown unit).
+> - **New gate `validate_semantic_role_qa`** in `scripts/assemble_db.py`, wired
+>   into `validate_assembly_inputs` immediately AFTER `validate_visual_roles`
+>   (gate order S13 → S14 → S15_T001 → S15_T002 → **S15_T003** preserved).
+>   Raises `BLOCKED_SEMANTIC_ROLE_QA_MISSING` / `_FAILED`. Governing verdict =
+>   newest row whose recorded role == the unit's CURRENT role. Never reads label
+>   or `asset_type`. `test_local` / `diagnostic_legacy` exempt.
+> - **`tests/test_semantic_role_qa.py`** — 16 tests covering all 10 required
+>   behaviours + recorder fail-closed invariants + ordering/non-weakening guards.
+> - **Shared fixtures** — new `seed_semantic_role_qa`; one-line seeding added to
+>   the four publish-grade batch builders so existing S13/S14/S15 suites stay
+>   green (not weakening — shot-mix / visual_role assertions unchanged).
+> - **Tests**: required set **160 passed / 1 skipped** (skip pre-existing); own
+>   suite 16/16. Full suite **90 failed / 1799 passed / 10 skipped**.
+> - **Zero regressions**: failure count identical to the S15_T002-accepted
+>   baseline (90); +16 passes are the new tests. **ZERO `BLOCKED_SEMANTIC_ROLE`
+>   failures anywhere** in the full suite. All 90 residual failures are
+>   pre-existing earlier-gate debt / unrelated subsystems → NO MATERIAL IMPACT.
+> - No real frame analysis yet (by design — S15_T004 will feed real verdicts into
+>   `record_semantic_role_qa`). No paid renders. No S15_T004 started.
+> - Note: S15_T003 carries the previously-uncommitted, independently-accepted
+>   S15_T002 visual_role foundation it depends on. See
+>   `reports/karpathy_loop/s15/S15_T003/`.
+> - **S15_T004 NOT STARTED** (awaiting S15_T003 acceptance).
+>
+> **S15_T002 ACCEPTED (2026-06-26, independent bounded acceptance review).**
+> Prior S15_T002 attempt was NOT accepted; FIX001 corrected all issues:
+> - **Enforcement moved to the publish-grade assembly gate.** New
+>   `validate_visual_roles(units, publish_grade)` in `assemble_db.py` raises
+>   `BLOCKED_VISUAL_ROLE_MISSING` / `BLOCKED_VISUAL_ROLE_INVALID`; `test_local` /
+>   `diagnostic_legacy` (`publish_grade=False`) are explicitly exempt. Contract
+>   resolved from `video_type` (default `short_educational`).
+> - **Save-time requirement reverted** — `visual_role` is optional at storyboard
+>   save; stored + propagated when present.
+> - **Propagation** creative_beat → timeline_span → render_unit unchanged (correct).
+> - **Bad test simplification reverted/fixed** — `tests/test_visual_role_contract.py`
+>   rewritten (12 tests) to build real contract-compliant H→B→H→G batches; negative
+>   tests assert the error is `BLOCKED_VISUAL_ROLE_*` and NOT
+>   `BLOCKED_SHOT_MIX_CONTRACT`.
+> - New shared `tests/visual_role_fixtures.py::seed_visual_roles`; wired into the
+>   3 shared batch helpers so S13/S14/S15_T001 positive fixtures carry visual_role.
+> - **Independent acceptance verdict**: PASS. All review criteria A-D met.
+>   Required targeted tests 144/144 (1 skip pre-existing). Zero `BLOCKED_VISUAL_ROLE`
+>   failures anywhere. No production gate weakening. No fake green. Prior bad
+>   simplification fully reverted/fixed. See `reports/karpathy_loop/s15/S15_T002_ACCEPTANCE/`.
+> - **S15_T003 APPROVED TO START.**
+>
 > **S15_SUITE_HEALTH_FIX001 COMPLETE (2026-06-26).** The S15_T001 non-blocking follow-up is
 > resolved. S14 positive-path and non-hero-exemption coverage degraded by S15 shot-mix enforcement
 > is restored:

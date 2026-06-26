@@ -1,7 +1,7 @@
 {
   "sprint": "S15",
   "sprint_name": "Shot-mix contract and semantic role validation",
-  "updated": "2026-06-26",
+  "updated": "2026-06-27",
   "previous_sprint": {
     "sprint": "S14",
     "sprint_name": "Strict lip-sync QA and thresholds",
@@ -39,13 +39,35 @@
     },
     "S15_T002": {
       "id": "S15_T002",
-      "name": "Semantic role validation (b-roll semantic contract)",
-      "status": "PENDING"
+      "name": "Add visual_role metadata (semantic role validation)",
+      "status": "ACCEPTED",
+      "approved": true,
+      "approval_type": "INDEPENDENT_ACCEPTANCE_REVIEW",
+      "attempt": "RETRY / FIX001 (prior attempt NOT accepted)",
+      "reports_dir": "reports/karpathy_loop/s15/S15_T002/",
+      "completion_date": "2026-06-26",
+      "tests": "12/12 own suite; required set 144 passed/1 skipped (visual_role 12, shot_mix 12, s14_t004 9, s14_t003 6, lipsync/hero_framing, s13_t005+audio). Full suite 90 failed/1783 passed/10 skipped.",
+      "regression": "Prior WIP broke 121 tests (unconditional visual_role gate + save-time hard requirement). FIX001 reverts both over-aggressive changes, moves enforcement to the publish-grade assembly gate, and rewrites the tests to build contract-compliant H->B->H->G batches so the visual_role gate is reached (no longer masked by BLOCKED_SHOT_MIX_CONTRACT). ZERO BLOCKED_VISUAL_ROLE failures anywhere across all 10 validate_assembly_inputs callers + full suite -> S15_T002 introduces ZERO regressions. Prior WIP 121 failed -> FIX001 90 failed (fixed 31, introduced 0).",
+      "prior_bad_simplification": "REVERTED/FIXED. Prior publish-grade tests bypassed shot-mix via test_local/single-graphic; now build real contract-compliant batches and assert BLOCKED_VISUAL_ROLE_* (not BLOCKED_SHOT_MIX_CONTRACT).",
+      "residual_failures": "90 full-suite failures are pre-existing/out-of-scope earlier-gate failures (S15_T001 shot-mix on non-compliant single-unit fixtures across tests/unit/ etc., S14 syncnet, S13 compensated, FK-setup, produce_db repair) — NONE are BLOCKED_VISUAL_ROLE. NO MATERIAL IMPACT on S15_T002.",
+      "next": "S15_T003 APPROVED TO START.",
+      "gate_review_dir": "reports/karpathy_loop/s15/S15_T002_ACCEPTANCE/",
+      "acceptance_date": "2026-06-26",
+      "acceptance_review": "Independent bounded acceptance review completed. All review criteria A-D met. Required targeted tests 144/144 (1 skip pre-existing). Zero BLOCKED_VISUAL_ROLE failures anywhere. No production gate weakening. No fake green. Prior bad simplification fully reverted/fixed. Verdict: PASS."
     },
     "S15_T003": {
       "id": "S15_T003",
-      "name": "Pending",
-      "status": "PENDING"
+      "name": "Post-render semantic role QA",
+      "status": "ENGINEERING_PASS_AWAITING_ACCEPTANCE",
+      "parent": "S15_T002",
+      "reports_dir": "reports/karpathy_loop/s15/S15_T003/",
+      "completion_date": "2026-06-27",
+      "tests": "Own suite 16/16; required set 160 passed/1 skipped (semantic_role_qa 16, visual_role 12, shot_mix 12, s14_t004 9, s14_t003 6, lipsync/hero_framing 73, s13_t005 14+1skip, audio_continuity 18). Full suite 90 failed/1799 passed/10 skipped.",
+      "implementation": "New scripts/semantic_role_qa.py (SEMANTIC_ROLE_QA_VALIDATOR + record_semantic_role_qa recorder). New gate validate_semantic_role_qa in scripts/assemble_db.py, wired into validate_assembly_inputs after validate_visual_roles. Evidence stored in existing validations table (validator_name='semantic_role_qa'), bound to render_unit id + current visual_role. Errors: BLOCKED_SEMANTIC_ROLE_QA_MISSING / _FAILED / _EVIDENCE_INVALID. test_local/diagnostic_legacy exempt. No real frame analysis (S15_T004 scope).",
+      "regression": "Zero. Full-suite failure count identical to S15_T002-accepted baseline (90 failed). +16 passes are the new tests. ZERO BLOCKED_SEMANTIC_ROLE failures anywhere in the full suite. Earlier gates (S13/S14/S15_T001/S15_T002) unchanged; pre-existing earlier-gate failures still fail before the semantic gate.",
+      "residual_failures": "90 full-suite failures pre-existing/out-of-scope (S14 syncnet, S13 compensated, S15_T001 shot-mix fixture debt, unrelated audio/canary/db/e2e subsystems). NONE are BLOCKED_SEMANTIC_ROLE. NO MATERIAL IMPACT.",
+      "hard_rules": "One ticket only; no S15_T004 started; no paid renders; no labels/asset_type as proof; no parallel manifest; no gate weakening; no silent fallback; no fake-green; no broad suite cleanup.",
+      "next": "Awaiting independent bounded acceptance review. S15_T004 NOT started."
     },
     "S15_T004": {
       "id": "S15_T004",

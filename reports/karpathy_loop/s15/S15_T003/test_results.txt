@@ -1,0 +1,64 @@
+=== tests/test_semantic_role_qa.py ===
+tests/test_semantic_role_qa.py::TestSemanticRoleQAEvidenceContract::test_record_requires_non_empty_visual_role PASSED [ 81%]
+tests/test_semantic_role_qa.py::TestSemanticRoleQAEvidenceContract::test_record_requires_valid_status PASSED [ 87%]
+tests/test_semantic_role_qa.py::TestSemanticRoleQAEvidenceContract::test_record_rejects_unknown_render_unit PASSED [ 93%]
+tests/test_semantic_role_qa.py::TestSemanticRoleQAEvidenceContract::test_evidence_bound_to_unit_and_role PASSED [100%]
+
+============================== 16 passed in 3.00s ==============================
+
+=== tests/test_visual_role_contract.py ===
+tests/test_visual_role_contract.py::test_publish_grade_production_without_roles_blocks PASSED [ 75%]
+tests/test_visual_role_contract.py::test_visual_role_saved_to_creative_beats PASSED [ 83%]
+tests/test_visual_role_contract.py::test_visual_role_is_optional_at_save PASSED [ 91%]
+tests/test_visual_role_contract.py::test_visual_roles_enum_table_populated PASSED [100%]
+
+============================== 12 passed in 1.19s ==============================
+
+=== tests/test_shot_mix_contract.py ===
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_test_local_profile_not_publish_grade PASSED [ 75%]
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_diagnostic_legacy_not_publish_grade PASSED [ 83%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s13_hero_compensated_artifact_gate_still_enforced PASSED [ 91%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s14_per_segment_syncnet_still_enforced PASSED [100%]
+
+============================== 12 passed in 1.74s ==============================
+
+=== tests/test_s14_t004_syncnet_confidence.py ===
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_missing_framing_defaults_to_close PASSED [ 66%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_missing_offset_ms_fails PASSED [ 77%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_malformed_evidence_json_fails PASSED [ 88%]
+tests/test_s14_t004_syncnet_confidence.py::TestNonHeroUnits::test_broll_flex_bypasses_confidence_check PASSED [100%]
+
+============================== 9 passed in 1.24s ===============================
+
+=== tests/test_s14_t003_per_segment_syncnet.py ===
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_only_audio_offset_fails PASSED [ 50%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_both_passes PASSED [ 66%]
+tests/test_s14_t003_per_segment_syncnet.py::TestNonHeroUnitsExempt::test_broll_flex_does_not_require_syncnet PASSED [ 83%]
+tests/test_s14_t003_per_segment_syncnet.py::TestNonHeroUnitsExempt::test_silent_graphic_does_not_require_syncnet PASSED [100%]
+
+============================== 6 passed in 0.96s ===============================
+
+=== tests/test_lipsync_policy.py tests/test_hero_framing.py ===
+tests/test_hero_framing.py::TestConstants::test_medium_framing_constant PASSED [ 95%]
+tests/test_hero_framing.py::TestConstants::test_wide_framing_constant PASSED [ 97%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_hero_framing_metadata_structure PASSED [ 98%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_metadata_available_for_policy_evaluation PASSED [100%]
+
+============================== 73 passed in 0.17s ==============================
+
+=== tests/test_s13_t005_integration_regression.py ===
+tests/test_s13_t005_integration_regression.py::TestS13T005AudioContinuityQA::test_clean_integration_output_passes PASSED [ 80%]
+tests/test_s13_t005_integration_regression.py::TestS13T005SegmentTimelineMetadata::test_segment_timeline_metadata_structure PASSED [ 86%]
+tests/test_s13_t005_integration_regression.py::TestS13T005SegmentTimelineMetadata::test_assembly_produces_segment_timeline SKIPPED [ 93%]
+tests/test_s13_t005_integration_regression.py::TestS13T005EndToEndIntegration::test_full_integration_regression PASSED [100%]
+
+======================== 14 passed, 1 skipped in 1.33s =========================
+
+=== tests/test_audio_continuity.py ===
+tests/test_audio_continuity.py::TestEdgeCases::test_invalid_audio_file_fails PASSED [ 83%]
+tests/test_audio_continuity.py::TestEdgeCases::test_no_segments_skips_overlap_and_click PASSED [ 88%]
+tests/test_audio_continuity.py::TestReportContract::test_report_consumable_by_qa PASSED [ 94%]
+tests/test_audio_continuity.py::TestReportContract::test_cli_runs PASSED [100%]
+
+============================== 18 passed in 1.54s ==============================
+

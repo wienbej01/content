@@ -21,12 +21,25 @@ import production_repo as _repo
 from authoring_service import request_approval, record_approval_decision
 from lipsync_policy import evaluate_lipsync, get_policy as get_lipsync_policy
 from hero_framing import get_render_unit_hero_framing
-from shot_mix_contract import validate_shot_mix, ShotMixVerdict
+from shot_mix_contract import (
+    validate_shot_mix, ShotMixVerdict, get_contract, DEFAULT_CONTRACT_NAME,
+)
+from semantic_role_qa import SEMANTIC_ROLE_QA_VALIDATOR
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "Videos" / "Projects"
 
 _HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
+
+# S15-T002: Allowed editorial visual roles (single source of truth for the gate).
+# Mirrors the reference values seeded into the `visual_roles` table by migration 011.
+# visual_role is the editorial FUNCTION of a shot and is independent of the technical
+# asset_type and the audio/sync audio_policy.
+ALLOWED_VISUAL_ROLES = frozenset({
+    "hero_trust", "hero_hook", "hero_cta",
+    "broll_evidence", "broll_metaphor", "broll_emotional_reset",
+    "graphic_framework", "graphic_comparison", "graphic_process", "graphic_data",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +94,165 @@ def get_audio_assembly_mode(audio_policy: str) -> str:
 class AssemblyError(Exception):
     pass
 
+
+# ---------------------------------------------------------------------------
+# S15-T002  Visual role gate (editorial function, publish-grade only)
+# ---------------------------------------------------------------------------
+
+def _resolve_production_contract(conn, production_id: str):
+    """Resolve the shot-mix contract that governs a production.
+
+    Maps the production's `video_type` to a contract name. Unknown or NULL
+    video types fall back to DEFAULT_CONTRACT_NAME (the publish-grade
+    `short_educational` contract) so that real productions — whose video_type
+    is a content archetype like 'short'/'explainer', not a contract name — are
+    treated as publish-grade. Only an explicit non-publish contract
+    ('test_local', 'diagnostic_legacy') opts out.
+    """
+    row = conn.execute(
+        "SELECT video_type FROM productions WHERE id=?", (production_id,)
+    ).fetchone()
+    video_type = row["video_type"] if row else None
+    contract_name = video_type or DEFAULT_CONTRACT_NAME
+    try:
+        return get_contract(contract_name)
+    except ValueError:
+        # Unknown video_type -> default to the publish-grade contract.
+        return get_contract(DEFAULT_CONTRACT_NAME)
+
+
+def validate_visual_roles(units, publish_grade: bool = True) -> None:
+    """Enforce that every publish-grade render_unit carries a valid visual_role.
+
+    visual_role is the EDITORIAL function of a shot (why it is on screen) and
+    is deliberately independent of asset_type (technical) and audio_policy
+    (audio/sync). It is sourced from the creative_beat via DB-native planning,
+    never inferred from label text.
+
+    Non-publish-grade contracts (test_local, diagnostic_legacy) are explicitly
+    exempt: visual_role is a publish-grade editorial discipline.
+
+    Raises AssemblyError(BLOCKED_VISUAL_ROLE_*) on the first offending unit.
+    """
+    if not publish_grade:
+        return  # explicit exemption for non-publish contracts
+
+    for u in units:
+        role = u.get("visual_role")
+        label = u.get("label") or ""
+        if not role:
+            raise AssemblyError(
+                f"BLOCKED_VISUAL_ROLE_MISSING: render unit {u['id']} ({label}) has no "
+                f"visual_role. Every publish-grade render unit must declare its editorial "
+                f"function during storyboard planning (creative_beat.visual_role propagates "
+                f"to the render_unit via the timeline span). Allowed values: "
+                f"{', '.join(sorted(ALLOWED_VISUAL_ROLES))}."
+            )
+        if role not in ALLOWED_VISUAL_ROLES:
+            raise AssemblyError(
+                f"BLOCKED_VISUAL_ROLE_INVALID: render unit {u['id']} ({label}) has visual_role "
+                f"'{role}' which is not an allowed editorial role. visual_role is the editorial "
+                f"function of the shot and must be one of: "
+                f"{', '.join(sorted(ALLOWED_VISUAL_ROLES))}."
+            )
+
+
+# ---------------------------------------------------------------------------
+# S15-T003  Post-render semantic-role QA gate (publish-grade only)
+# ---------------------------------------------------------------------------
+
+def _semantic_role_qa_evidence(evidence_json, field):
+    """Read a field from a semantic_role_qa validation's evidence_json.
+
+    Returns None for missing/malformed evidence rather than raising, so the gate
+    can treat malformed evidence as 'does not satisfy' (fail closed).
+    """
+    try:
+        data = json.loads(evidence_json) if evidence_json else {}
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data.get(field)
+
+
+def validate_semantic_role_qa(conn, units, publish_grade: bool = True) -> None:
+    """S15-T003: Require passing post-render semantic-role QA on publish-grade units.
+
+    A publish-grade render unit may NOT pass assembly merely because its
+    ``asset_type``, label, or planned ``visual_role`` says it is b-roll, graphic,
+    or hero. It must carry a passing ``semantic_role_qa`` validation whose
+    recorded ``visual_role`` matches the unit's CURRENT visual_role — i.e. the
+    rendered content was actually evaluated against the editorial role it claims.
+
+    Evidence is looked up per render_unit via ``validations.subject_id`` and is
+    never inferred from label text or ``asset_type``. Non-publish contracts
+    (``test_local``, ``diagnostic_legacy``) are explicitly exempt: semantic-role
+    QA is a publish-grade editorial discipline.
+
+    Must run AFTER :func:`validate_visual_roles` so every publish-grade unit has
+    a valid current visual_role to match evidence against.
+
+    Raises AssemblyError(BLOCKED_SEMANTIC_ROLE_QA_MISSING | _FAILED) on the first
+    offending unit.
+    """
+    if not publish_grade:
+        return  # explicit exemption for non-publish contracts
+
+    for u in units:
+        uid = u["id"]
+        role = u.get("visual_role")
+        label = u.get("label") or ""
+
+        rows = conn.execute(
+            """SELECT status, evidence_json FROM validations
+               WHERE subject_type='render_unit' AND subject_id=?
+                 AND validator_name=?
+               ORDER BY created_at DESC""",
+            (uid, SEMANTIC_ROLE_QA_VALIDATOR),
+        ).fetchall()
+
+        if not rows:
+            raise AssemblyError(
+                f"BLOCKED_SEMANTIC_ROLE_QA_MISSING: render unit {uid} ({label}) with "
+                f"visual_role '{role}' has no post-render semantic-role QA evidence. "
+                f"Publish-grade render units must prove their rendered content satisfies "
+                f"the declared visual_role; asset_type, label, or a planned role cannot "
+                f"substitute for QA. Record a '{SEMANTIC_ROLE_QA_VALIDATOR}' validation "
+                f"bound to this render unit and its current visual_role."
+            )
+
+        # Governing verdict = newest row whose recorded visual_role matches the
+        # unit's CURRENT visual_role. Rows for other roles (stale / mismatched)
+        # cannot satisfy the current role.
+        governing = None
+        found_roles = []
+        for r in rows:
+            ev_role = _semantic_role_qa_evidence(r["evidence_json"], "visual_role")
+            if ev_role:
+                found_roles.append(ev_role)
+            if governing is None and ev_role == role:
+                governing = r
+
+        if governing is None:
+            raise AssemblyError(
+                f"BLOCKED_SEMANTIC_ROLE_QA_MISSING: render unit {uid} ({label}) has "
+                f"semantic-role QA evidence but none matches its current visual_role "
+                f"'{role}' (found evidence for: {sorted(set(found_roles)) or 'none'}). "
+                f"The QA result must correspond to the unit's current declared "
+                f"visual_role; stale or role-mismatched evidence does not satisfy it."
+            )
+
+        if governing["status"] != "pass":
+            reason = _semantic_role_qa_evidence(governing["evidence_json"], "reason")
+            raise AssemblyError(
+                f"BLOCKED_SEMANTIC_ROLE_QA_FAILED: render unit {uid} ({label}) with "
+                f"visual_role '{role}' failed post-render semantic-role QA"
+                + (f": {reason}" if reason else "")
+                + ". The rendered content does not satisfy the declared editorial "
+                "role; a failing semantic-role QA verdict cannot pass assembly."
+            )
+        # governing is a passing verdict matching the current visual_role -> satisfied.
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +448,7 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
 
                     # Get hero framing metadata to select appropriate policy
                     try:
-                        framing_meta = get_render_unit_hero_framing(u["id"], db_path=db)
+                        framing_meta = get_render_unit_hero_framing(u["id"], db_path=db_path)
                         policy_name = framing_meta.policy_name
                     except Exception as e:
                         # Fallback to close_hero if framing metadata is unavailable
@@ -380,6 +552,22 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                 raise AssemblyError(
                     f"BLOCKED_SHOT_MIX_CONTRACT_VALIDATION_FAILED: Shot-mix contract validation failed with error: {e}"
                 ) from None
+
+        # S15-T002: Visual role validation — publish-grade editorial discipline.
+        # Runs AFTER shot-mix (structure) so a structurally valid publish-grade
+        # batch reaches this gate. Non-publish contracts are explicitly exempt.
+        contract = _resolve_production_contract(conn, production_id)
+        validate_visual_roles(units, publish_grade=contract.publish_grade)
+        evidence["visual_role_contract"] = contract.format_name
+        evidence["visual_role_publish_grade"] = bool(contract.publish_grade)
+
+        # S15-T003: Post-render semantic-role QA — publish-grade render units must
+        # carry passing semantic-role QA evidence bound to the unit AND its current
+        # visual_role, proving the RENDERED content satisfies the declared role.
+        # Runs after visual_role so a valid current role exists to match against.
+        # Non-publish contracts (test_local / diagnostic_legacy) are exempt.
+        validate_semantic_role_qa(conn, units, publish_grade=contract.publish_grade)
+        evidence["semantic_role_qa_publish_grade"] = bool(contract.publish_grade)
 
         # 6. No stale render units (already excluded by SQL WHERE status!=stale)
 

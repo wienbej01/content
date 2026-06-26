@@ -23,6 +23,7 @@ from production_repo import (
 )
 from media_service import run_render_unit_qa
 from assemble_db import validate_assembly_inputs, AssemblyError
+from visual_role_fixtures import seed_visual_roles, seed_semantic_role_qa
 
 
 @pytest.fixture
@@ -188,6 +189,10 @@ def _make_syncnet_contract_batch(prod_id, db, tmp_path, unit_specs):
 
         unit_specs_list.append(unit_data)
 
+    # S15-T002: seed creative_beats with visual_role and link each span to its
+    # beat so plan_render_units propagates visual_role onto every render unit.
+    seed_visual_roles(prod_id, db, span_data_list, unit_specs_list)
+
     # Commit all spans in one batch
     spans = commit_timeline_spans(prod_id, span_data_list, db_path=db)
 
@@ -249,6 +254,10 @@ def _make_syncnet_contract_batch(prod_id, db, tmp_path, unit_specs):
                     (f"val_syncnet_{unit['id']}_{uuid.uuid4().hex[:8]}",
                      prod_id, "render_unit", unit["id"], syncnet_evidence),
                 )
+
+    # S15-T003: seed passing post-render semantic-role QA evidence per unit
+    # (current DB visual_role) so publish-grade batches satisfy the semantic gate.
+    seed_semantic_role_qa(prod_id, db, units)
 
     return units
 

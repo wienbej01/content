@@ -415,6 +415,7 @@ def plan_render_units(
         prompt_revision_id : optional document_revision_id for the prompt
         label              : optional display label
         metadata           : optional dict merged into metadata_json
+        visual_role        : optional editorial role (hero_trust, hero_hook, broll_evidence, etc.)
         # R7 semantic fields:
         visual_function, narrative_claim, information_to_show, viewer_takeaway,
         required_action, forbidden_cliches, distinctness_requirement,
@@ -438,6 +439,16 @@ def plan_render_units(
                 f"SELECT * FROM timeline_spans WHERE id IN ({ph})", span_ids
             ).fetchall()
         }
+
+        # Fetch visual_roles from creative_beats for all relevant spans
+        beat_ids = [sr.get("creative_beat_id") for sr in span_rows.values() if sr.get("creative_beat_id")]
+        visual_roles_by_beat_id = {}
+        if beat_ids:
+            bh = ",".join("?" * len(beat_ids))
+            for row in conn.execute(
+                f"SELECT id, visual_role FROM creative_beats WHERE id IN ({bh})", beat_ids
+            ):
+                visual_roles_by_beat_id[row["id"]] = row["visual_role"]
 
         # D-015: a new render-plan supersedes the prior one. Mark this production's
         # existing (non-stale) units 'stale' in the SAME transaction — render units are
@@ -495,6 +506,12 @@ def plan_render_units(
                 text_policy = spec.get("text_policy")
                 lipsync_required = int(bool(spec.get("lipsync_required", False)))
 
+                # Fetch visual_role from creative_beat (if this span has one)
+                beat_id = span.get("creative_beat_id")
+                visual_role = None
+                if beat_id and beat_id in visual_roles_by_beat_id:
+                    visual_role = visual_roles_by_beat_id[beat_id]
+
                 unit = {
                     "id": unit_id,
                     "audio_policy": audio_policy,
@@ -502,6 +519,7 @@ def plan_render_units(
                     "provider_audio_usage": provider_audio_usage,
                     "text_policy": text_policy,
                     "lipsync_required": lipsync_required,
+                    "visual_role": visual_role,
                     "speech_start_sample": _slot_or_spec(slot, spec, "speech_start_sample"),
                     "speech_end_sample": _slot_or_spec(slot, spec, "speech_end_sample"),
                     "generation_start_sample": _slot_or_spec(slot, spec, "generation_start_sample"),
@@ -560,7 +578,7 @@ def plan_render_units(
                     """INSERT INTO render_units
                        (id, production_id, timeline_span_id, ordinal, label, asset_type, model,
                         audio_policy, final_audio_source, provider_audio_usage, text_policy,
-                        lipsync_required, required_start_ms, required_end_ms,
+                        lipsync_required, visual_role, required_start_ms, required_end_ms,
                         required_duration_ms, slot_index, slot_total, status,
                         speech_start_sample, speech_end_sample,
                         generation_start_sample, generation_end_sample,
@@ -576,16 +594,17 @@ def plan_render_units(
                        VALUES (?,?,?,?,?,?,?,
                                ?,?,?,?,?,?,?,
                                ?,?,?,?,?,?,?,
-                               ?,?,?,?,?,?,?,
-                               ?,?,?,?,?,?,?,
-                               ?,?,?,?,?,?,?,
-                               ?,?,?,?)""",
+                               ?,?,?,?,?,?,
+                               ?,?,?,?,?,?,
+                               ?,?,?,?,?,?,
+                               ?,?,?,?,?,?,
+                               ?,?)""",
                     (
                         unit_id, production_id, span_id, ordinal,
                         spec.get("label") or span.get("label"),
                         spec["asset_type"], spec.get("model"),
                         audio_policy, final_audio_source, provider_audio_usage, text_policy,
-                        lipsync_required,
+                        lipsync_required, visual_role,
                         start_ms, end_ms, end_ms - start_ms,
                         slot.get("slot_index"), slot.get("slot_total"),
                         "ordered",

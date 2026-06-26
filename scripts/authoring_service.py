@@ -174,7 +174,13 @@ def save_storyboard(
     """Save an immutable storyboard revision and extract creative_beats.
 
     storyboard_payload must contain a 'beats' list; each beat:
-        label, shot_type, [visual_intent], [graphics], [narration_text], [script_segment_label]
+        label, shot_type, [visual_role], [visual_intent], [graphics], [narration_text], [script_segment_label]
+
+    visual_role (S15-T002) is the editorial function of the beat. It is OPTIONAL
+    at save time so legacy authoring flows keep working; when present it is stored
+    on the creative_beat and propagates to render_units via the timeline span.
+    Enforcement (every publish-grade render unit must carry a valid visual_role)
+    happens at the assembly gate, not here.
     """
     beats = storyboard_payload.get("beats", [])
     if not beats:
@@ -190,15 +196,17 @@ def save_storyboard(
             beat_id = _db._id("beat")
             narr = beat.get("narration_text", "")
             sha = _db._sha256_bytes(narr.encode()) if narr else None
+            visual_role = beat.get("visual_role")
             conn.execute(
                 """INSERT OR IGNORE INTO creative_beats
-                   (id, storyboard_revision_id, ordinal, label, shot_type,
+                   (id, storyboard_revision_id, ordinal, label, shot_type, visual_role,
                     visual_intent_json, graphics_json, narration_text_sha256)
-                   VALUES (?,?,?,?,?,?,?,?)""",
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
                     beat_id, doc_id, i,
                     beat.get("label", f"B{i:03d}"),
                     beat.get("shot_type"),
+                    visual_role,
                     _db._json(beat.get("visual_intent") or {}),
                     _db._json(beat.get("graphics") or {}),
                     sha,

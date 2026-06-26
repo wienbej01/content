@@ -15,6 +15,8 @@ from production_repo import (
     commit_timeline_spans, plan_render_units, register_artifact, link_artifact_to_render_unit,
 )
 from assemble_db import validate_assembly_inputs, AssemblyError
+from visual_role_fixtures import seed_visual_roles, seed_semantic_role_qa
+
 
 
 @pytest.fixture
@@ -87,6 +89,10 @@ def _make_units_batch(prod_id, db, tmp_path, unit_specs):
 
         unit_specs_list.append(unit_data)
 
+    # S15-T002: seed creative_beats with visual_role and link each span to its
+    # beat so plan_render_units propagates visual_role onto every render unit.
+    seed_visual_roles(prod_id, db, span_data_list, unit_specs_list)
+
     # Phase 2: Commit all spans in a single batch call (avoids stale marking)
     spans = commit_timeline_spans(prod_id, span_data_list, db_path=db)
 
@@ -153,6 +159,11 @@ def _make_units_batch(prod_id, db, tmp_path, unit_specs):
                            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
                         (f"val_syncnet_{unit['id']}_{uuid.uuid4().hex[:8]}", prod_id, "render_unit", unit["id"], "syncnet_offset", "pass", syncnet_evidence),
                     )
+
+    # S15-T003: seed passing post-render semantic-role QA evidence for every unit
+    # (read from its current DB visual_role) so publish-grade batches satisfy the
+    # semantic-role gate. Units without a role are skipped.
+    seed_semantic_role_qa(prod_id, db, units)
 
     return units
 
