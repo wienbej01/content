@@ -1,0 +1,10 @@
+# End-to-end CLI verification — scripts/evals/eval_audio_continuity.py
+# Codec path: AAC 128k encode (matches real assembly) -> 16kHz mono PCM decode.
+
+clean    status=pass exit=0  gap=pass     overlap=pass     click=pass
+gap500   status=fail exit=1  gap=fail     overlap=pass     click=pass
+         Issue: Audio gap at 2.00s: 522.5ms (exceeds 500ms threshold)
+overlap  status=fail exit=1  gap=pass     overlap=fail     click=pass
+         Issue: Segment-timeline overlap at 1.80s: 200.0ms between segments [0, 1] (exceeds 0ms threshold)
+click    status=fail exit=1  gap=pass     overlap=pass     click=fail
+         Issue: Seam click at 2.00s: 33.6dB peak/refRMS (exceeds 20dB threshold)

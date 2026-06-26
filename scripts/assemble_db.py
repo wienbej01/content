@@ -12,15 +12,66 @@ import json
 import hashlib
 from pathlib import Path
 from typing import Optional
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import production_db as _db
 import production_repo as _repo
 from authoring_service import request_approval, record_approval_decision
+from lipsync_policy import evaluate_lipsync, get_policy as get_lipsync_policy
+from hero_framing import get_render_unit_hero_framing
+from shot_mix_contract import validate_shot_mix, ShotMixVerdict
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "Videos" / "Projects"
 
 _HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
+
+
+# ---------------------------------------------------------------------------
+# Audio Assembly Mode Mapping (S13-T001)
+# ---------------------------------------------------------------------------
+
+# Maps audio_policy values to audio_assembly_mode for future audio-island assembly.
+# Hero lipsync units must preserve their compensated provider audio (hero_island).
+# B-roll uses master narration slices (master_slice). Silent graphics use music bed only (silent_under_music).
+_AUDIO_ASSEMBLY_MODE_MAP: dict[str, str] = {
+    "HERO_SYNC_LOCKED": "hero_island",
+    "keep_lipsync": "hero_island",
+    "hero_lipsync": "hero_island",
+    "BROLL_FLEX": "master_slice",
+    "BROLL_SYNCED_ACTION": "master_slice",
+    "SILENT_GRAPHIC": "silent_under_music",
+    "AMBIENCE_OR_SFX": "master_slice",
+    "MUSIC_BED": "silent_under_music",
+    "narration_overlay": "master_slice",
+    "silent": "silent_under_music",
+    "baked_in": "hero_island",
+    "generated_tts": "hero_island",
+    "strip": "master_slice",
+    "ambient": "silent_under_music",
+}
+
+
+def get_audio_assembly_mode(audio_policy: str) -> str:
+    """Map audio_policy to audio_assembly_mode.
+
+    Args:
+        audio_policy: The audio_policy value from render_units (e.g., 'HERO_SYNC_LOCKED').
+
+    Returns:
+        The audio_assembly_mode: 'hero_island', 'master_slice', or 'silent_under_music'.
+
+    Raises:
+        ValueError: If audio_policy is not in the mapping.
+    """
+    if audio_policy not in _AUDIO_ASSEMBLY_MODE_MAP:
+        raise ValueError(
+            f"BLOCKED_AUDIO_ASSEMBLY_MODE_UNKNOWN: unknown audio_policy '{audio_policy}'. "
+            f"Valid values: {sorted(_AUDIO_ASSEMBLY_MODE_MAP.keys())}"
+        )
+    return _AUDIO_ASSEMBLY_MODE_MAP[audio_policy]
 
 
 # ---------------------------------------------------------------------------
@@ -185,29 +236,150 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                     )
                 # No validations at all -> pre-QA artifact, allow assembly
 
-                # S08-T004: SyncNet gate for HERO_SYNC_LOCKED units
+                # S14-T003: Per-segment SyncNet mandatory for HERO_SYNC_LOCKED units
+                # audio_offset is diagnostic-only and cannot satisfy publish-grade hero sync requirement
         for u in units:
             if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
-                offset_ok = conn.execute(
-                    "SELECT 1 FROM validations WHERE "
-                    "(subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?)) "
-                    "AND validator_name='audio_offset' "
-                    "AND status='pass' AND ABS(CAST(json_extract(evidence_json,'$.offset_ms') AS REAL)) < 160 "
-                    "LIMIT 1", (u["id"], u["id"],),
+                # Check for per-segment SyncNet validation
+                # Validation must be on the render_unit or its provider_job
+                syncnet_validation = conn.execute(
+                    """SELECT id, evidence_json FROM validations WHERE
+                       (subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?))
+                       AND validator_name='syncnet_offset'
+                       AND status='pass'
+                       LIMIT 1""", (u["id"], u["id"],),
                 ).fetchone()
-                sync_ok = conn.execute(
-                    "SELECT 1 FROM validations WHERE "
-                    "(subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?)) "
-                    "AND validator_name='syncnet_offset' "
-                    "AND status='pass' LIMIT 1", (u["id"], u["id"],),
-                ).fetchone()
-                if not offset_ok and not sync_ok:
+
+                if not syncnet_validation:
                     raise AssemblyError(
-                        "BLOCKED_HERO_SYNC_UNVERIFIED: render unit " + u["id"] + " "
-                        "(" + (u.get("label", "") or "") + ") has no passing SyncNet or "
-                        "audio_offset validation. Compensated hero lip sync "
-                        "must be verified before assembly."
+                        "BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit " + u["id"] + " "
+                        "(" + (u.get("label", "") or "") + ") has no passing per-segment SyncNet validation. "
+                        "Publish-grade hero lip sync requires SyncNet evaluation for each hero segment. "
+                        "audio_offset validation is diagnostic-only and cannot satisfy this requirement. "
+                        "Whole-video or merged face-track SyncNet cannot satisfy per-segment requirement."
                     )
+
+                # S14-T004: SyncNet confidence and offset threshold gate
+                # Evaluate per-segment SyncNet evidence against tiered policy thresholds
+                try:
+                    # Parse SyncNet evidence from validation
+                    evidence_json = json.loads(syncnet_validation["evidence_json"])
+                    offset_ms = evidence_json.get("offset_ms")
+                    confidence = evidence_json.get("confidence")
+
+                    if offset_ms is None:
+                        raise AssemblyError(
+                            f"BLOCKED_HERO_SYNCNET_EVIDENCE_MALFORMED: render unit {u['id']} "
+                            f"({u.get('label', '') or ''}) has SyncNet validation with missing offset_ms "
+                            f"in evidence_json. Per-segment SyncNet evidence must include offset_ms field."
+                        )
+
+                    # Get hero framing metadata to select appropriate policy
+                    try:
+                        framing_meta = get_render_unit_hero_framing(u["id"], db_path=db)
+                        policy_name = framing_meta.policy_name
+                    except Exception as e:
+                        # Fallback to close_hero if framing metadata is unavailable
+                        policy_name = "close_hero"
+
+                    # Get policy to check min_confidence separately
+                    policy = get_lipsync_policy(policy_name)
+                    min_confidence = policy.min_confidence
+
+                    # Evaluate lipsync against tiered policy
+                    verdict = evaluate_lipsync(
+                        offset_ms=offset_ms,
+                        confidence=confidence,
+                        policy_name=policy_name,
+                    )
+
+                    # Check verdict - only FAIL is blocked at assembly
+                    if verdict.verdict == "fail":
+                        # Determine failure reason for clearer error message
+                        if confidence is None or (confidence is not None and confidence < min_confidence):
+                            raise AssemblyError(
+                                f"BLOCKED_HERO_SYNCNET_LOW_CONFIDENCE: render unit {u['id']} "
+                                f"({u.get('label', '') or ''}) SyncNet confidence {confidence if confidence is not None else 'None'} "
+                                f"is below minimum threshold {min_confidence} for policy '{policy_name}'. "
+                                f"Reason: {verdict.reason}"
+                            )
+                        else:
+                            raise AssemblyError(
+                                f"BLOCKED_HERO_SYNCNET_BELOW_THRESHOLD: render unit {u['id']} "
+                                f"({u.get('label', '') or ''}) SyncNet offset {offset_ms}ms "
+                                f"exceeds threshold for policy '{policy_name}'. "
+                                f"Reason: {verdict.reason}"
+                            )
+
+                except json.JSONDecodeError:
+                    raise AssemblyError(
+                        f"BLOCKED_HERO_SYNCNET_EVIDENCE_MALFORMED: render unit {u['id']} "
+                        f"({u.get('label', '') or ''}) has SyncNet validation with malformed evidence_json. "
+                        f"Per-segment SyncNet evidence must be valid JSON with offset_ms and confidence fields."
+                    )
+
+        # S13-T002: Compensated hero artifact requirement for hero_island units
+        for u in units:
+            # Check if this unit requires hero_island assembly mode
+            if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
+                mode = get_audio_assembly_mode(u.get("audio_policy", ""))
+                if mode == "hero_island":
+                    # Load compensated_artifact_path from provider_jobs
+                    pj = conn.execute(
+                        "SELECT compensated_artifact_path FROM provider_jobs "
+                        "WHERE render_unit_id=? AND compensated_artifact_path IS NOT NULL "
+                        "ORDER BY rowid DESC LIMIT 1",
+                        (u["id"],),
+                    ).fetchone()
+
+                    if not pj or not pj["compensated_artifact_path"]:
+                        raise AssemblyError(
+                            f"BLOCKED_HERO_COMPENSATED_ARTIFACT_MISSING: render unit " + u["id"] + " "
+                            f"(" + (u.get("label", "") or "") + ") requires compensated_artifact_path for "
+                            f"hero_island assembly mode. Hero lip-sync units must use compensated "
+                            f"provider audio to preserve sync. Raw provider video cannot be used."
+                        )
+
+                    cap_path = pj["compensated_artifact_path"]
+                    if not Path(cap_path).exists():
+                        raise AssemblyError(
+                            f"BLOCKED_HERO_COMPENSATED_ARTIFACT_FILE_MISSING: render unit " + u["id"] + " "
+                            f"(" + (u.get("label", "") or "") + ") compensated_artifact_path file not found: "
+                            f"{cap_path}. Hero lip-sync units require the compensated artifact file to exist."
+                        )
+
+        # S15-T001: Shot-mix contract validation
+        # Enforce format-level shot-mix requirements (e.g., minimum hero/broll/graphic counts)
+        try:
+            verdict: ShotMixVerdict = validate_shot_mix(units)
+
+            if not verdict.passes:
+                # Build clear error message with expected vs actual counts
+                violations_str = "; ".join(verdict.violations)
+                expected_str = ", ".join([f"{k}>={v}" for k, v in verdict.expected.items()])
+                actual_str = ", ".join([f"{k}={v}" for k, v in verdict.actual.items()])
+
+                raise AssemblyError(
+                    f"BLOCKED_SHOT_MIX_CONTRACT: render units violate shot-mix contract '{verdict.contract_name}'. "
+                    f"Expected: {expected_str}. Actual: {actual_str}. "
+                    f"Violations: {violations_str}. "
+                    f"Assembly requires minimum shot counts per format contract. "
+                    f"Verify storyboard includes required shot types (hero_lipsync, broll, graphic)."
+                )
+
+            # Record shot-mix verdict in evidence for transparency
+            evidence["shot_mix_verdict"] = verdict.to_dict()
+
+        except Exception as e:
+            # If contract config is missing/invalid, fail closed with clear error
+            if "BLOCKED_SHOT_MIX" in str(e):
+                # Re-raise our own errors
+                raise AssemblyError(str(e)) from None
+            else:
+                # Unexpected error - fail closed
+                raise AssemblyError(
+                    f"BLOCKED_SHOT_MIX_CONTRACT_VALIDATION_FAILED: Shot-mix contract validation failed with error: {e}"
+                ) from None
 
         # 6. No stale render units (already excluded by SQL WHERE status!=stale)
 
@@ -410,6 +582,7 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
             "compensated_artifact_path": cap,
             "sha256": u["artifact_sha256"],
             "has_audio": bool(u["artifact_has_audio"]),
+            "hero_framing": u.get("hero_framing"),  # S14_T002: Hero framing metadata
         })
 
     return {

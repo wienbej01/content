@@ -1,0 +1,31 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 18 items
+
+tests/test_audio_continuity.py::TestOverlapDetectorUnit::test_sequential_timeline_has_no_overlap PASSED [  5%]
+tests/test_audio_continuity.py::TestOverlapDetectorUnit::test_overlapping_timeline_detected PASSED [ 11%]
+tests/test_audio_continuity.py::TestOverlapDetectorUnit::test_overlap_threshold_respected PASSED [ 16%]
+tests/test_audio_continuity.py::TestOverlapDetectorUnit::test_duration_form_segments PASSED [ 22%]
+tests/test_audio_continuity.py::TestSeamClickDetectorUnit::test_clean_waveform_no_click PASSED [ 27%]
+tests/test_audio_continuity.py::TestSeamClickDetectorUnit::test_impulse_at_seam_detected PASSED [ 33%]
+tests/test_audio_continuity.py::TestGapDetection::test_clean_fixture_passes PASSED [ 38%]
+tests/test_audio_continuity.py::TestGapDetection::test_500ms_gap_fails PASSED [ 44%]
+tests/test_audio_continuity.py::TestGapDetection::test_300ms_gap_passes PASSED [ 50%]
+tests/test_audio_continuity.py::TestOverlapDetection::test_overlap_timeline_fails PASSED [ 55%]
+tests/test_audio_continuity.py::TestOverlapDetection::test_clean_timeline_no_overlap PASSED [ 61%]
+tests/test_audio_continuity.py::TestClickDetection::test_seam_click_fails PASSED [ 66%]
+tests/test_audio_continuity.py::TestClickDetection::test_clean_seam_no_click PASSED [ 72%]
+tests/test_audio_continuity.py::TestEdgeCases::test_missing_video_file PASSED [ 77%]
+tests/test_audio_continuity.py::TestEdgeCases::test_invalid_audio_file_fails PASSED [ 83%]
+tests/test_audio_continuity.py::TestEdgeCases::test_no_segments_skips_overlap_and_click PASSED [ 88%]
+tests/test_audio_continuity.py::TestReportContract::test_report_consumable_by_qa PASSED [ 94%]
+tests/test_audio_continuity.py::TestReportContract::test_cli_runs PASSED [100%]
+
+============================== 18 passed in 1.54s ==============================

@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 5 items
+
+tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_without_syncnet_fails PASSED [ 20%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_only_audio_offset_fails PASSED [ 40%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_low_confidence_fails PASSED [ 60%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_high_offset_fails PASSED [ 80%]
+tests/test_s14_t005_baseline_recalibration.py::TestTieredPolicyIntegration::test_eval_uses_close_hero_policy_by_default PASSED [100%]
+
+============================== 5 passed in 0.54s ===============================

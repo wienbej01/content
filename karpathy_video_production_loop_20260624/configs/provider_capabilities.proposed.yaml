@@ -1,0 +1,46 @@
+providers:
+  higgsfield_seedance:
+    supports_lipsync: true
+    supports_reference_image: true
+    supports_diagnostic_audio: true
+    supports_broll: false
+    publish_grade_direct: false
+    notes: "Use only if strict per-segment SyncNet passes and resolution/profile requirements are satisfied."
+
+  heygen:
+    supports_lipsync: true
+    supports_avatar: true
+    supports_audio_url: true
+    supports_diagnostic_audio: unknown
+    publish_grade_direct: true
+    notes: "Candidate for robust avatar/lipsync provider if API/account available."
+
+  runway:
+    supports_lipsync_or_avatar: true
+    supports_broll: true
+    supports_reference_image: true
+    supports_image_to_video: true
+    publish_grade_direct: true
+
+  veo:
+    supports_broll: true
+    supports_reference_image: true
+    supports_high_resolution: true
+    supports_lipsync: limited_or_prompt_based
+    publish_grade_direct: true
+
+routing_policy:
+  HERO_SYNC_LOCKED:
+    require_lipsync: true
+    require_reference_consistency: true
+    require_diagnostic_or_sync_evidence: true
+    require_strict_syncnet: true
+
+  BROLL_FLEX:
+    require_no_visible_talking_mouth: true
+    require_visual_role_qa: true
+    avoid_lipsync_provider_by_default: true
+
+  SILENT_GRAPHIC:
+    require_local_renderer: true
+    provider_calls_forbidden: true

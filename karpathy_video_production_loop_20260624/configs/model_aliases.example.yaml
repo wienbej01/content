@@ -1,0 +1,15 @@
+# Concrete model aliases for Claude Code -> Z.ai Coding Plan
+# Keep alias names stable. Change model values only if your endpoint rejects an alias.
+
+ZAI_BEST_REASONING: "glm-5.2[1m]"
+ZAI_STRONG_CODING: "glm-4.7"
+ZAI_CHEAP_CODING: "glm-4.7-flashx"
+ZAI_FAST_REVIEW: "glm-4.7-flash"
+
+# Fallbacks if exact aliases are rejected by Claude Code/Z.ai endpoint:
+# ZAI_BEST_REASONING: "glm-5.2"        # then "glm-5-turbo", then "glm-4.7" with /effort max
+# ZAI_CHEAP_CODING: "glm-4.7-flash"    # then "glm-4.5-air", then "glm-4.7"
+# ZAI_FAST_REVIEW: "glm-4.7-flashx"     # then "glm-4.7"
+
+# Optional non-Claude/Kilo fallback based on user's prior good results:
+# DEEPSEEK_KILO_BULK_CODER: "deepseek-v4-flash"

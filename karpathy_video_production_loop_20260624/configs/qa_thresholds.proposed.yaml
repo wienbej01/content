@@ -1,0 +1,28 @@
+lipsync:
+  close_hero:
+    pass_abs_offset_ms: 30
+    warn_abs_offset_ms: 45
+    fail_abs_offset_ms: 45
+    min_confidence: 2.0
+  medium_hero:
+    pass_abs_offset_ms: 40
+    warn_abs_offset_ms: 60
+    fail_abs_offset_ms: 60
+    min_confidence: 2.0
+  diagnostic_only_legacy:
+    max_abs_offset_ms: 160
+    publish_grade: false
+
+publish_profiles:
+  test_local:
+    publish_grade: false
+    allow_dry_run: true
+    min_width: 0
+    min_height: 0
+  publish_16x9:
+    publish_grade: true
+    allow_dry_run: false
+    min_width: 1920
+    min_height: 1080
+    fps_allowed: [24, 30]
+    av_duration_tolerance_ms: 100

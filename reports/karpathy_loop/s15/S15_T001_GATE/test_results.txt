@@ -1,0 +1,63 @@
+================================================================
+S15_T001_GATE — Independent Gate Review — Raw Test Output
+Reviewer: independent gate (claude, glm-4.7)
+Date: 2026-06-26
+================================================================
+
+## 1. S15_T001 own suite (test_shot_mix_contract.py)
+Command: python3 -m pytest tests/test_shot_mix_contract.py -v
+----------------------------------------------------------------
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 12 items
+
+tests/test_shot_mix_contract.py::TestShotMixContract::test_2_hero_1_broll_1_graphic_passes PASSED [  8%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_only_hero_and_graphic_fails PASSED [ 16%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_missing_second_hero_fails PASSED [ 25%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_missing_graphic_fails PASSED [ 33%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_consecutive_hero_segments_fails PASSED [ 41%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_opening_must_be_hero PASSED [ 50%]
+tests/test_shot_mix_contract.py::TestShotClassification::test_hero_lipsync_not_counted_as_broll PASSED [ 58%]
+tests/test_shot_mix_contract.py::TestShotClassification::test_local_graphic_not_counted_as_broll PASSED [ 66%]
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_test_local_profile_not_publish_grade PASSED [ 75%]
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_diagnostic_legacy_not_publish_grade PASSED [ 83%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s13_hero_compensated_artifact_gate_still_enforced PASSED [ 91%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s14_per_segment_syncnet_still_enforced PASSED [100%]
+
+============================== 12 passed in 1.59s ==============================
+
+## 2. S13/S14 preflight tests (current state, S15 enabled)
+Command: python3 -m pytest <3 S13/S14 files> -q --tb=no
+----------------------------------------------------------------
+FAILED tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_missing_framing_defaults_to_close
+FAILED tests/test_s14_t004_syncnet_confidence.py::TestNonHeroUnits::test_broll_flex_bypasses_confidence_check
+21 failed, 7 passed in 1.92s
+
+## 3. S14 supporting modules (lipsync_policy, hero_framing)
+----------------------------------------------------------------
+.                                                                        [100%]
+73 passed in 0.18s
+
+## 4. S13 audio continuity (regression check)
+----------------------------------------------------------------
+..................                                                       [100%]
+18 passed in 1.52s
+
+## 5. Other related suites (informational — known pre-existing)
+----------------------------------------------------------------
+-- test_s13_t005_integration_regression.py --
+.............s.                                                          [100%]
+14 passed, 1 skipped in 1.29s
+-- test_compensated_hero_assembly.py --
+FAILED tests/test_compensated_hero_assembly.py::TestSyncNetGateIntegration::test_syncnet_on_c1_remux_verification
+1 failed, 4 passed, 2 skipped in 2.98s
+-- test_syncnet_gate.py --
+FAILED tests/test_syncnet_gate.py::TestSyncNetGate::test_offset_above_threshold_fails
+4 failed in 0.13s

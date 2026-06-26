@@ -1,0 +1,491 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 97 items
+
+tests/test_lipsync_policy.py::TestPolicyConfigStructure::test_config_file_exists PASSED [  1%]
+tests/test_lipsync_policy.py::TestPolicyConfigStructure::test_config_loads PASSED [  2%]
+tests/test_lipsync_policy.py::TestPolicyConfigStructure::test_config_has_all_required_fields PASSED [  3%]
+tests/test_lipsync_policy.py::TestCloseHeroPolicy::test_close_hero_thresholds PASSED [  4%]
+tests/test_lipsync_policy.py::TestCloseHeroPolicy::test_close_hero_30ms_passes PASSED [  5%]
+tests/test_lipsync_policy.py::TestCloseHeroPolicy::test_close_hero_31ms_warns PASSED [  6%]
+tests/test_lipsync_policy.py::TestCloseHeroPolicy::test_close_hero_45ms_warns PASSED [  7%]
+tests/test_lipsync_policy.py::TestCloseHeroPolicy::test_close_hero_46ms_fails PASSED [  8%]
+tests/test_lipsync_policy.py::TestMediumHeroPolicy::test_medium_hero_thresholds PASSED [  9%]
+tests/test_lipsync_policy.py::TestMediumHeroPolicy::test_medium_hero_40ms_passes PASSED [ 10%]
+tests/test_lipsync_policy.py::TestMediumHeroPolicy::test_medium_hero_41ms_warns PASSED [ 11%]
+tests/test_lipsync_policy.py::TestMediumHeroPolicy::test_medium_hero_60ms_warns PASSED [ 12%]
+tests/test_lipsync_policy.py::TestMediumHeroPolicy::test_medium_hero_61ms_fails PASSED [ 13%]
+tests/test_lipsync_policy.py::TestDiagnosticLegacyPolicy::test_diagnostic_legacy_thresholds PASSED [ 14%]
+tests/test_lipsync_policy.py::TestDiagnosticLegacyPolicy::test_diagnostic_legacy_160ms_warns_not_passes PASSED [ 15%]
+tests/test_lipsync_policy.py::TestDiagnosticLegacyPolicy::test_diagnostic_legacy_161ms_fails PASSED [ 16%]
+tests/test_lipsync_policy.py::TestDiagnosticLegacyPolicy::test_diagnostic_legacy_160ms_warns PASSED [ 17%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_80ms_fails_close_hero PASSED [ 18%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_40ms_is_warn_for_close_hero PASSED [ 19%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_40ms_passes_for_medium_hero PASSED [ 20%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_low_confidence_fails PASSED [ 21%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_no_confidence_fails PASSED [ 22%]
+tests/test_lipsync_policy.py::TestRequiredPassCriteria::test_160ms_not_publish_pass_for_close_hero PASSED [ 23%]
+tests/test_lipsync_policy.py::TestWideHeroPolicy::test_wide_hero_uses_medium_policy PASSED [ 24%]
+tests/test_lipsync_policy.py::TestWideHeroPolicy::test_wide_hero_has_medium_thresholds PASSED [ 25%]
+tests/test_lipsync_policy.py::TestDefaultPolicyBehavior::test_unknown_policy_raises_error PASSED [ 26%]
+tests/test_lipsync_policy.py::TestDefaultPolicyBehavior::test_default_policy_is_close_hero PASSED [ 27%]
+tests/test_lipsync_policy.py::TestDefaultPolicyBehavior::test_unknown_framing_defaults_to_close_hero PASSED [ 28%]
+tests/test_lipsync_policy.py::TestLipSyncVerdictSerialization::test_verdict_to_dict PASSED [ 29%]
+tests/test_lipsync_policy.py::TestLipSyncVerdictSerialization::test_verdict_dict_values PASSED [ 30%]
+tests/test_lipsync_policy.py::TestPolicyIsPublishGrade::test_close_hero_is_publish_grade PASSED [ 31%]
+tests/test_lipsync_policy.py::TestPolicyIsPublishGrade::test_medium_hero_is_publish_grade PASSED [ 32%]
+tests/test_lipsync_policy.py::TestPolicyIsPublishGrade::test_diagnostic_legacy_is_not_publish_grade PASSED [ 34%]
+tests/test_lipsync_policy.py::TestRegressionPrevention::test_160ms_never_auto_pass_for_close_hero PASSED [ 35%]
+tests/test_lipsync_policy.py::TestRegressionPrevention::test_old_160ms_threshold_only_for_diagnostic PASSED [ 36%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_close PASSED [ 37%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_medium PASSED [ 38%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_wide PASSED [ 39%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_case_insensitive PASSED [ 40%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_whitespace PASSED [ 41%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_none_returns_none PASSED [ 42%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_empty_string_returns_none PASSED [ 43%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_raises_error PASSED [ 44%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_tight_raises_error PASSED [ 45%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_full_body_raises_error PASSED [ 46%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_close PASSED [ 47%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_medium PASSED [ 48%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_wide PASSED [ 49%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_missing_framing_defaults_to_close PASSED [ 50%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_lipsync_missing_framing_defaults_to_close PASSED [ 51%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_keep_lipsync_missing_framing_defaults_to_close PASSED [ 52%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_lipsync_required_true_missing_framing_defaults_to_close PASSED [ 53%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_broll_flex_does_not_require_framing PASSED [ 54%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_broll_synced_action_does_not_require_framing PASSED [ 55%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_silent_graphic_does_not_require_framing PASSED [ 56%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_with_invalid_framing_raises_error PASSED [ 57%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_with_tight_framing_raises_error PASSED [ 58%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_non_hero_with_invalid_framing_still_does_not_require PASSED [ 59%]
+tests/test_hero_framing.py::TestPolicyMapping::test_close_framing_to_close_hero_policy PASSED [ 60%]
+tests/test_hero_framing.py::TestPolicyMapping::test_medium_framing_to_medium_hero_policy PASSED [ 61%]
+tests/test_hero_framing.py::TestPolicyMapping::test_wide_framing_to_wide_hero_policy PASSED [ 62%]
+tests/test_hero_framing.py::TestPolicyMapping::test_close_hero_policy_to_close_framing PASSED [ 63%]
+tests/test_hero_framing.py::TestPolicyMapping::test_medium_hero_policy_to_medium_framing PASSED [ 64%]
+tests/test_hero_framing.py::TestPolicyMapping::test_wide_hero_policy_to_wide_framing PASSED [ 65%]
+tests/test_hero_framing.py::TestPolicyMapping::test_diagnostic_legacy_policy_maps_to_none PASSED [ 67%]
+tests/test_hero_framing.py::TestPolicyMapping::test_unknown_policy_maps_to_none PASSED [ 68%]
+tests/test_hero_framing.py::TestConstants::test_default_hero_framing_is_close PASSED [ 69%]
+tests/test_hero_framing.py::TestConstants::test_hero_audio_policies_contains_expected PASSED [ 70%]
+tests/test_hero_framing.py::TestConstants::test_close_framing_constant PASSED [ 71%]
+tests/test_hero_framing.py::TestConstants::test_medium_framing_constant PASSED [ 72%]
+tests/test_hero_framing.py::TestConstants::test_wide_framing_constant PASSED [ 73%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_hero_framing_metadata_structure PASSED [ 74%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_metadata_available_for_policy_evaluation PASSED [ 75%]
+tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_with_syncnet_passes FAILED [ 76%]
+tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_without_syncnet_fails PASSED [ 77%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_only_audio_offset_fails PASSED [ 78%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_both_passes FAILED [ 79%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_low_confidence_fails PASSED [ 80%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_high_offset_fails PASSED [ 81%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_good_syncnet_passes PASSED [ 82%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_medium_framing_uses_medium_policy PASSED [ 83%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_wide_framing_uses_medium_policy PASSED [ 84%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_missing_framing_defaults_to_close PASSED [ 85%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_missing_offset_ms_fails PASSED [ 86%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_malformed_evidence_json_fails PASSED [ 87%]
+tests/test_s14_t004_syncnet_confidence.py::TestNonHeroUnits::test_broll_flex_bypasses_confidence_check PASSED [ 88%]
+tests/test_s14_t005_baseline_recalibration.py::TestTieredPolicyIntegration::test_eval_uses_close_hero_policy_by_default PASSED [ 89%]
+tests/test_s14_t005_baseline_recalibration.py::TestTieredPolicyIntegration::test_eval_uses_medium_policy_for_medium_framing PASSED [ 90%]
+tests/test_s14_t005_baseline_recalibration.py::TestTieredPolicyIntegration::test_eval_uses_wide_policy_for_wide_framing PASSED [ 91%]
+tests/test_s14_t005_baseline_recalibration.py::TestThresholdValues::test_close_hero_thresholds_correct PASSED [ 92%]
+tests/test_s14_t005_baseline_recalibration.py::TestThresholdValues::test_medium_hero_thresholds_correct PASSED [ 93%]
+tests/test_s14_t005_baseline_recalibration.py::TestBackwardCompatibility::test_policy_grade_included PASSED [ 94%]
+tests/test_s14_t005_baseline_recalibration.py::TestBackwardCompatibility::test_reason_included PASSED [ 95%]
+tests/test_s14_t005_baseline_recalibration.py::TestNoHardcodedThresholds::test_no_hardcoded_160ms_close PASSED [ 96%]
+tests/test_s14_t005_baseline_recalibration.py::TestNoHardcodedThresholds::test_no_hardcoded_160ms_medium PASSED [ 97%]
+tests/test_s14_t005_baseline_recalibration.py::TestIntegrationWithOtherTickets::test_s14_t001_integration PASSED [ 98%]
+tests/test_s14_t005_baseline_recalibration.py::TestIntegrationWithOtherTickets::test_s14_t002_integration PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ TestPerSegmentSyncNetRequirement.test_hero_unit_with_syncnet_passes ______
+
+self = <test_s14_t003_per_segment_syncnet.TestPerSegmentSyncNetRequirement object at 0x7e67a47e5310>
+db = '/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_syncnet_pa0/test.db'
+prod = {'code_revision': '9942d92ecdded566f244dae8e15a1dae9c88dffb', 'completed_at': None, 'config_snapshot_id': None, 'content_item_id': None, ...}
+tmp_path = PosixPath('/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_syncnet_pa0')
+
+    def test_hero_unit_with_syncnet_passes(self, db, prod, tmp_path):
+        """Hero unit with per-segment SyncNet passes preflight."""
+        unit = _make_hero_render_unit(prod["id"], db, tmp_path, "H001", with_syncnet=True)
+    
+>       result = validate_assembly_inputs(prod["id"], db_path=db)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_s14_t003_per_segment_syncnet.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+production_id = 'prod_286f7a57f661420eb24e7b23efd1827a', variant = '16x9'
+db_path = '/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_syncnet_pa0/test.db'
+
+    def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+        """Validate all assembly inputs before building the clip manifest.
+    
+        Checks:
+        1. Active timeline spans exist.
+        2. No gaps/overlaps beyond tolerance.
+        3. Each span maps to exactly one active render unit.
+        4. Each selected render unit has active artifact.
+        5. Each selected render unit has latest passing contract QA.
+        6. No stale render units selected.
+        7. No provider-generated local graphic selected.
+        8. Files exist on disk.
+        9. Artifact set hash can be computed.
+        10. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
+    
+        Raises AssemblyError with descriptive message on first failure.
+        Returns preflight evidence dict on success.
+        """
+        _db.migrate(db_path)
+        conn = _db.connect(db_path)
+        evidence = {"production_id": production_id, "variant": variant}
+    
+        try:
+            # 1. Active timeline spans exist
+            spans = conn.execute(
+                """SELECT id, ordinal, label, start_ms, end_ms, duration_ms, creative_beat_id
+                   FROM timeline_spans WHERE production_id=? AND status='active'
+                   ORDER BY ordinal""",
+                (production_id,),
+            ).fetchall()
+            if not spans:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - no active timeline spans"
+                )
+            evidence["span_count"] = len(spans)
+            spans = [dict(s) for s in spans]
+    
+            # 2. No gaps/overlaps beyond tolerance
+            for i in range(1, len(spans)):
+                prev_end = spans[i - 1]["end_ms"]
+                curr_start = spans[i]["start_ms"]
+                gap = curr_start - prev_end
+                if gap < 0:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"timeline overlap between span {spans[i-1]['id']} (end={prev_end}) "
+                        f"and span {spans[i]['id']} (start={curr_start})"
+                    )
+                if gap > TIMELINE_GAP_TOLERANCE_MS:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"timeline gap {gap}ms between span {spans[i-1]['id']} (end={prev_end}) "
+                        f"and span {spans[i]['id']} (start={curr_start})"
+                    )
+    
+            # Load non-stale render units
+            raw_units = conn.execute(
+                """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256,
+                          a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
+                   FROM render_units ru
+                   LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
+                   WHERE ru.production_id=?
+                  AND ru.status != 'stale'
+                  AND (ru.status IN ('valid', 'generated')                      OR ru.active_artifact_id IS NOT NULL)
+                   ORDER BY ru.ordinal""",
+                (production_id,),
+            ).fetchall()
+            units = [dict(u) for u in raw_units]
+            evidence["unit_count"] = len(units)
+    
+            # 3. Each span maps to exactly one active render unit
+            # If multiple units share the same span (e.g., from a regeneration change
+            # request), the unit with a valid artifact wins (preferred over one
+            # without). If both have artifacts or both lack them, the latest wins.
+            span_to_unit: dict[str, str] = {}
+            span_to_priority: dict[str, int] = {}
+            for u in units:
+                tsid = u["timeline_span_id"]
+                has_art = 1 if u.get("active_artifact_id") else 0
+                ordinal = u.get("ordinal", 0)
+                # Priority: has artifact (1) > no artifact (0), then ordinal higher = newer
+                priority = (has_art, ordinal)
+                if tsid not in span_to_unit or priority > span_to_priority.get(tsid, (0, 0)):
+                    span_to_unit[tsid] = u["id"]
+                    span_to_priority[tsid] = priority
+    
+            for s in spans:
+                if s["id"] not in span_to_unit:
+                    # Check if this span has open change requests (re-generation in progress)
+                    open_cr = conn.execute(
+                        "SELECT 1 FROM change_requests cr "
+                        "JOIN render_units ru ON cr.subject_id = ru.id "
+                        "WHERE ru.timeline_span_id=? AND cr.status='open' AND cr.target_stage='generate_media' "
+                        "LIMIT 1",
+                        (s["id"],),
+                    ).fetchone()
+                    if not open_cr:
+                        raise AssemblyError(
+                            f"BLOCKED: assembly input validation failed - "
+                            f"no active render unit for timeline span {s['id']} ({s.get('label', '')})"
+                        )
+                    # Span with open CR — skip (re-generation is pending)
+                    continue
+    
+            # 4. Each render unit has active artifact
+            for u in units:
+                if not u["active_artifact_id"]:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"render unit {u['id']} ({u.get('label', '')}) has no active artifact"
+                    )
+    
+            # 5. Each render unit has a passing QA (any validation entry, not just latest)
+            for u in units:
+                passing = conn.execute(
+                    """SELECT 1 FROM validations
+                       WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                         AND status='pass'
+                       LIMIT 1""",
+                    (u["id"],),
+                ).fetchone()
+                if not passing:
+                    # If the unit is change_requested, skip QA validation.
+                    # The unit has a FAIL validation from the QA that triggered
+                    # the change request. Its artifact is still valid for assembly.
+                    # The change request will be resolved in a future run.
+                    if u.get("status") == "change_requested":
+                        continue
+                    # No passing validation. Check if there is a FAIL.
+                    has_fail = conn.execute(
+                        """SELECT 1 FROM validations
+                           WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                             AND status='fail'
+                           LIMIT 1""",
+                        (u["id"],),
+                    ).fetchone()
+                    if has_fail:
+                        raise AssemblyError(
+                            f"BLOCKED: assembly input validation failed - "
+                            f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"
+                        )
+                    # No validations at all -> pre-QA artifact, allow assembly
+    
+                    # S14-T003: Per-segment SyncNet mandatory for HERO_SYNC_LOCKED units
+                    # audio_offset is diagnostic-only and cannot satisfy publish-grade hero sync requirement
+            for u in units:
+                if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
+                    # Check for per-segment SyncNet validation
+                    # Validation must be on the render_unit or its provider_job
+                    syncnet_validation = conn.execute(
+                        """SELECT id, evidence_json FROM validations WHERE
+                           (subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?))
+                           AND validator_name='syncnet_offset'
+                           AND status='pass'
+                           LIMIT 1""", (u["id"], u["id"],),
+                    ).fetchone()
+    
+                    if not syncnet_validation:
+>                       raise AssemblyError(
+                            "BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit " + u["id"] + " "
+                            "(" + (u.get("label", "") or "") + ") has no passing per-segment SyncNet validation. "
+                            "Publish-grade hero lip sync requires SyncNet evaluation for each hero segment. "
+                            "audio_offset validation is diagnostic-only and cannot satisfy this requirement. "
+                            "Whole-video or merged face-track SyncNet cannot satisfy per-segment requirement."
+                        )
+E                       assemble_db.AssemblyError: BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit render_89fc9044467249a5b3c3cdf87720bf3c (H001) has no passing per-segment SyncNet validation. Publish-grade hero lip sync requires SyncNet evaluation for each hero segment. audio_offset validation is diagnostic-only and cannot satisfy this requirement. Whole-video or merged face-track SyncNet cannot satisfy per-segment requirement.
+
+scripts/assemble_db.py:253: AssemblyError
+_________ TestAudioOffsetInsufficient.test_hero_unit_with_both_passes __________
+
+self = <test_s14_t003_per_segment_syncnet.TestAudioOffsetInsufficient object at 0x7e67a47e56d0>
+db = '/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_both_passe0/test.db'
+prod = {'code_revision': '9942d92ecdded566f244dae8e15a1dae9c88dffb', 'completed_at': None, 'config_snapshot_id': None, 'content_item_id': None, ...}
+tmp_path = PosixPath('/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_both_passe0')
+
+    def test_hero_unit_with_both_passes(self, db, prod, tmp_path):
+        """Hero unit with both audio_offset and syncnet_offset passes (SyncNet required)."""
+        _make_hero_render_unit(prod["id"], db, tmp_path, "H004",
+                               with_syncnet=True, with_audio_offset=True)
+    
+>       result = validate_assembly_inputs(prod["id"], db_path=db)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_s14_t003_per_segment_syncnet.py:178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+production_id = 'prod_8b89f107632841759154d10f9208bfbe', variant = '16x9'
+db_path = '/tmp/pytest-of-jacobw/pytest-1176/test_hero_unit_with_both_passe0/test.db'
+
+    def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+        """Validate all assembly inputs before building the clip manifest.
+    
+        Checks:
+        1. Active timeline spans exist.
+        2. No gaps/overlaps beyond tolerance.
+        3. Each span maps to exactly one active render unit.
+        4. Each selected render unit has active artifact.
+        5. Each selected render unit has latest passing contract QA.
+        6. No stale render units selected.
+        7. No provider-generated local graphic selected.
+        8. Files exist on disk.
+        9. Artifact set hash can be computed.
+        10. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
+    
+        Raises AssemblyError with descriptive message on first failure.
+        Returns preflight evidence dict on success.
+        """
+        _db.migrate(db_path)
+        conn = _db.connect(db_path)
+        evidence = {"production_id": production_id, "variant": variant}
+    
+        try:
+            # 1. Active timeline spans exist
+            spans = conn.execute(
+                """SELECT id, ordinal, label, start_ms, end_ms, duration_ms, creative_beat_id
+                   FROM timeline_spans WHERE production_id=? AND status='active'
+                   ORDER BY ordinal""",
+                (production_id,),
+            ).fetchall()
+            if not spans:
+                raise AssemblyError(
+                    f"BLOCKED: assembly input validation failed - no active timeline spans"
+                )
+            evidence["span_count"] = len(spans)
+            spans = [dict(s) for s in spans]
+    
+            # 2. No gaps/overlaps beyond tolerance
+            for i in range(1, len(spans)):
+                prev_end = spans[i - 1]["end_ms"]
+                curr_start = spans[i]["start_ms"]
+                gap = curr_start - prev_end
+                if gap < 0:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"timeline overlap between span {spans[i-1]['id']} (end={prev_end}) "
+                        f"and span {spans[i]['id']} (start={curr_start})"
+                    )
+                if gap > TIMELINE_GAP_TOLERANCE_MS:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"timeline gap {gap}ms between span {spans[i-1]['id']} (end={prev_end}) "
+                        f"and span {spans[i]['id']} (start={curr_start})"
+                    )
+    
+            # Load non-stale render units
+            raw_units = conn.execute(
+                """SELECT ru.*, a.uri as artifact_uri, a.sha256 as artifact_sha256,
+                          a.has_audio as artifact_has_audio, a.duration_ms as artifact_duration_ms
+                   FROM render_units ru
+                   LEFT JOIN artifacts a ON ru.active_artifact_id = a.id
+                   WHERE ru.production_id=?
+                  AND ru.status != 'stale'
+                  AND (ru.status IN ('valid', 'generated')                      OR ru.active_artifact_id IS NOT NULL)
+                   ORDER BY ru.ordinal""",
+                (production_id,),
+            ).fetchall()
+            units = [dict(u) for u in raw_units]
+            evidence["unit_count"] = len(units)
+    
+            # 3. Each span maps to exactly one active render unit
+            # If multiple units share the same span (e.g., from a regeneration change
+            # request), the unit with a valid artifact wins (preferred over one
+            # without). If both have artifacts or both lack them, the latest wins.
+            span_to_unit: dict[str, str] = {}
+            span_to_priority: dict[str, int] = {}
+            for u in units:
+                tsid = u["timeline_span_id"]
+                has_art = 1 if u.get("active_artifact_id") else 0
+                ordinal = u.get("ordinal", 0)
+                # Priority: has artifact (1) > no artifact (0), then ordinal higher = newer
+                priority = (has_art, ordinal)
+                if tsid not in span_to_unit or priority > span_to_priority.get(tsid, (0, 0)):
+                    span_to_unit[tsid] = u["id"]
+                    span_to_priority[tsid] = priority
+    
+            for s in spans:
+                if s["id"] not in span_to_unit:
+                    # Check if this span has open change requests (re-generation in progress)
+                    open_cr = conn.execute(
+                        "SELECT 1 FROM change_requests cr "
+                        "JOIN render_units ru ON cr.subject_id = ru.id "
+                        "WHERE ru.timeline_span_id=? AND cr.status='open' AND cr.target_stage='generate_media' "
+                        "LIMIT 1",
+                        (s["id"],),
+                    ).fetchone()
+                    if not open_cr:
+                        raise AssemblyError(
+                            f"BLOCKED: assembly input validation failed - "
+                            f"no active render unit for timeline span {s['id']} ({s.get('label', '')})"
+                        )
+                    # Span with open CR — skip (re-generation is pending)
+                    continue
+    
+            # 4. Each render unit has active artifact
+            for u in units:
+                if not u["active_artifact_id"]:
+                    raise AssemblyError(
+                        f"BLOCKED: assembly input validation failed - "
+                        f"render unit {u['id']} ({u.get('label', '')}) has no active artifact"
+                    )
+    
+            # 5. Each render unit has a passing QA (any validation entry, not just latest)
+            for u in units:
+                passing = conn.execute(
+                    """SELECT 1 FROM validations
+                       WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                         AND status='pass'
+                       LIMIT 1""",
+                    (u["id"],),
+                ).fetchone()
+                if not passing:
+                    # If the unit is change_requested, skip QA validation.
+                    # The unit has a FAIL validation from the QA that triggered
+                    # the change request. Its artifact is still valid for assembly.
+                    # The change request will be resolved in a future run.
+                    if u.get("status") == "change_requested":
+                        continue
+                    # No passing validation. Check if there is a FAIL.
+                    has_fail = conn.execute(
+                        """SELECT 1 FROM validations
+                           WHERE subject_id=? AND validator_name IN ('qa_media_contract', 'qa_media')
+                             AND status='fail'
+                           LIMIT 1""",
+                        (u["id"],),
+                    ).fetchone()
+                    if has_fail:
+                        raise AssemblyError(
+                            f"BLOCKED: assembly input validation failed - "
+                            f"render unit {u['id']} ({u.get('label', '')}) has no passing QA"
+                        )
+                    # No validations at all -> pre-QA artifact, allow assembly
+    
+                    # S14-T003: Per-segment SyncNet mandatory for HERO_SYNC_LOCKED units
+                    # audio_offset is diagnostic-only and cannot satisfy publish-grade hero sync requirement
+            for u in units:
+                if u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"):
+                    # Check for per-segment SyncNet validation
+                    # Validation must be on the render_unit or its provider_job
+                    syncnet_validation = conn.execute(
+                        """SELECT id, evidence_json FROM validations WHERE
+                           (subject_id=? OR subject_id IN (SELECT id FROM provider_jobs WHERE render_unit_id=?))
+                           AND validator_name='syncnet_offset'
+                           AND status='pass'
+                           LIMIT 1""", (u["id"], u["id"],),
+                    ).fetchone()
+    
+                    if not syncnet_validation:
+>                       raise AssemblyError(
+                            "BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit " + u["id"] + " "
+                            "(" + (u.get("label", "") or "") + ") has no passing per-segment SyncNet validation. "
+                            "Publish-grade hero lip sync requires SyncNet evaluation for each hero segment. "
+                            "audio_offset validation is diagnostic-only and cannot satisfy this requirement. "
+                            "Whole-video or merged face-track SyncNet cannot satisfy per-segment requirement."
+                        )
+E                       assemble_db.AssemblyError: BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit render_55439b49ce914a239c97427ded17fb9c (H004) has no passing per-segment SyncNet validation. Publish-grade hero lip sync requires SyncNet evaluation for each hero segment. audio_offset validation is diagnostic-only and cannot satisfy this requirement. Whole-video or merged face-track SyncNet cannot satisfy per-segment requirement.
+
+scripts/assemble_db.py:253: AssemblyError
+=========================== short test summary info ============================
+FAILED tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_with_syncnet_passes
+FAILED tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_both_passes
+========================= 2 failed, 95 passed in 3.83s =========================

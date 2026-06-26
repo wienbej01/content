@@ -1,0 +1,109 @@
+# Video Format Shot-Mix Contracts
+#
+# Defines minimum shot-mix requirements for different video formats.
+# Each contract specifies required counts for different shot types and
+# editorial rules that must be satisfied for assembly to pass.
+
+version: "1.0"
+
+# Contract for short corporate education videos (6-12 min explainers)
+short_educational:
+  format_name: "Short Corporate Education"
+  description: "MITmonk-style 6-12 minute educational explainers with James Harrington"
+
+  # Minimum required shot counts
+  min_shots:
+    hero_lipsync: 2
+    broll: 1
+    graphic: 1
+
+  # Editorial rules
+  rules:
+    # Opening segment must be hero (talking head) unless waived
+    opening_must_be_hero: true
+
+    # No more than N consecutive hero segments without editorial break
+    max_consecutive_hero: 1
+
+    # B-roll from HERO_SYNC_LOCKED or talking-head assets doesn't count
+    broll_exclusions:
+      audio_policy:
+        - "HERO_SYNC_LOCKED"
+        - "keep_lipsync"
+        - "hero_lipsync"
+      asset_type:
+        - "local_graphic"
+        - "composite"
+
+  # Shot type classification
+  shot_classification:
+    hero_lipsync:
+      audio_policy:
+        - "HERO_SYNC_LOCKED"
+        - "keep_lipsync"
+        - "hero_lipsync"
+      asset_type:
+        - "generated_video"
+        - "lipsync_video"
+
+    broll:
+      audio_policy:
+        - "BROLL_FLEX"
+        - "BROLL_SYNCED_ACTION"
+        - "AMBIENCE_OR_SFX"
+        - "narration_overlay"
+      asset_type:
+        - "generated_video"
+        - "lipsync_video"
+      exclude_hero_policies: true
+
+    graphic:
+      asset_type:
+        - "local_graphic"
+      audio_policy:
+        - "SILENT_GRAPHIC"
+      # OR can be identified by shot_type if available
+      shot_type:
+        - "TEXT_OVERLAY_POST_ONLY"
+        - "TITLE_CARD"
+
+    # Other shot types that don't count toward requirements
+    other:
+      audio_policy:
+        - "MUSIC_BED"
+        - "silent"
+        - "strip"
+
+# Test/local profile for development (NOT publish-grade)
+test_local:
+  format_name: "Test/Local Profile"
+  description: "Relaxed contract for local testing and development - NOT PUBLISH-GRADE"
+  publish_grade: false
+
+  min_shots:
+    hero_lipsync: 0
+    broll: 0
+    graphic: 0
+
+  rules:
+    opening_must_be_hero: false
+    max_consecutive_hero: 999  # No limit
+
+  shot_classification:
+    # Inherits classification from short_educational
+    # but with no minimum requirements
+
+# Diagnostic legacy profile (backward compatibility)
+diagnostic_legacy:
+  format_name: "Diagnostic Legacy"
+  description: "No shot-mix enforcement - diagnostic only"
+  publish_grade: false
+
+  min_shots:
+    hero_lipsync: 0
+    broll: 0
+    graphic: 0
+
+  rules:
+    opening_must_be_hero: false
+    max_consecutive_hero: 999

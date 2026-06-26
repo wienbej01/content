@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 27 items
+
+tests/test_s13_t002_simple.py::TestAudioAssemblyModeS13_T002::test_hero_sync_locked_maps_to_hero_island PASSED [  3%]
+tests/test_s13_t002_simple.py::TestAudioAssemblyModeS13_T002::test_broll_flex_maps_to_master_slice PASSED [  7%]
+tests/test_s13_t002_simple.py::TestCompensatedArtifactErrorMessages::test_blocked_compensated_artifact_missing_error_format PASSED [ 11%]
+tests/test_s13_t002_simple.py::TestCompensatedArtifactErrorMessages::test_blocked_compensated_artifact_file_missing_error_format PASSED [ 14%]
+tests/test_s13_t002_simple.py::TestEnforcementLogicLocation::test_enforcement_in_validate_assembly_inputs PASSED [ 18%]
+tests/test_s13_t002_simple.py::TestEnforcementLogicLocation::test_enforcement_after_syncnet_gate PASSED [ 22%]
+tests/test_s13_t002_simple.py::TestEnforcementScope::test_enforcement_uses_hero_lipsync_policies PASSED [ 25%]
+tests/test_s13_t002_simple.py::TestEnforcementScope::test_enforcement_checks_audio_assembly_mode PASSED [ 29%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_audio_island_import_exists PASSED [ 33%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_hero_island_detection_in_continuous_mode PASSED [ 37%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_hero_clips_and_broll_clips_separation PASSED [ 40%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_compensated_audio_preserved_for_hero PASSED [ 44%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_broll_clips_muted PASSED [ 48%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_narration_overlay_only_on_broll PASSED [ 51%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyCoreLogic::test_timeline_order_preserved PASSED [ 55%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyRegression::test_hero_audio_no_longer_globally_muted PASSED [ 59%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyRegression::test_narration_not_overlaid_on_hero_audio PASSED [ 62%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyRegression::test_separate_hero_and_broll_processing PASSED [ 66%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyEdgeCases::test_missing_compensated_artifact_fallback PASSED [ 70%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyEdgeCases::test_hero_only_stream_handling PASSED [ 74%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyEdgeCases::test_broll_only_stream_handling PASSED [ 77%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyEdgeCases::test_empty_stream_raises_error PASSED [ 81%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyIntegration::test_uses_s13_t001_audio_assembly_mode PASSED [ 85%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyIntegration::test_uses_s13_t002_compensated_artifact PASSED [ 88%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyTiming::test_timing_preserved_for_hero_clips PASSED [ 92%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyTiming::test_timing_aligned_for_broll_clips PASSED [ 96%]
+tests/test_s13_t003_audio_island_assembly.py::TestAudioIslandAssemblyTiming::test_mixed_stream_timing_alignment PASSED [100%]
+
+============================== 27 passed in 0.23s ==============================

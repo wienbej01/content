@@ -1,0 +1,346 @@
+{
+  "S13_T001": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_T001/engineering_report.md",
+      "reports/karpathy_loop/s13/S13_T001/audit_report.md",
+      "reports/karpathy_loop/s13/S13_T001/validation_report.md",
+      "reports/karpathy_loop/s13/S13_T001/loop_decision.md"
+    ],
+    "completed_at": "2025-06-25",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 0,
+      "note": 1
+    },
+    "notes": "Pre-existing test failures in test_sprint7_assemble_db.py unrelated to this ticket"
+  },
+  "S13_T002": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_T002/engineering_report.md",
+      "reports/karpathy_loop/s13/S13_T002/audit_report.md",
+      "reports/karpathy_loop/s13/S13_T002/validation_report.md",
+      "reports/karpathy_loop/s13/S13_T002/loop_decision.md"
+    ],
+    "completed_at": "2025-06-25",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 0,
+      "note": 1
+    },
+    "notes": "Core enforcement logic verified via 8 focused tests. Full integration testing deferred to S13_T005."
+  },
+  "S13_T003": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_T003/engineering_report.md",
+      "reports/karpathy_loop/s13/S13_T003/audit_report.md",
+      "reports/karpathy_loop/s13/S13_T003/validation_report.md",
+      "reports/karpathy_loop/s13/S13_T003/loop_decision.md"
+    ],
+    "completed_at": "2025-06-25",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 0,
+      "note": 1
+    },
+    "notes": "Pyright diagnostic warning is cosmetic false positive. All 19/19 tests passing."
+  },
+  "S13_T004": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-5.2",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_T004/engineering_report.md",
+      "reports/karpathy_loop/s13/S13_T004/audit_report.md",
+      "reports/karpathy_loop/s13/S13_T004/validation_report.md",
+      "reports/karpathy_loop/s13/S13_T004/loop_decision.md",
+      "reports/karpathy_loop/s13/S13_T004/evidence/click_threshold_evidence.md",
+      "reports/karpathy_loop/s13/S13_T004/evidence/cli_end_to_end.txt"
+    ],
+    "completed_at": "2025-06-25",
+    "verdict": "PASS",
+    "fix": "FIX001",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1,
+      "note": 0
+    },
+    "notes": "FIX001 corrected a false prior PASS. Initial submission had 2 failing tests framed as 'acceptable limitations'; root cause was real implementation gaps: overlap detection was unreachable code (compared mutually-exclusive speech regions), click detection RMS-window threshold (15.7dB max) was structurally below its 20dB threshold. Redesigned: overlap now deterministic on segment-timeline metadata; click now measured at known seams (peak/local-RMS) with threshold set from measurement (clean 5.7dB vs impulse 45.3dB). 18/18 tests pass; each failing assertion catches a real defect. MINOR-1: Pyright cannot resolve sibling test module audio_test_fixtures (static-analysis only)."
+  },
+  "S13_T005": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_T005/engineering_report.md",
+      "reports/karpathy_loop/s13/S13_T005/audit_report.md",
+      "reports/karpathy_loop/s13/S13_T005/validation_report.md",
+      "reports/karpathy_loop/s13/S13_T005/loop_decision.md"
+    ],
+    "completed_at": "2025-06-25",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1,
+      "note": 0
+    },
+    "notes": "Integration regression proves full S13 audio-island assembly path. 14/14 tests pass (1 skipped). All required assertions validated. MINOR-1: Pyright diagnostic warnings (import resolution false positive, cosmetic only)."
+  },
+  "S13_GATE": {
+    "status": "DONE",
+    "owner_agent": "claude-code-glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s13/S13_GATE/test_results.txt",
+      "reports/karpathy_loop/s13/S13_GATE/gate_review.md",
+      "reports/karpathy_loop/s13/S13_GATE/gate_decision.md"
+    ],
+    "completed_at": "2026-06-26",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1,
+      "note": 0
+    },
+    "notes": "Sprint 13 gate review: All 6 exit criteria satisfied. All 5 tickets complete. 63 tests passing (3 skipped, all acceptable). Hero audio-island invariants confirmed. Audio continuity QA validated with honest measurements. DB-native requirement acceptable. No fake green detected. Ready to proceed to S14. MINOR-1: Pyright diagnostic warnings (cosmetic only)."
+  },
+  "S14_T001": {
+    "status": "DONE",
+    "owner_agent": "glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s14/S14_T001/engineering_report.md",
+      "reports/karpathy_loop/s14/S14_T001/audit_report.md",
+      "reports/karpathy_loop/s14/S14_T001/validation_report.md",
+      "reports/karpathy_loop/s14/S14_T001/loop_decision.md"
+    ],
+    "completed_at": "2026-06-26",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1,
+      "note": 0
+    },
+    "notes": "Tiered lip-sync policy implemented: close_hero (≤30ms PASS, 31-45ms WARN, >45ms FAIL), medium_hero (≤40ms PASS, 41-60ms WARN, >60ms FAIL), diagnostic_legacy (160ms non-publish only). 35/35 tests pass. All required pass criteria validated. Old 160ms threshold preserved as diagnostic_legacy, not publish-grade. Fail-closed design: unknown framing defaults to close_hero. MINOR-1: Pyright diagnostic warnings (cosmetic false positive)."
+  },
+  "S14_T002": {
+    "status": "DONE",
+    "owner_agent": "glm-4.7",
+    "reports": [
+      "reports/karpathy_loop/s14/S14_T002/engineering_report.md",
+      "reports/karpathy_loop/s14/S14_T002/audit_report.md",
+      "reports/karpathy_loop/s14/S14_T002/validation_report.md",
+      "reports/karpathy_loop/s14/S14_T002/loop_decision.md"
+    ],
+    "completed_at": "2026-06-26",
+    "verdict": "PASS",
+    "findings": {
+      "blocker": 0,
+      "major": 0,
+      "minor": 1,
+      "note": 0
+    },
+    "notes": "Hero framing metadata implemented: hero_framing column added to render_units with CHECK triggers (close, medium, wide). 38/38 tests pass. All required pass criteria validated. Missing hero_framing defaults to 'close' (fail-closed). Invalid values raise BLOCKED_INVALID_HERO_FRAMING. Non-hero units (BROLL_FLEX) exempt from framing. Metadata propagates to assembly manifest for S14_T003/S14_T04 consumption. MINOR-1: Pyright diagnostic warnings (cosmetic false positive)."
+  },
+  "S14_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S14_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S14_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S15_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S15_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S15_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S15_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S15_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S16_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S16_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S16_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S16_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S16_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S17_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S17_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S17_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S17_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S17_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S18_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S18_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S18_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S18_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S18_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S19_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S19_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S19_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S19_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S19_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S20_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S20_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S20_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S20_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S20_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S21_T001": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S21_T002": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S21_T003": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S21_T004": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  },
+  "S21_T005": {
+    "status": "NOT_STARTED",
+    "owner_agent": null,
+    "reports": []
+  }
+}

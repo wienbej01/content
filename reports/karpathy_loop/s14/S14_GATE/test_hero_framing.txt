@@ -1,0 +1,51 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 38 items
+
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_close PASSED [  2%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_medium PASSED [  5%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_wide PASSED [  7%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_case_insensitive PASSED [ 10%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_whitespace PASSED [ 13%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_none_returns_none PASSED [ 15%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_empty_string_returns_none PASSED [ 18%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_raises_error PASSED [ 21%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_tight_raises_error PASSED [ 23%]
+tests/test_hero_framing.py::TestNormalizeHeroFraming::test_normalize_invalid_full_body_raises_error PASSED [ 26%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_close PASSED [ 28%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_medium PASSED [ 31%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_with_wide PASSED [ 34%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_sync_locked_missing_framing_defaults_to_close PASSED [ 36%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_lipsync_missing_framing_defaults_to_close PASSED [ 39%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_keep_lipsync_missing_framing_defaults_to_close PASSED [ 42%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_lipsync_required_true_missing_framing_defaults_to_close PASSED [ 44%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_broll_flex_does_not_require_framing PASSED [ 47%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_broll_synced_action_does_not_require_framing PASSED [ 50%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_silent_graphic_does_not_require_framing PASSED [ 52%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_with_invalid_framing_raises_error PASSED [ 55%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_hero_with_tight_framing_raises_error PASSED [ 57%]
+tests/test_hero_framing.py::TestEffectiveHeroFraming::test_non_hero_with_invalid_framing_still_does_not_require PASSED [ 60%]
+tests/test_hero_framing.py::TestPolicyMapping::test_close_framing_to_close_hero_policy PASSED [ 63%]
+tests/test_hero_framing.py::TestPolicyMapping::test_medium_framing_to_medium_hero_policy PASSED [ 65%]
+tests/test_hero_framing.py::TestPolicyMapping::test_wide_framing_to_wide_hero_policy PASSED [ 68%]
+tests/test_hero_framing.py::TestPolicyMapping::test_close_hero_policy_to_close_framing PASSED [ 71%]
+tests/test_hero_framing.py::TestPolicyMapping::test_medium_hero_policy_to_medium_framing PASSED [ 73%]
+tests/test_hero_framing.py::TestPolicyMapping::test_wide_hero_policy_to_wide_framing PASSED [ 76%]
+tests/test_hero_framing.py::TestPolicyMapping::test_diagnostic_legacy_policy_maps_to_none PASSED [ 78%]
+tests/test_hero_framing.py::TestPolicyMapping::test_unknown_policy_maps_to_none PASSED [ 81%]
+tests/test_hero_framing.py::TestConstants::test_default_hero_framing_is_close PASSED [ 84%]
+tests/test_hero_framing.py::TestConstants::test_hero_audio_policies_contains_expected PASSED [ 86%]
+tests/test_hero_framing.py::TestConstants::test_close_framing_constant PASSED [ 89%]
+tests/test_hero_framing.py::TestConstants::test_medium_framing_constant PASSED [ 92%]
+tests/test_hero_framing.py::TestConstants::test_wide_framing_constant PASSED [ 94%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_hero_framing_metadata_structure PASSED [ 97%]
+tests/test_hero_framing.py::TestMetadataPropagation::test_metadata_available_for_policy_evaluation PASSED [100%]
+
+============================== 38 passed in 0.06s ==============================

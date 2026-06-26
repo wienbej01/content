@@ -1,0 +1,64 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 7 items
+
+tests/test_compensated_hero_assembly.py::TestManifestCompensatedPath::test_manifest_includes_compensated_field SKIPPED [ 14%]
+tests/test_compensated_hero_assembly.py::TestProcessSegmentCompensated::test_hero_detected_in_seg PASSED [ 28%]
+tests/test_compensated_hero_assembly.py::TestProcessSegmentCompensated::test_non_hero_not_detected PASSED [ 42%]
+tests/test_compensated_hero_assembly.py::TestProcessSegmentCompensated::test_cap_present_in_seg_dict PASSED [ 57%]
+tests/test_compensated_hero_assembly.py::TestProcessSegmentCompensated::test_cap_not_present PASSED [ 71%]
+tests/test_compensated_hero_assembly.py::TestAssemblyInputs::test_inputs_include_compensated SKIPPED [ 85%]
+tests/test_compensated_hero_assembly.py::TestSyncNetGateIntegration::test_syncnet_on_c1_remux_verification FAILED [100%]
+
+=================================== FAILURES ===================================
+_______ TestSyncNetGateIntegration.test_syncnet_on_c1_remux_verification _______
+
+self = <test_compensated_hero_assembly.TestSyncNetGateIntegration object at 0x780b3c3c4f50>
+
+    def test_syncnet_on_c1_remux_verification(self):
+        """Verify the C1 (335ms) remux from S07_T003 still passes SyncNet."""
+        import subprocess, sys, json
+        # The compensated remux from S07_T003
+        c1_path = Path("/tmp/remux_experiment/C1_offset_335ms.mp4")
+        if not c1_path.exists():
+            pytest.skip("C1 remux not available — run S07_T003 first")
+    
+        # Run SyncNet pipeline
+        import os
+        label = "C1_verify"
+        r = subprocess.run([
+            sys.executable, "syncnet_python/run_pipeline.py",
+            "--videofile", str(c1_path), "--reference", label,
+            "--data_dir", "/tmp/syncnet_s08t003",
+        ], capture_output=True, text=True, timeout=600)
+    
+        r2 = subprocess.run([
+            sys.executable, "syncnet_python/run_syncnet.py",
+            "--reference", label, "--data_dir", "/tmp/syncnet_s08t003",
+        ], capture_output=True, text=True, timeout=600)
+    
+        offsets = []
+        for line in (r2.stderr or "").split("\n"):
+            if "AV offset:" in line:
+                of = line.split()[-1]
+                offsets.append(int(of))
+    
+>       assert len(offsets) > 0, f"No SyncNet offset found: {r2.stderr[:200]}"
+E       AssertionError: No SyncNet offset found: 2026-06-25 21:25:30,753 SyncNetInstance INFO: Using device: cpu
+E         Traceback (most recent call last):
+E           File "/home/jacobw/YTchannel/syncnet_python/run_syncnet.py", line 32, in <module>
+E             s.loadParamet
+E       assert 0 > 0
+E        +  where 0 = len([])
+
+tests/test_compensated_hero_assembly.py:105: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_compensated_hero_assembly.py::TestSyncNetGateIntegration::test_syncnet_on_c1_remux_verification
+==================== 1 failed, 4 passed, 2 skipped in 3.80s ====================

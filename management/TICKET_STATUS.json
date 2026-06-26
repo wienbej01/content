@@ -1,0 +1,58 @@
+{
+  "sprint": "S15",
+  "sprint_name": "Shot-mix contract and semantic role validation",
+  "updated": "2026-06-26",
+  "previous_sprint": {
+    "sprint": "S14",
+    "sprint_name": "Strict lip-sync QA and thresholds",
+    "sprint_status": "COMPLETE",
+    "sprint_completion_date": "2026-06-26"
+  },
+  "tickets": {
+    "S15_T001": {
+      "id": "S15_T001",
+      "name": "Define format-level shot-mix contract",
+      "status": "DONE",
+      "approved": true,
+      "approval_type": "CONDITIONAL",
+      "reports_dir": "reports/karpathy_loop/s15/S15_T001/",
+      "gate_review_dir": "reports/karpathy_loop/s15/S15_T001_GATE/",
+      "loop_decision": "APPROVED (prior session, self-authored)",
+      "gate_decision": "CONDITIONAL_PASS (independent gate review 2026-06-26)",
+      "completion_date": "2026-06-26",
+      "tests": "12/12 passing (own suite)",
+      "regression": "CORRECTED by independent gate review: baseline 12 pass/16 fail -> S15 7 pass/21 fail = 5 newly-broken S14 positive-path fixtures (BLOCKED_SHOT_MIX_CONTRACT), 0 production regressions. Prior 'zero regressions' claim used a flawed control (stashed S13/S14 too).",
+      "follow_up": "S15_SUITE_HEALTH_FIX001 (non-blocking)"
+    },
+    "S15_SUITE_HEALTH_FIX001": {
+      "id": "S15_SUITE_HEALTH_FIX001",
+      "name": "Refresh stale S14 positive-path fixtures to satisfy shot-mix contract",
+      "status": "PENDING",
+      "blocking": false,
+      "parent": "S15_T001",
+      "scope": "tests/test_s14_t004_syncnet_confidence.py fixtures only (5 positive-path tests); optionally the 16 pre-existing S13/S14 fixture gaps. No production code change expected.",
+      "reason": "S15 contract now requires hero>=2/broll>=1/graphic>=1; S14 positive-path tests used single-unit fixtures that can no longer pass. Restores S14 good-syncnet-passes coverage."
+    },
+    "S15_T002": {
+      "id": "S15_T002",
+      "name": "Semantic role validation (b-roll semantic contract)",
+      "status": "PENDING"
+    },
+    "S15_T003": {
+      "id": "S15_T003",
+      "name": "Pending",
+      "status": "PENDING"
+    },
+    "S15_T004": {
+      "id": "S15_T004",
+      "name": "Pending",
+      "status": "PENDING"
+    },
+    "S15_T005": {
+      "id": "S15_T005",
+      "name": "Pending",
+      "status": "PENDING"
+    }
+  },
+  "sprint_status": "IN PROGRESS"
+}

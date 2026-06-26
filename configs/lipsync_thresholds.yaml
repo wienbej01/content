@@ -1,0 +1,87 @@
+# Tiered lip-sync policy thresholds for publish-grade QA.
+
+# Policy definitions for different hero framing categories.
+# Each policy defines offset_ms thresholds and minimum confidence scores.
+
+policies:
+  # Close hero talking-head (strictest standard)
+  close_hero:
+    description: "Close-up talking head with visible mouth movements"
+    publish_grade: true
+
+    # Offset thresholds in milliseconds
+    thresholds:
+      pass_ms: 30      # PASS if offset <= 30ms
+      warn_ms: 45      # WARN if offset 31-45ms
+      fail_ms: 45      # FAIL if offset > 45ms
+
+    # Minimum SyncNet confidence score (0.0-3.0 scale)
+    min_confidence: 2.0
+
+    # Frame-based thresholds (40ms per frame at 25fps)
+    pass_frames: 0.75  # ~1 frame
+    warn_frames: 1.125 # ~1.5 frames
+    fail_frames: 1.125  # ~1.5 frames
+
+  # Medium hero (medium shot, some distance from camera)
+  medium_hero:
+    description: "Medium shot hero with partially visible face"
+    publish_grade: true
+
+    # Offset thresholds in milliseconds
+    thresholds:
+      pass_ms: 40      # PASS if offset <= 40ms
+      warn_ms: 60      # WARN if offset 41-60ms
+      fail_ms: 60      # FAIL if offset > 60ms
+
+    # Minimum SyncNet confidence score
+    min_confidence: 2.0
+
+    # Frame-based thresholds
+    pass_frames: 1.0   # ~1 frame
+    warn_frames: 1.5   # ~1.5 frames
+    fail_frames: 1.5   # ~1.5 frames
+
+  # Wide hero (wide shot, face less visible)
+  # Uses medium policy unless future tickets define specific wide policy
+  wide_hero:
+    description: "Wide shot hero with face in frame but less prominent"
+    publish_grade: true
+    uses_policy: "medium_hero"  # Reference to medium_hero policy
+
+  # Diagnostic/salvage only (NOT publish-grade)
+  diagnostic_legacy:
+    description: "Legacy 160ms threshold for diagnostic/salvage only"
+    publish_grade: false  # NOT publish-grade
+
+    # Offset thresholds in milliseconds
+    thresholds:
+      pass_ms: 160     # PASS if offset <= 160ms (for diagnostic only)
+      warn_ms: 160     # No WARN range
+      fail_ms: 9999   # Effectively no FAIL threshold
+
+    # Minimum SyncNet confidence score
+    min_confidence: 0.0  # No confidence requirement for diagnostic
+
+    # Frame-based thresholds
+    pass_frames: 4.0   # 4 frames @ 40ms
+    warn_frames: 4.0
+    fail_frames: 999.9
+
+    # Explicit non-publish marker
+    non_publish_only: true
+
+# Default policy for unknown/unclassified hero framing
+default_policy: "close_hero"  # Default to strictest for safety
+
+# Policy selection rules (can be extended with metadata-based rules)
+policy_selection:
+  # If hero framing metadata is available, use it
+  # Otherwise, default to close_hero (fail-closed)
+  unclassified_framing: "close_hero"
+
+  # Fallback order for missing metadata
+  fallback_order:
+    - "close_hero"
+    - "medium_hero"
+    - "diagnostic_legacy"  # Last resort

@@ -1,0 +1,19 @@
+short_educational:
+  min_duration_sec: 20
+  max_duration_sec: 60
+  required_roles:
+    hero_lipsync: 2
+    broll: 1
+    local_graphic: 1
+  max_consecutive_hero: 1
+  max_static_graphic_sec_publish: 3.0
+  require_opening_hero: true
+
+longform_educational:
+  min_duration_sec: 180
+  required_roles_per_minute:
+    hero_lipsync: 2
+    broll: 2
+    local_graphic: 1
+  max_consecutive_hero_sec: 25
+  require_chapter_graphics: true
