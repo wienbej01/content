@@ -1,0 +1,72 @@
+================================================================
+S15_SUITE_HEALTH_FIX001 — Raw Test Output
+Reviewer: Claude (glm-5.2), independent of S15_T001 engineering
+Date: 2026-06-26
+================================================================
+
+## 1. test_s14_t004_syncnet_confidence.py (PRIMARY target — 5 fixed)
+Command: python3 -m pytest tests/test_s14_t004_syncnet_confidence.py -v
+----------------------------------------------------------------
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_low_confidence_fails PASSED [ 11%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_high_offset_fails PASSED [ 22%]
+tests/test_s14_t004_syncnet_confidence.py::TestSyncNetConfidenceGate::test_hero_unit_with_good_syncnet_passes PASSED [ 33%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_medium_framing_uses_medium_policy PASSED [ 44%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_wide_framing_uses_medium_policy PASSED [ 55%]
+tests/test_s14_t004_syncnet_confidence.py::TestHeroFramingPolicySelection::test_missing_framing_defaults_to_close PASSED [ 66%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_missing_offset_ms_fails PASSED [ 77%]
+tests/test_s14_t004_syncnet_confidence.py::TestEvidenceValidation::test_malformed_evidence_json_fails PASSED [ 88%]
+tests/test_s14_t004_syncnet_confidence.py::TestNonHeroUnits::test_broll_flex_bypasses_confidence_check PASSED [100%]
+============================== 9 passed in 1.09s ===============================
+
+## 2. test_s14_t003_per_segment_syncnet.py (inspected — 4 fixed)
+Command: python3 -m pytest tests/test_s14_t003_per_segment_syncnet.py -v
+----------------------------------------------------------------
+tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_with_syncnet_passes PASSED [ 16%]
+tests/test_s14_t003_per_segment_syncnet.py::TestPerSegmentSyncNetRequirement::test_hero_unit_without_syncnet_fails PASSED [ 33%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_only_audio_offset_fails PASSED [ 50%]
+tests/test_s14_t003_per_segment_syncnet.py::TestAudioOffsetInsufficient::test_hero_unit_with_both_passes PASSED [ 66%]
+tests/test_s14_t003_per_segment_syncnet.py::TestNonHeroUnitsExempt::test_broll_flex_does_not_require_syncnet PASSED [ 83%]
+tests/test_s14_t003_per_segment_syncnet.py::TestNonHeroUnitsExempt::test_silent_graphic_does_not_require_syncnet PASSED [100%]
+============================== 6 passed in 0.85s ===============================
+
+## 3. test_shot_mix_contract.py (must remain 12/12)
+Command: python3 -m pytest tests/test_shot_mix_contract.py -v
+----------------------------------------------------------------
+tests/test_shot_mix_contract.py::TestShotMixContract::test_2_hero_1_broll_1_graphic_passes PASSED [  8%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_only_hero_and_graphic_fails PASSED [ 16%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_missing_second_hero_fails PASSED [ 25%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_missing_graphic_fails PASSED [ 33%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_consecutive_hero_segments_fails PASSED [ 41%]
+tests/test_shot_mix_contract.py::TestShotMixContract::test_opening_must_be_hero PASSED [ 50%]
+tests/test_shot_mix_contract.py::TestShotClassification::test_hero_lipsync_not_counted_as_broll PASSED [ 58%]
+tests/test_shot_mix_contract.py::TestShotClassification::test_local_graphic_not_counted_as_broll PASSED [ 66%]
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_test_local_profile_not_publish_grade PASSED [ 75%]
+tests/test_shot_mix_contract.py::TestNonPublishGradeProfiles::test_diagnostic_legacy_not_publish_grade PASSED [ 83%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s13_hero_compensated_artifact_gate_still_enforced PASSED [ 91%]
+tests/test_shot_mix_contract.py::TestS13S14Regression::test_s14_per_segment_syncnet_still_enforced PASSED [100%]
+============================== 12 passed in 1.49s ==============================
+
+## 4. lipsync_policy + hero_framing (must remain green)
+Command: python3 -m pytest tests/test_lipsync_policy.py tests/test_hero_framing.py -v
+----------------------------------------------------------------
+........................................................................ [ 98%]
+.                                                                        [100%]
+73 passed in 0.17s
+
+## 5. s13 integration + audio continuity (must remain green)
+Command: python3 -m pytest tests/test_s13_t005_integration_regression.py tests/test_audio_continuity.py -v
+----------------------------------------------------------------
+.............s...................                                        [100%]
+32 passed, 1 skipped in 2.33s
+
+## 6. Optional diagnostic (informational; pre-existing/env, NOT fixed)
+Command: python3 -m pytest tests/test_compensated_hero_assembly.py tests/test_syncnet_gate.py -v || true
+----------------------------------------------------------------
+tests/test_syncnet_gate.py:99: IntegrityError
+=========================== short test summary info ============================
+FAILED tests/test_compensated_hero_assembly.py::TestSyncNetGateIntegration::test_syncnet_on_c1_remux_verification
+FAILED tests/test_syncnet_gate.py::TestSyncNetGate::test_block_without_validation
+FAILED tests/test_syncnet_gate.py::TestSyncNetGate::test_pass_with_validation
+FAILED tests/test_syncnet_gate.py::TestSyncNetGate::test_non_hero_bypasses - ...
+FAILED tests/test_syncnet_gate.py::TestSyncNetGate::test_offset_above_threshold_fails
+5 failed, 4 passed, 2 skipped in 3.09s

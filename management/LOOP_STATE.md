@@ -2,8 +2,28 @@
 
 **Sprint**: S15 — Shot-mix contract and semantic role validation
 **Updated**: 2026-06-26
-**Status**: **S15 IN PROGRESS — S15_T001 CONDITIONALLY APPROVED (independent gate review)**
+**Status**: **S15 IN PROGRESS — S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
 
+> **S15_SUITE_HEALTH_FIX001 COMPLETE (2026-06-26).** The S15_T001 non-blocking follow-up is
+> resolved. S14 positive-path and non-hero-exemption coverage degraded by S15 shot-mix enforcement
+> is restored:
+> - `tests/test_s14_t004_syncnet_confidence.py` — 5 stale single-unit fixtures refreshed via a new
+>   `_make_contract_compliant_batch` helper (publish-grade shot mix: ≥2 hero + ≥1 broll + ≥1 graphic,
+>   opening hero, no consecutive heroes). 5 fail → **0 fail (9/9 green)**.
+> - `tests/test_s14_t003_per_segment_syncnet.py` — 4 in-area fixtures fixed via a new
+>   `_make_syncnet_contract_batch` helper (committed transactions + full QA + SyncNet-on-hero). Root
+>   causes were fixture-side only (a no-commit bug in the old helper + incomplete non-hero QA
+>   checklists) — **no production bug**. 4 fail → **0 fail (6/6 green)**.
+> - **0 production files changed.** No gate weakened. No paid renders. Negative-path tests verified
+>   to still pass for the right reason.
+> - `test_shot_mix_contract.py` 12/12, lipsync_policy+hero_framing 73/73, s13 integration+audio
+>   32 pass/1 skip — all unchanged. Broad S13/S14 DB-gate regression: 143 pass / 1 skip.
+> - 5 pre-existing/env diagnostic failures (`test_compensated_hero_assembly` SyncNet-binary,
+>   `test_syncnet_gate` FK-setup) classified **NO MATERIAL IMPACT** — out of area, not chased.
+> See `reports/karpathy_loop/s15/S15_SUITE_HEALTH_FIX001/`.
+>
+> **S15_T002 is BLOCKED on explicit user approval — do not start.** This fix did NOT unblock T002.
+>
 > **Independent gate review (2026-06-26).** A separate session re-reviewed S15_T001
 > because the prior session self-authored engineering/audit/validation/loop-decision.
 > **Verdict: CONDITIONAL_PASS.** The S15_T001 implementation is correct and complete

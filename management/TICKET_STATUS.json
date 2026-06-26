@@ -27,11 +27,15 @@
     "S15_SUITE_HEALTH_FIX001": {
       "id": "S15_SUITE_HEALTH_FIX001",
       "name": "Refresh stale S14 positive-path fixtures to satisfy shot-mix contract",
-      "status": "PENDING",
+      "status": "DONE",
       "blocking": false,
       "parent": "S15_T001",
-      "scope": "tests/test_s14_t004_syncnet_confidence.py fixtures only (5 positive-path tests); optionally the 16 pre-existing S13/S14 fixture gaps. No production code change expected.",
-      "reason": "S15 contract now requires hero>=2/broll>=1/graphic>=1; S14 positive-path tests used single-unit fixtures that can no longer pass. Restores S14 good-syncnet-passes coverage."
+      "completion_date": "2026-06-26",
+      "reports_dir": "reports/karpathy_loop/s15/S15_SUITE_HEALTH_FIX001/",
+      "scope": "tests/test_s14_t004_syncnet_confidence.py (5 positive-path fixtures) + tests/test_s14_t003_per_segment_syncnet.py (4 in-area fixtures). No production code change.",
+      "reason": "S15 contract now requires hero>=2/broll>=1/graphic>=1; S14 positive-path tests used single-unit fixtures that can no longer pass. Restores S14 good-syncnet-passes coverage.",
+      "result": "9/9 (s14_t004) + 6/6 (s14_t003) green; shot-mix 12/12, lipsync/hero_framing 73/73, s13 integration+audio 32 pass/1 skip unchanged. 0 production files changed. 5 pre-existing/env diagnostic failures classified NO MATERIAL IMPACT.",
+      "did_not_unblock": "S15_T002 (still BLOCKED on explicit user approval)"
     },
     "S15_T002": {
       "id": "S15_T002",
