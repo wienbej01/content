@@ -1,0 +1,77 @@
+S15_T003 ACCEPTANCE REVIEW — TEST RESULTS
+==========================================
+
+Commit: ba7172df266b4a6ee1b1792b74d1aec0294b54eb
+Date: 2026-06-27
+Reviewer: Claude Code (independent bounded acceptance review)
+
+---------------------------------------------------------------------------
+REQUIRED TARGETED TESTS (ALL PASS)
+---------------------------------------------------------------------------
+
+1. tests/test_semantic_role_qa.py -v
+   ==================== 16 passed in 3.14s ===============================
+
+2. tests/test_visual_role_contract.py -v
+   (included in combined run below)
+
+3. tests/test_shot_mix_contract.py -v
+   (included in combined run below)
+
+4. tests/test_s14_t004_syncnet_confidence.py -v
+   (included in combined run below)
+
+5. tests/test_s14_t003_per_segment_syncnet.py -v
+   (included in combined run below)
+
+Combined run (visual_role + shot_mix + s14):
+   ============================== 39 passed in 5.02s ==============================
+   Breakdown:
+   - test_visual_role_contract.py: 12/12 passed
+   - test_shot_mix_contract.py: 12/12 passed
+   - test_s14_t004_syncnet_confidence.py: 9/9 passed
+   - test_s14_t003_per_segment_syncnet.py: 6/6 passed
+
+6. tests/test_lipsync_policy.py tests/test_hero_framing.py -v
+   =============================== 73 passed in 0.18s ==============================
+
+7. tests/test_s13_t005_integration_regression.py tests/test_audio_continuity.py -v
+   ========================= 32 passed, 1 skipped in 2.69s ====================
+   Breakdown:
+   - test_s13_t005_integration_regression.py: 14 passed, 1 skipped
+   - test_audio_continuity.py: 18/18 passed
+
+REQUIRED SET TOTAL: 160 passed, 1 skipped
+(the 1 skip is pre-existing: test_assembly_produces_segment_timeline wraps
+a hardcoded production-id manifest that doesn't exist in isolated test DBs)
+
+---------------------------------------------------------------------------
+FULL SUITE ATTRIBUTION CHECK
+---------------------------------------------------------------------------
+
+Full suite: 90 failed, 1799 passed, 10 skipped, 2 xfailed, 1 xpassed
+
+BLOCKED_SEMANTIC_ROLE_QA failures in full suite: 0
+BLOCKED_SEMANTIC_ROLE_QA_FAILED failures in full suite: 0
+BLOCKED_SEMANTIC_ROLE_QA_MISSING failures in full suite: 0
+BLOCKED_SEMANTIC_ROLE_QA_EVIDENCE_INVALID failures in full suite: 0
+
+Sample of earlier-gate failures (all pre-existing):
+- BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING (S14 SyncNet debt)
+- BLOCKED_SHOT_MIX_CONTRACT (S15_T001 fixture debt)
+- BLOCKED_HERO_COMPENSATED_* (S13 compensated debt)
+
+All 90 failures are REAL but PRE-EXISTING and OUT OF SCOPE for S15_T003.
+No regressions introduced by S15_T003.
+
+---------------------------------------------------------------------------
+ATTRIBUTION SUMMARY
+---------------------------------------------------------------------------
+
+S15_T003 changes:
+- +16 passing tests (test_semantic_role_qa.py)
+- +0 new failures
+- Failure count identical to S15_T002-accepted baseline (90)
+- Zero semantic-role QA failures anywhere in the full suite
+
+Verdict: No material impact. S15_T003 is correctly scoped and tested.

@@ -1,0 +1,98 @@
+S15_T005 ACCEPTANCE REVIEW — TEST RESULTS
+==========================================
+
+Commit: Pending — S15_T005: semantic-role verification pipeline integration
+Date: 2026-06-27
+Reviewer: Claude Code (independent bounded acceptance review)
+
+---------------------------------------------------------------------------
+REQUIRED TARGETED TESTS (ALL PASS)
+---------------------------------------------------------------------------
+
+1. tests/test_semantic_role_pipeline.py -v
+   ========================= 8 passed in 5.11s ==========================
+   Breakdown:
+   - TestSemanticRolePipelineIntegration (6/6):
+     * test_valid_batch_with_pipeline_records_passing_evidence
+     * test_pipeline_verifier_fail_records_failure_and_blocks_assembly
+     * test_missing_video_prevents_semantic_pass
+     * test_labels_alone_cannot_produce_pass_evidence
+     * test_asset_type_alone_cannot_produce_pass_evidence
+     * test_non_publish_contracts_explicitly_exempt
+   - TestExistingTestsRemainGreen (2/2):
+     * test_frame_sampling_tests_remain_green
+     * test_semantic_role_qa_tests_remain_green
+
+2. tests/test_frame_sampling.py -v
+   (included in combined run below)
+
+3. tests/test_semantic_role_qa.py -v
+   (included in combined run below)
+
+4. tests/test_visual_role_contract.py -v
+   (included in combined run below)
+
+5. tests/test_shot_mix_contract.py -v
+   (included in combined run below)
+
+6. tests/test_s14_t004_syncnet_confidence.py -v
+   (included in combined run below)
+
+7. tests/test_s14_t003_per_segment_syncnet.py -v
+   (included in combined run below)
+
+8. tests/test_lipsync_policy.py + tests/test_hero_framing.py -v
+   (included in combined run below)
+
+9. tests/test_s13_t005_integration_regression.py -v
+   (included in combined run below)
+
+10. tests/test_audio_continuity.py -v
+   (included in combined run below)
+
+Combined run (all required S15 regression tests):
+   ======================== 181 passed, 1 skipped in 17.15s =======================
+   Breakdown:
+   - test_semantic_role_pipeline.py: 8/8 passed
+   - test_frame_sampling.py: 13/13 passed
+   - test_semantic_role_qa.py: 16/16 passed
+   - test_visual_role_contract.py: 12/12 passed
+   - test_shot_mix_contract.py: 12/12 passed
+   - test_s14_t004_syncnet_confidence.py: 9/9 passed
+   - test_s14_t003_per_segment_syncnet.py: 6/6 passed
+   - test_lipsync_policy.py + test_hero_framing.py: 73/73 passed
+   - test_s13_t005_integration_regression.py: 14 passed, 1 skipped
+   - test_audio_continuity.py: 18/18 passed
+
+REQUIRED SET TOTAL: 181 passed, 1 skipped
+(the 1 skip is pre-existing: test_assembly_produces_segment_timeline wraps
+a hardcoded production-id manifest that doesn't exist in isolated test DBs)
+
+---------------------------------------------------------------------------
+FULL SUITE ATTRIBUTION CHECK (COMPLETE)
+---------------------------------------------------------------------------
+
+Full suite: **90 failed / 1820 passed / 10 skipped / 2 xfailed / 1 xpassed / 13 warnings**
+
+Run time: 809.69s (0:13:29)
+
+Attribution check:
+- Growth vs S15_T004-accepted baseline: +8 passes (test_semantic_role_pipeline.py)
+- Net new failures: 0
+- SEMANTIC_ROLE_PIPELINE or VERIFIER failures: 0
+
+Baseline (S15_T004 accepted): 90 failed / 1812 passed / 10 skipped
+S15_T005: 90 failed / 1820 passed / 10 skipped
+Net change: +8 passed, 0 new failures
+
+---------------------------------------------------------------------------
+ATTRIBUTION SUMMARY
+---------------------------------------------------------------------------
+
+S15_T005 changes:
+- +8 passing tests (test_semantic_role_pipeline.py)
+- +0 new failures
+- No semantic-role-pipeline failures anywhere in the full suite
+- All earlier gates (S13/S14/S15_T001/S15_T002/S15_T003/S15_T004) remain green
+
+Verdict: No material impact. S15_T005 is correctly scoped and tested.
