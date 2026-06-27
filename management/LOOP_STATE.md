@@ -2,9 +2,9 @@
 
 **Sprint**: S15 — Shot-mix contract and semantic role validation
 **Updated**: 2026-06-27
-**Status**: **S15 IN PROGRESS — S15_T003 ENGINEERING PASS (audit+validation PASS), AWAITING INDEPENDENT ACCEPTANCE; S15_T002 ACCEPTED; S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
+**Status**: **S15 IN PROGRESS — S15_T004 ENGINEERING PASS (audit+validation PASS), AWAITING FINAL LOOP DECISION; S15_T003 ACCEPTED; S15_T002 ACCEPTED; S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
 
-> **S15_T003 ENGINEERING PASS (2026-06-27; engineering + audit + validation complete; awaiting independent bounded acceptance review).**
+> **S15_T003 ACCEPTED (2026-06-27, independent bounded acceptance review).**
 > Post-render semantic-role QA — a rendered unit may not pass publish-grade
 > assembly merely because its `asset_type`, label, or planned `visual_role`
 > claims a role. It must carry passing `semantic_role_qa` evidence bound to its
@@ -34,8 +34,35 @@
 > - Note: S15_T003 carries the previously-uncommitted, independently-accepted
 >   S15_T002 visual_role foundation it depends on. See
 >   `reports/karpathy_loop/s15/S15_T003/`.
-> - **S15_T004 NOT STARTED** (awaiting S15_T003 acceptance).
+> - **Independent acceptance verdict**: PASS. All review criteria A-D met.
+>   Required targeted tests 160/160 (1 skip pre-existing). Zero `BLOCKED_SEMANTIC_ROLE`
+>   failures anywhere. No production gate weakening. No fake green. Evidence model
+>   correct. Gate ordering preserved. See `reports/karpathy_loop/s15/S15_T003_ACCEPTANCE/`.
+> - **S15_T004 ENGINEERING PASS (2026-06-27; engineering + audit + validation complete; awaiting final loop decision).**
+> Frame sampling utility — extracts representative frames from rendered video units for
+> later semantic-role QA inspection. Deterministic, local-only (ffmpeg), fail-closed with
+> explicit `BLOCKED_FRAME_SAMPLING_*` errors.
+> - **New `scripts/frame_sampling.py`** — two strategies (`start_middle_end` at
+>   25%/50%/75%, `evenly_spaced` with configurable count), deterministic timestamp
+>   calculation, metadata recording (render_unit_id, artifact_uri, visual_role, timestamps).
+> - **Primary entry point**: `sample_frames_for_render_unit()` — looks up render_unit
+>   and artifact from DB, extracts frames to `output_base_dir/production_id/render_unit_id/`,
+>   returns metadata dict. Does NOT create semantic_role_qa evidence (evidence-input only).
+> - **`tests/test_frame_sampling.py`** — 13 tests covering frame extraction, determinism,
+>   error handling, render_unit integration, and the invariant that no semantic_role_qa
+>   evidence is created.
+> - **Tests**: required set **173 passed / 1 skipped** (skip pre-existing); own
+>   suite 13/13. Full suite **90 failed / 1812 passed / 10 skipped**.
+> - **Zero regressions**: failure count identical to the S15_T003-accepted
+>   baseline (90); +13 passes are the new tests. **ZERO frame-sampling failures anywhere**
+>   in the full suite. All 90 residual failures are pre-existing earlier-gate debt /
+>   unrelated subsystems → NO MATERIAL IMPACT.
+> - No semantic analysis, no black-area/motion/duplicate metrics (by design — frame sampling
+>   only; S15_T005 will build semantic analysis on top).
+> - No paid renders, no external AI vision.
+> - **S15_T005 NOT STARTED** (awaiting S15_T004 final loop decision).
 >
+> **S15_T003 ACCEPTED (2026-06-27, independent bounded acceptance review).**
 > **S15_T002 ACCEPTED (2026-06-26, independent bounded acceptance review).**
 > Prior S15_T002 attempt was NOT accepted; FIX001 corrected all issues:
 > - **Enforcement moved to the publish-grade assembly gate.** New
