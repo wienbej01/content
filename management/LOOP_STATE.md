@@ -1,3 +1,34 @@
+# Loop State — S16
+
+**Sprint**: S16 — Professional deterministic graphics system
+**Updated**: 2026-06-27
+**Status**: **S16 IN PROGRESS — S16_T001 COMPLETE**
+
+> **S16_T001 COMPLETE (2026-06-27).**
+> Define graphic template schema — JSON schema for 8 professional educational graphic templates
+> (comparison_card, framework_3_step, decision_tree, cost_stack, before_after, timeline, annotated_ui_mock, quote_card).
+> - **New `schemas/graphic_template.schema.json`** (357 lines) — JSON Schema Draft 7 specification defining
+>   all 8 template types with strict content validation (string lengths, array bounds, enum constraints, hex colors).
+> - **New `scripts/graphic_template_schema.py`** (577 lines) — Python validator implementing schema validation
+>   without external dependencies. `validate_graphic_template()` returns (is_valid, errors) tuple with clear error messages.
+> - **New `tests/test_graphic_schema.py`** (574 lines) — 47 comprehensive test cases covering schema structure,
+>   all 8 template types with valid examples, missing required field failures, string/array constraint enforcement,
+>   enum validation, and optional field validation.
+> - **Tests**: own suite **47 passed / 0 failed / 0 skipped** (0.08s); required regression **199 passed / 0 failed**
+>   (14.3s total). Full suite running (final count pending).
+> - **Zero regressions**: All required regression tests pass with zero new failures. No existing tests broken.
+>   All 90 residual S15 failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.
+> - No rendering logic (deferred to S16_T002). No AI integration. No animation support (deferred to S16_T003).
+> - **Engineering/audit/validation verdict**: PASS. All ticket requirements met, all hard rules followed,
+>   implementation purely additive (schema + validator + tests, no production code modified).
+> - **Loop decision**: PASS. S16_T002 ready to start.
+> See `reports/karpathy_loop/s16/S16_T001/`.
+
+**S16_T001 Status**: DONE — Reports written, awaiting commit and state update.
+**S16_T002 Status**: NOT STARTED — Ready to begin after S16_T001 closeout.
+
+---
+
 # Loop State — S15
 
 **Sprint**: S15 — Shot-mix contract and semantic role validation

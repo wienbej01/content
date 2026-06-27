@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://leveragemind/schemas/graphic_template.schema.json",
+  "title": "Graphic Template",
+  "description": "Professional deterministic graphic templates for corporate education and self-improvement videos. Templates define structure, content requirements, and validation rules for each graphic type.",
+  "type": "object",
+  "required": ["schema_version", "template_type", "content"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Schema version identifier"
+    },
+    "template_type": {
+      "type": "string",
+      "enum": [
+        "comparison_card",
+        "framework_3_step",
+        "decision_tree",
+        "cost_stack",
+        "before_after",
+        "timeline",
+        "annotated_ui_mock",
+        "quote_card"
+      ],
+      "description": "Type of graphic template to render"
+    },
+    "content": {
+      "description": "Template-specific content (validates against the appropriate template schema)",
+      "oneOf": [
+        {"$ref": "#/definitions/comparison_card_content"},
+        {"$ref": "#/definitions/framework_3_step_content"},
+        {"$ref": "#/definitions/decision_tree_content"},
+        {"$ref": "#/definitions/cost_stack_content"},
+        {"$ref": "#/definitions/before_after_content"},
+        {"$ref": "#/definitions/timeline_content"},
+        {"$ref": "#/definitions/annotated_ui_mock_content"},
+        {"$ref": "#/definitions/quote_card_content"}
+      ]
+    },
+    "style": {
+      "$ref": "#/definitions/graphic_style",
+      "description": "Optional style overrides (defaults to brand palette)"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string"},
+        "subtitle": {"type": "string"},
+        "beat_id": {"type": "string"},
+        "duration_hint_sec": {"type": "number", "minimum": 0, "maximum": 30}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "graphic_style": {
+      "type": "object",
+      "description": "Graphic style configuration (colors, fonts, spacing)",
+      "properties": {
+        "primary_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "secondary_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "background_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "text_color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "font_family": {"type": "string"},
+        "font_size_base": {"type": "integer", "minimum": 12, "maximum": 72}
+      },
+      "additionalProperties": false
+    },
+    "comparison_card_content": {
+      "type": "object",
+      "required": ["left_column", "right_column"],
+      "properties": {
+        "left_column": {
+          "type": "object",
+          "required": ["title", "items"],
+          "properties": {
+            "title": {"type": "string", "minLength": 1, "maxLength": 60},
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {"type": "string", "minLength": 1, "maxLength": 120}
+            },
+            "highlight_index": {"type": "integer", "minimum": 0, "maximum": 7}
+          },
+          "additionalProperties": false
+        },
+        "right_column": {
+          "type": "object",
+          "required": ["title", "items"],
+          "properties": {
+            "title": {"type": "string", "minLength": 1, "maxLength": 60},
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {"type": "string", "minLength": 1, "maxLength": 120}
+            },
+            "highlight_index": {"type": "integer", "minimum": 0, "maximum": 7}
+          },
+          "additionalProperties": false
+        },
+        "comparison_label": {"type": "string", "minLength": 1, "maxLength": 30}
+      },
+      "additionalProperties": false
+    },
+    "framework_3_step_content": {
+      "type": "object",
+      "required": ["title", "steps"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 80},
+        "steps": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["number", "label", "description"],
+            "properties": {
+              "number": {"type": "integer", "minimum": 1, "maximum": 3},
+              "label": {"type": "string", "minLength": 1, "maxLength": 50},
+              "description": {"type": "string", "minLength": 1, "maxLength": 200},
+              "icon": {"type": "string", "enum": ["circle", "arrow", "check", "star", "none"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "connector_style": {"type": "string", "enum": ["arrow", "line", "none"]}
+      },
+      "additionalProperties": false
+    },
+    "decision_tree_content": {
+      "type": "object",
+      "required": ["root", "branches"],
+      "properties": {
+        "root": {
+          "type": "object",
+          "required": ["question"],
+          "properties": {
+            "question": {"type": "string", "minLength": 1, "maxLength": 100}
+          },
+          "additionalProperties": false
+        },
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": ["condition", "outcome"],
+            "properties": {
+              "condition": {"type": "string", "minLength": 1, "maxLength": 60},
+              "outcome": {"type": "string", "minLength": 1, "maxLength": 150},
+              "is_recommended": {"type": "boolean"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "cost_stack_content": {
+      "type": "object",
+      "required": ["title", "segments"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 60},
+        "subtitle": {"type": "string", "minLength": 0, "maxLength": 100},
+        "segments": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": ["label", "value"],
+            "properties": {
+              "label": {"type": "string", "minLength": 1, "maxLength": 50},
+              "value": {
+                "oneOf": [
+                  {"type": "string", "pattern": "^[0-9]+$"},
+                  {"type": "number", "minimum": 0}
+                ]
+              },
+              "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "total_label": {"type": "string", "minLength": 1, "maxLength": 30},
+        "total_value": {"type": "string", "minLength": 1, "maxLength": 20}
+      },
+      "additionalProperties": false
+    },
+    "before_after_content": {
+      "type": "object",
+      "required": ["before", "after"],
+      "properties": {
+        "before": {
+          "type": "object",
+          "required": ["label", "description"],
+          "properties": {
+            "label": {"type": "string", "minLength": 1, "maxLength": 40},
+            "description": {"type": "string", "minLength": 1, "maxLength": 200}
+          },
+          "additionalProperties": false
+        },
+        "after": {
+          "type": "object",
+          "required": ["label", "description"],
+          "properties": {
+            "label": {"type": "string", "minLength": 1, "maxLength": 40},
+            "description": {"type": "string", "minLength": 1, "maxLength": 200}
+          },
+          "additionalProperties": false
+        },
+        "change_highlight": {"type": "string", "minLength": 1, "maxLength": 100}
+      },
+      "additionalProperties": false
+    },
+    "timeline_content": {
+      "type": "object",
+      "required": ["events"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 60},
+        "events": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": ["time_label", "label"],
+            "properties": {
+              "time_label": {"type": "string", "minLength": 1, "maxLength": 30},
+              "label": {"type": "string", "minLength": 1, "maxLength": 80},
+              "description": {"type": "string", "minLength": 0, "maxLength": 150}
+            },
+            "additionalProperties": false
+          }
+        },
+        "orientation": {"type": "string", "enum": ["horizontal", "vertical"]}
+      },
+      "additionalProperties": false
+    },
+    "annotated_ui_mock_content": {
+      "type": "object",
+      "required": ["ui_title", "annotations"],
+      "properties": {
+        "ui_title": {"type": "string", "minLength": 1, "maxLength": 60},
+        "ui_description": {"type": "string", "minLength": 0, "maxLength": 200},
+        "annotations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": ["element_name", "callout_text"],
+            "properties": {
+              "element_name": {"type": "string", "minLength": 1, "maxLength": 50},
+              "callout_text": {"type": "string", "minLength": 1, "maxLength": 120},
+              "position_hint": {"type": "string", "enum": ["top", "bottom", "left", "right", "center"]}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "quote_card_content": {
+      "type": "object",
+      "required": ["quote", "author"],
+      "properties": {
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "author_title": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "context": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 100
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
