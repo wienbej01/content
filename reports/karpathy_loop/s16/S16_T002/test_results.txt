@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 20 items
+
+tests/test_render_graphics.py::TestComparisonCard::test_comparison_card_renders_with_valid_spec PASSED [  5%]
+tests/test_render_graphics.py::TestComparisonCard::test_comparison_card_invalid_spec_fails PASSED [ 10%]
+tests/test_render_graphics.py::TestFramework3Step::test_framework_3_step_renders_with_valid_spec PASSED [ 15%]
+tests/test_render_graphics.py::TestDecisionTree::test_decision_tree_renders_with_valid_spec PASSED [ 20%]
+tests/test_render_graphics.py::TestCostStack::test_cost_stack_renders_with_valid_spec PASSED [ 25%]
+tests/test_render_graphics.py::TestBeforeAfter::test_before_after_renders_with_valid_spec PASSED [ 30%]
+tests/test_render_graphics.py::TestTimeline::test_timeline_renders_with_valid_spec PASSED [ 35%]
+tests/test_render_graphics.py::TestAnnotatedUiMock::test_annotated_ui_mock_renders_with_valid_spec PASSED [ 40%]
+tests/test_render_graphics.py::TestQuoteCard::test_quote_card_renders_with_valid_spec PASSED [ 45%]
+tests/test_render_graphics.py::TestTemplateValidation::test_invalid_schema_version_fails PASSED [ 50%]
+tests/test_render_graphics.py::TestTemplateValidation::test_missing_required_fields_fails PASSED [ 55%]
+tests/test_render_graphics.py::TestTemplateValidation::test_unknown_template_type_fails PASSED [ 60%]
+tests/test_render_graphics.py::TestDeterministicRendering::test_same_input_produces_same_output PASSED [ 65%]
+tests/test_render_graphics.py::TestExistingGraphicsTestsGreen::test_existing_renderers_still_work PASSED [ 70%]
+tests/test_render_graphics.py::TestExistingGraphicsTestsGreen::test_renderers_dict_contains_all_12_types PASSED [ 75%]
+tests/test_render_graphics.py::TestProfessionalQuality::test_quote_card_has_visible_content PASSED [ 80%]
+tests/test_render_graphics.py::TestProfessionalQuality::test_comparison_card_has_visible_content PASSED [ 85%]
+tests/test_render_graphics.py::TestProfessionalQuality::test_all_templates_have_nontransparent_output PASSED [ 90%]
+tests/test_render_graphics.py::TestNoProviderRenders::test_rendering_does_not_require_provider PASSED [ 95%]
+tests/test_render_graphics.py::TestNoProviderRenders::test_all_templates_render_locally PASSED [100%]
+
+============================== 20 passed in 1.18s ==============================
