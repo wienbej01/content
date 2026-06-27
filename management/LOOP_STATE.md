@@ -2,7 +2,7 @@
 
 **Sprint**: S15 — Shot-mix contract and semantic role validation
 **Updated**: 2026-06-27
-**Status**: **S15 IN PROGRESS — S15_T004 ENGINEERING PASS (audit+validation PASS), AWAITING FINAL LOOP DECISION; S15_T003 ACCEPTED; S15_T002 ACCEPTED; S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
+**Status**: **S15 IN PROGRESS — S15_T004 ACCEPTED; S15_T003 ACCEPTED; S15_T002 ACCEPTED; S15_T001 CONDITIONALLY APPROVED; S15_SUITE_HEALTH_FIX001 COMPLETE**
 
 > **S15_T003 ACCEPTED (2026-06-27, independent bounded acceptance review).**
 > Post-render semantic-role QA — a rendered unit may not pass publish-grade
@@ -38,7 +38,7 @@
 >   Required targeted tests 160/160 (1 skip pre-existing). Zero `BLOCKED_SEMANTIC_ROLE`
 >   failures anywhere. No production gate weakening. No fake green. Evidence model
 >   correct. Gate ordering preserved. See `reports/karpathy_loop/s15/S15_T003_ACCEPTANCE/`.
-> - **S15_T004 ENGINEERING PASS (2026-06-27; engineering + audit + validation complete; awaiting final loop decision).**
+> **S15_T004 ACCEPTED (2026-06-27, independent bounded acceptance review).**
 > Frame sampling utility — extracts representative frames from rendered video units for
 > later semantic-role QA inspection. Deterministic, local-only (ffmpeg), fail-closed with
 > explicit `BLOCKED_FRAME_SAMPLING_*` errors.
@@ -60,7 +60,8 @@
 > - No semantic analysis, no black-area/motion/duplicate metrics (by design — frame sampling
 >   only; S15_T005 will build semantic analysis on top).
 > - No paid renders, no external AI vision.
-> - **S15_T005 NOT STARTED** (awaiting S15_T004 final loop decision).
+> - **Independent acceptance verdict**: PASS. All review criteria A-E met. Required targeted tests 160/160 (1 skip pre-existing). Zero BLOCKED_FRAME_SAMPLING failures anywhere. No production gate weakening. No fake-green. Deterministic verified (same input → same output). Evidence-input only (no semantic_role_qa evidence created). See `reports/karpathy_loop/s15/S15_T004_ACCEPTANCE/`.
+> - **S15_T005 APPROVED TO START.**
 >
 > **S15_T003 ACCEPTED (2026-06-27, independent bounded acceptance review).**
 > **S15_T002 ACCEPTED (2026-06-26, independent bounded acceptance review).**

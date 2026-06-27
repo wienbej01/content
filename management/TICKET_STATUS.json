@@ -77,16 +77,21 @@
     "S15_T004": {
       "id": "S15_T004",
       "name": "Frame sampling utility",
-      "status": "ENGINEERING_PASS",
+      "status": "ACCEPTED",
+      "approved": true,
+      "approval_type": "INDEPENDENT_ACCEPTANCE_REVIEW",
       "parent": "S15_T003",
       "reports_dir": "reports/karpathy_loop/s15/S15_T004/",
+      "gate_review_dir": "reports/karpathy_loop/s15/S15_T004_ACCEPTANCE/",
       "completion_date": "2026-06-27",
-      "tests": "Own suite 13/13; required set 173 passed/1 skipped (frame_sampling 13, semantic_role_qa 16, visual_role 12, shot_mix 12, s14_t004 9, s14_t003 6, lipsync/hero_framing 73, s13_t005 14+1skip, audio_continuity 18). Full suite 90 failed/1812 passed/10 skipped.",
+      "acceptance_date": "2026-06-27",
+      "tests": "Own suite 13/13; required set 160 passed/1 skipped (frame_sampling 13, semantic_role_qa 16, visual_role 12, shot_mix 12, s14_t004 9, s14_t003 6, lipsync/hero_framing 73, s13_t005 14+1skip, audio_continuity 18). Full suite 90 failed/1812 passed/10 skipped.",
       "implementation": "New scripts/frame_sampling.py (deterministic local frame sampling for semantic-role QA evidence input). Two strategies: start_middle_end (3 frames at 25%/50%/75%), evenly_spaced (configurable count). ffmpeg-based, no paid renders, no AI vision. Primary entry point: sample_frames_for_render_unit() looks up render_unit/artifact from DB, extracts frames to output_base_dir/production_id/render_unit_id/, returns metadata (render_unit_id, artifact_uri, visual_role, timestamps). Does NOT create semantic_role_qa evidence (evidence-input only, verified by test). Errors: BLOCKED_FRAME_SAMPLING_VIDEO_MISSING/_CORRUPT/_INVALID/_FAILED/_UNIT_NOT_FOUND/_NO_ARTIFACT.",
       "regression": "Zero. Full-suite failure count identical to S15_T003-accepted baseline (90 failed). +13 passes are the new tests. ZERO frame-sampling failures anywhere in the full suite. All earlier gates (S13/S14/S15_T001/S15_T002/S15_T003) unchanged and tested green.",
       "residual_failures": "90 full-suite failures pre-existing/out-of-scope (S14 syncnet, S13 compensated, S15_T001 shot-mix fixture debt, unrelated audio/canary/db/e2e subsystems). NONE are frame-sampling related. NO MATERIAL IMPACT.",
       "hard_rules": "One ticket only; no S15_T005 started; no paid renders; no external AI vision; no gate weakening; no fake-green (no semantic_role_qa evidence created); no silent fallback; no broad suite cleanup.",
-      "next": "Awaiting final loop decision. S15_T005 NOT started."
+      "acceptance_review": "Independent bounded acceptance review completed 2026-06-27. All review criteria A-E met. Required targeted tests 160/160 (1 skip pre-existing). Zero BLOCKED_FRAME_SAMPLING failures anywhere. No production gate weakening. No fake green. Deterministic verified (same input → same output). Evidence-input only (no semantic_role_qa evidence created). Verdict: PASS.",
+      "next": "S15_T005 APPROVED TO START."
     },
     "S15_T005": {
       "id": "S15_T005",
