@@ -215,8 +215,13 @@ Total regression: 199/199 passed
 - S13 audio_continuity: 18/18 (unchanged)
 
 ### Full Suite Status
+```
+1887 passed / 90 failed / 10 skipped / 2 xfailed / 1 xpassed (754.61s)
+```
 
-Running in background... (pending completion)
+**Net Change**: +20 passes (S16_T002 tests), +0 failures
+**Baseline**: S16_T001 showed 1867 passed / 90 failed
+**Delta**: S16_T002 added 20 passes with 0 new failures
 
 ## Production Code Verification
 

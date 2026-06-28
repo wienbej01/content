@@ -35,7 +35,7 @@
 >   types, validation failures, determinism, existing compatibility, professional quality (no black cards),
 >   and no-provider verification.
 > - **Tests**: own suite **20 passed / 0 failed / 0 skipped** (1.18s); required regression **199 passed / 0 failed**
->   (15.74s total). Full suite pending final count.
+>   (15.74s total). Full suite **1887 passed / 90 failed / 10 skipped / 2 xfailed / 1 xpassed** (754.61s).
 > - **Zero regressions**: All required regression tests pass with zero new failures. No existing tests broken.
 >   All 90 residual S15 failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.
 > - Deterministic rendering verified (same input → same output, SHA-256 hash comparison). Professional quality
