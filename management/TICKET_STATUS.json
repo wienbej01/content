@@ -52,8 +52,23 @@
       "regression": "Zero. Required regression tests 67/67 passing (100%). No existing tests broken. No new failures detected. All 90 S15 residual failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.",
       "residual_failures": "90 full-suite failures pre-existing/out-of-scope (S14 syncnet, S13 compensated, S15_T001 shot-mix fixture debt, unrelated audio/canary/db/e2e subsystems). NONE are animation-related. NO MATERIAL IMPACT.",
       "hard_rules": "One ticket only; no S16_T004 started; no pipeline rebuild; no parallel graphics pipeline; no paid provider renders; no gate weakening; no DB bypass; no fake green; no black-title-card acceptance; stop after S16_T003.",
-      "next": "S16_T004 NOT started per user instruction: 'proceed T16_003' (then stop)."
+      "next": "S16_T004 APPROVED TO START (graphic semantic alignment gate)."
+    },
+    "S16_T004": {
+      "id": "S16_T004",
+      "name": "Graphic semantic alignment gate",
+      "status": "DONE",
+      "approved": true,
+      "approval_type": "ENGINEERING_AUDIT_VALIDATION_PASS",
+      "reports_dir": "reports/karpathy_loop/s16/S16_T004/",
+      "completion_date": "2026-06-29",
+      "tests": "Own suite 22/22; required regression 235 passed (test_render_graphics 20, test_render_graphics_animation 16, test_graphic_schema 47, semantic_role_pipeline 8, frame_sampling 13, semantic_role_qa 16, visual_role_contract 10, shot_mix_contract 4, lipsync_policy+hero_framing 73, audio_continuity 18). Full suite 1925/1957 (90 failed, 10 skipped, 2 xfailed, 1 xpassed).",
+      "implementation": "New scripts/evals/eval_graphic_qa.py (317 lines) with black title card detection, semantic overlap calculation, and 3-step framework alignment. is_black_title_card() detects empty/generic/placeholder text. compute_semantic_overlap() calculates Jaccard similarity. check_3step_framework_alignment() validates framework_3_step templates with 20% keyword overlap threshold. eval_graphic_unit() evaluates single graphic unit for alignment. eval_production() evaluates all graphics in production. Created tests/test_graphic_qa.py (307 lines) with 22 comprehensive tests.",
+      "regression": "Zero. Required regression tests 235/235 passing (100%). No existing tests broken. No new failures detected. All 90 S15 residual failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.",
+      "residual_failures": "90 full-suite failures pre-existing/out-of-scope (S14 syncnet, S13 compensated, S15_T001 shot-mix fixture debt, unrelated audio/canary/db/e2e subsystems). NONE are graphic-semantic-alignment related. NO MATERIAL IMPACT.",
+      "hard_rules": "One ticket only; no S16_T005 started; no pipeline rebuild; no parallel graphics pipeline; no paid provider renders; no gate weakening; no DB bypass; no fake green; no black-title-card acceptance; stop after S16_T004.",
+      "next": "S16_T005 NOT started per user instruction: 'Implement exactly S16_T004. Do not start any later ticket.'"
     }
   },
-  "sprint_status": "S16 THREE TICKETS COMPLETE, S16_PAUSED_USER_INSTRUCTION"
+  "sprint_status": "S16 FOUR TICKETS COMPLETE, S16_PAUSED_USER_INSTRUCTION"
 }

@@ -1,0 +1,35 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 22 items
+
+tests/test_graphic_qa.py::TestBlackTitleCardDetection::test_empty_text_is_black_title PASSED [  4%]
+tests/test_graphic_qa.py::TestBlackTitleCardDetection::test_generic_titles_are_black_cards PASSED [  9%]
+tests/test_graphic_qa.py::TestBlackTitleCardDetection::test_placeholder_text_is_black_card PASSED [ 13%]
+tests/test_graphic_qa.py::TestBlackTitleCardDetection::test_meaningful_text_is_not_black_card PASSED [ 18%]
+tests/test_graphic_qa.py::TestWeakTitleDetection::test_numeric_slides_are_weak PASSED [ 22%]
+tests/test_graphic_qa.py::TestWeakTitleDetection::test_meaningful_text_is_not_weak PASSED [ 27%]
+tests/test_graphic_qa.py::TestSemanticOverlap::test_no_overlap_returns_zero PASSED [ 31%]
+tests/test_graphic_qa.py::TestSemanticOverlap::test_full_overlap_returns_one PASSED [ 36%]
+tests/test_graphic_qa.py::TestSemanticOverlap::test_partial_overlap_calculated_correctly PASSED [ 40%]
+tests/test_graphic_qa.py::TestSemanticOverlap::test_empty_text_returns_zero PASSED [ 45%]
+tests/test_graphic_qa.py::Test3StepFrameworkAlignment::test_aligned_3step_framework_passes PASSED [ 50%]
+tests/test_graphic_qa.py::Test3StepFrameworkAlignment::test_misaligned_3step_framework_fails PASSED [ 54%]
+tests/test_graphic_qa.py::Test3StepFrameworkAlignment::test_non_3step_framework_skips PASSED [ 59%]
+tests/test_graphic_qa.py::TestGraphicUnitEvaluation::test_black_title_card_fails PASSED [ 63%]
+tests/test_graphic_qa.py::TestGraphicUnitEvaluation::test_topic_misaligned_graphic_fails PASSED [ 68%]
+tests/test_graphic_qa.py::TestGraphicUnitEvaluation::test_aligned_3step_passes PASSED [ 72%]
+tests/test_graphic_qa.py::TestGraphicUnitEvaluation::test_professional_graphic_with_content_passes PASSED [ 77%]
+tests/test_graphic_qa.py::TestGraphicUnitEvaluation::test_weak_title_generates_warning PASSED [ 81%]
+tests/test_graphic_qa.py::TestExistingGraphicsTestsGreen::test_no_import_errors PASSED [ 86%]
+tests/test_graphic_qa.py::TestExistingGraphicsTestsGreen::test_function_signatures_compatible PASSED [ 90%]
+tests/test_graphic_qa.py::TestSemanticIntegration::test_keywords_extraction_case_insensitive PASSED [ 95%]
+tests/test_graphic_qa.py::TestSemanticIntegration::test_stop_words_filtered_correctly PASSED [100%]
+
+============================== 22 passed in 0.05s ==============================

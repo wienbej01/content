@@ -2,7 +2,7 @@
 
 **Sprint**: S16 — Professional deterministic graphics system
 **Updated**: 2026-06-29
-**Status**: **S16 THREE TICKETS COMPLETE (S16_T001, S16_T002, S16_T003) — PAUSED USER INSTRUCTION**
+**Status**: **S16 FOUR TICKETS COMPLETE (S16_T001, S16_T002, S16_T003, S16_T004) — PAUSED USER INSTRUCTION**
 
 > **S16_T001 COMPLETE (2026-06-27).**
 > Define graphic template schema — JSON schema for 8 professional educational graphic templates
@@ -68,11 +68,33 @@
 > - **Loop decision**: PASS. S16_T004 ready to start (BUT PAUSED per user instruction).
 > See `reports/karpathy_loop/s16/S16_T003/`.
 
+> **S16_T004 COMPLETE (2026-06-29).**
+> Graphic semantic alignment gate — Black title card detection and semantic alignment validation.
+> - **New `scripts/evals/eval_graphic_qa.py`** (317 lines) — Black title card detection with `is_black_title_card()`.
+>   Semantic overlap calculation with `compute_semantic_overlap()` (Jaccard similarity). 3-step framework alignment
+>   with `check_3step_framework_alignment()` (20% keyword overlap threshold). Graphic unit evaluation with
+>   `eval_graphic_unit()`. Production evaluation with `eval_production()`.
+> - **New `tests/test_graphic_qa.py`** (307 lines) — 22 comprehensive test cases covering black title card detection,
+>   weak title detection, semantic overlap calculation, 3-step framework alignment, graphic unit evaluation, and
+>   integration tests.
+> - **Tests**: own suite **22 passed / 0 failed / 0 skipped** (0.05s); required regression **235 passed / 0 failed**
+>   (26.55s total). Full suite **1925 passed / 90 failed / 10 skipped / 2 xfailed / 1 xpassed** (765.84s).
+> - **Zero regressions**: All required regression tests pass with zero new failures. No existing tests broken.
+>   All 90 residual S15 failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.
+> - Black title card detection verified (empty/generic/placeholder text fails with BLOCKED_GRAPHIC_IS_BLACK_TITLE_CARD).
+>   Semantic overlap calculation verified (Jaccard similarity, stop word filtering, case insensitivity). 3-step framework
+>   alignment verified (20% keyword overlap threshold). Graphic unit evaluation verified (black cards fail, misaligned
+>   graphics fail, aligned frameworks pass).
+> - **Engineering/audit/validation verdict**: PASS. All ticket requirements met, all hard rules followed,
+>   implementation extends existing eval scripts infrastructure without parallel graphics pipeline.
+> - **Loop decision**: PASS. S16_T005 ready to start (BUT PAUSED per user instruction).
+> See `reports/karpathy_loop/s16/S16_T004/`.
+
 **S16_T001 Status**: DONE — Committed, loop state updated.
 **S16_T002 Status**: DONE — Committed, loop state updated.
-**S16_T003 Status**: DONE — Reports written, awaiting commit and state update.
-**S16_T004 Status**: NOT STARTED — User instruction: "proceed T16_003" (then stop).
-**S16_T003 Status**: NOT STARTED — User instruction: "Stop after S16_T002. Do not start S16_T003."
+**S16_T003 Status**: DONE — Committed, loop state updated.
+**S16_T004 Status**: DONE — Reports written, awaiting commit and state update.
+**S16_T005 Status**: NOT STARTED — User instruction: "Implement exactly S16_T004. Do not start any later ticket."
 
 ---
 
