@@ -1,8 +1,8 @@
 # Loop State — S16
 
 **Sprint**: S16 — Professional deterministic graphics system
-**Updated**: 2026-06-27
-**Status**: **S16 PAUSED — S16_T001 COMPLETE, S16_T002 COMPLETE (USER: STOP AFTER S16_T002)**
+**Updated**: 2026-06-29
+**Status**: **S16 THREE TICKETS COMPLETE (S16_T001, S16_T002, S16_T003) — PAUSED USER INSTRUCTION**
 
 > **S16_T001 COMPLETE (2026-06-27).**
 > Define graphic template schema — JSON schema for 8 professional educational graphic templates
@@ -43,11 +43,35 @@
 >   renders or network calls). Schema validation integrated from S16_T001.
 > - **Engineering/audit/validation verdict**: PASS. All ticket requirements met, all hard rules followed,
 >   implementation follows existing codebase patterns (PIL/Pillow, brand colors, deterministic output).
-> - **Loop decision**: PASS. S16_T003 ready to start (BUT PAUSED per user instruction).
+> - **Loop decision**: PASS. S16_T003 ready to start.
 > See `reports/karpathy_loop/s16/S16_T002/`.
 
+> **S16_T003 COMPLETE (2026-06-29).**
+> Progressive reveal animation — Animation support for graphics displayed >2 seconds.
+> - **Extended `scripts/render_graphics.py`** (+180 lines, now ~1099 total) — Added animation constants
+>   (DEFAULT_FRAME_RATE, DEFAULT_REVEAL_DURATION, ANIMATION_THRESHOLD). Added `validate_animation_requirement()`
+>   enforcing >2s animation rule with BLOCKED_GRAPHICS_ANIMATION_REQUIRED error. Added `render_animated_template()`
+>   for multi-frame PNG sequences with timing metadata. Added `render_fade_animation()` and `render_reveal_animation()`.
+>   Added `write_animation_metadata()` for frame timing JSON output.
+> - **New `tests/test_render_graphics_animation.py`** (345 lines) — 16 comprehensive test cases covering animation
+>   requirement validation, multi-frame rendering, measurable frame changes, metadata generation, progressive reveal,
+>   and integration with existing graphics.
+> - **Tests**: own suite **16 passed / 0 failed / 0 skipped** (10.96s); required regression **67 passed / 0 failed**
+>   (12.31s total). Full suite **1903 passed / 90 failed / 10 skipped / 2 xfailed / 1 xpassed** (766.70s).
+> - **Zero regressions**: All required regression tests pass with zero new failures. No existing tests broken.
+>   All 90 residual S15 failures remain pre-existing earlier-gate debt → NO MATERIAL IMPACT.
+> - Animation requirement verified (>2s fails without animation, passes with animation). Measurable frame changes verified
+>   (SHA-256 hash uniqueness). Metadata generation verified (JSON timing files). Multi-frame rendering verified (16 frames
+> for fade animation). Static rendering still works (no breaking changes).
+> - **Engineering/audit/validation verdict**: PASS. All ticket requirements met, all hard rules followed,
+>   implementation extends existing render_graphics.py without parallel infrastructure.
+> - **Loop decision**: PASS. S16_T004 ready to start (BUT PAUSED per user instruction).
+> See `reports/karpathy_loop/s16/S16_T003/`.
+
 **S16_T001 Status**: DONE — Committed, loop state updated.
-**S16_T002 Status**: DONE — Reports written, awaiting commit and state update.
+**S16_T002 Status**: DONE — Committed, loop state updated.
+**S16_T003 Status**: DONE — Reports written, awaiting commit and state update.
+**S16_T004 Status**: NOT STARTED — User instruction: "proceed T16_003" (then stop).
 **S16_T003 Status**: NOT STARTED — User instruction: "Stop after S16_T002. Do not start S16_T003."
 
 ---

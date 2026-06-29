@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/jacobw/YTchannel
+configfile: pytest.ini
+plugins: anyio-4.13.0, timeout-2.4.0, typeguard-4.4.2
+timeout: 300.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 16 items
+
+tests/test_render_graphics_animation.py::TestAnimationRequirementValidation::test_graphics_under_2s_pass_without_animation PASSED [  6%]
+tests/test_render_graphics_animation.py::TestAnimationRequirementValidation::test_graphics_exactly_2s_pass_without_animation PASSED [ 12%]
+tests/test_render_graphics_animation.py::TestAnimationRequirementValidation::test_graphics_over_2s_fail_without_animation PASSED [ 18%]
+tests/test_render_graphics_animation.py::TestAnimationRequirementValidation::test_graphics_over_2s_pass_with_animation_enabled PASSED [ 25%]
+tests/test_render_graphics_animation.py::TestAnimationRequirementValidation::test_validation_with_unknown_duration PASSED [ 31%]
+tests/test_render_graphics_animation.py::TestAnimatedRendering::test_animation_disabled_renders_single_frame PASSED [ 37%]
+tests/test_render_graphics_animation.py::TestAnimatedRendering::test_animation_enabled_renders_multiple_frames PASSED [ 43%]
+tests/test_render_graphics_animation.py::TestAnimatedRendering::test_reveal_animation_creates_different_frames PASSED [ 50%]
+tests/test_render_graphics_animation.py::TestAnimatedRendering::test_fade_animation_creates_different_frames PASSED [ 56%]
+tests/test_render_graphics_animation.py::TestAnimationMetadata::test_metadata_file_created PASSED [ 62%]
+tests/test_render_graphics_animation.py::TestAnimationMetadata::test_metadata_contains_correct_frame_info PASSED [ 68%]
+tests/test_render_graphics_animation.py::TestProgressiveReveal::test_framework_3_step_progressive_reveal PASSED [ 75%]
+tests/test_render_graphics_animation.py::TestProgressiveReveal::test_timeline_progressive_reveal PASSED [ 81%]
+tests/test_render_graphics_animation.py::TestProgressiveReveal::test_comparison_card_progressive_reveal PASSED [ 87%]
+tests/test_render_graphics_animation.py::TestAnimationIntegration::test_static_rendering_still_works PASSED [ 93%]
+tests/test_render_graphics_animation.py::TestAnimationIntegration::test_all_template_types_support_animation PASSED [100%]
+
+============================= 16 passed in 10.96s ==============================
