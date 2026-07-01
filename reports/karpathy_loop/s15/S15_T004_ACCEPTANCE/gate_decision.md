@@ -34,7 +34,7 @@ S15_T004 is accepted. The implementation delivers a deterministic local frame-sa
 
 ## Exact Tests Run and Counts
 
-**Required targeted tests — ALL PASS (160 passed, 1 skipped)**:
+**Required targeted tests — ALL PASS (173 passed, 1 skipped)**:
 - `tests/test_frame_sampling.py`: **13/13 passed**
 - `tests/test_semantic_role_qa.py`: **16/16 passed**
 - `tests/test_visual_role_contract.py`: **12/12 passed**
@@ -84,7 +84,7 @@ All 90 full-suite failures are classified as **REAL but PRE-EXISTING and OUT OF 
 
 | Criterion | Status |
 |-----------|--------|
-| Required targeted tests are green | ✅ 160/160 (1 skip pre-existing) |
+| Required targeted tests are green | ✅ 173/173 (1 skip pre-existing) |
 | Full-suite grep shows no S15_T004-caused frame-sampling failures | ✅ Zero BLOCKED_FRAME_SAMPLING failures |
 | Frame sampling is deterministic and local | ✅ Verified by test (same input → same timestamps) |
 | Missing/corrupt/invalid inputs fail clearly | ✅ All 6 error signatures tested and pass |

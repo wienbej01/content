@@ -78,8 +78,8 @@ class TestQaHeroLipsync:
         assert "lipsync_qa_method" in evidence, "Missing lipsync_qa_method"
         assert evidence["lipsync_qa_method"] is not None, "lipsync_qa_method should not be None"
 
-    def test_qa_detects_lipsync_drift(self, db, prod, tmp_path):
-        """S01-T004-R2: QA records the actual drift value."""
+    def test_qa_records_lipsync_review_outcome(self, db, prod, tmp_path):
+        """S01-T004-R2: QA records drift only when evidence supports it."""
         if not FIXTURE.exists():
             pytest.skip("Fixture MP4 not available")
         art_id = "art_test_002"
@@ -89,9 +89,87 @@ class TestQaHeroLipsync:
 
         result = run_contract_media_qa(db, prod, "ru_test_002")
         evidence = json.loads(result["evidence_json"] or "{}")
-        assert evidence["lipsync_drift_ms"] is not None, (
-            "lipsync_drift_ms should contain a numeric value"
+        assert evidence["lipsync_qa_method"] == "eval_lipsync.analyze_video"
+        assert evidence["lipsync_review_status"] in {
+            "PASS", "WARN", "FAIL", "NEEDS_HUMAN_AV_REVIEW", "BLOCKED"
+        }
+        if evidence["lipsync_review_status"] == "FAIL":
+            assert evidence["lipsync_drift_ms"] is not None
+        else:
+            assert evidence["lipsync_drift_ms"] is None
+
+    def test_duration_mismatch_is_not_lipsync_drift(self, monkeypatch, tmp_path):
+        """Provider padding/tail duration mismatch must not be mislabeled as drift."""
+        import media_service
+        import evals.eval_lipsync as eval_lipsync
+
+        video = tmp_path / "hero.mp4"
+        video.write_bytes(b"not-probed-because-ffprobe-is-patched")
+        monkeypatch.setattr(
+            media_service, "_ffprobe_dimensions_duration",
+            lambda _path: {"duration_ms": 8080, "width": 864, "height": 496},
         )
+        monkeypatch.setattr(media_service, "_check_sha_match", lambda *_args: True)
+        monkeypatch.setattr(
+            eval_lipsync, "analyze_video",
+            lambda *_args, **_kwargs: {
+                "status": "needs_human_av_review",
+                "offset_ms": -1150,
+                "confidence": 0.41,
+                "face_track_found": False,
+                "method": "mouth_motion_proxy",
+            },
+        )
+
+        passed, evidence = media_service._qa_hero_lipsync(
+            "prod",
+            {"id": "ru", "required_duration_ms": 7471, "hero_framing": "medium"},
+            {"sha256": "a" * 64},
+            video,
+        )
+
+        assert passed is False
+        assert evidence["duration_mismatch_ms"] == 609
+        assert evidence["duration_delta_ms"] == 609
+        assert evidence["duration_ok"] is True
+        assert evidence["lipsync_drift_ms"] is None
+        assert evidence["lipsync_review_status"] == "NEEDS_HUMAN_AV_REVIEW"
+        assert "lipsync_needs_human_av_review" in evidence["issues"]
+
+    def test_human_review_lipsync_failure_class_is_known(self):
+        """Repair routing should not collapse review-required sync to unknown."""
+        from media_service import classify_validation_failure
+
+        assert classify_validation_failure({
+            "file_exists": True,
+            "sha_match": True,
+            "render_method": "hero_lipsync",
+            "duration_ok": True,
+            "lipsync_review_status": "NEEDS_HUMAN_AV_REVIEW",
+        }) == "hero_lipsync_needs_human_review"
+
+    def test_eval_lipsync_low_confidence_requires_human_review(self, monkeypatch, tmp_path):
+        """Fallback mouth-motion proxy must not fake a hard drift verdict."""
+        import evals.eval_lipsync as eval_lipsync
+
+        monkeypatch.setattr(
+            eval_lipsync, "extract_audio_envelope",
+            lambda *_args: {"envelope": [1, 2, 1, 2, 1], "frame_rate": 20.0},
+        )
+        monkeypatch.setattr(
+            eval_lipsync, "compute_visual_activity",
+            lambda *_args: {"signal": [1, 1, 2, 1, 1], "fps": 24.0},
+        )
+        monkeypatch.setattr(
+            eval_lipsync, "correlate_signals",
+            lambda *_args: {"offset_ms": -1600.0, "confidence": 0.34},
+        )
+
+        result = eval_lipsync.analyze_video(tmp_path / "hero.mp4", "ru", "medium")
+
+        assert result["status"] == "needs_human_av_review"
+        assert result["face_track_found"] is False
+        assert "No confident face-track" in result["reason"]
 
 
 class TestQaFinalLipsyncCheck:

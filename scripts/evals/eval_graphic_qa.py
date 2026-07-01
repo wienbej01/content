@@ -19,6 +19,8 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 # Black title card patterns (no semantic value)
 BLACK_TITLE_PATTERNS = [
@@ -158,6 +160,12 @@ def eval_graphic_unit(ru: dict, beat_narration: str = "") -> dict:
     # Get deterministic text spec
     meta = json.loads(ru.get("metadata_json") or "{}")
     dts = meta.get("deterministic_text_spec", {})
+    artifact_meta = ru.get("artifact_metadata") or {}
+    if isinstance(artifact_meta, str):
+        try:
+            artifact_meta = json.loads(artifact_meta or "{}")
+        except ValueError:
+            artifact_meta = {}
 
     # Get text content
     text = ""
@@ -179,8 +187,22 @@ def eval_graphic_unit(ru: dict, beat_narration: str = "") -> dict:
     if beat_narration and text:
         semantic_overlap = compute_semantic_overlap(text, beat_narration)
 
+    provenance_ok = True
+    provenance_reason = "not_text_bearing"
+    if dts:
+        try:
+            from product_contract import validate_text_graphic_provenance
+            validate_text_graphic_provenance(ru, artifact_meta)
+            provenance_reason = "deterministic renderer provenance verified"
+        except Exception as exc:
+            provenance_ok = False
+            provenance_reason = str(exc)
+
     # Determine overall alignment
-    if is_black:
+    if not provenance_ok:
+        alignment = "fail"
+        alignment_reason = f"BLOCKED_GRAPHIC_PROVENANCE: {provenance_reason}"
+    elif is_black:
         alignment = "fail"
         alignment_reason = "BLOCKED_GRAPHIC_IS_BLACK_TITLE_CARD: No semantic content"
     elif template_type == "framework_3_step" and framework_check.get("applicable"):
@@ -211,6 +233,8 @@ def eval_graphic_unit(ru: dict, beat_narration: str = "") -> dict:
         "is_weak_title": is_weak,
         "semantic_overlap": round(semantic_overlap, 3),
         "framework_alignment": framework_check,
+        "deterministic_provenance_ok": provenance_ok,
+        "deterministic_provenance_reason": provenance_reason,
         "alignment": alignment,
         "alignment_reason": alignment_reason,
     }
@@ -225,8 +249,9 @@ def eval_production(production_id: str, db_path: str = None, beat_narrations: di
     units = conn.execute("""
         SELECT ru.id, ru.label, ru.required_duration_ms,
                ru.required_start_ms, ru.required_end_ms, ru.metadata_json,
-               ru.ordinal
+               ru.ordinal, ru.asset_type, a.metadata_json AS artifact_metadata
         FROM render_units ru
+        LEFT JOIN artifacts a ON a.id = ru.active_artifact_id
         WHERE ru.production_id=? AND ru.asset_type='local_graphic'
           AND ru.status NOT IN ('stale', 'cancelled')
         ORDER BY ru.ordinal

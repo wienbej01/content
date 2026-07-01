@@ -1,0 +1,21 @@
+{
+  "eval_name": "lipsync",
+  "method": "mouth_motion_proxy",
+  "subject_id": "S002",
+  "face_track_found": false,
+  "offset_ms": -1600.0,
+  "confidence": 0.3406,
+  "policy_name": "medium_hero",
+  "policy_grade": "publish",
+  "thresholds": {
+    "warn_offset_ms": 60.0,
+    "fail_offset_ms": 60.0,
+    "pass_offset_ms": 40.0,
+    "min_confidence": 2.0
+  },
+  "status": "needs_human_av_review",
+  "reason": "No confident face-track lipsync evidence available (confidence 0.3406 below minimum 2.0).",
+  "dependency_status": "available",
+  "provisional": true,
+  "note": "Fallback proxy: audio envelope vs visual frame-diff correlation. Using tiered policy 'medium_hero' (S14-T005). Not definitive. No face tracking available."
+}

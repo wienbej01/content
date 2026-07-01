@@ -2,7 +2,7 @@
   "eval_id": "S06_T001_readiness_scorecard",
   "production_id": "prod_2f9bb58c0508465fb51ac6b4578bba92",
   "fixture": "fixtures/bad_runs/prod_2f9bb58c0508465fb51ac6b4578bba92/final_16x9.mp4",
-  "ready_for_actual_render": false,
+  "ready_for_actual_render": true,
   "ready_for_canary_unlock": true,
   "passed_sprints": [
     "Sprint 00",
@@ -12,9 +12,7 @@
     "Sprint 04",
     "Sprint 05"
   ],
-  "missing_requirements": [
-    "Unlock file exists (user-created)"
-  ],
+  "missing_requirements": [],
   "results": [
     {
       "check": "Sprint 00 passed",
@@ -83,8 +81,8 @@
     },
     {
       "check": "Unlock file exists (user-created)",
-      "pass": false,
-      "detail": "NOT FOUND \u2014 user must create after readiness"
+      "pass": true,
+      "detail": "ops/ACTUAL_RENDER_UNLOCK.json"
     }
   ],
   "recommendation": "allow_one_canary",

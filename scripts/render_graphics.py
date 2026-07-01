@@ -1068,6 +1068,9 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
         "renderer": "render_graphics.py",
         "text_spec_sha256": dts_sha,
         "expected_text": expected_texts,
+        "machine_readable_source_text": expected_texts,
+        "deterministic_renderer": True,
+        "ai_model_output_forbidden": True,
         "source_render_unit_id": render_unit_id,
     }
 

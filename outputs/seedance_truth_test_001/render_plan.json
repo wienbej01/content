@@ -1,0 +1,50 @@
+{
+  "estimated_usd": 3.18,
+  "production_id": "prod_cbd3c35dfd08431b82b1b6ca9bc675d2",
+  "render_units": [
+    {
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "label": "S000",
+      "model": "seedance_2_0",
+      "ordinal": 0,
+      "required_duration_ms": 7471,
+      "required_end_ms": 7471,
+      "required_start_ms": 0
+    },
+    {
+      "asset_type": "generated_video",
+      "audio_policy": "BROLL_FLEX",
+      "id": "render_2237236ace24433793b0b6b2047c1c36",
+      "label": "S001",
+      "model": "kling3_0",
+      "ordinal": 1,
+      "required_duration_ms": 6956,
+      "required_end_ms": 14427,
+      "required_start_ms": 7471
+    },
+    {
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "id": "render_2e05bede01f74698894d1adb45742647",
+      "label": "S002",
+      "model": "seedance_2_0",
+      "ordinal": 2,
+      "required_duration_ms": 5902,
+      "required_end_ms": 20329,
+      "required_start_ms": 14427
+    },
+    {
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "id": "render_6ca5beaffcad4356b7562329c73b3037",
+      "label": "S003",
+      "model": "kling3_0",
+      "ordinal": 3,
+      "required_duration_ms": 4591,
+      "required_end_ms": 24920,
+      "required_start_ms": 20329
+    }
+  ]
+}

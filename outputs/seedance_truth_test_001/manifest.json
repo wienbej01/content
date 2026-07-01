@@ -1,0 +1,1316 @@
+{
+  "artifacts": [
+    {
+      "created_at": "2026-06-29T14:33:27+08:00",
+      "duration_ms": 24920,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_4264a6e48fce4d25b747dc37754d91bf",
+      "kind": "tts_master",
+      "metadata": {
+        "actual_cost_usd": 0.0,
+        "channels": 1,
+        "duration_ms": 24920,
+        "model": "eleven_multilingual_v2",
+        "provider_request_id": null,
+        "request_fingerprint": "2026-06-29T14:33:27+08:00",
+        "sample_count": null,
+        "sample_rate": 44100,
+        "script_revision_id": "doc_0cacb1e523df49e8b7727ed0061a5904",
+        "voice_id": "elevenlabs",
+        "voice_settings": {
+          "speed": 0.7
+        }
+      },
+      "provider_job_id": null,
+      "uri": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/continuous.mp3",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T14:33:28+08:00",
+      "duration_ms": 5902,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_52b132303c5a4b9a83a2fa5afd26b85b",
+      "kind": "hero_audio_slice",
+      "metadata": {
+        "master_artifact_id": "art_4264a6e48fce4d25b747dc37754d91bf",
+        "master_sha256": "4307424552876c2e1466210f1b16567a7b72d11f34c7a76aeff14194469a0925",
+        "render_unit_id": "render_2e05bede01f74698894d1adb45742647",
+        "speech_end_sample": 975792,
+        "speech_start_sample": 692496
+      },
+      "provider_job_id": null,
+      "uri": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T14:33:28+08:00",
+      "duration_ms": 7471,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_807c21949d104927b4637cd2240fc971",
+      "kind": "hero_audio_slice",
+      "metadata": {
+        "master_artifact_id": "art_4264a6e48fce4d25b747dc37754d91bf",
+        "master_sha256": "4307424552876c2e1466210f1b16567a7b72d11f34c7a76aeff14194469a0925",
+        "render_unit_id": "render_c46c40f340554930bd7d47e48c9e5979",
+        "speech_end_sample": 358608,
+        "speech_start_sample": 0
+      },
+      "provider_job_id": null,
+      "uri": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T17:11:02+08:00",
+      "duration_ms": 8080,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_3cdedcdc3a544230941c35914e090720",
+      "kind": "provider_diagnostic_audio",
+      "metadata": {
+        "eligible_for_final_narration": false,
+        "extracted_from_video": "pjob_cb5166ba65e74cf593205faf4bab3738.mp4",
+        "provider_job_id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+        "source_slice_artifact_id": null,
+        "usage_policy": "diagnostic_only"
+      },
+      "provider_job_id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_cb5166ba65e74cf593205faf4bab3738.diagnostic_audio.wav",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T17:11:02+08:00",
+      "duration_ms": 8080,
+      "has_audio": 1,
+      "height": 496,
+      "id": "art_2e6ccc4898054116b5f6199b61e8f3e3",
+      "kind": "generated_media",
+      "metadata": {
+        "actual_duration_ms": 8080,
+        "actual_usd": 0.05,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "has_audio": 1,
+        "height": 496,
+        "provider_poll": {
+          "raw_response": "ID                                    DATE              MODEL         STATUS     URL\nb620e03e-eaf0-46d9-8a8a-5b8ef47c0601  2026-06-29 08:57  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260629_085729_b620e03e-eaf0-46d9-8a8a-5b8ef47c0601.mp4",
+          "status": "completed"
+        },
+        "sha256": "732ba0c68c410e465a087a618606ab2f10329ad81ac45e846fa35f3addb36442",
+        "width": 864
+      },
+      "provider_job_id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_cb5166ba65e74cf593205faf4bab3738.mp4",
+      "width": 864
+    },
+    {
+      "created_at": "2026-06-29T17:11:15+08:00",
+      "duration_ms": 7041,
+      "has_audio": 1,
+      "height": 1080,
+      "id": "art_3574f83195ea4f96a080043b66c01377",
+      "kind": "generated_media",
+      "metadata": {
+        "actual_duration_ms": 7041,
+        "actual_usd": 0.05,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "has_audio": 1,
+        "height": 1080,
+        "provider_poll": {
+          "raw_response": "ID                                    DATE              MODEL       STATUS     URL\ncac6744a-1614-4ff8-8938-57fd550a6c43  2026-06-29 08:57  Kling v3.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260629_085732_cac6744a-1614-4ff8-8938-57fd550a6c43.mp4",
+          "status": "completed"
+        },
+        "sha256": "f3bb6c926d1d32faffe7c1ad37820afe631779b4eb80aad3d64051253cd9ac6f",
+        "width": 1920
+      },
+      "provider_job_id": "pjob_df8da2dff65c4f948a0f78530f53ab32",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_df8da2dff65c4f948a0f78530f53ab32.mp4",
+      "width": 1920
+    },
+    {
+      "created_at": "2026-06-29T17:11:16+08:00",
+      "duration_ms": 7035,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_819e9afe006c43cfadbdfa068103d12f",
+      "kind": "provider_diagnostic_audio",
+      "metadata": {
+        "eligible_for_final_narration": false,
+        "extracted_from_video": "pjob_df8da2dff65c4f948a0f78530f53ab32.mp4",
+        "provider_job_id": "pjob_df8da2dff65c4f948a0f78530f53ab32",
+        "source_slice_artifact_id": null,
+        "usage_policy": "diagnostic_only"
+      },
+      "provider_job_id": "pjob_df8da2dff65c4f948a0f78530f53ab32",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_df8da2dff65c4f948a0f78530f53ab32.diagnostic_audio.wav",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T17:11:28+08:00",
+      "duration_ms": 6060,
+      "has_audio": 1,
+      "height": 0,
+      "id": "art_e2a3d9b6a6364bba81dd0880ce038aa2",
+      "kind": "provider_diagnostic_audio",
+      "metadata": {
+        "eligible_for_final_narration": false,
+        "extracted_from_video": "pjob_dbac171ff851412dacf33ffbfd923211.mp4",
+        "provider_job_id": "pjob_dbac171ff851412dacf33ffbfd923211",
+        "source_slice_artifact_id": null,
+        "usage_policy": "diagnostic_only"
+      },
+      "provider_job_id": "pjob_dbac171ff851412dacf33ffbfd923211",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_dbac171ff851412dacf33ffbfd923211.diagnostic_audio.wav",
+      "width": 0
+    },
+    {
+      "created_at": "2026-06-29T17:11:28+08:00",
+      "duration_ms": 6060,
+      "has_audio": 1,
+      "height": 496,
+      "id": "art_26bd14141a2a4a4a834b628b3cc9bdda",
+      "kind": "generated_media",
+      "metadata": {
+        "actual_duration_ms": 6060,
+        "actual_usd": 0.05,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "has_audio": 1,
+        "height": 496,
+        "provider_poll": {
+          "raw_response": "ID                                    DATE              MODEL         STATUS     URL\n56574211-1a8e-46c2-adf1-404fb3a76cc3  2026-06-29 08:57  Seedance 2.0  completed  https://d8j0ntlcm91z4.cloudfront.net/user_3EpqIaVkgD52eRLksZZtucV3fYq/hf_20260629_085744_56574211-1a8e-46c2-adf1-404fb3a76cc3.mp4",
+          "status": "completed"
+        },
+        "sha256": "efdd4dab051e701431556e8f3f0b201b3cd46b3fe08ab98bd20b5011e0a88ec7",
+        "width": 864
+      },
+      "provider_job_id": "pjob_dbac171ff851412dacf33ffbfd923211",
+      "uri": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_dbac171ff851412dacf33ffbfd923211.mp4",
+      "width": 864
+    }
+  ],
+  "production": {
+    "code_revision": "77ca892bf43d7e815ee47342f12f36e6bf864904",
+    "completed_at": null,
+    "config_snapshot_id": null,
+    "content_item_id": null,
+    "created_at": "2026-06-29T14:18:06+08:00",
+    "current_stage": "qa_media",
+    "id": "prod_cbd3c35dfd08431b82b1b6ca9bc675d2",
+    "parent_production_id": null,
+    "project_slug": "how_to_use_ai_to_protect_deep_work_time",
+    "seed": "How to use AI to protect deep work time as a senior manager",
+    "status": "running",
+    "updated_at": "2026-06-29T17:11:28+08:00",
+    "video_type": "smoke"
+  },
+  "provider_jobs": [
+    {
+      "compensated_artifact_path": null,
+      "completed_at": "2026-06-29T17:11:02+08:00",
+      "external_job_id": "b620e03e-eaf0-46d9-8a8a-5b8ef47c0601",
+      "id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+      "operation": "generate_video",
+      "provider": "higgsfield",
+      "render_unit_id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "request": {
+        "asset_type": "lipsync_video",
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+        "audio_policy": "HERO_SYNC_LOCKED",
+        "duration_ms": 7471,
+        "duration_sec": 8,
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+        "model": "seedance_2_0",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave."
+      },
+      "status": "completed",
+      "submitted_at": "2026-06-29T16:57:17+08:00"
+    },
+    {
+      "compensated_artifact_path": null,
+      "completed_at": "2026-06-29T17:11:16+08:00",
+      "external_job_id": "cac6744a-1614-4ff8-8938-57fd550a6c43",
+      "id": "pjob_df8da2dff65c4f948a0f78530f53ab32",
+      "operation": "generate_video",
+      "provider": "higgsfield",
+      "render_unit_id": "render_2237236ace24433793b0b6b2047c1c36",
+      "request": {
+        "asset_type": "generated_video",
+        "audio_policy": "BROLL_FLEX",
+        "duration_ms": 6956,
+        "duration_sec": 7,
+        "model": "kling3_0",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Cinematic illustrate shot. UC Berkeley Haas found speed crowded out the Show: UC Berkeley Haas found speed crowded out the. Convey: UC Berkeley Haas found speed crowded out the."
+      },
+      "status": "completed",
+      "submitted_at": "2026-06-29T16:57:30+08:00"
+    },
+    {
+      "compensated_artifact_path": null,
+      "completed_at": "2026-06-29T17:11:28+08:00",
+      "external_job_id": "56574211-1a8e-46c2-adf1-404fb3a76cc3",
+      "id": "pjob_dbac171ff851412dacf33ffbfd923211",
+      "operation": "generate_video",
+      "provider": "higgsfield",
+      "render_unit_id": "render_2e05bede01f74698894d1adb45742647",
+      "request": {
+        "asset_type": "lipsync_video",
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+        "audio_policy": "HERO_SYNC_LOCKED",
+        "duration_ms": 5902,
+        "duration_sec": 6,
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+        "model": "seedance_2_0",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by."
+      },
+      "status": "completed",
+      "submitted_at": "2026-06-29T16:57:32+08:00"
+    }
+  ],
+  "render_units": [
+    {
+      "active_artifact_id": "art_2e6ccc4898054116b5f6199b61e8f3e3",
+      "approved_validation_id": null,
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "final_audio_source": "master_narration",
+      "id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "label": "S000",
+      "metadata": {
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave.",
+        "prompt_revision_id": null,
+        "provider_visual_prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave."
+      },
+      "model": "seedance_2_0",
+      "provider_audio_usage": "diagnostic_only",
+      "required_duration_ms": 7471,
+      "status": "needs_repair",
+      "visual_role": null
+    },
+    {
+      "active_artifact_id": "art_3574f83195ea4f96a080043b66c01377",
+      "approved_validation_id": "val_16f2fedad28e48469cc4a16ae67994ab",
+      "asset_type": "generated_video",
+      "audio_policy": "BROLL_FLEX",
+      "final_audio_source": "none",
+      "id": "render_2237236ace24433793b0b6b2047c1c36",
+      "label": "S001",
+      "metadata": {
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Cinematic illustrate shot. UC Berkeley Haas found speed crowded out the Show: UC Berkeley Haas found speed crowded out the. Convey: UC Berkeley Haas found speed crowded out the.",
+        "prompt_revision_id": null,
+        "provider_visual_prompt": "Cinematic illustrate shot. UC Berkeley Haas found speed crowded out the Show: UC Berkeley Haas found speed crowded out the. Convey: UC Berkeley Haas found speed crowded out the."
+      },
+      "model": "kling3_0",
+      "provider_audio_usage": "discarded",
+      "required_duration_ms": 6956,
+      "status": "valid",
+      "visual_role": null
+    },
+    {
+      "active_artifact_id": "art_26bd14141a2a4a4a834b628b3cc9bdda",
+      "approved_validation_id": null,
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "final_audio_source": "master_narration",
+      "id": "render_2e05bede01f74698894d1adb45742647",
+      "label": "S002",
+      "metadata": {
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by.",
+        "prompt_revision_id": null,
+        "provider_visual_prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by."
+      },
+      "model": "seedance_2_0",
+      "provider_audio_usage": "diagnostic_only",
+      "required_duration_ms": 5902,
+      "status": "needs_repair",
+      "visual_role": null
+    },
+    {
+      "active_artifact_id": null,
+      "approved_validation_id": null,
+      "asset_type": "local_graphic",
+      "audio_policy": "SILENT_GRAPHIC",
+      "final_audio_source": "none",
+      "id": "render_6ca5beaffcad4356b7562329c73b3037",
+      "label": "S003",
+      "metadata": {
+        "deterministic_text_spec": {
+          "headline": "MORE OUTPUT OR BETTER",
+          "text": "MORE OUTPUT OR BETTER",
+          "type": "title_card"
+        },
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt_revision_id": null
+      },
+      "model": "kling3_0",
+      "provider_audio_usage": "discarded",
+      "required_duration_ms": 4591,
+      "status": "ordered",
+      "visual_role": null
+    }
+  ],
+  "stage_runs": [
+    {
+      "attempt": 1,
+      "error_class": "RuntimeError",
+      "error_message": "Research failed: {'error': 'NO_WEB_TOOL'}",
+      "finished_at": "2026-06-29T14:18:12+08:00",
+      "result_summary": {},
+      "stage_name": "research",
+      "started_at": "2026-06-29T14:18:12+08:00",
+      "status": "failed"
+    },
+    {
+      "attempt": 2,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:20:47+08:00",
+      "result_summary": {
+        "document_id": "doc_f23fcdb8027c49fa94e237922d5b4bd0",
+        "status": "saved"
+      },
+      "stage_name": "research",
+      "started_at": "2026-06-29T14:20:15+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:21:18+08:00",
+      "result_summary": {
+        "document_id": "doc_aac50124b63e4dbbbe4749b6172e9cb8",
+        "status": "saved"
+      },
+      "stage_name": "write_script",
+      "started_at": "2026-06-29T14:20:47+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:23:08+08:00",
+      "result_summary": {
+        "document_id": "doc_0cacb1e523df49e8b7727ed0061a5904",
+        "passed": true,
+        "rounds": [
+          {
+            "blocking_issues": [
+              {
+                "issue": "{'issue': \"Untraceable statistic: 'Collaboration collapsed by nearly 80%' in segment 002_proof. No study in the provided source research reports a collaboration-collapse figure, let alone ~80%. This is a fabrication risk and a legal/credibility non-negotiable.\", 'severity': 'blocking', 'recommendation': \"Replace with a sourced claim, e.g., 'UC Berkeley Haas researchers found AI increased individual output but reduced time for collaborative work and reflection.'\"}",
+                "persona": "brand_voice"
+              }
+            ],
+            "has_mandatory": true,
+            "passed": false,
+            "recommendations": [
+              {
+                "fix": "Replace the three-item takeaway list with one paradoxical line \u2014 e.g. 'AI buys speed. You buy time back by pausing.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Anchor the proof beat with the specific research stat: 'Collaboration dropped nearly 80% while individual output went up.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Close with a binary engagement ask: 'So do you want more output or better outcomes? Comment below.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Remove or source the '80% collaboration collapse' claim. Replace with a defensible, referenced finding from the provided research.",
+                "persona": "brand_voice"
+              },
+              {
+                "fix": "Reword the takeaway imperative stack into a single measured sentence with reasoning.",
+                "persona": "brand_voice"
+              },
+              {
+                "fix": "Replace the closing question with a more distinctive, James-voice alternative.",
+                "persona": "brand_voice"
+              }
+            ],
+            "round": 0,
+            "verdicts": [
+              {
+                "artifact": "script",
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 3.6,
+                "persona": "audience",
+                "predicts": {
+                  "save": false,
+                  "share": true,
+                  "watch_through": true
+                },
+                "recommended_fixes": [
+                  "Replace the three-item takeaway list with one paradoxical line \u2014 e.g. 'AI buys speed. You buy time back by pausing.'",
+                  "Anchor the proof beat with the specific research stat: 'Collaboration dropped nearly 80% while individual output went up.'",
+                  "Close with a binary engagement ask: 'So do you want more output or better outcomes? Comment below.'"
+                ],
+                "scores": {
+                  "cta": 3,
+                  "hook": 4,
+                  "open_loops": 4,
+                  "payoff": 3,
+                  "reason_to_stay": 4,
+                  "save_worthy": 3,
+                  "share_worthy": 4
+                },
+                "status": "pass",
+                "task": "audience_review",
+                "warnings": [
+                  "Takeaway is three standalone items instead of a single sticky micro-framework \u2014 saves may suffer because advice feels familiar rather than fresh",
+                  "No specific statistic or citation (from research) anchors the proof beat \u2014 an analytical viewer will feel the claim is unsupported",
+                  "Close is a rhetorical question with no explicit engagement ask \u2014 misses the opportunity for a specific binary CTA"
+                ]
+              },
+              {
+                "blocking_issues": [
+                  {
+                    "issue": "Untraceable statistic: 'Collaboration collapsed by nearly 80%' in segment 002_proof. No study in the provided source research reports a collaboration-collapse figure, let alone ~80%. This is a fabrication risk and a legal/credibility non-negotiable.",
+                    "recommendation": "Replace with a sourced claim, e.g., 'UC Berkeley Haas researchers found AI increased individual output but reduced time for collaborative work and reflection.'",
+                    "severity": "blocking"
+                  }
+                ],
+                "may_proceed": false,
+                "overall_score": 2.4,
+                "persona": "brand_voice",
+                "recommended_fixes": [
+                  "Remove or source the '80% collaboration collapse' claim. Replace with a defensible, referenced finding from the provided research.",
+                  "Reword the takeaway imperative stack into a single measured sentence with reasoning.",
+                  "Replace the closing question with a more distinctive, James-voice alternative."
+                ],
+                "scores": {
+                  "audience_fit": 3,
+                  "forbidden_language": 2,
+                  "james_voice": 3,
+                  "original_framework": 3,
+                  "sourcing": 1
+                },
+                "status": "fail",
+                "task": "brand_voice_review",
+                "warnings": [
+                  {
+                    "issue": "Imperative bullet-point register ('Use AI on overhead. Stay in the loop. Pause before decisions.') reads as directive prescriptive advice, not James's measured explanatory style. James would frame principle + reasoning.",
+                    "recommendation": "Rewrite as: 'The better use is to deploy AI selectively on overhead while staying inside the decision loop \u2014 and building intentional pauses before acting.'",
+                    "severity": "moderate"
+                  },
+                  {
+                    "issue": "Final line 'Do more faster, or do less better?' flirts with binary motivational framing. The 'do less better' framing is common in productivity-influencer content.",
+                    "recommendation": "Replace with a more nuanced James-style close: 'The question isn't speed. It's whether you're still directing the work.'",
+                    "severity": "low"
+                  }
+                ]
+              }
+            ],
+            "veto_failed": false,
+            "weighted_mean": 3.15
+          },
+          {
+            "blocking_issues": [],
+            "has_mandatory": false,
+            "passed": true,
+            "recommendations": [
+              {
+                "fix": "Replace 'It gave them something else' with a more visceral open loop: 'It gave your calendar back \u2014 full of meetings you created from faster email.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Replace 'buy time back by pausing' with a named, memorable reframe: 'The Reflection Gap: AI speeds output; leaders slow down to keep insight.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Change CTA from 'More output or better outcomes? Comment below.' to a specific binary with emotional stake: 'Faster inbox or better decisions? Tell me which one your boss rewards \u2014 comment below.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "Add a fifth beat: after the close, overlay a title card with the channel name and next-video tease ('Next: The Meeting That Should Have Been an Email') to boost session-watch",
+                "persona": "audience"
+              },
+              {
+                "fix": "Replace 'Comment below' with a more reflective close consistent with James's register.",
+                "persona": "brand_voice"
+              },
+              {
+                "fix": "Fix possessive apostrophe in segment 002: 'managers' need'.",
+                "persona": "brand_voice"
+              },
+              {
+                "fix": "Consider retitling to remove the clickbait-adjacent 'Nobody Warned You About' formulation.",
+                "persona": "brand_voice"
+              }
+            ],
+            "round": 1,
+            "verdicts": [
+              {
+                "artifact": "script",
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 3.4,
+                "persona": "audience",
+                "predicts": {
+                  "save": false,
+                  "share": false,
+                  "watch_through": true
+                },
+                "recommended_fixes": [
+                  "Replace 'It gave them something else' with a more visceral open loop: 'It gave your calendar back \u2014 full of meetings you created from faster email.'",
+                  "Replace 'buy time back by pausing' with a named, memorable reframe: 'The Reflection Gap: AI speeds output; leaders slow down to keep insight.'",
+                  "Change CTA from 'More output or better outcomes? Comment below.' to a specific binary with emotional stake: 'Faster inbox or better decisions? Tell me which one your boss rewards \u2014 comment below.'",
+                  "Add a fifth beat: after the close, overlay a title card with the channel name and next-video tease ('Next: The Meeting That Should Have Been an Email') to boost session-watch"
+                ],
+                "scores": {
+                  "cta": 3,
+                  "hook": 4,
+                  "open_loops": 4,
+                  "payoff": 3,
+                  "reason_to_stay": 4,
+                  "save_worthy": 3,
+                  "share_worthy": 3
+                },
+                "status": "pass",
+                "task": "audience_review",
+                "warnings": [
+                  "Save-worthiness is borderline \u2014 insight is specific but too thin to bookmark; needs a memorable 1-sentence framework or reference label (e.g., 'the Reflection Gap')",
+                  "Share-worthiness is weak \u2014 no emotional charge beyond mild intellectual surprise; add a provocation or feeling (e.g., 'Your calendar is lying to you') to make viewers want to send it",
+                  "CTA is a binary question which is good, but no next-video hook to drive session retention; end with a tease of the specific thing they'll learn next"
+                ]
+              },
+              {
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 4.4,
+                "persona": "brand_voice",
+                "recommended_fixes": [
+                  "Replace 'Comment below' with a more reflective close consistent with James's register.",
+                  "Fix possessive apostrophe in segment 002: 'managers' need'.",
+                  "Consider retitling to remove the clickbait-adjacent 'Nobody Warned You About' formulation."
+                ],
+                "scores": {
+                  "audience_fit": 4,
+                  "forbidden_language": 5,
+                  "james_voice": 4,
+                  "original_framework": 4,
+                  "sourcing": 5
+                },
+                "status": "pass",
+                "task": "brand_voice_review",
+                "warnings": [
+                  {
+                    "detail": "\"Comment below\" is a conventional YouTube CTA. James would more likely end with a reflective close or an implicit invitation to think rather than a direct engagement prompt.",
+                    "element": "004_close",
+                    "suggestion": "Replace with something like: 'More output or better outcomes \u2014 that is the choice. I will leave you with it.'",
+                    "type": "minor_tone_mismatch"
+                  },
+                  {
+                    "detail": "\"the reflection managers need\" is missing a possessive apostrophe: should be \"managers' need\" for clarity.",
+                    "element": "002_proof",
+                    "suggestion": "Write: 'UC Berkeley Haas found speed crowded out the reflection managers' need.'",
+                    "type": "grammar_precision"
+                  },
+                  {
+                    "detail": "\"Nobody Warned You About\" is slightly clickbait-adjacent for James's register. The body delivers on the promise so it is not a block, but a more James-typical title would signal the idea directly.",
+                    "element": "title",
+                    "suggestion": "Consider: 'The AI Time Trap' or 'Why AI Speed Undermines Managerial Reflection'",
+                    "type": "title_register"
+                  }
+                ]
+              }
+            ],
+            "veto_failed": false,
+            "weighted_mean": 3.77
+          }
+        ],
+        "status": "saved"
+      },
+      "stage_name": "review_script",
+      "started_at": "2026-06-29T14:21:18+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": "RuntimeError",
+      "error_message": "gate_a_content pending approval. Use: python3 scripts/produce_db.py approve prod_cbd3c35dfd08431b82b1b6ca9bc675d2 gate_a_content --pass",
+      "finished_at": "2026-06-29T14:23:08+08:00",
+      "result_summary": {},
+      "stage_name": "gate_a_content",
+      "started_at": "2026-06-29T14:23:08+08:00",
+      "status": "failed"
+    },
+    {
+      "attempt": 2,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:30:21+08:00",
+      "result_summary": {
+        "approval_id": "approval_10815494a80d429488cb99c012ddd06e",
+        "status": "pass"
+      },
+      "stage_name": "gate_a_content",
+      "started_at": "2026-06-29T14:30:21+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:33:21+08:00",
+      "result_summary": {
+        "document_id": "doc_5b7808e3e8f44cacb2cbbed9c933925f",
+        "passed": false,
+        "rounds": [
+          {
+            "blocking_issues": [
+              {
+                "issue": "{'beat_id': 'B001', 'shot_type': 'broll_archival', 'violation': 'generic_broll', 'detail': \"B001 is a generic, source-disconnected b-roll. Description 'archival b-roll grounding the claim... concrete period-correct detail, soft focus, slow pan' does not specify a CONCRETE subject doing a CONCRETE action. The narration is about a modern UC Berkeley Haas study on speed vs reflection, but the brief invokes 'archival' + 'period-correct' which implies historical treatment \u2014 an anachronism risk. No specific subject, action, or era is defined.\"}",
+                "persona": "visual_director"
+              }
+            ],
+            "has_mandatory": true,
+            "passed": false,
+            "recommendations": [
+              {
+                "fix": "Replace B001 broll_archival with a broll_tactical showing a manager visibly overstimulated at a screen, then pausing (tactical proof of the mechanism, not just evidence that a study exists).",
+                "persona": "audience"
+              },
+              {
+                "fix": "Extend B002 (takeaway) to 8-10s and add a graphic overlay reinforcing 'PAUSE = TIME BACK' so the payoff earns visual emphasis beyond a plain hero shot.",
+                "persona": "audience"
+              },
+              {
+                "fix": "Rewrite B003 title card text to echo the micro-insight (e.g. 'FASTER OR WISER?' instead of 'MORE OUTPUT OR BETTER') so the CTA question flows from the payoff rather than feeling disconnected.",
+                "persona": "audience"
+              },
+              {
+                "fix": "Add a brief b-roll beat between B002 and B003 showing a quiet reflective moment (manager closing laptop, looking out a window) to give the 'pause' instruction a tangible emotional model before the CTA.",
+                "persona": "audience"
+              },
+              {
+                "fix": "B000: change to a wider medium shot (MS), locked-off or very subtle float. Reserve the MCU push-in for B002 to give the insight landing greater visual weight.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": "Lengthen B001 broll hold to ~8\u201310s (or add a 2s ambient buffer after the slow pan) to push total duration toward 30s for a more satisfying runtime.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": {
+                  "action": "replace_visual_brief",
+                  "beat_id": "B001",
+                  "corrected_spec": "Modern UC Berkeley Haas School of Business study area: students at angled wood-and-white workstations, floor-to-ceiling windows, warm natural daylight. One student pauses mid-typing, looks at an open notebook beside the keyboard. Slow push-in across the workstation toward the notebook. Contemporary academic lighting. continuity_anchor: clean_modern_academic."
+                },
+                "persona": "visual_director"
+              },
+              {
+                "fix": {
+                  "action": "add_continuity_anchor",
+                  "beat_id": "B000, B002",
+                  "detail": "Add continuity_anchor: studio_library_canonical to both hero beats referencing STUDIO_CANONICAL_003_PATTERN_FRAME. Ensure wardrobe (navy sweater / white Oxford collar) and lighting (brass lamp warm pool, window fill right) are identical between B000 and B002."
+                },
+                "persona": "visual_director"
+              },
+              {
+                "fix": {
+                  "action": "add_reference_frame",
+                  "beat_id": "B000, B002",
+                  "detail": "Cite approved canonical frame in hero beat metadata. Suggested: STUDIO_CANONICAL_003_PATTERN_FRAME for medium shots, or JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002 from the navy_sweater_library set."
+                },
+                "persona": "visual_director"
+              },
+              {
+                "fix": "B001: est_duration_sec 6.09s exceeds b-roll 6s limit by 0.09s \u2014 post-TTS reconciliation will split if TTS pushes it further; acceptable as-is for now",
+                "persona": "technical"
+              }
+            ],
+            "round": 0,
+            "verdicts": [
+              {
+                "artifact": "storyboard",
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 2.86,
+                "persona": "audience",
+                "predicts": {
+                  "save": false,
+                  "share": false,
+                  "watch_through": false
+                },
+                "recommended_fixes": [
+                  "Replace B001 broll_archival with a broll_tactical showing a manager visibly overstimulated at a screen, then pausing (tactical proof of the mechanism, not just evidence that a study exists).",
+                  "Extend B002 (takeaway) to 8-10s and add a graphic overlay reinforcing 'PAUSE = TIME BACK' so the payoff earns visual emphasis beyond a plain hero shot.",
+                  "Rewrite B003 title card text to echo the micro-insight (e.g. 'FASTER OR WISER?' instead of 'MORE OUTPUT OR BETTER') so the CTA question flows from the payoff rather than feeling disconnected.",
+                  "Add a brief b-roll beat between B002 and B003 showing a quiet reflective moment (manager closing laptop, looking out a window) to give the 'pause' instruction a tangible emotional model before the CTA."
+                ],
+                "scores": {
+                  "cta": 3,
+                  "hook": 4,
+                  "open_loops": 3,
+                  "payoff": 3,
+                  "reason_to_stay": 3,
+                  "save_worthy": 2,
+                  "share_worthy": 2
+                },
+                "status": "pass",
+                "task": "audience_review",
+                "warnings": [
+                  "Beat B001 uses broll_archival; FORMAT requires broll_environment or broll_tactical for the supporting visual.",
+                  "Total duration 21s is at the floor of the 20-40s acceptable range \u2014 the insight may not have room to land emotionally.",
+                  "Core insight ('pause to reclaim time') is a conceptual reframe, not a specific actionable tactic \u2014 save-worthiness scores low.",
+                  "No strong emotional charge \u2014 share-worthiness limited to mild vindication."
+                ]
+              },
+              {
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 4.0,
+                "persona": "filmmaker",
+                "recommended_fixes": [
+                  "B000: change to a wider medium shot (MS), locked-off or very subtle float. Reserve the MCU push-in for B002 to give the insight landing greater visual weight.",
+                  "Lengthen B001 broll hold to ~8\u201310s (or add a 2s ambient buffer after the slow pan) to push total duration toward 30s for a more satisfying runtime."
+                ],
+                "scores": {
+                  "balance": 5,
+                  "emphasis": 4,
+                  "opening_shot": 4,
+                  "shot_rhythm": 4,
+                  "transitions": 4,
+                  "visual_arc": 3
+                },
+                "status": "pass",
+                "task": "filmmaker_review",
+                "warnings": [
+                  "Total duration ~21s is at the low end of the acceptable 20\u201340s window (target 30s); feels abbreviated.",
+                  "Both hero shots B000 and B002 are identical MCU slow-push-in \u2014 the takeaway doesn't read as a distinct visual escalation from the hook."
+                ]
+              },
+              {
+                "blocking_issues": [
+                  {
+                    "beat_id": "B001",
+                    "detail": "B001 is a generic, source-disconnected b-roll. Description 'archival b-roll grounding the claim... concrete period-correct detail, soft focus, slow pan' does not specify a CONCRETE subject doing a CONCRETE action. The narration is about a modern UC Berkeley Haas study on speed vs reflection, but the brief invokes 'archival' + 'period-correct' which implies historical treatment \u2014 an anachronism risk. No specific subject, action, or era is defined.",
+                    "shot_type": "broll_archival",
+                    "violation": "generic_broll"
+                  }
+                ],
+                "may_proceed": false,
+                "overall_score": 3.3,
+                "persona": "visual_director",
+                "recommended_fixes": [
+                  {
+                    "action": "replace_visual_brief",
+                    "beat_id": "B001",
+                    "corrected_spec": "Modern UC Berkeley Haas School of Business study area: students at angled wood-and-white workstations, floor-to-ceiling windows, warm natural daylight. One student pauses mid-typing, looks at an open notebook beside the keyboard. Slow push-in across the workstation toward the notebook. Contemporary academic lighting. continuity_anchor: clean_modern_academic."
+                  },
+                  {
+                    "action": "add_continuity_anchor",
+                    "beat_id": "B000, B002",
+                    "detail": "Add continuity_anchor: studio_library_canonical to both hero beats referencing STUDIO_CANONICAL_003_PATTERN_FRAME. Ensure wardrobe (navy sweater / white Oxford collar) and lighting (brass lamp warm pool, window fill right) are identical between B000 and B002."
+                  },
+                  {
+                    "action": "add_reference_frame",
+                    "beat_id": "B000, B002",
+                    "detail": "Cite approved canonical frame in hero beat metadata. Suggested: STUDIO_CANONICAL_003_PATTERN_FRAME for medium shots, or JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002 from the navy_sweater_library set."
+                  }
+                ],
+                "scores": {
+                  "broll_specificity": 2,
+                  "continuity": 2,
+                  "era": 3,
+                  "graphic_layout": 5,
+                  "james_studio": 5,
+                  "motion": 5,
+                  "reference_lock": 1
+                },
+                "status": "fail",
+                "task": "visual_director_review",
+                "warnings": [
+                  {
+                    "beat_id": "B001",
+                    "detail": "UC Berkeley Haas is a contemporary institution (founded 1898, current campus built mid-20th C). Using 'archival' and 'period-correct' risks a vintage/sepia aesthetic that would be anachronistic for a modern research finding. The brief should specify 'modern university setting (contemporary open-plan study or classroom, natural light, 2020s aesthetic)'.",
+                    "issue": "era_ambiguity"
+                  },
+                  {
+                    "beat_id": "B000, B002",
+                    "detail": "Neither hero beat includes a continuity_anchor field. Adjacent hero_lipsync shots must carry consistent lighting and James appearance. Specify continuity_anchor referencing the canonical frame (STUDIO_CANONICAL_003_PATTERN_FRAME).",
+                    "issue": "missing_continuity_anchor"
+                  },
+                  {
+                    "beat_id": "B000, B002",
+                    "detail": "Hero_lipsync beats do not cite an approved canonical reference frame. B000 and B002 should reference STUDIO_CANONICAL_003_PATTERN_FRAME or the relevant dark_jacket_library / navy_sweater_library asset from REFERENCE_ASSET_MANIFEST.md.",
+                    "issue": "missing_reference_lock"
+                  }
+                ]
+              },
+              {
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 4,
+                "persona": "technical",
+                "recommended_fixes": [
+                  "B001: est_duration_sec 6.09s exceeds b-roll 6s limit by 0.09s \u2014 post-TTS reconciliation will split if TTS pushes it further; acceptable as-is for now"
+                ],
+                "scores": {
+                  "assembly": 3,
+                  "audio_policy": 3,
+                  "cost": 4,
+                  "durations": 4,
+                  "generatability": 4,
+                  "references": 5
+                },
+                "status": "pass",
+                "task": "technical_review",
+                "warnings": [
+                  "B001 shot_type 'broll_archival' is not in allowed_scene_types enum (closest: B_ROLL_SUPPORTING_VISUAL) \u2014 map during compile",
+                  "No audio_policy field on any beat \u2014 conventions (hero\u2192keep_lipsync, broll/graphic\u2192muted) are clear but not explicit",
+                  "No model field on any beat \u2014 prompt compiler must assign seedance_2_0/hero, kling3_0/broll, local/graphic"
+                ]
+              }
+            ],
+            "veto_failed": false,
+            "weighted_mean": 3.43
+          },
+          {
+            "blocking_issues": [
+              {
+                "issue": "Monotonous rhythm: B000 and B002 are both hero_lipsync MCU slow push-in at nearly identical durations (6.09 vs 4.98s). No shot-scale or pace variation across 4 beats. The archival broll is also a slow pan \u2014 same energy. The entire sequence is locked-off push-ins and slow pans.",
+                "persona": "filmmaker"
+              },
+              {
+                "issue": "Key takeaway on flat visual: B002 ('AI buys speed. You buy time back by pausing.') is the thesis \u2014 delivered on the exact same MCU push-in treatment as the opening. No visual escalation (tighter frame, graphic overlay, eye contact, lighting shift) to signal this is THE insight.",
+                "persona": "filmmaker"
+              },
+              {
+                "issue": "B001 (broll_archival) is generic and source-disconnected: 'slow pan across period-correct detail' specifies no concrete subject or action. Narration references a specific UC Berkeley Haas finding about speed crowding out reflection \u2014 the broll must depict a concrete subject (e.g., a researcher reviewing survey data, a manager sitting still while colleagues rush past) doing a concrete action, with correct modern/academic era.",
+                "persona": "visual_director"
+              }
+            ],
+            "has_mandatory": true,
+            "passed": false,
+            "recommendations": [
+              {
+                "fix": "Change B001 shot_type to 'broll_tactical': show someone's hand clicking a fast-forward icon or a clock accelerating, not an archival pan",
+                "persona": "audience"
+              },
+              {
+                "fix": "Add a 1s integrated graphic overlay on B002 (e.g. 'SPEED vs TIME' lower-third keyline) so the payoff lands visually, not just verbally",
+                "persona": "audience"
+              },
+              {
+                "fix": "Tighten B001 narration from 11 words to ~6: 'Haas found speed kills reflection.' \u2014 saves 2s for a stronger payoff visual",
+                "persona": "audience"
+              },
+              {
+                "fix": "Replace generic 'Comment below' with a specific binary: 'More output or better outcomes? Answer in 1 word.'",
+                "persona": "audience"
+              },
+              {
+                "fix": "B002: Change shot_type to hero_detail (tighter close-up, eyes center) with a 1.5x slower push-in over 7-8s to differentiate from B000 and land the insight with weight. Adjust B000 downward to 4-5s to compensate.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": "B001: Replace broll_archival slow pan with broll_tactical \u2014 e.g., a hand hovering over a keyboard then stopping, mid-motion, to visually embody 'speed crowded out reflection.' This breaks the all-slow-pan rhythm.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": "B003: Extend to 5.5-6s minimum; add a subtle hold beat (fade audio tail) so the CTA doesn't feel cut off.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": "B000: Consider a locked-off medium shot (no push-in) at 4s to establish contrast with B002's deeper push-in on the takeaway.",
+                "persona": "filmmaker"
+              },
+              {
+                "fix": "B001: Replace visual_brief with concrete subject + action. Suggested: 'Medium shot, modern UC Berkeley Haas classroom \u2014 a manager sits at a desk, hand paused over a notebook, looking up mid-thought while a clock ticks on the wall behind. Slow zoom-in, warm academic fluorescent lighting, muted greens and beige. Continuity anchor: same color palette as B000 hero studio.'",
+                "persona": "visual_director"
+              },
+              {
+                "fix": "B000 & B002: Add explicit reference frame ID to visual_brief \u2014 e.g., 'Composition follows JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002'.",
+                "persona": "visual_director"
+              },
+              {
+                "fix": "Add continuity_anchor field to all beats. For B000: 'anchor_id: studio_canonical_001, lighting:warm_desk_lamp+window_fill, james_wardrobe:navy_sweater_white_collar'. Propagate matching anchor to B001 and B002.",
+                "persona": "visual_director"
+              },
+              {
+                "fix": "B001: 6.09s broll_archival exceeds 6s limit by 0.09s \u2014 trivially trim to 6.0s or defer to post-TTS reconciliation split",
+                "persona": "technical"
+              },
+              {
+                "fix": "B000/B002: Add explicit audio_policy: keep_lipsync for hero beats",
+                "persona": "technical"
+              },
+              {
+                "fix": "B001: Add explicit audio_policy: strip for broll beats",
+                "persona": "technical"
+              },
+              {
+                "fix": "B003: Add explicit audio_policy: strip for graphic beats (local render has no lipsync)",
+                "persona": "technical"
+              },
+              {
+                "fix": "All beats: Populate model field per shot_type mapping before compile step",
+                "persona": "technical"
+              }
+            ],
+            "round": 1,
+            "verdicts": [
+              {
+                "artifact": "storyboard",
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 3.6,
+                "persona": "audience",
+                "predicts": {
+                  "save": false,
+                  "share": false,
+                  "watch_through": true
+                },
+                "recommended_fixes": [
+                  "Change B001 shot_type to 'broll_tactical': show someone's hand clicking a fast-forward icon or a clock accelerating, not an archival pan",
+                  "Add a 1s integrated graphic overlay on B002 (e.g. 'SPEED vs TIME' lower-third keyline) so the payoff lands visually, not just verbally",
+                  "Tighten B001 narration from 11 words to ~6: 'Haas found speed kills reflection.' \u2014 saves 2s for a stronger payoff visual",
+                  "Replace generic 'Comment below' with a specific binary: 'More output or better outcomes? Answer in 1 word.'"
+                ],
+                "scores": {
+                  "cta": 4,
+                  "hook": 4,
+                  "open_loops": 4,
+                  "payoff": 3,
+                  "reason_to_stay": 4,
+                  "save_worthy": 3,
+                  "share_worthy": 3
+                },
+                "status": "pass",
+                "task": "audience_review",
+                "warnings": [
+                  "Broll beat B001 uses shot_type 'broll_archival' but format requires 'broll_environment' or 'broll_tactical'",
+                  "Payoff beat B002 is on hero_lipsync alone; no graphic or environmental visual reinforces 'pause'",
+                  "Narrative gap: hook says AI gave 'something else' but never names what that 'something else' is \u2014 payoff says 'speed' only implicitly via the evidence beat; a viewer who skims could lose the thread"
+                ]
+              },
+              {
+                "blocking_issues": [
+                  "Monotonous rhythm: B000 and B002 are both hero_lipsync MCU slow push-in at nearly identical durations (6.09 vs 4.98s). No shot-scale or pace variation across 4 beats. The archival broll is also a slow pan \u2014 same energy. The entire sequence is locked-off push-ins and slow pans.",
+                  "Key takeaway on flat visual: B002 ('AI buys speed. You buy time back by pausing.') is the thesis \u2014 delivered on the exact same MCU push-in treatment as the opening. No visual escalation (tighter frame, graphic overlay, eye contact, lighting shift) to signal this is THE insight."
+                ],
+                "may_proceed": false,
+                "overall_score": 2.67,
+                "persona": "filmmaker",
+                "recommended_fixes": [
+                  "B002: Change shot_type to hero_detail (tighter close-up, eyes center) with a 1.5x slower push-in over 7-8s to differentiate from B000 and land the insight with weight. Adjust B000 downward to 4-5s to compensate.",
+                  "B001: Replace broll_archival slow pan with broll_tactical \u2014 e.g., a hand hovering over a keyboard then stopping, mid-motion, to visually embody 'speed crowded out reflection.' This breaks the all-slow-pan rhythm.",
+                  "B003: Extend to 5.5-6s minimum; add a subtle hold beat (fade audio tail) so the CTA doesn't feel cut off.",
+                  "B000: Consider a locked-off medium shot (no push-in) at 4s to establish contrast with B002's deeper push-in on the takeaway."
+                ],
+                "scores": {
+                  "balance": 4,
+                  "emphasis": 2,
+                  "opening_shot": 3,
+                  "shot_rhythm": 2,
+                  "transitions": 3,
+                  "visual_arc": 2
+                },
+                "status": "fail",
+                "task": "filmmaker_review",
+                "warnings": [
+                  "Total runtime 21.0s is at the floor of the 20-40s acceptable range; feels rushed rather than deliberate.",
+                  "B001 broll_archival is not one of the required subtypes (broll_environment or broll_tactical) per format spec.",
+                  "B003 graphic_title_card at 3.87s may feel truncated; a CTA landing beat benefits from 5-7s to read and resonate."
+                ]
+              },
+              {
+                "blocking_issues": [
+                  "B001 (broll_archival) is generic and source-disconnected: 'slow pan across period-correct detail' specifies no concrete subject or action. Narration references a specific UC Berkeley Haas finding about speed crowding out reflection \u2014 the broll must depict a concrete subject (e.g., a researcher reviewing survey data, a manager sitting still while colleagues rush past) doing a concrete action, with correct modern/academic era."
+                ],
+                "may_proceed": false,
+                "overall_score": 3.7,
+                "persona": "visual_director",
+                "recommended_fixes": [
+                  "B001: Replace visual_brief with concrete subject + action. Suggested: 'Medium shot, modern UC Berkeley Haas classroom \u2014 a manager sits at a desk, hand paused over a notebook, looking up mid-thought while a clock ticks on the wall behind. Slow zoom-in, warm academic fluorescent lighting, muted greens and beige. Continuity anchor: same color palette as B000 hero studio.'",
+                  "B000 & B002: Add explicit reference frame ID to visual_brief \u2014 e.g., 'Composition follows JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002'.",
+                  "Add continuity_anchor field to all beats. For B000: 'anchor_id: studio_canonical_001, lighting:warm_desk_lamp+window_fill, james_wardrobe:navy_sweater_white_collar'. Propagate matching anchor to B001 and B002."
+                ],
+                "scores": {
+                  "broll_specificity": 2,
+                  "continuity": 3,
+                  "era": 4,
+                  "graphic_layout": 5,
+                  "james_studio": 5,
+                  "motion": 4,
+                  "reference_lock": 3
+                },
+                "status": "fail",
+                "task": "visual_director_review",
+                "warnings": [
+                  "B001 uses 'archival b-roll' + 'period-correct detail' without specifying the era \u2014 risk of generating vintage/19th-century imagery for a contemporary business-school finding. Fix: replace 'period-correct detail' with 'modern academic setting, early-2000s to present'.",
+                  "No continuity_anchor field in any beat. Both hero beats describe the same wardrobe (navy sweater, bookshelves, brass lamp) but no explicit anchor ties them \u2014 risk of drifting lighting or composition between B000 and B002.",
+                  "Hero beats B000 and B002 do not cite an approved canonical reference frame ID (e.g., STUDIO_CANONICAL_003_PATTERN_FRAME or JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002). Visual descriptions match canon but without explicit reference lock the generation may drift.",
+                  "B003 graphic_title_card has 'static post-overlay title card' as the required action \u2014 static is acceptable for a post-overlay key_line but marginal. Consider adding a slow fade-in or subtle scale animation."
+                ]
+              },
+              {
+                "blocking_issues": [],
+                "may_proceed": true,
+                "overall_score": 4.17,
+                "persona": "technical",
+                "recommended_fixes": [
+                  "B001: 6.09s broll_archival exceeds 6s limit by 0.09s \u2014 trivially trim to 6.0s or defer to post-TTS reconciliation split",
+                  "B000/B002: Add explicit audio_policy: keep_lipsync for hero beats",
+                  "B001: Add explicit audio_policy: strip for broll beats",
+                  "B003: Add explicit audio_policy: strip for graphic beats (local render has no lipsync)",
+                  "All beats: Populate model field per shot_type mapping before compile step"
+                ],
+                "scores": {
+                  "assembly": 3,
+                  "audio_policy": 4,
+                  "cost": 5,
+                  "durations": 4,
+                  "generatability": 5,
+                  "references": 4
+                },
+                "status": "pass",
+                "task": "technical_review",
+                "warnings": [
+                  "Missing audio_policy field on all beats \u2014 should be explicit at storyboard stage (implied by shot_type but not documented)",
+                  "Missing model field on all beats \u2014 implied by shot_type mapping (hero\u2192seedance_2_0, broll\u2192kling3_0, graphic\u2192local) but not explicit",
+                  "Missing reference_required field on hero beats B000 and B002 \u2014 cannot verify at storyboard stage; compile step must populate before generation"
+                ]
+              }
+            ],
+            "veto_failed": false,
+            "weighted_mean": 3.46
+          }
+        ],
+        "status": "saved"
+      },
+      "stage_name": "review_storyboard",
+      "started_at": "2026-06-29T14:30:21+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:30:21+08:00",
+      "result_summary": {
+        "beats": 4,
+        "document_id": "doc_87422849aa7c4523a5457162e748fb37",
+        "status": "saved"
+      },
+      "stage_name": "storyboard",
+      "started_at": "2026-06-29T14:30:21+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:33:27+08:00",
+      "result_summary": {
+        "artifact_id": "art_4264a6e48fce4d25b747dc37754d91bf",
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/continuous.mp3",
+        "status": "saved"
+      },
+      "stage_name": "tts",
+      "started_at": "2026-06-29T14:33:21+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:33:27+08:00",
+      "result_summary": {
+        "spans_committed": 4,
+        "status": "saved"
+      },
+      "stage_name": "audio_timing",
+      "started_at": "2026-06-29T14:33:27+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:33:28+08:00",
+      "result_summary": {
+        "estimated_cost_usd": 3.18,
+        "hero_slice_count": 2,
+        "plan_revision_id": "doc_1a60bea0a24b42f398e8604b836be99c",
+        "status": "saved",
+        "units_count": 4
+      },
+      "stage_name": "compile_media",
+      "started_at": "2026-06-29T14:33:27+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T14:33:27+08:00",
+      "result_summary": {
+        "matched": 4,
+        "status": "reconciled",
+        "total_spans": 4,
+        "unmatched": []
+      },
+      "stage_name": "reconcile_timing",
+      "started_at": "2026-06-29T14:33:27+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": "RuntimeError",
+      "error_message": "gate_a_spend pending approval. Use: python3 scripts/produce_db.py approve prod_cbd3c35dfd08431b82b1b6ca9bc675d2 gate_a_spend --pass",
+      "finished_at": "2026-06-29T14:33:28+08:00",
+      "result_summary": {},
+      "stage_name": "gate_a_spend",
+      "started_at": "2026-06-29T14:33:28+08:00",
+      "status": "failed"
+    },
+    {
+      "attempt": 2,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T16:57:17+08:00",
+      "result_summary": {
+        "approval_id": "approval_51d0f66c7fb3427180820b90268478e5",
+        "estimated_usd": 3.18,
+        "status": "pass"
+      },
+      "stage_name": "gate_a_spend",
+      "started_at": "2026-06-29T16:57:17+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": "RuntimeError",
+      "error_message": "generate_media incomplete: required render units are not generated/valid: S000=generating, S001=generating, S002=generating",
+      "finished_at": "2026-06-29T16:57:45+08:00",
+      "result_summary": {},
+      "stage_name": "generate_media",
+      "started_at": "2026-06-29T16:57:17+08:00",
+      "status": "failed"
+    },
+    {
+      "attempt": 2,
+      "error_class": null,
+      "error_message": null,
+      "finished_at": "2026-06-29T17:11:28+08:00",
+      "result_summary": {
+        "jobs_completed": 3,
+        "new_jobs_submitted": 0,
+        "status": "processed"
+      },
+      "stage_name": "generate_media",
+      "started_at": "2026-06-29T17:10:50+08:00",
+      "status": "succeeded"
+    },
+    {
+      "attempt": 1,
+      "error_class": "RuntimeError",
+      "error_message": "Media QA failed for 2 units: [{'unit_id': 'render_c46c40f340554930bd7d47e48c9e5979', 'label': 'S000'}, {'unit_id': 'render_2e05bede01f74698894d1adb45742647', 'label': 'S002'}]",
+      "finished_at": "2026-06-29T17:11:29+08:00",
+      "result_summary": {},
+      "stage_name": "qa_media",
+      "started_at": "2026-06-29T17:11:28+08:00",
+      "status": "failed"
+    }
+  ],
+  "status": "qa_media_failed_before_assembly",
+  "validations": [
+    {
+      "created_at": "2026-06-29T17:11:28+08:00",
+      "evidence": {
+        "actual_height": 496,
+        "actual_width": 864,
+        "contract_version": "1.0",
+        "dimensions_ok": true,
+        "duration_delta_ms": 570,
+        "duration_ok": true,
+        "duration_tolerance_ms": 1500,
+        "file_exists": true,
+        "intended_duration_ms": 7471,
+        "issues": [
+          "lipsync_drift_609ms"
+        ],
+        "lipsync_drift_ms": 609,
+        "lipsync_drift_ok": false,
+        "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+        "provenance_ok": true,
+        "render_method": "hero_lipsync",
+        "sha_match": true,
+        "text_policy_ok": true,
+        "video_duration_ms": 8041
+      },
+      "id": "val_f66d57e3da6543cf84da6fdb540090dc",
+      "status": "fail",
+      "subject_id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "validator_name": "qa_media_contract"
+    },
+    {
+      "created_at": "2026-06-29T17:11:29+08:00",
+      "evidence": {
+        "contract_version": "1.0",
+        "dimensions_ok": true,
+        "duration_ok": true,
+        "file_exists": true,
+        "issues": [],
+        "ocr_available": false,
+        "ocr_error": "tesseract binary not available",
+        "ocr_frames_checked": 0,
+        "ocr_note": "OCR unavailable in non-strict mode; text policy not enforced",
+        "provenance_ok": true,
+        "render_method": "generated_video",
+        "sha_match": true,
+        "text_policy": "NO_VISIBLE_TEXT",
+        "text_policy_ok": true
+      },
+      "id": "val_16f2fedad28e48469cc4a16ae67994ab",
+      "status": "pass",
+      "subject_id": "render_2237236ace24433793b0b6b2047c1c36",
+      "validator_name": "qa_media_contract"
+    },
+    {
+      "created_at": "2026-06-29T17:11:29+08:00",
+      "evidence": {
+        "actual_height": 496,
+        "actual_width": 864,
+        "contract_version": "1.0",
+        "dimensions_ok": true,
+        "duration_delta_ms": 139,
+        "duration_ok": true,
+        "duration_tolerance_ms": 1500,
+        "file_exists": true,
+        "intended_duration_ms": 5902,
+        "issues": [
+          "lipsync_drift_158ms"
+        ],
+        "lipsync_drift_ms": 158,
+        "lipsync_drift_ok": false,
+        "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+        "provenance_ok": true,
+        "render_method": "hero_lipsync",
+        "sha_match": true,
+        "text_policy_ok": true,
+        "video_duration_ms": 6041
+      },
+      "id": "val_b41a9202fce94a68a169c2dd86393d63",
+      "status": "fail",
+      "subject_id": "render_2e05bede01f74698894d1adb45742647",
+      "validator_name": "qa_media_contract"
+    }
+  ]
+}

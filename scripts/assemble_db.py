@@ -25,11 +25,22 @@ from shot_mix_contract import (
     validate_shot_mix, ShotMixVerdict, get_contract, DEFAULT_CONTRACT_NAME,
 )
 from semantic_role_qa import SEMANTIC_ROLE_QA_VALIDATOR
+from product_contract import (
+    HERO_PROVIDER_AUDIO_ISLAND,
+    VIDEO_ONLY_OVER_CANONICAL_NARRATION,
+    SILENT_VISUAL,
+    resolve_product_audio_policy,
+    assembly_mode_for_product_policy,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "Videos" / "Projects"
 
 _HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
+_REVIEW_ONLY_HERO_VALIDATORS = frozenset({
+    "human_av_review",
+    "human_av_review_pass_review_only",
+})
 
 # S15-T002: Allowed editorial visual roles (single source of truth for the gate).
 # Mirrors the reference values seeded into the `visual_roles` table by migration 011.
@@ -50,6 +61,9 @@ ALLOWED_VISUAL_ROLES = frozenset({
 # Hero lipsync units must preserve their compensated provider audio (hero_island).
 # B-roll uses master narration slices (master_slice). Silent graphics use music bed only (silent_under_music).
 _AUDIO_ASSEMBLY_MODE_MAP: dict[str, str] = {
+    "HERO_PROVIDER_AUDIO_ISLAND": "hero_island",
+    "VIDEO_ONLY_OVER_CANONICAL_NARRATION": "master_slice",
+    "SILENT_VISUAL": "silent_under_music",
     "HERO_SYNC_LOCKED": "hero_island",
     "keep_lipsync": "hero_island",
     "hero_lipsync": "hero_island",
@@ -85,6 +99,11 @@ def get_audio_assembly_mode(audio_policy: str) -> str:
             f"Valid values: {sorted(_AUDIO_ASSEMBLY_MODE_MAP.keys())}"
         )
     return _AUDIO_ASSEMBLY_MODE_MAP[audio_policy]
+
+
+def get_product_audio_assembly_mode(render_unit: dict) -> str:
+    """Resolve product audio policy from DB row and return assembly mode."""
+    return assembly_mode_for_product_policy(resolve_product_audio_policy(render_unit))
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +284,39 @@ LOCAL_GRAPHIC_FAIL_DURATION_MS = 6000  # fail threshold (S03-T003)
 MICRO_CUT_MIN_DURATION_MS = 1000
 
 
-def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+def _has_review_only_hero_acceptance(conn, render_unit_id: str) -> bool:
+    """Return True only for explicit non-publish human A/V acceptance evidence."""
+    row = conn.execute(
+        """SELECT evidence_json FROM validations
+           WHERE subject_id=?
+             AND validator_name IN ('human_av_review', 'human_av_review_pass_review_only')
+             AND status='pass'
+           ORDER BY created_at DESC
+           LIMIT 1""",
+        (render_unit_id,),
+    ).fetchone()
+    if not row:
+        return False
+    try:
+        evidence = json.loads(row["evidence_json"] or "{}")
+    except (TypeError, ValueError):
+        evidence = {}
+    if evidence.get("automated_syncnet_pass") is True:
+        return False
+    status = str(evidence.get("status") or evidence.get("review_status") or "").upper()
+    return (
+        evidence.get("review_result") == "PASS"
+        or status == "REVIEW_ONLY_HUMAN_AV_ACCEPTED_NOT_AUTOMATED_SYNCNET_PASS"
+    )
+
+
+def validate_assembly_inputs(
+    production_id: str,
+    variant: str = "16x9",
+    db_path=None,
+    *,
+    review_only: bool = False,
+) -> dict:
     """Validate all assembly inputs before building the clip manifest.
 
     Checks:
@@ -280,12 +331,21 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
     9. Artifact set hash can be computed.
     10. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
 
+    ``review_only`` is an explicit non-publish mode for product evaluation. It
+    may accept human A/V review evidence for hero lipsync segments, but it must
+    never satisfy publish-grade SyncNet requirements.
+
     Raises AssemblyError with descriptive message on first failure.
     Returns preflight evidence dict on success.
     """
     _db.migrate(db_path)
     conn = _db.connect(db_path)
-    evidence = {"production_id": production_id, "variant": variant}
+    evidence = {
+        "production_id": production_id,
+        "variant": variant,
+        "assembly_mode": "review_only" if review_only else "publish_grade",
+        "publish_grade_syncnet_required": not review_only,
+    }
 
     try:
         # 1. Active timeline spans exist
@@ -386,7 +446,15 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                    LIMIT 1""",
                 (u["id"],),
             ).fetchone()
+            review_only_hero = (
+                review_only
+                and (u.get("audio_policy") in _HERO_LIPSYNC_POLICIES or u.get("lipsync_required"))
+                and _has_review_only_hero_acceptance(conn, u["id"])
+            )
             if not passing:
+                if review_only_hero:
+                    evidence.setdefault("review_only_human_av_units", []).append(u["id"])
+                    continue
                 # If the unit is change_requested, skip QA validation.
                 # The unit has a FAIL validation from the QA that triggered
                 # the change request. Its artifact is still valid for assembly.
@@ -423,6 +491,9 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
                 ).fetchone()
 
                 if not syncnet_validation:
+                    if review_only and _has_review_only_hero_acceptance(conn, u["id"]):
+                        evidence.setdefault("review_only_syncnet_exempt_units", []).append(u["id"])
+                        continue
                     raise AssemblyError(
                         "BLOCKED_HERO_SYNCNET_PER_SEGMENT_MISSING: render unit " + u["id"] + " "
                         "(" + (u.get("label", "") or "") + ") has no passing per-segment SyncNet validation. "
@@ -557,17 +628,18 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
         # Runs AFTER shot-mix (structure) so a structurally valid publish-grade
         # batch reaches this gate. Non-publish contracts are explicitly exempt.
         contract = _resolve_production_contract(conn, production_id)
-        validate_visual_roles(units, publish_grade=contract.publish_grade)
+        enforce_publish_editorial_gates = bool(contract.publish_grade and not review_only)
+        validate_visual_roles(units, publish_grade=enforce_publish_editorial_gates)
         evidence["visual_role_contract"] = contract.format_name
-        evidence["visual_role_publish_grade"] = bool(contract.publish_grade)
+        evidence["visual_role_publish_grade"] = enforce_publish_editorial_gates
 
         # S15-T003: Post-render semantic-role QA — publish-grade render units must
         # carry passing semantic-role QA evidence bound to the unit AND its current
         # visual_role, proving the RENDERED content satisfies the declared role.
         # Runs after visual_role so a valid current role exists to match against.
         # Non-publish contracts (test_local / diagnostic_legacy) are exempt.
-        validate_semantic_role_qa(conn, units, publish_grade=contract.publish_grade)
-        evidence["semantic_role_qa_publish_grade"] = bool(contract.publish_grade)
+        validate_semantic_role_qa(conn, units, publish_grade=enforce_publish_editorial_gates)
+        evidence["semantic_role_qa_publish_grade"] = enforce_publish_editorial_gates
 
         # 6. No stale render units (already excluded by SQL WHERE status!=stale)
 
@@ -602,6 +674,8 @@ def validate_assembly_inputs(production_id: str, variant: str = "16x9", db_path=
         # 10. Timeline heuristics (ENG-0703)
         _validate_timeline_heuristics(units)
 
+        if review_only:
+            evidence["review_only_label"] = "REVIEW_ONLY_HUMAN_AV_ACCEPTED_NOT_AUTOMATED_SYNCNET_PASS"
         evidence["validation_passed"] = True
         evidence["render_unit_ids"] = [u["id"] for u in units]
         evidence["artifact_ids"] = [u["active_artifact_id"] for u in units if u["active_artifact_id"]]
@@ -668,7 +742,13 @@ def _validate_timeline_heuristics(units: list) -> None:
                     f"Local graphic {u['id']} duration {dur}ms exceeds "
                     f"{LOCAL_GRAPHIC_MAX_DURATION_MS}ms warn threshold without 'hold' marker"
                 )
-def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+def build_assembly_inputs(
+    production_id: str,
+    variant: str = "16x9",
+    db_path=None,
+    *,
+    review_only: bool = False,
+) -> dict:
     """Build a complete assembly input object purely from DB state.
 
     Returns the DB-native assembly contract (a list of clips with timing,
@@ -717,7 +797,12 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
         raise AssemblyError(f"Production {production_id} not found")
 
     # ENG-0702: Run preflight validation before building assembly inputs
-    preflight_evidence = validate_assembly_inputs(production_id, variant=variant, db_path=db_path)
+    preflight_evidence = validate_assembly_inputs(
+        production_id,
+        variant=variant,
+        db_path=db_path,
+        review_only=review_only,
+    )
 
     # Validate: all units must be valid or local_graphic
     invalid = [
@@ -784,7 +869,13 @@ def build_assembly_inputs(production_id: str, variant: str = "16x9", db_path=Non
     }
 
 
-def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=None) -> dict:
+def build_assembly_manifest(
+    production_id: str,
+    variant: str = "16x9",
+    db_path=None,
+    *,
+    review_only: bool = False,
+) -> dict:
     """Bridge DB state to assemble.py's legacy continuous_voiceover manifest.
 
     In continuous_voiceover mode every clip is a muted visual and the single
@@ -795,7 +886,12 @@ def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=N
     lipsync_provenance, which validate_manifest requires for any HERO_SYNC_LOCKED
     span (the deep provenance check only runs in non-continuous mode).
     """
-    inputs = build_assembly_inputs(production_id, variant=variant, db_path=db_path)
+    inputs = build_assembly_inputs(
+        production_id,
+        variant=variant,
+        db_path=db_path,
+        review_only=review_only,
+    )
 
     _db.migrate(db_path)
     conn = _db.connect(db_path)
@@ -878,6 +974,11 @@ def build_assembly_manifest(production_id: str, variant: str = "16x9", db_path=N
         "id": production_id,
         "project_slug": project_slug,
         "variant": variant,
+        "assembly_mode": "review_only" if review_only else "publish_grade",
+        "review_only_label": (
+            "REVIEW_ONLY_HUMAN_AV_ACCEPTED_NOT_AUTOMATED_SYNCNET_PASS"
+            if review_only else None
+        ),
         "narration_mode": "continuous_voiceover",
         "continuous_audio": master["uri"],
         "pacing": {"reference": 0, "baseline_speed": 1.0},

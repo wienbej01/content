@@ -1,0 +1,5 @@
+{
+  "note": "B-roll generated and passed media contract QA, but sampled frame is abstract/generic rather than concrete corporate deep-work evidence.",
+  "reason": "blocked before semantic role QA/assembly because hero QA failed",
+  "status": "not_run"
+}

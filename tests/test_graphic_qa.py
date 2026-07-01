@@ -29,6 +29,18 @@ from evals.eval_graphic_qa import (
 )
 
 
+def _with_graphic_provenance(ru):
+    ru = dict(ru)
+    ru.setdefault("asset_type", "local_graphic")
+    ru["artifact_metadata"] = {
+        "render_method": "local_graphic",
+        "renderer": "render_graphics.py",
+        "expected_text": ["deterministic text"],
+        "text_spec_sha256": "test-sha",
+    }
+    return ru
+
+
 # ============================================================================
 # Black Title Card Tests
 # ============================================================================
@@ -191,7 +203,7 @@ class TestGraphicUnitEvaluation:
             })
         }
 
-        result = eval_graphic_unit(ru)
+        result = eval_graphic_unit(_with_graphic_provenance(ru))
 
         assert result["is_black_title_card"] is True
         assert result["alignment"] == "fail"
@@ -212,7 +224,7 @@ class TestGraphicUnitEvaluation:
             })
         }
 
-        result = eval_graphic_unit(ru, "The investment strategy involves: research, invest, review")
+        result = eval_graphic_unit(_with_graphic_provenance(ru), "The investment strategy involves: research, invest, review")
 
         assert result["alignment"] == "fail"
         assert "BLOCKED_GRAPHIC_MISALIGNED" in result["alignment_reason"]
@@ -240,7 +252,7 @@ class TestGraphicUnitEvaluation:
             })
         }
 
-        result = eval_graphic_unit(ru, "The investment framework helps you research opportunities, allocate capital wisely, and monitor performance growth")
+        result = eval_graphic_unit(_with_graphic_provenance(ru), "The investment framework helps you research opportunities, allocate capital wisely, and monitor performance growth")
 
         assert result["alignment"] == "pass"
         assert "aligned" in result["alignment_reason"].lower() or "meaningful" in result["alignment_reason"].lower()
@@ -260,7 +272,7 @@ class TestGraphicUnitEvaluation:
             })
         }
 
-        result = eval_graphic_unit(ru)
+        result = eval_graphic_unit(_with_graphic_provenance(ru))
 
         assert result["is_black_title_card"] is False
         assert result["alignment"] in ["pass", "warn"]  # Warn allowed for weak but not black
@@ -279,7 +291,7 @@ class TestGraphicUnitEvaluation:
             })
         }
 
-        result = eval_graphic_unit(ru)
+        result = eval_graphic_unit(_with_graphic_provenance(ru))
 
         assert result["is_black_title_card"] is False
         assert result["is_weak_title"] is True

@@ -1,0 +1,23 @@
+{
+  "status": "pass",
+  "video_path": "outputs/seedance_truth_test_001/review_only/final_review_v4_contract_fixed.mp4",
+  "duration_sec": 25.75,
+  "checks_run": [
+    "gap_detection"
+  ],
+  "check_status": {
+    "gap_detection": "pass",
+    "overlap_detection": "skipped_no_segments",
+    "click_detection": "skipped_no_segments"
+  },
+  "issues": [],
+  "gaps": [],
+  "overlaps": [],
+  "clicks": [],
+  "segments_provided": false,
+  "thresholds": {
+    "gap_ms": 500,
+    "overlap_ms": 0,
+    "click_db": 20
+  }
+}

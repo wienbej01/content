@@ -940,6 +940,7 @@ def _qa_hero_lipsync(
         evidence["video_duration_ms"] = video_duration_ms
         evidence["intended_duration_ms"] = intended_duration_ms
         evidence["duration_delta_ms"] = delta_ms
+        evidence["duration_mismatch_ms"] = delta_ms
         # Use generous tolerance for Seedance output which can be >500ms off
         DURATION_TOLERANCE_MS = 1500
         evidence["duration_tolerance_ms"] = DURATION_TOLERANCE_MS
@@ -954,27 +955,54 @@ def _qa_hero_lipsync(
 
     evidence["issues"] = issues
 
-    # S01-T004: Integrate lipsync drift check into hero lipsync QA
+    # S01-T004/S14: Run local lipsync evidence. Duration/reference mismatch is
+    # tracked separately above; it is not mouth/audio drift evidence.
     if artifact_path is not None and artifact_path.exists():
         try:
-            from qa_lipsync import detect_lipsync_drift_ms
-            has_drift, drift_ms, drift_msg = detect_lipsync_drift_ms(
-                artifact_path, render_unit.get("required_duration_ms", 0) or 0
+            from evals.eval_lipsync import analyze_video
+
+            result = analyze_video(
+                artifact_path,
+                subject_id=render_unit.get("id", ""),
+                hero_framing=render_unit.get("hero_framing") or "medium",
             )
-            evidence["lipsync_drift_ms"] = drift_ms
-            evidence["lipsync_drift_ok"] = not has_drift
-            evidence["lipsync_qa_method"] = "qa_lipsync.detect_lipsync_drift_ms"
-            if has_drift:
-                issues.append(f"lipsync_drift_{drift_ms}ms")
+            evidence["lipsync_qa_method"] = "eval_lipsync.analyze_video"
+            evidence["lipsync_eval"] = result
+            evidence["lipsync_drift_ms"] = (
+                abs(result["offset_ms"])
+                if result.get("status") == "fail" and result.get("offset_ms") is not None
+                else None
+            )
+            evidence["lipsync_confidence"] = result.get("confidence")
+            evidence["lipsync_face_track_found"] = bool(result.get("face_track_found"))
+
+            if result.get("status") == "pass":
+                evidence["lipsync_drift_ok"] = True
+                evidence["lipsync_review_status"] = "PASS"
+            elif result.get("status") == "warn":
+                evidence["lipsync_drift_ok"] = True
+                evidence["lipsync_review_status"] = "WARN"
+                issues.append("lipsync_warn")
+            elif result.get("status") == "needs_human_av_review":
+                evidence["lipsync_drift_ok"] = False
+                evidence["lipsync_review_status"] = "NEEDS_HUMAN_AV_REVIEW"
+                issues.append("lipsync_needs_human_av_review")
+            else:
+                evidence["lipsync_drift_ok"] = False
+                evidence["lipsync_review_status"] = "FAIL"
+                drift = evidence["lipsync_drift_ms"]
+                issues.append(f"lipsync_drift_{drift}ms" if drift is not None else "lipsync_failed")
         except Exception as exc:
             evidence["lipsync_drift_ms"] = None
             evidence["lipsync_drift_ok"] = False
             evidence["lipsync_qa_method"] = "blocked_dependency"
+            evidence["lipsync_review_status"] = "BLOCKED"
             issues.append(f"lipsync_qa_unavailable: {exc}")
     else:
         evidence["lipsync_drift_ms"] = None
         evidence["lipsync_drift_ok"] = False
         evidence["lipsync_qa_method"] = "blocked"
+        evidence["lipsync_review_status"] = "BLOCKED"
         issues.append("lipsync_qa_blocked: no artifact path")
 
     evidence["issues"] = issues
@@ -1241,7 +1269,8 @@ VALIDATION_FAILURE_CLASSIFICATIONS = frozenset({
     "missing_artifact", "sha_mismatch", "duration_shortfall",
     "provider_forbidden_asset", "unexpected_visible_text",
     "local_graphic_not_local", "local_graphic_text_mismatch",
-    "ocr_unavailable", "hero_lipsync_unverified", "unknown_contract_failure",
+    "ocr_unavailable", "hero_lipsync_unverified", "hero_lipsync_needs_human_review",
+    "unknown_contract_failure",
     "provider_job_retryable_failure", "provider_job_permanent_failure",
 })
 
@@ -1284,6 +1313,8 @@ def classify_validation_failure(validation_evidence: dict) -> str:
             return "ocr_unavailable"
 
     if render_method == "hero_lipsync":
+        if ev.get("lipsync_review_status") == "NEEDS_HUMAN_AV_REVIEW":
+            return "hero_lipsync_needs_human_review"
         if not ev.get("duration_ok"):
             return "hero_lipsync_unverified"
 
@@ -1302,6 +1333,7 @@ _RULES = {
     "sha_mismatch": "block_for_manual_review",
     "ocr_unavailable": "rerun_qa",
     "hero_lipsync_unverified": "regenerate_provider_video",
+    "hero_lipsync_needs_human_review": "block_for_manual_review",
     "duration_shortfall": "regenerate_provider_video",
     "unknown_contract_failure": "block_for_manual_review",
     "provider_job_retryable_failure": "resubmit_provider_job",

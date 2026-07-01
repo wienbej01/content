@@ -1,0 +1,156 @@
+{
+  "hero_units": [
+    {
+      "active_artifact_id": "art_2e6ccc4898054116b5f6199b61e8f3e3",
+      "approved_validation_id": null,
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "final_audio_source": "master_narration",
+      "id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "label": "S000",
+      "metadata": {
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave.",
+        "prompt_revision_id": null,
+        "provider_visual_prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave."
+      },
+      "model": "seedance_2_0",
+      "provider_audio_usage": "diagnostic_only",
+      "required_duration_ms": 7471,
+      "status": "needs_repair",
+      "visual_role": null
+    },
+    {
+      "active_artifact_id": "art_26bd14141a2a4a4a834b628b3cc9bdda",
+      "approved_validation_id": null,
+      "asset_type": "lipsync_video",
+      "audio_policy": "HERO_SYNC_LOCKED",
+      "final_audio_source": "master_narration",
+      "id": "render_2e05bede01f74698894d1adb45742647",
+      "label": "S002",
+      "metadata": {
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by.",
+        "prompt_revision_id": null,
+        "provider_visual_prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by."
+      },
+      "model": "seedance_2_0",
+      "provider_audio_usage": "diagnostic_only",
+      "required_duration_ms": 5902,
+      "status": "needs_repair",
+      "visual_role": null
+    }
+  ],
+  "provider_jobs": [
+    {
+      "compensated_artifact_path": null,
+      "completed_at": "2026-06-29T17:11:02+08:00",
+      "external_job_id": "b620e03e-eaf0-46d9-8a8a-5b8ef47c0601",
+      "id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+      "operation": "generate_video",
+      "provider": "higgsfield",
+      "render_unit_id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "request": {
+        "asset_type": "lipsync_video",
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+        "audio_policy": "HERO_SYNC_LOCKED",
+        "duration_ms": 7471,
+        "duration_sec": 8,
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_002.png",
+        "model": "seedance_2_0",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI promised managers time for strategy. It gave Show: AI promised managers time for strategy. It gave. Convey: AI promised managers time for strategy. It gave."
+      },
+      "status": "completed",
+      "submitted_at": "2026-06-29T16:57:17+08:00"
+    },
+    {
+      "compensated_artifact_path": null,
+      "completed_at": "2026-06-29T17:11:28+08:00",
+      "external_job_id": "56574211-1a8e-46c2-adf1-404fb3a76cc3",
+      "id": "pjob_dbac171ff851412dacf33ffbfd923211",
+      "operation": "generate_video",
+      "provider": "higgsfield",
+      "render_unit_id": "render_2e05bede01f74698894d1adb45742647",
+      "request": {
+        "asset_type": "lipsync_video",
+        "audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+        "audio_policy": "HERO_SYNC_LOCKED",
+        "duration_ms": 5902,
+        "duration_sec": 6,
+        "image_path": "/home/jacobw/YTchannel/assets/reference/james/canonical/JAMES_MEDIUM_FRONT_NAVY_SWEATER_SPEAKING_002.png",
+        "model": "seedance_2_0",
+        "negative_prompt": "no futuristic holograms, no cyberpunk, no neon, no floating UI, no robots, no garbled text, no readable generated text, no fake logos, no distorted hands, no uncanny valley faces, no random smiling stock-photo people, no sci-fi setting, no overdesigned startup office, no AI dashboard, no motivational poster energy, no random substitute presenter, no inconsistent studio layout, no inconsistent cat appearance, no writing on pages, no handwriting, no reading documents, no books with visible text, no charts with labels, no whiteboards with writing, no spreadsheets, no captions, no subtitles, no text overlays in generated video, no oversized furniture, no desk at chest or neck height, no child-like proportions, no subject dwarfed by furniture",
+        "prompt": "Photorealistic cinematic medium close-up of James, the same person as the reference image. AI buys speed. You buy time back by Show: AI buys speed. You buy time back by. Convey: AI buys speed. You buy time back by."
+      },
+      "status": "completed",
+      "submitted_at": "2026-06-29T16:57:32+08:00"
+    }
+  ],
+  "reason": "Seedance hero units failed current lipsync drift QA",
+  "status": "fail",
+  "validations": [
+    {
+      "created_at": "2026-06-29T17:11:28+08:00",
+      "evidence": {
+        "actual_height": 496,
+        "actual_width": 864,
+        "contract_version": "1.0",
+        "dimensions_ok": true,
+        "duration_delta_ms": 570,
+        "duration_ok": true,
+        "duration_tolerance_ms": 1500,
+        "file_exists": true,
+        "intended_duration_ms": 7471,
+        "issues": [
+          "lipsync_drift_609ms"
+        ],
+        "lipsync_drift_ms": 609,
+        "lipsync_drift_ok": false,
+        "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+        "provenance_ok": true,
+        "render_method": "hero_lipsync",
+        "sha_match": true,
+        "text_policy_ok": true,
+        "video_duration_ms": 8041
+      },
+      "id": "val_f66d57e3da6543cf84da6fdb540090dc",
+      "status": "fail",
+      "subject_id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "validator_name": "qa_media_contract"
+    },
+    {
+      "created_at": "2026-06-29T17:11:29+08:00",
+      "evidence": {
+        "actual_height": 496,
+        "actual_width": 864,
+        "contract_version": "1.0",
+        "dimensions_ok": true,
+        "duration_delta_ms": 139,
+        "duration_ok": true,
+        "duration_tolerance_ms": 1500,
+        "file_exists": true,
+        "intended_duration_ms": 5902,
+        "issues": [
+          "lipsync_drift_158ms"
+        ],
+        "lipsync_drift_ms": 158,
+        "lipsync_drift_ok": false,
+        "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+        "provenance_ok": true,
+        "render_method": "hero_lipsync",
+        "sha_match": true,
+        "text_policy_ok": true,
+        "video_duration_ms": 6041
+      },
+      "id": "val_b41a9202fce94a68a169c2dd86393d63",
+      "status": "fail",
+      "subject_id": "render_2e05bede01f74698894d1adb45742647",
+      "validator_name": "qa_media_contract"
+    }
+  ]
+}

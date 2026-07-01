@@ -1,0 +1,28 @@
+{
+  "production_id": "prod_cbd3c35dfd08431b82b1b6ca9bc675d2",
+  "count": 1,
+  "fail_count": 0,
+  "warn_count": 0,
+  "black_title_count": 0,
+  "status": "pass",
+  "graphics": [
+    {
+      "graphic_id": "render_6ca5beaffcad4356b7562329c73b3037",
+      "label": "S003",
+      "ordinal": 3,
+      "template_type": "unknown",
+      "text": "MORE OUTPUT OR BETTER",
+      "duration_sec": 4.591,
+      "is_black_title_card": false,
+      "is_weak_title": false,
+      "semantic_overlap": 0.0,
+      "framework_alignment": {
+        "applicable": false
+      },
+      "deterministic_provenance_ok": true,
+      "deterministic_provenance_reason": "deterministic renderer provenance verified",
+      "alignment": "pass",
+      "alignment_reason": "graphic has meaningful semantic content"
+    }
+  ]
+}

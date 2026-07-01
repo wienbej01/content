@@ -1,0 +1,321 @@
+{
+  "commands_run_core": [
+    "git status --short",
+    "git log --oneline -8",
+    "find outputs/seedance_truth_test_001 -maxdepth 4 -type f | sort",
+    "ffprobe -v error -show_format -show_streams -of json <media>",
+    "ffmpeg -i <provider mp4> -t 5 -map 0:v:0 -map 0:a:0 -c copy <diagnostic clip>",
+    "ffmpeg -i <media> -vn -ac 1 -ar 16000 -f s16le pipe:1 for envelope correlation"
+  ],
+  "segments": {
+    "S000": {
+      "audio_content_correlation": {
+        "embedded_vs_other_reference": {
+          "S002": {
+            "correlation": 0.2982,
+            "lag_frames": -10,
+            "lag_ms": -200,
+            "overlap_frames": 286
+          }
+        },
+        "embedded_vs_own_reference": {
+          "correlation": 0.4926,
+          "lag_frames": -64,
+          "lag_ms": -1280,
+          "overlap_frames": 310
+        },
+        "method": "20ms mono 16k log-amplitude envelope normalized cross-correlation; diagnostic only, not SyncNet",
+        "own_reference_first_second_half_lags": {
+          "first_half": {
+            "correlation": 0.1383,
+            "lag_frames": -32,
+            "lag_ms": -640,
+            "overlap_frames": 155
+          },
+          "second_half": {
+            "correlation": 0.3009,
+            "lag_frames": 22,
+            "lag_ms": 440,
+            "overlap_frames": 165
+          }
+        }
+      },
+      "compensated_artifact_path": null,
+      "diagnostic_audio_ffprobe_summary": {
+        "format_duration": "8.080563",
+        "streams": [
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": null,
+            "channels": 1,
+            "codec_name": "pcm_s16le",
+            "codec_type": "audio",
+            "duration": "8.080562",
+            "height": null,
+            "index": 0,
+            "r_frame_rate": "0/0",
+            "sample_rate": "48000",
+            "start_time": null,
+            "width": null
+          }
+        ]
+      },
+      "diagnostic_extracted_audio_path": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_cb5166ba65e74cf593205faf4bab3738.diagnostic_audio.wav",
+      "duration_ms": {
+        "embedded_audio_stream": 8080,
+        "reference_audio_format": 7471,
+        "reference_audio_stream": 7471,
+        "video_format": 8080,
+        "video_stream": 8042
+      },
+      "external_job_id": "b620e03e-eaf0-46d9-8a8a-5b8ef47c0601",
+      "provider_job_id": "pjob_cb5166ba65e74cf593205faf4bab3738",
+      "qa_validation": {
+        "created_at": "2026-06-29T17:11:28+08:00",
+        "evidence": {
+          "actual_height": 496,
+          "actual_width": 864,
+          "contract_version": "1.0",
+          "dimensions_ok": true,
+          "duration_delta_ms": 570,
+          "duration_ok": true,
+          "duration_tolerance_ms": 1500,
+          "file_exists": true,
+          "intended_duration_ms": 7471,
+          "issues": [
+            "lipsync_drift_609ms"
+          ],
+          "lipsync_drift_ms": 609,
+          "lipsync_drift_ok": false,
+          "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+          "provenance_ok": true,
+          "render_method": "hero_lipsync",
+          "sha_match": true,
+          "text_policy_ok": true,
+          "video_duration_ms": 8041
+        },
+        "id": "val_f66d57e3da6543cf84da6fdb540090dc",
+        "status": "fail",
+        "subject_id": "render_c46c40f340554930bd7d47e48c9e5979",
+        "validator_name": "qa_media_contract"
+      },
+      "reference_audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+      "reference_audio_sha256": "d9f10bce74c7eb68c3ca3654f0917cc5b3c354e9c719c03ad33cf3e55d3e04f0",
+      "reference_ffprobe_summary": {
+        "format_duration": "7.471000",
+        "streams": [
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": null,
+            "channels": 1,
+            "codec_name": "pcm_s16le",
+            "codec_type": "audio",
+            "duration": "7.471000",
+            "height": null,
+            "index": 0,
+            "r_frame_rate": "0/0",
+            "sample_rate": "48000",
+            "start_time": null,
+            "width": null
+          }
+        ]
+      },
+      "render_unit_final_audio_source": "master_narration",
+      "render_unit_id": "render_c46c40f340554930bd7d47e48c9e5979",
+      "render_unit_provider_audio_usage": "diagnostic_only",
+      "request_audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_c46c40f340554930bd7d47e48c9e5979.wav",
+      "request_duration_ms": 7471,
+      "request_duration_sec": 8,
+      "video_ffprobe_summary": {
+        "format_duration": "8.080000",
+        "streams": [
+          {
+            "avg_frame_rate": "24/1",
+            "channel_layout": null,
+            "channels": null,
+            "codec_name": "h264",
+            "codec_type": "video",
+            "duration": "8.041667",
+            "height": 496,
+            "index": 0,
+            "r_frame_rate": "24/1",
+            "sample_rate": null,
+            "start_time": "0.000000",
+            "width": 864
+          },
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": "stereo",
+            "channels": 2,
+            "codec_name": "aac",
+            "codec_type": "audio",
+            "duration": "8.080000",
+            "height": null,
+            "index": 1,
+            "r_frame_rate": "0/0",
+            "sample_rate": "44100",
+            "start_time": "0.000000",
+            "width": null
+          }
+        ]
+      },
+      "video_path": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_cb5166ba65e74cf593205faf4bab3738.mp4",
+      "video_sha256": "732ba0c68c410e465a087a618606ab2f10329ad81ac45e846fa35f3addb36442"
+    },
+    "S002": {
+      "audio_content_correlation": {
+        "embedded_vs_other_reference": {
+          "S000": {
+            "correlation": 0.2332,
+            "lag_frames": -4,
+            "lag_ms": -80,
+            "overlap_frames": 304
+          }
+        },
+        "embedded_vs_own_reference": {
+          "correlation": 0.2892,
+          "lag_frames": 39,
+          "lag_ms": 780,
+          "overlap_frames": 265
+        },
+        "method": "20ms mono 16k log-amplitude envelope normalized cross-correlation; diagnostic only, not SyncNet",
+        "own_reference_first_second_half_lags": {
+          "first_half": {
+            "correlation": 0.6342,
+            "lag_frames": 35,
+            "lag_ms": 700,
+            "overlap_frames": 113
+          },
+          "second_half": {
+            "correlation": 0.3499,
+            "lag_frames": 47,
+            "lag_ms": 940,
+            "overlap_frames": 101
+          }
+        }
+      },
+      "compensated_artifact_path": null,
+      "diagnostic_audio_ffprobe_summary": {
+        "format_duration": "6.060417",
+        "streams": [
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": null,
+            "channels": 1,
+            "codec_name": "pcm_s16le",
+            "codec_type": "audio",
+            "duration": "6.060417",
+            "height": null,
+            "index": 0,
+            "r_frame_rate": "0/0",
+            "sample_rate": "48000",
+            "start_time": null,
+            "width": null
+          }
+        ]
+      },
+      "diagnostic_extracted_audio_path": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_dbac171ff851412dacf33ffbfd923211.diagnostic_audio.wav",
+      "duration_ms": {
+        "embedded_audio_stream": 6060,
+        "reference_audio_format": 5902,
+        "reference_audio_stream": 5902,
+        "video_format": 6060,
+        "video_stream": 6042
+      },
+      "external_job_id": "56574211-1a8e-46c2-adf1-404fb3a76cc3",
+      "provider_job_id": "pjob_dbac171ff851412dacf33ffbfd923211",
+      "qa_validation": {
+        "created_at": "2026-06-29T17:11:29+08:00",
+        "evidence": {
+          "actual_height": 496,
+          "actual_width": 864,
+          "contract_version": "1.0",
+          "dimensions_ok": true,
+          "duration_delta_ms": 139,
+          "duration_ok": true,
+          "duration_tolerance_ms": 1500,
+          "file_exists": true,
+          "intended_duration_ms": 5902,
+          "issues": [
+            "lipsync_drift_158ms"
+          ],
+          "lipsync_drift_ms": 158,
+          "lipsync_drift_ok": false,
+          "lipsync_qa_method": "qa_lipsync.detect_lipsync_drift_ms",
+          "provenance_ok": true,
+          "render_method": "hero_lipsync",
+          "sha_match": true,
+          "text_policy_ok": true,
+          "video_duration_ms": 6041
+        },
+        "id": "val_b41a9202fce94a68a169c2dd86393d63",
+        "status": "fail",
+        "subject_id": "render_2e05bede01f74698894d1adb45742647",
+        "validator_name": "qa_media_contract"
+      },
+      "reference_audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+      "reference_audio_sha256": "ab70baf73c3f021fe5a307e6aab478314a82afcc023d33e66979bab51c6d2dde",
+      "reference_ffprobe_summary": {
+        "format_duration": "5.902000",
+        "streams": [
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": null,
+            "channels": 1,
+            "codec_name": "pcm_s16le",
+            "codec_type": "audio",
+            "duration": "5.902000",
+            "height": null,
+            "index": 0,
+            "r_frame_rate": "0/0",
+            "sample_rate": "48000",
+            "start_time": null,
+            "width": null
+          }
+        ]
+      },
+      "render_unit_final_audio_source": "master_narration",
+      "render_unit_id": "render_2e05bede01f74698894d1adb45742647",
+      "render_unit_provider_audio_usage": "diagnostic_only",
+      "request_audio_path": "/home/jacobw/YTchannel/Videos/Projects/how_to_use_ai_to_protect_deep_work_time/narration/hero_audio_slices/render_2e05bede01f74698894d1adb45742647.wav",
+      "request_duration_ms": 5902,
+      "request_duration_sec": 6,
+      "video_ffprobe_summary": {
+        "format_duration": "6.060000",
+        "streams": [
+          {
+            "avg_frame_rate": "24/1",
+            "channel_layout": null,
+            "channels": null,
+            "codec_name": "h264",
+            "codec_type": "video",
+            "duration": "6.041667",
+            "height": 496,
+            "index": 0,
+            "r_frame_rate": "24/1",
+            "sample_rate": null,
+            "start_time": "0.000000",
+            "width": 864
+          },
+          {
+            "avg_frame_rate": "0/0",
+            "channel_layout": "stereo",
+            "channels": 2,
+            "codec_name": "aac",
+            "codec_type": "audio",
+            "duration": "6.060000",
+            "height": null,
+            "index": 1,
+            "r_frame_rate": "0/0",
+            "sample_rate": "44100",
+            "start_time": "0.000000",
+            "width": null
+          }
+        ]
+      },
+      "video_path": "/home/jacobw/YTchannel/assets/media/prod_cbd3c35dfd08431b82b1b6ca9bc675d2/pjob_dbac171ff851412dacf33ffbfd923211.mp4",
+      "video_sha256": "efdd4dab051e701431556e8f3f0b201b3cd46b3fe08ab98bd20b5011e0a88ec7"
+    }
+  },
+  "verdict_basis": "unpaid local artifact triage only"
+}

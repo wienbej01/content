@@ -1,0 +1,4 @@
+file 'work/S000_hero_provider_audio_tail_safe.mp4'
+file 'work/S001_video_only_canonical_narration.mp4'
+file 'work/S002_hero_provider_audio_tail_safe.mp4'
+file 'work/S003_deterministic_graphic_canonical_narration.mp4'

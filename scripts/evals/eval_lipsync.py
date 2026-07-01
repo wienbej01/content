@@ -262,14 +262,14 @@ def analyze_video(video_path: Path, subject_id: str = "", hero_framing: str = No
             # Determine policy from hero framing
             policy_name = _get_policy_from_framing(hero_framing)
 
-            # Use evaluate_lipsync to get verdict with tiered thresholds
+            # Use evaluate_lipsync to get verdict with tiered thresholds. This
+            # fallback is not face-aware; low-confidence/no-face output is not
+            # proof of mouth/audio drift and must be routed to human A/V review.
             verdict = evaluate_lipsync(
                 offset_ms=abs(offset_ms),
                 confidence=confidence,
                 policy_name=policy_name,
             )
-
-            status = verdict.verdict  # pass, warn, or fail
 
             # Get policy for threshold details
             try:
@@ -291,6 +291,18 @@ def analyze_video(video_path: Path, subject_id: str = "", hero_framing: str = No
                 }
                 policy_grade = "diagnostic"
 
+            min_confidence = thresholds.get("min_confidence", 0.0)
+            if confidence is None or confidence < min_confidence:
+                status = "needs_human_av_review"
+                reason = (
+                    f"No confident face-track lipsync evidence available "
+                    f"(confidence {confidence if confidence is not None else 'None'} "
+                    f"below minimum {min_confidence})."
+                )
+            else:
+                status = verdict.verdict  # pass, warn, or fail
+                reason = verdict.reason
+
             return {
                 "eval_name": "lipsync",
                 "method": "mouth_motion_proxy",
@@ -302,7 +314,7 @@ def analyze_video(video_path: Path, subject_id: str = "", hero_framing: str = No
                 "policy_grade": policy_grade,
                 "thresholds": thresholds,
                 "status": status,
-                "reason": verdict.reason,
+                "reason": reason,
                 "dependency_status": "available" if HAS_NUMPY else "blocked_dependency",
                 "provisional": True,
                 "note": "Fallback proxy: audio envelope vs visual frame-diff correlation. "

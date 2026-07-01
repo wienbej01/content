@@ -43,7 +43,7 @@ REQUIRED TARGETED TESTS (ALL PASS)
    (included in combined run below)
 
 Combined run (all required S15 regression tests):
-   ======================== 160 passed, 1 skipped in 10.35s =======================
+   ======================== 173 passed, 1 skipped in 12.27s =======================
    Breakdown:
    - test_frame_sampling.py: 13/13 passed
    - test_semantic_role_qa.py: 16/16 passed
@@ -55,7 +55,7 @@ Combined run (all required S15 regression tests):
    - test_s13_t005_integration_regression.py: 14 passed, 1 skipped
    - test_audio_continuity.py: 18/18 passed
 
-REQUIRED SET TOTAL: 160 passed, 1 skipped
+REQUIRED SET TOTAL: 173 passed, 1 skipped
 (the 1 skip is pre-existing: test_assembly_produces_segment_timeline wraps
 a hardcoded production-id manifest that doesn't exist in isolated test DBs)
 
