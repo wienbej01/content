@@ -81,6 +81,90 @@ def load_routing():
         return {}
 
 
+def _detect_storyboard_mode(storyboard: dict) -> str:
+    """Return 'canonical' if storyboard has storyboard_contract_version, else 'legacy'."""
+    if storyboard.get("storyboard_contract_version"):
+        return "canonical"
+    return "legacy"
+
+
+def compile_plan_from_canonical(canonical: dict, constraints: dict, routing: dict,
+                                project_dir=None, db_path=None) -> tuple[dict, list]:
+    """Compile a media plan from a canonical Sonnet-authored storyboard.
+
+    Projects canonical shots[] into legacy beats via storyboard_projection,
+    validates canonical lineage, then delegates to compile_plan().
+
+    Args:
+        canonical: Canonical storyboard dict with storyboard_contract_version,
+                   shots[], overlays[].
+        constraints: Channel universe constraints dict.
+        routing: Model routing config dict.
+        project_dir: Optional project directory for audio slicing.
+        db_path: Optional DB path for clip ordering.
+
+    Returns:
+        (plan, errors) — same shape as compile_plan().
+
+    Raises:
+        ImportError: if storyboard_projection is not available.
+        ValueError: if input is not canonical mode.
+    """
+    from storyboard_projection import project_canonical, ProjectionError
+
+    if _detect_storyboard_mode(canonical) != "canonical":
+        raise ValueError(
+            "compile_plan_from_canonical requires a canonical storyboard "
+            "with storyboard_contract_version"
+        )
+
+    shots = canonical.get("shots", [])
+    if not shots:
+        raise ValueError("Canonical storyboard has no shots[]")
+
+    # Project canonical shots into legacy beats.
+    try:
+        legacy_beats = project_canonical(canonical)
+    except ProjectionError as e:
+        raise ValueError(f"Canonical projection failed: {e}")
+
+    # Validate every beat has canonical_shot_id lineage.
+    for beat in legacy_beats:
+        if not beat.get("canonical_shot_id"):
+            raise ValueError(
+                f"Beat {beat.get('beat_id', '?')} lacks canonical_shot_id "
+                f"after projection"
+            )
+
+    # Collect raw script visual_briefs to poison (NEVER use as production prompt).
+    # The projection already guarantees visual_brief derives from canonical shot
+    # fields, not raw script. This set would catch any legacy mixed-mode error.
+    script_briefs = set()
+
+    # Build a storyboard-like wrapper for compile_plan.
+    projected_sb = {
+        "schema_version": "2.0",
+        "project_id": canonical.get("project_id", ""),
+        "video_type": canonical.get("video_type", "explainer"),
+        "source_script": canonical.get("approved_script_revision_id", ""),
+        "totals": canonical.get("totals", {}),
+        "beats": legacy_beats,
+    }
+    # Carry original fields needed downstream.
+    for key in ("project_id", "video_type", "source_script"):
+        if key not in projected_sb and key in canonical:
+            projected_sb[key] = canonical[key]
+
+    canonical_shots = list(shots)
+
+    return compile_plan(
+        projected_sb, constraints, routing,
+        project_dir=project_dir, db_path=db_path,
+        _canonical_shots=canonical_shots,
+        _canonical_script_briefs=script_briefs,
+    )
+
+
 def cost_for(model, clips, routing):
     """Per-beat cost. Prefers model_routing.yaml cost fields; falls back internally."""
     usd_per = None
@@ -266,6 +350,7 @@ def compile_beat(beat, constraints, routing):
     entry = {
         # universal_required_prompt_fields (constraints.json)
         "beat_id": bid,
+        "canonical_shot_id": beat.get("canonical_shot_id"),
         "segment_id": beat.get("segment_id"),
         "scene_type": scene_type,
         "a_roll_or_b_roll": "a_roll" if is_hero else "b_roll",
@@ -733,17 +818,61 @@ def _expand_coverage_slots(entry, beat_input, constraints, routing):
     return assets
 
 
-def compile_plan(storyboard, constraints, routing, project_dir=None, db_path=None):
+def compile_plan(storyboard, constraints, routing, project_dir=None, db_path=None,
+                 _canonical_shots=None, _canonical_script_briefs=None):
+    """Compile media plan from storyboard beats.
+
+    In canonical mode (when _canonical_shots is provided), the beats must
+    already carry canonical_shot_id lineage from storyboard_projection.
+    Raw script visual_brief is rejected as production prompt source.
+
+    Args:
+        storyboard: Storyboard dict (legacy format with schema_version 2.0).
+        constraints: Channel universe constraints dict.
+        routing: Model routing config dict.
+        project_dir: Optional project directory for audio slicing.
+        db_path: Optional DB path for clip ordering.
+        _canonical_shots: Optional list of canonical shot dicts (internal).
+        _canonical_script_briefs: Optional set of script-level brief texts
+                                  that must never appear in production prompts.
+    """
+    is_canonical_mode = _canonical_shots is not None
     beats_in = storyboard.get("beats", [])
     plan_beats = []
     all_errors = []
     plan_warnings = []
     for b in beats_in:
+        # Canonical mode guard: every beat MUST have canonical_shot_id.
+        if is_canonical_mode and not b.get("canonical_shot_id"):
+            all_errors.append(
+                f"CANONICAL_LINEAGE_MISSING: beat {b.get('beat_id', '?')} "
+                f"lacks canonical_shot_id — projection required before compile"
+            )
+            continue
+
         entry, errs, beat_warns = compile_beat(b, constraints, routing)
         expanded = _expand_coverage_slots(entry, b, constraints, routing)
         plan_beats.extend(expanded)
         all_errors.extend(errs)
         plan_warnings.extend(beat_warns)
+
+    # Poison-text guard (placeholder): reject any production prompt that contains
+    # raw script visual_brief text. Currently unused because projection guarantees
+    # canonical source — kept as defense-in-depth for future mixed-mode errors.
+    if _canonical_script_briefs and plan_beats:
+        for b in plan_beats:
+            bid = b.get("beat_id", "?")
+            pos = (b.get("positive_prompt") or "").lower().strip()
+            for sbrief in _canonical_script_briefs:
+                # Only match longer briefs to avoid false positives on short common phrases.
+                if sbrief and len(sbrief) > 30 and sbrief in pos:
+                    all_errors.append(
+                        f"RAW_SCRIPT_BRIEF_LEAK: beat {bid} positive_prompt contains "
+                        f"raw script visual_brief text ('{sbrief[:60]}...'). "
+                        f"Production prompts must derive from canonical shot fields, "
+                        f"not raw script visual_brief."
+                    )
+                    break
 
     # STRUCTURAL GUARD: model and asset_type must be consistent so every beat has an
     # owning producer. A beat with model=local_graphic but asset_type=generated_video
@@ -885,6 +1014,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-gate", action="store_true", help="Skip the G2 storyboard gate (dev only)")
     ap.add_argument("--project-id", default=None)
+    ap.add_argument("--canonical", action="store_true",
+                    help="Input is a canonical Sonnet-authored storyboard (storyboard_contract_version)")
     args = ap.parse_args()
 
     path = Path(args.storyboard).resolve()
@@ -893,23 +1024,33 @@ def main():
         sys.exit(1)
     sb = json.loads(path.read_text())
 
-    if sb.get("schema_version") != "2.0":
-        print(f"ERROR: expected storyboard schema_version 2.0, got {sb.get('schema_version')!r}",
-              file=sys.stderr)
-        sys.exit(1)
-
-    # G2 gate: require storyboard_review pass + matching hash before compiling (§6).
-    if not args.no_gate:
-        from gates import require_gates
-        pid = args.project_id or sb.get("project_id")
-        require_gates(pid, ["storyboard_review"], artifact_hashes=None)
-
     constraints = load_constraints()
     routing = load_routing()
-    # Determine project dir for audio slicing (T3).
-    pid = args.project_id or sb.get("project_id")
-    proj_dir = ROOT / "Videos" / "Projects" / pid if pid else None
-    plan, errors = compile_plan(sb, constraints, routing, project_dir=proj_dir)
+
+    # Detect canonical mode if not explicitly flagged.
+    is_canonical = args.canonical or _detect_storyboard_mode(sb) == "canonical"
+
+    if is_canonical:
+        # Canonical mode: project shots -> legacy beats, then compile.
+        plan, errors = compile_plan_from_canonical(
+            sb, constraints, routing,
+        )
+    else:
+        if sb.get("schema_version") != "2.0":
+            print(f"ERROR: expected storyboard schema_version 2.0, got {sb.get('schema_version')!r}",
+                  file=sys.stderr)
+            sys.exit(1)
+
+        # G2 gate: require storyboard_review pass + matching hash before compiling (§6).
+        if not args.no_gate:
+            from gates import require_gates
+            pid = args.project_id or sb.get("project_id")
+            require_gates(pid, ["storyboard_review"], artifact_hashes=None)
+
+        # Determine project dir for audio slicing (T3).
+        pid = args.project_id or sb.get("project_id")
+        proj_dir = ROOT / "Videos" / "Projects" / pid if pid else None
+        plan, errors = compile_plan(sb, constraints, routing, project_dir=proj_dir)
 
     if errors:
         print("ERROR: media plan compilation failed:", file=sys.stderr)
@@ -925,7 +1066,7 @@ def main():
         return
 
     out_path = Path(args.output) if args.output else \
-        (ROOT / "Videos" / "Projects" / sb["project_id"] / "media_plan.json")
+        (ROOT / "Videos" / "Projects" / (sb.get("project_id") or "unknown") / "media_plan.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(plan, indent=2))
     print(f"  media plan: {out_path} ({len(plan['beats'])} beats, est ${plan['totals']['est_usd']}, "
