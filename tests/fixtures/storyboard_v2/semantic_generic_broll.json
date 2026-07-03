@@ -1,0 +1,100 @@
+{
+  "storyboard_contract_version": "1.0",
+  "approved_script_revision_id": "rev_20250703_a1b2c3",
+  "approved_script_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authoring_model_profile": "storyboard_sonnet5",
+  "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908",
+  "claim_inventory": [
+    {
+      "claim_id": "C001",
+      "claim_text": "AI models can exhibit unexpected capabilities at scale.",
+      "claim_type": "narrative_premise",
+      "source_refs": ["src_research/ai_scaling.txt"],
+      "segment_ids": ["S001"],
+      "visual_obligation": "must_show",
+      "strength": "confirmed"
+    }
+  ],
+  "narrative_beats": [
+    {
+      "beat_id": "NB001",
+      "segment_id": "S001",
+      "act": 1,
+      "order": 1,
+      "narration_text": "AI is transforming how we think about intelligence.",
+      "narrative_function": "hook",
+      "visual_function": "establishes",
+      "viewer_question": "What does AI intelligence really mean?",
+      "retention_role": "curiosity_open",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001", "SH002"],
+      "overlay_ids": []
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "SH001",
+      "segment_id": "S001",
+      "visual_role": "hero_lipsync",
+      "visual_concept": "James introducing the topic from his studio desk",
+      "why_this_visual": "Establishes James as the trusted narrator while the topic is introduced to the viewer.",
+      "narrative_alignment": "Direct address from host builds trust before presenting technical claims about AI scaling.",
+      "claim_refs": ["C001"],
+      "literal_vs_metaphorical": "literal",
+      "must_show": ["James at desk", "warm lighting"],
+      "must_avoid": ["generic office background"],
+      "planned_duration_sec": 8.0,
+      "min_usable_duration_sec": 4.0,
+      "max_usable_duration_sec": 12.0,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Can be trimmed."
+    },
+    {
+      "shot_id": "SH002",
+      "segment_id": "S001",
+      "visual_role": "broll_metaphorical",
+      "visual_concept": "Business people in office walking around a corporate setting",
+      "why_this_visual": "Shows the professional environment where these decisions are made.",
+      "narrative_alignment": "Generic professional setting supports the topic.",
+      "claim_refs": ["C001"],
+      "literal_vs_metaphorical": "literal",
+      "must_show": ["office workers", "modern workspace"],
+      "must_avoid": [],
+      "planned_duration_sec": 5.0,
+      "min_usable_duration_sec": 3.0,
+      "max_usable_duration_sec": 6.5,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Trim to fit."
+    }
+  ],
+  "overlays": [],
+  "segment_work_orders": [
+    {
+      "segment_id": "S001",
+      "narration_text_exact": "AI is transforming how we think about intelligence.",
+      "argument_summary": "Opening claim that AI represents a fundamental shift in intelligence.",
+      "viewer_question": "How is AI changing intelligence?",
+      "retention_role": "hook_curiosity",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001", "SH002"],
+      "overlay_ids": [],
+      "broll_alignment_instruction": "B-roll should be specific and grounded.",
+      "graphic_alignment_instruction": "No graphics.",
+      "conclusion_alignment_instruction": "N/A.",
+      "qa_acceptance_criteria": ["test pass"]
+    }
+  ],
+  "feedback_policy": {
+    "repair_authority": "sonnet5_only",
+    "max_repair_rounds": 3,
+    "block_on_unresolved": true
+  },
+  "timing_policy": {
+    "planned_is_intent": true,
+    "observed_is_truth": true,
+    "drift_resolution_order": ["trim_ok"]
+  },
+  "approval": {
+    "status": "draft"
+  }
+}

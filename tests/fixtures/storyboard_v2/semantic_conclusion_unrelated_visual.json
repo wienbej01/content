@@ -1,0 +1,100 @@
+{
+  "storyboard_contract_version": "1.0",
+  "approved_script_revision_id": "rev_20250703_a1b2c3",
+  "approved_script_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authoring_model_profile": "storyboard_sonnet5",
+  "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908",
+  "claim_inventory": [
+    {
+      "claim_id": "C001",
+      "claim_text": "AI is accelerating faster than most people realize.",
+      "claim_type": "conclusion",
+      "source_refs": ["src_research/ai_acceleration.txt"],
+      "segment_ids": ["S001"],
+      "visual_obligation": "must_show",
+      "strength": "confirmed"
+    }
+  ],
+  "narrative_beats": [
+    {
+      "beat_id": "NB001",
+      "segment_id": "S001",
+      "act": 6,
+      "order": 1,
+      "narration_text": "AI is accelerating faster than most people realize.",
+      "narrative_function": "closing_identity_shift",
+      "visual_function": "summarizes",
+      "viewer_question": "What does the future hold?",
+      "retention_role": "closing_conviction",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001", "SH002"],
+      "overlay_ids": []
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "SH001",
+      "segment_id": "S001",
+      "visual_role": "hero_lipsync",
+      "visual_concept": "James delivering final words",
+      "why_this_visual": "The host closes the episode with authority and conviction about AI acceleration.",
+      "narrative_alignment": "Closing delivery reinforces the takeaway that AI is accelerating rapidly.",
+      "claim_refs": ["C001"],
+      "literal_vs_metaphorical": "literal",
+      "must_show": ["James at desk"],
+      "must_avoid": [],
+      "planned_duration_sec": 5.0,
+      "min_usable_duration_sec": 3.0,
+      "max_usable_duration_sec": 8.0,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Can be trimmed."
+    },
+    {
+      "shot_id": "SH002",
+      "segment_id": "S001",
+      "visual_role": "broll_metaphorical",
+      "visual_concept": "A generic calm landscape with trees and sunlight",
+      "why_this_visual": "Provides a peaceful closing image for the episode.",
+      "narrative_alignment": "A calm natural setting provides a visual break at the end.",
+      "claim_refs": [],
+      "literal_vs_metaphorical": "metaphorical",
+      "must_show": ["nature", "calm"],
+      "must_avoid": [],
+      "planned_duration_sec": 5.0,
+      "min_usable_duration_sec": 3.0,
+      "max_usable_duration_sec": 6.5,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Trim to fit."
+    }
+  ],
+  "overlays": [],
+  "segment_work_orders": [
+    {
+      "segment_id": "S001",
+      "narration_text_exact": "AI is accelerating faster than most people realize.",
+      "argument_summary": "Closing argument that the evidence presented throughout this video proves AI acceleration is real and accelerating.",
+      "viewer_question": "What does the future hold?",
+      "retention_role": "closing_conviction",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001", "SH002"],
+      "overlay_ids": [],
+      "broll_alignment_instruction": "Closing B-roll should reinforce the acceleration message.",
+      "graphic_alignment_instruction": "No graphics.",
+      "conclusion_alignment_instruction": "The conclusion visuals must reinforce the acceleration takeaway.",
+      "qa_acceptance_criteria": ["closing shot conveys conviction", "no unrelated visuals"]
+    }
+  ],
+  "feedback_policy": {
+    "repair_authority": "sonnet5_only",
+    "max_repair_rounds": 3,
+    "block_on_unresolved": true
+  },
+  "timing_policy": {
+    "planned_is_intent": true,
+    "observed_is_truth": true,
+    "drift_resolution_order": ["trim_ok"]
+  },
+  "approval": {
+    "status": "draft"
+  }
+}
