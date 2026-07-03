@@ -1,0 +1,786 @@
+# Storyboard SSOT sprint plan for `wienbej01/content`
+
+Scope: repo audit + sprint plan only, per the uploaded instruction brief. No implementation, PR, or media generation. 
+
+## A. Executive diagnosis
+
+The current system has a “storyboard” artifact, but not a true storyboarding layer. It mostly converts script segments into compliant production slots. That is useful plumbing, but it is not creative direction. The pipeline is currently optimizing for “not breaking constraints” rather than “making the viewer understand, care, and keep watching.”
+
+The blunt diagnosis: the system is trying to automate editorial taste with Python defaults. That is how you get well-structured mediocrity at scale.
+
+The most important failure points are:
+
+| Hypothesis                                                                  |   Verdict | Repo evidence                                                                                                                                                                                             |
+| --------------------------------------------------------------------------- | --------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Storyboard generation is deterministic/index-based.                      | Confirmed | `storyboard.py` states “No LLM calls” and “deterministic rule-based defaults,” then classifies first/last segments as A-roll, every third middle segment as James-present, and everything else as B-roll. |
+| 2. LLM optimization is shallow.                                             | Confirmed | The LLM pass only optimizes `scene_type` and `james_presence`; it does not design B-roll, overlays, evidence visuals, insert shots, or edit rhythm.                                                       |
+| 3. Script `visual_brief` is carrying too much visual responsibility.        | Confirmed | `generate_media.py` still validates that every script segment has `visual_brief`, builds prompts from it, and documents the pipeline as `script.json → generate_media.py`.                                |
+| 4. B-roll is not semantically tied to the argument.                         | Confirmed | The prompt compiler builds prompts from “Scene illustrating: [first 100 chars of narration]” plus generic location/lighting/palette. That is a prompt wrapper, not visual reasoning.                      |
+| 5. Graphics are not a first-class overlay timeline.                         | Confirmed | `assemble.py` supports a fixed lower-third image path and fades, but not timed overlay events for key points, source labels, framework diagrams, comparisons, or callouts.                                |
+| 6. Media prompt compilation consumes limited beat fields.                   | Confirmed | `compile_media_prompts.py` consumes storyboard beats, but the fields are too shallow: `scene_type`, location, lighting, movement, palette, narration excerpt.                                             |
+| 7. Assembly is segment/shot concatenation, not editorial timeline assembly. | Confirmed | Assembly can concatenate multi-shot beds and overlay narration, but there is no generalized overlay timeline.                                                                                             |
+| 8. Current artifacts are too A-roll/generic B-roll heavy.                   | Confirmed | `teaser_02` uses several baked-in James segments and generic office/city/abstract b-roll; no overlay grammar or evidence reinforcement exists.                                                            |
+| 9. Database is not storyboard-aware.                                        | Confirmed | SQLite only models `content_units` and `unit_segments`; no beats, claims, overlays, assets, generation jobs, review outcomes, QA, or feedback loops.                                                      |
+| 10. Review gates do not force visual justification.                         | Confirmed | `review_storyboard.py` checks presence, scene type, crop safety, audio continuity, and all-B-roll, but not narrative alignment or overlay purpose.                                                        |
+| 11. Python/LLM split is wrong.                                              | Confirmed | Python is making crude creative choices; the LLM is only allowed to tweak broad placement. The repo’s own roadmap notes this was a compliance floor, not retention-driven creative direction.             |
+
+## B. Current pipeline map
+
+| Stage                    | Input                 | Module/artifact                    | Output                                               |                               Consumes storyboard? | Logic owner                   | Weakness                                                                                                                                                  |
+| ------------------------ | --------------------- | ---------------------------------- | ---------------------------------------------------- | -------------------------------------------------: | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Research/source log      | Topic, research notes | `research/source_logs/*.json`      | Source log                                           |                                                 No | Human/LLM/manual              | Source logs are project-level, not claim-level. Example source log has original sources but no claim IDs mapped to script beats.                          |
+| Script JSON              | Brief/source log      | `scripts/generated/*.json`         | Script segments with `text`, `visual_brief`, `media` |                                                 No | LLM/manual                    | `visual_brief` becomes a weak pseudo-storyboard. Teaser 01 asks for whiteboards, documents, laptop AI UI, charts, and graphics inside generation prompts. |
+| Script review            | Script JSON           | `scripts/review_script.py`         | Multi-persona review report                          |                                                 No | LLM + Python aggregator       | Good script gate, but visual planning remains script-metadata-level.                                                                                      |
+| Storyboard generation    | Script JSON           | `scripts/storyboard.py`            | Draft storyboard beats                               |                                       Generates it | Python + shallow optional LLM | Deterministic; no semantic B-roll, overlays, claim mapping, or editorial timeline.                                                                        |
+| Storyboard review        | Storyboard JSON       | `scripts/review_storyboard.py`     | Structural QA                                        |                                                Yes | Python                        | Checks compliance floor, not creative quality.                                                                                                            |
+| Media plan review        | Script JSON           | `scripts/review_media_plan.py`     | LLM media review                                     |                                                 No | LLM                           | Reviews script `visual_brief` and `shots`, not storyboard v2. Wrong artifact.                                                                             |
+| Media prompt compilation | Storyboard JSON       | `scripts/compile_media_prompts.py` | Prompt plan                                          |                                                Yes | Python                        | Correct direction, but bad source object. Prompts are generic narration wrappers.                                                                         |
+| Media generation         | Script JSON           | `scripts/generate_media.py`        | MP4 clips + logs                                     | No, except its own lightweight `--storyboard-only` | Python + Higgsfield           | Still script/visual_brief-driven; can spend without approved semantic storyboard unless externally disciplined.                                           |
+| TTS/audio                | Script JSON           | `scripts/tts.py`                   | Narration + manifest                                 |                                                 No | Python + ElevenLabs           | Builds assembly manifest from script, not storyboard timeline.                                                                                            |
+| Assembly                 | Manifest JSON         | `scripts/assemble.py`              | 16:9 + 9:16 videos                                   |                                                 No | Python/FFmpeg                 | Strong deterministic assembly base, but no overlay event model.                                                                                           |
+| Database logging         | Script JSON           | `scripts/content_db.py`            | SQLite content rows                                  |                                                 No | Python                        | Logs coarse production attributes only.                                                                                                                   |
+
+## C. Current storyboard/data model audit
+
+There are currently two different “storyboard-ish” objects:
+
+1. `scripts/storyboard.py` output: beat-level draft storyboard with `beat_id`, `scene_type`, `james_presence`, location, camera, duration, crop safety, and text policy.
+2. `generate_media.py --storyboard-only` output: lightweight coverage plan with `segment_id`, `visual_role`, `scene_type`, narration duration, shot list, model, and risk flags.
+
+Useful current fields:
+
+| Field                                               |           Keep? | Owner                          | Notes                                                                           |
+| --------------------------------------------------- | --------------: | ------------------------------ | ------------------------------------------------------------------------------- |
+| `project_id`, `beat_id`, `source_script_segment_id` |            Keep | Python                         | Deterministic IDs.                                                              |
+| `scene_type`                                        |  Keep but split | LLM proposes, Python validates | Should evolve into `visual_strategy` + `shot_type`; current enum is too coarse. |
+| `james_presence`                                    |            Keep | LLM proposes, Python validates | Useful for A-roll ratio and model routing.                                      |
+| `duration_target_sec`                               |            Keep | Python derived                 | Initial estimate from words is fine; refine after TTS timing.                   |
+| `crop_safety`, `text_policy`, `reference_assets`    |            Keep | Python validates               | Already aligned with constraints.                                               |
+| `location_id`, `camera`, `lighting`, `palette`      | Keep but demote | Python defaults + LLM choice   | Useful production constraints, not story logic.                                 |
+
+Missing fields that must be added:
+
+| Missing field group                                                       | Why it matters                                                                      |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `argument_summary`, `viewer_question`, `retention_role`                   | The system must know what the beat is doing, not just what segment number it is.    |
+| `why_this_visual`, `narrative_alignment`                                  | Required to stop generic B-roll.                                                    |
+| `source_claim_refs`                                                       | Required for evidence visuals and compliance.                                       |
+| `storyboard_shots[]`                                                      | Required to separate narrative beat from generated media unit.                      |
+| `storyboard_overlays[]`                                                   | Required to make graphics post-production overlays rather than standalone filler.   |
+| `overlay timing`, `position`, `style_token`, `animation`, `safe_for_9x16` | Required for actual editing grammar.                                                |
+| `approval_state`, `review_state`, `spend_ready`                           | Required to prevent credit spend before approval.                                   |
+| `fallback_strategy`, `generation_risk`, `qa_requirements`                 | Required because AI video is unreliable on text, hands, screens, charts, and faces. |
+
+The current constraints file already contains the right philosophy: generated readable text is forbidden, post-production overlay is allowed, and “credits spent before storyboard approved” is an automatic fail. The problem is that the pipeline has not made those concepts first-class objects.
+
+## D. Recommended LLM vs Python split
+
+| Pipeline responsibility       | Owner                                    | Reason                                                                          |
+| ----------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Narrative beat extraction     | LLM proposes; Python stores/validates    | Requires semantic interpretation.                                               |
+| Claim extraction              | LLM proposes; Python links to source IDs | LLM can identify claims; Python must prevent unsupported IDs.                   |
+| Source linking                | Python validates; LLM assists            | Source refs must be deterministic and auditable.                                |
+| Semantic B-roll selection     | LLM                                      | This is editorial reasoning. Python doing this is how you got `idx % 3 cinema`. |
+| Overlay concept design        | LLM                                      | Requires deciding what helps comprehension.                                     |
+| Shot prompt writing           | LLM drafts; Python constrains            | Prompt needs visual creativity but must obey rules.                             |
+| Negative prompt construction  | Python                                   | Constraint injection should be deterministic.                                   |
+| Schema validation             | Python                                   | No negotiation. Invalid JSON should fail loudly.                                |
+| Model routing                 | Python                                   | Deterministic based on shot type, risk, audio policy.                           |
+| Cost gate                     | Python                                   | Never trust LLM with spend gates.                                               |
+| Timing calculation            | Python                                   | TTS/ffprobe/timing map driven.                                                  |
+| Audio alignment               | Python                                   | Deterministic media handling.                                                   |
+| Overlay rendering             | Python                                   | FFmpeg/renderer execution.                                                      |
+| Media generation              | Python                                   | External job orchestration and provenance.                                      |
+| Assembly manifest creation    | Python                                   | Contract generation from approved storyboard.                                   |
+| Database persistence          | Python                                   | Durable state and migrations.                                                   |
+| QA report generation          | Python + LLM reviewer                    | Python measures; LLM evaluates creative fit from frames where useful.           |
+| Human feedback ingestion      | Python stores; LLM summarizes            | Store raw feedback; use LLM to turn it into future recommendations.             |
+| Performance feedback analysis | Hybrid                                   | Python calculates metrics; LLM proposes creative lessons.                       |
+
+Direct answer: storyboard creation should be **hybrid**, but with a decisive split. The **semantic storyboard content** should be LLM-generated from an elaborate prompt. The **production contract, validation, approval state, routing, timing, paths, rendering, spend gates, and DB persistence** should be Python-owned.
+
+The LLM gets the pen. Python gets the red stamp.
+
+## E. Target storyboard schema
+
+Use a database-backed logical schema with JSON import/export. The JSON artifact should be a projection of the database, not a separate truth.
+
+### `content_units`
+
+Key fields:
+
+```text
+project_id [python_generated, validated]
+title [llm_generated, human_approved]
+pillar [llm_generated, human_approved]
+episode_type [llm_generated, validated]
+target_audience [llm_generated, validated]
+narrative_promise [llm_generated, human_approved]
+storyboard_version [python_generated]
+approval_state [human_approved, validated]
+created_at, updated_at [python_generated]
+```
+
+### `research_sources`
+
+```text
+source_id [python_generated]
+project_id [python_generated]
+source_type [validated]
+title, author, url, publication_date [llm_generated/manual, validated]
+reliability_tier [llm_generated, validated]
+how_used [llm_generated]
+approved [human_approved]
+```
+
+### `source_claims`
+
+```text
+claim_id [python_generated]
+project_id [python_generated]
+source_id [validated]
+claim_text [llm_generated]
+claim_type: statistic|study|person|framework|date|example|definition [llm_generated, validated]
+requires_visual_reinforcement [llm_generated, validated]
+allowed_visual_treatment [llm_generated, validated]
+citation_status [validated]
+```
+
+### `script_segments`
+
+```text
+segment_id [python_generated]
+project_id [python_generated]
+text [llm_generated, human_approved]
+audio_mode [validated]
+legacy_visual_brief [llm_generated, deprecated]
+word_count [derived]
+```
+
+### `narrative_beats`
+
+```text
+beat_id [python_generated]
+source_script_segment_id [validated]
+narration_text [llm_generated/human_approved]
+narrative_function [llm_generated, validated]
+argument_summary [llm_generated]
+viewer_question [llm_generated]
+retention_role [llm_generated]
+energy_level [llm_generated, validated]
+source_claim_refs [llm_generated, validated]
+```
+
+### `storyboard_beats`
+
+```text
+storyboard_beat_id [python_generated]
+beat_id [validated]
+visual_strategy [llm_generated, validated]
+why_this_visual [llm_generated]
+must_show [llm_generated]
+must_avoid [llm_generated]
+duration_target_sec [derived]
+timing_notes [llm_generated]
+review_status [validated, human_approved]
+```
+
+### `storyboard_shots`
+
+```text
+shot_id [python_generated]
+storyboard_beat_id [validated]
+shot_role [llm_generated, validated]
+visual_concept [llm_generated]
+narrative_alignment [llm_generated, validated]
+literal_vs_metaphorical [llm_generated, validated]
+prompt_positive [llm_generated, validated]
+prompt_negative [python_generated]
+model [python_generated]
+duration_sec [derived]
+crop_safety [validated]
+text_surface_policy [validated]
+generation_risk [llm_generated, validated]
+fallback_strategy [llm_generated]
+reference_assets [llm_generated, validated]
+asset_output_path [python_generated]
+qa_requirements [python_generated]
+```
+
+### `storyboard_overlays`
+
+```text
+overlay_id [python_generated]
+beat_id [validated]
+shot_id/applies_to_visual_bed [validated]
+overlay_type [llm_generated, validated]
+text [llm_generated, validated]
+semantic_purpose [llm_generated, validated]
+trigger_phrase [llm_generated]
+start_time_offset_sec [derived/llm_generated, validated]
+end_time_offset_sec [derived/llm_generated, validated]
+position [llm_generated, validated]
+style_token [python_generated/validated]
+animation [llm_generated, validated]
+max_chars [validated]
+safe_for_9x16 [validated]
+source_ref [validated]
+render_method [python_generated]
+qa_rules [python_generated]
+```
+
+### Other tables
+
+```text
+visual_assets:
+  asset_id, source_type, path, rights_status, reference_role, approved
+
+media_generation_jobs:
+  job_id, shot_id, model, prompt_hash, status, cost_estimate, started_at, completed_at, output_path, provenance_json
+
+assembly_timeline_events:
+  event_id, project_id, event_type, beat_id, shot_id, overlay_id, start_sec, end_sec, layer, render_order
+
+review_reports:
+  review_id, project_id, artifact_type, artifact_id, reviewer_persona, status, score, blocking_issues, warnings, raw_json
+
+compliance_findings:
+  finding_id, project_id, severity, rule_id, affected_artifact_id, status, resolution
+
+qa_results:
+  qa_id, artifact_type, artifact_id, metric_name, metric_value, pass_fail, frame_paths, notes
+
+human_feedback:
+  feedback_id, project_id, artifact_id, stage, feedback_text, action_required, resolution_status
+
+performance_metrics:
+  project_id, video_id, date, views, avg_view_duration, avg_view_pct, retention_curve_json, ctr, likes, comments, subs_gained
+```
+
+## F. Enhanced process design
+
+| Step                             | Inputs                        | Output                                | Owner                           | Acceptance checks                                                                  |
+| -------------------------------- | ----------------------------- | ------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| 1. Research/source log           | Topic, web/source research    | `research/source_logs/{project}.json` | Human/LLM + Python validator    | ≥3 source records or approved original-source exception.                           |
+| 2. Content brief                 | Source log                    | Brief JSON/Markdown                   | LLM                             | Clear promise, audience, evidence, original angle.                                 |
+| 3. Claim inventory               | Source log + brief            | `source_claims[]`                     | LLM proposes, Python validates  | Every factual/study/stat/person claim has source ID or is marked original/opinion. |
+| 4. Script generation             | Brief + claims                | Script JSON                           | LLM                             | No unsupported claims; segment IDs stable.                                         |
+| 5. Script review                 | Script                        | Review report                         | LLM personas + Python aggregate | Hook, retention, brand, audio pass.                                                |
+| 6. Narrative beat extraction     | Script + claims               | `narrative_beats[]`                   | LLM + Python                    | Every script segment maps to one or more beats.                                    |
+| 7. Storyboard generation         | Beats + constraints + sources | `storyboard_v2.json`                  | LLM                             | Every beat has visual strategy, why, shot refs, overlay refs.                      |
+| 8. Creative storyboard pass      | Storyboard draft              | Refined storyboard                    | LLM                             | B-roll specific, overlays purposeful, rhythm intentional.                          |
+| 9. Python validator              | Storyboard draft              | Validation report                     | Python                          | Schema, IDs, claims, text safety, crop, model-routing preconditions.               |
+| 10. LLM repair loop              | Validation report + draft     | Repaired storyboard                   | LLM + Python loop               | Repeat until valid or fail with precise errors.                                    |
+| 11. Storyboard reviewer personas | Valid storyboard              | Creative review report                | LLM personas                    | Narrative alignment, B-roll specificity, overlay relevance, retention rhythm.      |
+| 12. Human approval gate          | Valid + reviewed storyboard   | `approval_state=approved`             | Human                           | No media spend before approval.                                                    |
+| 13. Overlay plan generation      | Approved storyboard           | Overlay render jobs                   | Python from storyboard          | No standalone graphics unless justified.                                           |
+| 14. Media prompt compilation     | Approved storyboard shots     | Media prompt plan                     | Python                          | No raw `visual_brief`; only storyboard shots.                                      |
+| 15. TTS/audio timing             | Script/storyboard             | Narration + timing map                | Python                          | Timing map maps beat IDs to audio offsets.                                         |
+| 16. Shot timing refinement       | Timing map + storyboard       | Updated shot/overlay timing           | Python                          | Total shot coverage matches narration.                                             |
+| 17. Media generation             | Approved media plan           | MP4 assets + jobs                     | Python/external API             | Spend gate, provenance, no banned text surfaces.                                   |
+| 18. Overlay rendering            | Overlay jobs                  | PNG/SVG/video overlays                | Python/FFmpeg first             | Text readable, safe for 16:9 and 9:16.                                             |
+| 19. Assembly                     | Timeline events               | Final 16:9/9:16 videos                | Python/FFmpeg                   | Overlay timing, audio, crop, volume pass.                                          |
+| 20. QA                           | Final videos + frames         | QA report                             | Python + LLM visual reviewer    | Technical + creative QA.                                                           |
+| 21. Feedback writeback           | Review/QA/performance         | DB recommendations                    | Python + LLM                    | Future storyboard prompts receive specific lessons.                                |
+
+Targeted web finding: start overlays with FFmpeg because the repo already uses FFmpeg heavily and FFmpeg is officially positioned as a cross-platform video/audio record/convert/stream tool. Use Manim later for complex explanatory diagrams; current research prototypes show LLM-to-Manim workflows can create structured animation code, but they also rely on constrained prompts, regeneration loops, and human/expert review—too much weight for the immediate rescue sprint. ([FFmpeg][1]) ([arXiv][2]) ([arXiv][3])
+
+## G. Sprint plan
+
+### SB-0001 — Audit current pipeline contracts
+
+Objective: document every current input/output contract from research to assembly.
+
+Owner: Python/auditor.
+
+Files likely touched: `docs/plans/storyboard_v2/PIPELINE_CONTRACT_AUDIT.md`.
+
+Implementation outline: map script JSON, storyboard JSON, prompt plan, media logs, manifest, DB rows.
+
+Data contracts: current artifacts only.
+
+Tests: none; documentation audit.
+
+Acceptance: every module has input/output/legacy dependency listed.
+
+Dependencies: none.
+
+Risk: low.
+
+Persona: auditor.
+
+---
+
+### SB-0002 — Define Storyboard v2 schema
+
+Objective: create the canonical schema for semantic beats, shots, overlays, claims, approval, and production state.
+
+Owner: Python contract; LLM assists field naming.
+
+Files: `schemas/storyboard_v2.schema.json`, `docs/plans/storyboard_v2/STORYBOARD_V2_SCHEMA.md`.
+
+Implementation outline: define JSON Schema with required fields and enums.
+
+Data contracts: `storyboard_v2.project`, `claim_inventory`, `beats`, `shots`, `overlays`, `approval`.
+
+Tests: `tests/test_storyboard_v2_schema.py`.
+
+Acceptance: invalid fixture fails; valid fixture passes; missing `why_this_visual`, `narrative_alignment`, or `semantic_purpose` blocks.
+
+Dependencies: SB-0001.
+
+Risk: medium.
+
+Persona: engineer + auditor.
+
+---
+
+### SB-0003 — Add narrative beat extractor
+
+Objective: extract semantic beats from script segments.
+
+Owner: LLM creative; Python wrapper/validator.
+
+Files: `scripts/extract_narrative_beats.py`, `docs/prompts/NARRATIVE_BEAT_EXTRACTOR.md`.
+
+Implementation outline: Python loads script/source log/constraints, calls LLM, validates beat IDs and segment coverage.
+
+Data contracts: `narrative_beats[]`.
+
+Tests: fixture script → beat JSON; every segment mapped.
+
+Acceptance: no beat may have only generic `argument`; must include viewer question and retention role.
+
+Dependencies: SB-0002.
+
+Risk: medium.
+
+Persona: creative engineer + validator.
+
+---
+
+### SB-0004 — Build claim inventory extractor
+
+Objective: produce claim IDs from script/source logs.
+
+Owner: LLM proposes; Python validates.
+
+Files: `scripts/extract_claim_inventory.py`, `schemas/claim_inventory.schema.json`.
+
+Implementation outline: extract people, studies, stats, dates, named frameworks, and unsupported claims.
+
+Data contracts: `source_claims[]`.
+
+Tests: unsupported claim fixture fails; source-linked claim passes.
+
+Acceptance: every evidence-based overlay or shot can reference a valid `claim_id`.
+
+Dependencies: SB-0002.
+
+Risk: medium.
+
+Persona: engineer + compliance auditor.
+
+---
+
+### SB-0005 — Build semantic storyboard generator
+
+Objective: create `storyboard_v2.json` from script, beats, claims, source log, and channel constraints.
+
+Owner: LLM creative; Python wrapper.
+
+Files: `scripts/generate_storyboard_v2.py`, `docs/prompts/STORYBOARD_V2_GENERATOR.md`.
+
+Implementation outline: prompt packet includes script, beat inventory, claim inventory, constraints, style rules, model limitations, overlay grammar.
+
+Data contracts: full `storyboard_v2`.
+
+Tests: generated/stubbed fixture includes beats, shots, overlays, and visual justifications.
+
+Acceptance: every beat has visual strategy; every B-roll shot has narrative alignment; every overlay has semantic purpose.
+
+Dependencies: SB-0003, SB-0004.
+
+Risk: high.
+
+Persona: creative reviewer + engineer.
+
+---
+
+### SB-0006 — Build LLM repair loop
+
+Objective: turn Python validation failures into precise LLM repair prompts.
+
+Owner: Python loop; LLM repair.
+
+Files: `scripts/repair_storyboard_v2.py`, `scripts/validate_storyboard_v2.py`.
+
+Implementation outline: run validator, emit machine-readable errors, send minimal repair packet, revalidate, cap iterations.
+
+Data contracts: `validation_errors[]`, `repair_attempts[]`.
+
+Tests: invalid fixture repaired by stub; irreparable fixture fails cleanly.
+
+Acceptance: no invalid LLM output proceeds downstream.
+
+Dependencies: SB-0005, SB-0008.
+
+Risk: medium.
+
+Persona: engineer + validator.
+
+---
+
+### SB-0007 — Build overlay planner
+
+Objective: create first-class post-production overlay plan.
+
+Owner: LLM concepts; Python validates/render-contracts.
+
+Files: `scripts/compile_overlays_from_storyboard_v2.py`, `schemas/overlay_plan.schema.json`.
+
+Implementation outline: derive overlay render jobs from approved storyboard overlays.
+
+Data contracts: `overlay_jobs[]`.
+
+Tests: overlay without `semantic_purpose` fails; too-long text fails; source label without valid source fails.
+
+Acceptance: graphics are overlays unless `standalone_graphic_justification` exists.
+
+Dependencies: SB-0005.
+
+Risk: medium.
+
+Persona: motion graphics reviewer + engineer.
+
+---
+
+### SB-0008 — Build storyboard validator
+
+Objective: hard gate all storyboard v2 production contracts.
+
+Owner: Python.
+
+Files: `scripts/validate_storyboard_v2.py`, `tests/test_storyboard_v2_validation.py`.
+
+Implementation outline: validate schema, IDs, required semantic fields, claim refs, overlay text length, text-surface policy, crop safety, approval state.
+
+Data contracts: validation report JSON.
+
+Tests: all fail cases from section I.
+
+Acceptance: invalid semantic storyboard cannot become spend-ready.
+
+Dependencies: SB-0002.
+
+Risk: high.
+
+Persona: validator.
+
+---
+
+### SB-0009 — Build storyboard review gate
+
+Objective: LLM creative review of valid storyboard v2.
+
+Owner: LLM reviewers + Python aggregator.
+
+Files: `scripts/review_storyboard_v2.py`, `docs/reviewer_prompts/storyboard_visual.md`, `storyboard_retention.md`, `storyboard_compliance.md`, `storyboard_broll.md`.
+
+Implementation outline: reviewers score narrative alignment, B-roll specificity, overlay relevance, visual variety, feasibility, risk, source correctness.
+
+Data contracts: `review_reports[]`.
+
+Tests: generic B-roll fixture blocked; irrelevant overlay blocked.
+
+Acceptance: storyboard cannot proceed unless review says `may_proceed=true`.
+
+Dependencies: SB-0008.
+
+Risk: high.
+
+Persona: creative reviewer + auditor.
+
+---
+
+### SB-0010 — Update media compiler to consume storyboard only
+
+Objective: replace script visual brief dependency.
+
+Owner: Python.
+
+Files: `scripts/compile_media_from_storyboard_v2.py`, deprecate/guard `scripts/compile_media_prompts.py`.
+
+Implementation outline: compile prompts from `storyboard_shots`, not script segments.
+
+Data contracts: `media_prompt_plan_v2`.
+
+Tests: fixture containing script `visual_brief` poison text must not appear in media prompts.
+
+Acceptance: no media prompt can be built from raw `visual_brief`.
+
+Dependencies: SB-0008, SB-0009.
+
+Risk: high.
+
+Persona: engineer + validator.
+
+---
+
+### SB-0011 — Add overlay renderer support
+
+Objective: render key points, lower thirds, source labels, framework steps, comparison labels.
+
+Owner: Python/FFmpeg.
+
+Files: `scripts/render_overlays.py`, `brand/overlay_style_tokens.json`.
+
+Implementation outline: generate transparent PNG/SVG/video overlay assets or FFmpeg drawtext filters.
+
+Data contracts: `overlay_jobs[] → overlay_assets[]`.
+
+Tests: render dummy overlays; validate dimensions, alpha, text length.
+
+Acceptance: overlays render for both 16:9 and 9:16 safe zones.
+
+Dependencies: SB-0007.
+
+Risk: medium.
+
+Persona: engineer + motion graphics validator.
+
+---
+
+### SB-0012 — Update assembly timeline to support overlays
+
+Objective: apply overlay events at exact beat/shot offsets.
+
+Owner: Python/FFmpeg.
+
+Files: `scripts/assemble.py`, `schemas/assembly_timeline.schema.json`.
+
+Implementation outline: extend manifest with `timeline_events`; apply overlays by layer and time.
+
+Data contracts: `assembly_timeline_events[]`.
+
+Tests: overlay appears only in expected time window; 16:9/9:16 both pass.
+
+Acceptance: multiple overlays can appear on one visual bed without becoming standalone segments.
+
+Dependencies: SB-0011.
+
+Risk: high.
+
+Persona: engineer + validator.
+
+---
+
+### SB-0013 — Expand SQLite schema
+
+Objective: make storyboard v2 database-backed.
+
+Owner: Python.
+
+Files: `scripts/content_db.py`, `db/migrations/0002_storyboard_v2.sql`.
+
+Implementation outline: add tables for sources, claims, beats, shots, overlays, jobs, timeline events, reviews, compliance, QA, feedback.
+
+Data contracts: DB schema + JSON import/export.
+
+Tests: migration idempotent; import/export roundtrip.
+
+Acceptance: storyboard v2 JSON can be persisted and reconstructed.
+
+Dependencies: SB-0002.
+
+Risk: high.
+
+Persona: database engineer + auditor.
+
+---
+
+### SB-0014 — Add production feedback logging
+
+Objective: store review, generation failure, QA, and human notes as structured feedback.
+
+Owner: Python + LLM summarizer.
+
+Files: `scripts/log_feedback.py`, `scripts/content_db.py`.
+
+Implementation outline: write feedback records tied to beat/shot/overlay/job IDs.
+
+Data contracts: `human_feedback`, `qa_results`, `compliance_findings`.
+
+Tests: feedback attached to invalid shot; future prompt packet includes lesson.
+
+Acceptance: feedback is specific, searchable, and reusable.
+
+Dependencies: SB-0013.
+
+Risk: medium.
+
+Persona: engineer + producer.
+
+---
+
+### SB-0015 — Add regression fixture using flagship/teaser artifact
+
+Objective: preserve current failure as a test fixture.
+
+Owner: Python/auditor.
+
+Files: `tests/fixtures/storyboard_v2/teaser_02_legacy_bad.json`, `tests/test_storyboard_v2_regression.py`.
+
+Implementation outline: create fixture that represents current generic B-roll/overlay absence and ensure v2 validator/reviewer blocks or downgrades it.
+
+Data contracts: fixture JSON.
+
+Tests: old-style storyboard fails v2 spend readiness.
+
+Acceptance: regression test prevents backsliding to generic storyboard.
+
+Dependencies: SB-0008, SB-0009.
+
+Risk: low.
+
+Persona: auditor.
+
+---
+
+### SB-0016 — Add end-to-end dry-run gate before spending credits
+
+Objective: block all media spend unless script, storyboard, review, overlay plan, media plan, timing, cost estimate, and approval pass.
+
+Owner: Python.
+
+Files: `scripts/production_gate.py`, update `scripts/generate_media.py`.
+
+Implementation outline: `production_gate.py PROJECT --dry-run` verifies approval state and downstream artifacts.
+
+Data contracts: `spend_readiness_report.json`.
+
+Tests: unapproved storyboard blocks; approved fixture passes dry-run; direct `generate_media.py script.json` warns/fails in production mode.
+
+Acceptance: credits cannot be spent before storyboard approval.
+
+Dependencies: SB-0008, SB-0010, SB-0013 optional.
+
+Risk: high.
+
+Persona: validator + production engineer.
+
+## H. Database migration plan
+
+Current DB should be evolved, not thrown away. Keep `content_units` and `unit_segments` for backward compatibility, but stop treating them as the production record.
+
+Migration sequence:
+
+1. Add `db/migrations/0002_storyboard_v2.sql`.
+2. Add tables: `research_sources`, `source_claims`, `script_segments`, `narrative_beats`, `storyboard_beats`, `storyboard_shots`, `storyboard_overlays`, `visual_assets`, `media_generation_jobs`, `assembly_timeline_events`, `review_reports`, `compliance_findings`, `qa_results`, `human_feedback`, `performance_metrics`.
+3. Add CLI commands:
+
+```bash
+python scripts/content_db.py migrate
+python scripts/content_db.py import-storyboard scripts/generated/{project}_storyboard_v2.json
+python scripts/content_db.py export-storyboard {project_id} --output scripts/generated/{project}_storyboard_v2.export.json
+python scripts/content_db.py show-storyboard {project_id}
+python scripts/content_db.py log-review {project_id} review.json
+python scripts/content_db.py log-qa {project_id} qa.json
+```
+
+Backward compatibility:
+
+* Old script JSON remains usable only as an import source.
+* `visual_brief` remains allowed in script JSON for human drafting notes, but becomes `legacy_visual_brief`.
+* From SB-0010 onward, generated media prompts must not read `visual_brief`.
+* `generate_media.py script.json` should remain for old fixtures and emergency manual runs, but production mode should require `media_prompt_plan_v2` or approved storyboard ID.
+* Approval states live in DB and JSON: `draft`, `validated`, `reviewed`, `human_approved`, `spend_ready`, `in_generation`, `assembled`, `qa_passed`, `published`.
+
+## I. Testing and validation plan
+
+Add these test files:
+
+```text
+tests/test_storyboard_v2_schema.py
+tests/test_storyboard_v2_validation.py
+tests/test_storyboard_v2_repair_loop.py
+tests/test_compile_media_from_storyboard_v2.py
+tests/test_overlay_plan.py
+tests/test_render_overlays.py
+tests/test_assembly_overlay_timeline.py
+tests/test_content_db_storyboard_v2.py
+tests/test_production_gate.py
+tests/test_no_legacy_visual_brief_in_production.py
+```
+
+Mandatory fail tests:
+
+| Failure condition                                                  | Expected result                            |
+| ------------------------------------------------------------------ | ------------------------------------------ |
+| B-roll shot has no `narrative_alignment`                           | Validator fails.                           |
+| Overlay has no `semantic_purpose`                                  | Validator fails.                           |
+| Media prompt contains raw script `visual_brief` text               | Compiler test fails.                       |
+| Storyboard beat lacks `visual_strategy`                            | Validator fails.                           |
+| Graphic is standalone segment without justification                | Validator fails.                           |
+| Text-heavy graphic routed into AI video generation                 | Validator fails; must become post overlay. |
+| Media generation attempted before storyboard approval              | Production gate fails.                     |
+| Python approves missing LLM semantic fields                        | Validator fails.                           |
+| LLM output bypasses Python validation                              | Integration test fails.                    |
+| Python uses `idx % 3` style creative assignment in production mode | Regression test fails.                     |
+
+Current tests only prove structural and technical basics: storyboard dry-run/fields/James presence, media script validation, and assembly technical output. They do not protect against bad visual thinking.
+
+## J. Recommended implementation sequence
+
+### 1. Immediate creative rescue
+
+Build the smallest storyboard v2 path that materially improves the next video:
+
+1. `schemas/storyboard_v2.schema.json`
+2. `scripts/generate_storyboard_v2.py`
+3. `scripts/validate_storyboard_v2.py`
+4. `scripts/review_storyboard_v2.py`
+5. `scripts/compile_media_from_storyboard_v2.py`
+6. `scripts/production_gate.py`
+
+Do not start with the full database. The next output needs better visual direction, not more tables.
+
+### 2. Schema and validator hardening
+
+Lock semantic fields, ID references, claim refs, overlay specs, text-surface policy, and approval states.
+
+### 3. Overlay/assembly support
+
+Add FFmpeg-based overlays first: key points, source labels, framework steps, comparison panels, simple callout arrows. Save Remotion/Manim for later.
+
+### 4. Database migration
+
+Once JSON storyboard v2 works on one real production, migrate to SQLite as durable SSOT.
+
+### 5. Feedback loop
+
+Only after you have several produced videos should you build analytics correlation. Before that, the “learning loop” is mostly fake precision wearing a lab coat.
+
+## K. Final recommendation
+
+**Keep `storyboard.py`?**
+Keep it as legacy/skeleton tooling, but create `storyboard_v2.py` or preferably split modules: `generate_storyboard_v2.py`, `validate_storyboard_v2.py`, `review_storyboard_v2.py`. Do not try to gradually mutate the old deterministic file into the new brain. It is the wrong abstraction.
+
+**Should script JSON still contain `visual_brief`?**
+Yes, temporarily, but only as `legacy_visual_brief` or human drafting context. It must not be production-authoritative.
+
+**Should media generation read from script JSON or storyboard JSON/database?**
+Storyboard JSON/database only. Script JSON is upstream narrative input. Media generation should consume approved `storyboard_shots` and `media_prompt_plan_v2`.
+
+**Should overlays be rendered by FFmpeg first, or adopt Remotion/Manim immediately?**
+FFmpeg first. The existing assembler is already FFmpeg-based, and the immediate need is timed text/labels/callouts/framework overlays. Remotion can wait. Manim is useful later for complex animated diagrams, not the first rescue sprint.
+
+**Minimum sprint that materially improves the next video:**
+SB-0002, SB-0005, SB-0008, SB-0009, SB-0010, SB-0016, plus a minimal SB-0007/SB-0011/SB-0012 overlay path. That gives you semantic storyboard → validation → creative review → storyboard-only media prompts → spend gate → basic overlays.
+
+Do not spend another credit on AI video until the storyboard can answer, for every beat: **what is the argument, what should the viewer see, why does that visual help, what overlay reinforces it, and why is this not generic filler?**
+
+[1]: https://ffmpeg.org/ "
+FFmpeg"
+[2]: https://arxiv.org/abs/2604.05266?utm_source=chatgpt.com "LLM2Manim: Pedagogy-Aware AI Generation of STEM Animations"
+[3]: https://arxiv.org/abs/2507.14306?utm_source=chatgpt.com "Manimator: Transforming Research Papers into Visual Explanations"
