@@ -221,6 +221,51 @@ def invoke_gate_a_content(inputs: dict, tmp_path: Path) -> dict:
     return {"status": "pass", "approval_id": approval["id"]}
 
 
+def invoke_gate_storyboard(inputs: dict, tmp_path: Path) -> dict:
+    from authoring_service import request_approval, is_approved, _get_active_storyboard_revision_id
+
+    storyboard_rev_id = _get_active_storyboard_revision_id(inputs["production_id"]) or ""
+    if not storyboard_rev_id:
+        raise RuntimeError("No active storyboard revision found for gate_storyboard approval")
+
+    conn = _db.connect(None)
+    row = conn.execute(
+        "SELECT payload_sha256 FROM document_revisions WHERE id=?", (storyboard_rev_id,)
+    ).fetchone()
+    conn.close()
+    payload_hash = row["payload_sha256"] if row else ""
+
+    subject_hash = f"storyboard:{storyboard_rev_id}:{payload_hash[:16]}" if payload_hash else f"storyboard:{storyboard_rev_id}"
+
+    approval = request_approval(
+        production_id=inputs["production_id"],
+        gate_name="gate_storyboard",
+        subject_type="storyboard",
+        subject_id=storyboard_rev_id,
+        subject_sha256=subject_hash,
+    )
+
+    if os.environ.get("YT_TEST_MODE") == "1":
+        from authoring_service import record_approval_decision
+        record_approval_decision(
+            production_id=inputs["production_id"],
+            gate_name="gate_storyboard",
+            decision="pass",
+            actor="test_mode",
+            note="Auto-approved in YT_TEST_MODE",
+        )
+        return {"status": "pass", "approval_id": approval["id"], "test_mode": True, "subject_hash": subject_hash}
+
+    if not is_approved(inputs["production_id"], "gate_storyboard"):
+        raise RuntimeError(
+            f"gate_storyboard pending approval. "
+            f"Use: python3 scripts/produce_db.py approve "
+            f"{inputs['production_id']} gate_storyboard --pass"
+        )
+
+    return {"status": "pass", "approval_id": approval["id"], "subject_hash": subject_hash}
+
+
 def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     from tts import run_tts
     from authoring_service import get_active_script_revision_id
@@ -2176,6 +2221,7 @@ STAGE_INVOKERS = {
     # corrupt it — e.g. {"beats": <count>} replacing the real beats list).
     "storyboard": (None, invoke_storyboard),
     "review_storyboard": (None, invoke_review_storyboard),
+    "gate_storyboard": ("gate_storyboard_approval", invoke_gate_storyboard),
     # TTS and timing stages are now DB-native via tts_service
     "tts": (None, invoke_tts),
     "audio_timing": (None, invoke_audio_timing),
@@ -2292,7 +2338,7 @@ def main():
     
     approve = sub.add_parser("approve")
     approve.add_argument("production_id")
-    approve.add_argument("gate", choices=["gate_a_content", "gate_a_spend", "gate_b_review"])
+    approve.add_argument("gate", choices=["gate_a_content", "gate_storyboard", "gate_a_spend", "gate_b_review"])
     approve.add_argument("--pass", dest="decision", action="store_const", const="pass", default="pass")
     approve.add_argument("--fail", dest="decision", action="store_const", const="fail")
     

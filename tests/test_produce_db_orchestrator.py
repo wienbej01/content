@@ -104,7 +104,7 @@ def test_run_walks_graph_and_resumes(mock_write, mock_research):
     
     # Mock ALL other stages to prevent real execution and file dependencies
     mock_stages = [
-        "review_script", "gate_a_content", "storyboard", "review_storyboard", "tts", "audio_timing",
+        "review_script", "gate_a_content", "storyboard", "review_storyboard", "gate_storyboard", "tts", "audio_timing",
         "reconcile_timing", "compile_media", "gate_a_spend", "generate_media",
         "qa_media", "repair", "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
@@ -190,7 +190,7 @@ def test_tts_wiring_enforces_provenance(mock_timing, mock_tts):
         # Manually mark pre-TTS stages as succeeded so we reach TTS
         # S2-T01: tts now depends on review_storyboard (canonical order)
         for stage in ["research", "write_script", "review_script", "gate_a_content",
-                       "storyboard", "review_storyboard"]:
+                       "storyboard", "review_storyboard", "gate_storyboard"]:
             _db.mirror_stage_state("tts_provenance_proj", stage, "done", db_path=TEST_DB)
             
         # Create dummy files that TTS/timing expect
@@ -245,7 +245,7 @@ def test_compile_media_derives_from_measured_spans(mock_compile):
         # Manually mark pre-compile stages as succeeded
         # S2-T01: compile_media depends on reconcile_timing
         for stage in ["research", "write_script", "review_script", "gate_a_content",
-                       "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing"]:
+                       "storyboard", "review_storyboard", "gate_storyboard", "tts", "audio_timing", "reconcile_timing"]:
             _db.mirror_stage_state("compile_spans_proj", stage, "done", db_path=TEST_DB)
             
         # Insert dummy active timeline spans into DB
@@ -363,8 +363,8 @@ def test_assembly_bypasses_manifest_file(mock_gate_b, mock_qa, mock_assemble):
     try:
         # Manually mark pre-assembly stages as succeeded
         # S2-T01: assemble depends on graphics_compositing → repair → qa_media
-        for stage in ["research", "write_script", "review_script", "gate_a_content", 
-                      "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+        for stage in ["research", "write_script", "review_script", "gate_a_content",
+                      "storyboard", "review_storyboard", "gate_storyboard", "tts", "audio_timing", "reconcile_timing",
                       "compile_media", "gate_a_spend", "generate_media", "qa_media",
                       "repair", "graphics_compositing"]:
             _db.mirror_stage_state("assembly_proj", stage, "done", db_path=TEST_DB)
@@ -412,8 +412,8 @@ def test_qa_media_enforces_no_silent_fallback(mock_qa_media):
     try:
         # Manually mark pre-QA stages as succeeded
         # S2-T01: qa_media depends on generate_media (unchanged) but upstream order changed
-        for stage in ["research", "write_script", "review_script", "gate_a_content", 
-                      "storyboard", "review_storyboard", "tts", "audio_timing", "reconcile_timing",
+        for stage in ["research", "write_script", "review_script", "gate_a_content",
+                      "storyboard", "review_storyboard", "gate_storyboard", "tts", "audio_timing", "reconcile_timing",
                       "compile_media", "gate_a_spend", "generate_media"]:
             _db.mirror_stage_state("qa_media_proj", stage, "done", db_path=TEST_DB)
             
@@ -481,7 +481,7 @@ def test_resume_without_legacy_json(mock_write, mock_research):
     
     # Mock all subsequent stages to prevent real execution
     mock_stages = [
-        "review_script", "gate_a_content", "storyboard", "review_storyboard", "tts", "audio_timing",
+        "review_script", "gate_a_content", "storyboard", "review_storyboard", "gate_storyboard", "tts", "audio_timing",
         "reconcile_timing", "compile_media", "gate_a_spend", "generate_media",
         "qa_media", "repair", "graphics_compositing", "assemble", "qa_final", "gate_b_review", "publish", "analytics"
     ]
