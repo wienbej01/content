@@ -804,14 +804,17 @@ def link_artifact_to_render_unit(
 
     Rejects change if the render unit already has an active artifact —
     a change request with replacement evidence is required first (R6-004 path).
+
+    Also copies the artifact's duration_ms into render_units.actual_render_duration_ms
+    so observed duration is recorded at link time (S22_T017).
     """
     now = _now()
     with _db.transaction(db_path) as conn:
         art = conn.execute(
-            "SELECT production_id FROM artifacts WHERE id=?", (artifact_id,)
+            "SELECT production_id, duration_ms FROM artifacts WHERE id=?", (artifact_id,)
         ).fetchone()
         ru = conn.execute(
-            "SELECT production_id, active_artifact_id, status FROM render_units WHERE id=?", (render_unit_id,)
+            "SELECT production_id, active_artifact_id, status, required_duration_ms FROM render_units WHERE id=?", (render_unit_id,)
         ).fetchone()
         if not art or not ru:
             raise ArtifactRegistryError("artifact or render_unit not found")
@@ -822,10 +825,128 @@ def link_artifact_to_render_unit(
                 f"render_unit {render_unit_id} already has active_artifact; "
                 "a qualified replacement change request is required to change it (R6-004)"
             )
+        observed_ms = art["duration_ms"]
         conn.execute(
-            "UPDATE render_units SET active_artifact_id=?, status='generated', updated_at=? WHERE id=?",
-            (artifact_id, now, render_unit_id),
+            "UPDATE render_units SET active_artifact_id=?, actual_render_duration_ms=?, status='generated', updated_at=? WHERE id=?",
+            (artifact_id, observed_ms, now, render_unit_id),
         )
+
+
+# ---------------------------------------------------------------------------
+# S22_T017  Record observed artifact durations
+# ---------------------------------------------------------------------------
+
+class ObservedDurationError(ValueError):
+    pass
+
+
+def record_observed_artifact_duration(
+    production_id: str,
+    artifact_id: str,
+    render_unit_id: Optional[str] = None,
+    db_path=None,
+) -> dict:
+    """Probe actual artifact duration from disk and record it in the DB.
+
+    1. Look up the artifact.
+    2. Probe the actual file duration via MediaProbe (ffprobe).
+    3. Update render_units.actual_render_duration_ms when render_unit_id is given.
+    4. Preserve required_duration_ms.
+    5. Record a validation evidence row with artifact id, render unit id,
+       required duration, actual duration, and delta.
+
+    Returns evidence dict with keys: artifact_id, render_unit_id,
+    required_duration_ms, actual_duration_ms, delta_ms, artifact_uri.
+    """
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+
+    art = conn.execute(
+        "SELECT * FROM artifacts WHERE id=? AND production_id=?",
+        (artifact_id, production_id),
+    ).fetchone()
+    if not art:
+        conn.close()
+        raise ObservedDurationError(
+            f"BLOCKED_DURATION_PROBE_FAILED: artifact {artifact_id} not found in production {production_id}"
+        )
+    art = dict(art)
+
+    art_path = Path(art["uri"])
+    if not art_path.exists():
+        conn.close()
+        raise ObservedDurationError(
+            f"BLOCKED_DURATION_PROBE_FAILED: artifact file missing at {art['uri']}"
+        )
+
+    probe = MediaProbe.from_path(art_path)
+    if probe is None:
+        conn.close()
+        raise ObservedDurationError(
+            f"BLOCKED_DURATION_PROBE_FAILED: ffprobe could not parse {art['uri']}"
+        )
+
+    actual_duration_ms = probe.duration_ms
+
+    required_duration_ms = None
+    if render_unit_id:
+        ru = conn.execute(
+            "SELECT required_duration_ms FROM render_units WHERE id=? AND production_id=?",
+            (render_unit_id, production_id),
+        ).fetchone()
+        if ru:
+            required_duration_ms = ru["required_duration_ms"]
+        else:
+            conn.close()
+            raise ObservedDurationError(
+                f"BLOCKED_DURATION_PROBE_FAILED: render_unit {render_unit_id} not found"
+            )
+    conn.close()
+
+    now = _now()
+    delta_ms = (actual_duration_ms - required_duration_ms) if required_duration_ms is not None else None
+
+    evidence = {
+        "artifact_id": artifact_id,
+        "render_unit_id": render_unit_id,
+        "required_duration_ms": required_duration_ms,
+        "actual_duration_ms": actual_duration_ms,
+        "delta_ms": delta_ms,
+        "artifact_uri": art["uri"],
+        "probe_method": "ffprobe",
+    }
+
+    val_id = _id("val")
+    with _db.transaction(db_path) as tx:
+        if render_unit_id:
+            tx.execute(
+                "UPDATE render_units SET actual_render_duration_ms=?, updated_at=? WHERE id=?",
+                (actual_duration_ms, now, render_unit_id),
+            )
+            tx.execute(
+                "UPDATE artifacts SET duration_ms=? WHERE id=?",
+                (actual_duration_ms, artifact_id),
+            )
+
+        tx.execute(
+            """INSERT INTO validations
+               (id, production_id, subject_type, subject_id, validator_name, status,
+                ruleset_version, evidence_json, created_by_stage_run_id, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (
+                val_id, production_id, "artifact", artifact_id, "observed_duration",
+                "pass", None, _json(evidence), None, now,
+            ),
+        )
+
+        evidence["validation_id"] = val_id
+
+        _db.append_event(
+            production_id, "observed_duration_recorded",
+            payload=evidence, conn=tx,
+        )
+
+    return evidence
 
 
 # ---------------------------------------------------------------------------
