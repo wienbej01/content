@@ -49,11 +49,18 @@ def test_open_repair_blocks_assembly(fresh_db):
     """An open change request blocks assembly — invoke_repair raises."""
     prod, db_path, ru_ids = fresh_db
 
-    # Route a change request for the first render unit
+    # Route a change request for the first render unit.
+    # Use target_stage="assemble" (not the default "generate_media") so the unit
+    # status stays 'change_requested' instead of 'ordered'. When target_stage
+    # is "generate_media", route_change_request sets the unit to 'ordered'
+    # (already queued) and invoke_repair skips it — because regeneration is
+    # already in progress. Other target stages leave the unit as
+    # 'change_requested', which invoke_repair correctly blocks on.
     route_change_request(
         production_id=prod["id"],
         render_unit_id=ru_ids[0],
-        change_type="regenerate",
+        change_type="re-render",
+        target_stage="assemble",
         reason="QA failure: black frames detected",
         db_path=db_path,
     )
@@ -75,6 +82,10 @@ def test_selective_repair_preserves_unaffected_units(fresh_db):
     prod, db_path, ru_ids = fresh_db
 
     # Route change request ONLY for ru_ids[0]
+    # Default target_stage="generate_media" sets unit status to 'ordered'
+    # (queued for regeneration) rather than 'change_requested'. This is
+    # intentional — the unit is immediately re-queued for the generate_media
+    # stage rather than left in an intermediate state.
     route_change_request(
         production_id=prod["id"],
         render_unit_id=ru_ids[0],
@@ -88,8 +99,8 @@ def test_selective_repair_preserves_unaffected_units(fresh_db):
     ru1 = conn.execute("SELECT status FROM render_units WHERE id=?", (ru_ids[1],)).fetchone()
     conn.close()
 
-    # The failed unit is 'change_requested'
-    assert ru0["status"] == "change_requested"
+    # The failed unit is 'ordered' (re-queued for regeneration)
+    assert ru0["status"] == "ordered"
     # The unaffected unit remains 'generated'
     assert ru1["status"] == "generated"
 
