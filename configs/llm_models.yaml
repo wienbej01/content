@@ -12,6 +12,12 @@ profiles:
     purpose: bulletproof storyboard authoring grounded in all bibles + source text
     is_final_creative_authority: true
 
+  storyboard_director_sonnet5:
+    model: kilo/anthropic/claude-sonnet-5
+    purpose: runtime creative storyboard authoring via Sonnet 5 through Kilo
+    is_final_creative_authority: true
+    is_sonnet5_creative_authority: true
+
   auto_utility:
     model: kilo/deepseek/deepseek-v4-flash
     purpose: mechanical/low-risk tasks
@@ -32,3 +38,9 @@ creative_authority_tasks:
   - hook_generation
   - framework_building
   - script_writing
+
+# Tasks that require Sonnet 5 creative authority (cannot use any other profile)
+storyboard_authority_tasks:
+  - storyboard_generation
+  - storyboard_repair
+  - storyboard_creative_review

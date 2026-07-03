@@ -50,14 +50,38 @@ def load_config():
     return yaml.safe_load(CONFIGS.read_text())
 
 
+def check_sonnet5_availability(model_id="kilo/anthropic/claude-sonnet-5", dry_run=False):
+    """Check if Sonnet 5 is available via kilo models.
+
+    In dry-run mode, skips subprocess call and returns True (assume available
+    for static verification). Returns tuple of (available: bool, model_list: list).
+    """
+    if dry_run:
+        return True, []
+
+    try:
+        r = subprocess.run([KILO_CLI, "models"], capture_output=True, text=True, timeout=30)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False, []
+
+    if r.returncode != 0:
+        return False, []
+
+    models = [line.strip() for line in r.stdout.splitlines() if line.strip()]
+    return model_id in models, models
+
+
 def resolve_profile(config, task, profile_name=None):
-    """Resolve which model profile to use; enforce creative authority."""
+    """Resolve which model profile to use; enforce creative + storyboard authority."""
     profiles = config["profiles"]
     ca_tasks = config.get("creative_authority_tasks", [])
+    sa_tasks = config.get("storyboard_authority_tasks", [])
 
     # Default profile selection
     if not profile_name:
-        if task in ca_tasks:
+        if task in sa_tasks:
+            profile_name = "storyboard_director_sonnet5"
+        elif task in ca_tasks:
             profile_name = config["default_creative"]
         else:
             profile_name = config["default_utility"]
@@ -66,6 +90,14 @@ def resolve_profile(config, task, profile_name=None):
         raise ValueError(f"Unknown profile: {profile_name!r}. Available: {list(profiles)}")
 
     profile = profiles[profile_name]
+
+    # Enforce storyboard authority: only storyboard_director_sonnet5 allowed
+    if task in sa_tasks and profile_name != "storyboard_director_sonnet5":
+        raise RuntimeError(
+            f"BLOCKED_CREATIVE_FALLBACK_FORBIDDEN: task {task!r} requires Sonnet 5 "
+            f"through Kilo (profile 'storyboard_director_sonnet5'). "
+            f"Profile {profile_name!r} is not permitted for runtime storyboard authoring. "
+            f"No fallback to another model is allowed.")
 
     # Enforce creative authority
     if task in ca_tasks and not profile.get("is_final_creative_authority"):
@@ -264,6 +296,15 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
     profile_name, profile = resolve_profile(config, task, model_profile)
     model = profile["model"]
 
+    # Check Sonnet 5 availability for storyboard authority tasks
+    if profile_name == "storyboard_director_sonnet5":
+        available, _ = check_sonnet5_availability(dry_run=dry_run)
+        if not available:
+            raise RuntimeError(
+                "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (kilo/anthropic/claude-sonnet-5) "
+                "is not available through Kilo. Storyboard authoring cannot proceed "
+                "without Sonnet 5. No fallback is permitted.")
+
     # Append input JSON if provided
     full_prompt = prompt
     if input_json:
@@ -304,7 +345,7 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
 
 def main():
     ap = argparse.ArgumentParser(description="Programmatic LLM calls via kilo.")
-    ap.add_argument("--task", required=True, help="Task name (for routing/authority)")
+    ap.add_argument("--task", default=None, help="Task name (for routing/authority)")
     ap.add_argument("--prompt", default=None, help="Prompt text (inline)")
     ap.add_argument("--prompt-file", default=None, help="Prompt from file")
     ap.add_argument("--input-json", default=None, help="JSON input file to append to prompt")
@@ -314,7 +355,21 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Print plan without calling kilo")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--no-json", action="store_true", help="Don't expect JSON response (return raw text)")
+    ap.add_argument("--check-availability", action="store_true", help="Check Sonnet 5 availability via kilo models")
     args = ap.parse_args()
+
+    if args.check_availability:
+        available, models = check_sonnet5_availability(dry_run=args.dry_run)
+        if available:
+            print("SONNET5_AVAILABLE: kilo/anthropic/claude-sonnet-5 found in kilo models")
+            sys.exit(0)
+        else:
+            print("BLOCKED_SONNET5_UNAVAILABLE: kilo/anthropic/claude-sonnet-5 not found in kilo models",
+                  file=sys.stderr)
+            sys.exit(1)
+
+    if not args.task:
+        ap.error("--task is required")
 
     # Build prompt
     if args.prompt:
