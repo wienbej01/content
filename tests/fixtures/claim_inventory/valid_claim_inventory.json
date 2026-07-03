@@ -1,0 +1,47 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "source_id": "src_research/ai_scaling.txt",
+      "claim_text": "AI models can exhibit unexpected capabilities at scale.",
+      "claim_type": "fact",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "metaphorical",
+      "script_segment_refs": ["S001"],
+      "storyboard_entity_refs": ["SH001", "SH002"]
+    },
+    {
+      "claim_id": "C002",
+      "source_id": "src_research/gpt4_benchmarks.txt",
+      "claim_text": "GPT-4 scored in the 90th percentile on the bar exam.",
+      "claim_type": "statistic",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "stat_display",
+      "script_segment_refs": ["S002"],
+      "storyboard_entity_refs": ["OV001"]
+    },
+    {
+      "claim_id": "C003",
+      "source_id": "src_research/Ebbinghaus_1885.txt",
+      "claim_text": "Ebbinghaus established the forgetting curve in 1885.",
+      "claim_type": "study",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "literal_evidence",
+      "script_segment_refs": ["S003"],
+      "storyboard_entity_refs": []
+    },
+    {
+      "claim_id": "C004",
+      "claim_text": "The author believes that active recall is underutilised.",
+      "claim_type": "opinion",
+      "citation_status": "unsupported_opinion",
+      "requires_visual_reinforcement": false,
+      "allowed_visual_treatment": "no_visual_needed",
+      "script_segment_refs": ["S004"],
+      "storyboard_entity_refs": []
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "source_id": "src_research/gpt4_benchmarks.txt",
+      "claim_text": "GPT-4 scored in the 90th percentile on the bar exam.",
+      "claim_type": "statistic",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "stat_display",
+      "script_segment_refs": ["S001"]
+    }
+  ],
+  "overlays": [
+    {
+      "overlay_id": "OV001",
+      "claim_refs": ["C002", "C003"]
+    }
+  ]
+}

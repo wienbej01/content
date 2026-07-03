@@ -1,0 +1,31 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "claim_text": "A 2023 study by Mollick & Mollick found LLMs improve teaching outcomes.",
+      "claim_type": "study",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "literal_evidence",
+      "script_segment_refs": ["S001"]
+    },
+    {
+      "claim_id": "C002",
+      "claim_text": "Dr. Karpicke demonstrated the testing effect in 2006.",
+      "claim_type": "person",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "literal_evidence",
+      "script_segment_refs": ["S002"]
+    },
+    {
+      "claim_id": "C003",
+      "claim_text": "The forgetting curve was first published in 1885.",
+      "claim_type": "date",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "literal_evidence",
+      "script_segment_refs": ["S003"]
+    }
+  ]
+}

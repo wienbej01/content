@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://leveragemind/schemas/claim_inventory.schema.json",
+  "title": "Claim Inventory Schema",
+  "description": "Validates a claim_inventory array where each claim tracks factual assertions, their evidence status, and allowed visual treatments. Designed for integration into the canonical storyboard SSOT.",
+  "type": "object",
+  "required": ["claims"],
+  "properties": {
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/claim"
+      }
+    }
+  },
+  "definitions": {
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "claim_text", "claim_type"],
+      "properties": {
+        "claim_id": {
+          "type": "string",
+          "pattern": "^C[A-Za-z0-9_-]+$",
+          "description": "Stable claim identifier, e.g. C001 or C-sources-3."
+        },
+        "source_id": {
+          "type": "string",
+          "description": "Reference into the source research log. Required for source-backed claim types."
+        },
+        "claim_text": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Exact claim text as it appears or is derived from the approved script."
+        },
+        "claim_type": {
+          "type": "string",
+          "enum": [
+            "fact", "reference", "source_quote", "statistic",
+            "narrative_premise", "definition", "comparison", "analogy",
+            "conclusion", "opinion", "original_argument",
+            "study", "person", "date"
+          ],
+          "description": "Categorical type. Types other than opinion/original_argument require source_id."
+        },
+        "citation_status": {
+          "type": "string",
+          "enum": ["source_backed", "unsupported_opinion", "unverified"],
+          "description": "source_backed: has at least one supporting source. unsupported_opinion: explicitly marked as opinion. unverified: pending fact-check."
+        },
+        "requires_visual_reinforcement": {
+          "type": "boolean",
+          "description": "If true, the storyboard must include a visual that reinforces this claim."
+        },
+        "allowed_visual_treatment": {
+          "type": "string",
+          "enum": [
+            "literal_evidence", "metaphorical", "stat_display",
+            "diagram", "source_label", "quote_card", "comparison",
+            "emotional_reset", "no_visual_needed"
+          ],
+          "description": "The approved creative treatment for visualising this claim in the storyboard."
+        },
+        "script_segment_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^S[A-Za-z0-9_-]+$"
+          },
+          "description": "Script segment ids where this claim appears or is referenced."
+        },
+        "storyboard_entity_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Storyboard shot or overlay ids that visually represent this claim."
+        }
+      }
+    }
+  }
+}

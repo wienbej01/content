@@ -1,0 +1,13 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "claim_text": "72% of professionals fail to capture value.",
+      "claim_type": "statistic",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "stat_display",
+      "script_segment_refs": ["S001"]
+    }
+  ]
+}

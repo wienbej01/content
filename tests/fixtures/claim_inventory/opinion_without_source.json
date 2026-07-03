@@ -1,0 +1,22 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "claim_text": "The author believes that spaced repetition is the single most effective technique.",
+      "claim_type": "opinion",
+      "citation_status": "unsupported_opinion",
+      "requires_visual_reinforcement": false,
+      "allowed_visual_treatment": "no_visual_needed",
+      "script_segment_refs": ["S001"]
+    },
+    {
+      "claim_id": "C002",
+      "claim_text": "Original argument: retention is the product of biology multiplied by AI infrastructure.",
+      "claim_type": "original_argument",
+      "citation_status": "unsupported_opinion",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "diagram",
+      "script_segment_refs": ["S002"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "claims": [
+    {
+      "claim_id": "C001",
+      "source_id": "src_research/ai_scaling.txt",
+      "claim_text": "AI models can exhibit unexpected capabilities at scale.",
+      "claim_type": "fact",
+      "citation_status": "source_backed",
+      "requires_visual_reinforcement": true,
+      "allowed_visual_treatment": "invalid_hologram_future_vision",
+      "script_segment_refs": ["S001"]
+    }
+  ]
+}
