@@ -1,0 +1,61 @@
+{
+  "schema_version": "2.0",
+  "project_id": "regression_missing_shot_type",
+  "video_type": "explainer",
+  "target_runtime_sec": 60.0,
+  "source_script": "test_script.json",
+  "source_script_sha256": null,
+  "created_at": "2025-06-01T00:00:00Z",
+  "router_version": "1.0",
+  "acts": [
+    {"act": 1, "name": "Intro", "beat_ids": ["B001"], "runtime_pct": 100.0}
+  ],
+  "beats": [
+    {
+      "beat_id": "B001",
+      "segment_id": "S001",
+      "act": 1,
+      "order": 1,
+      "narration_text": "Welcome to the show.",
+      "est_duration_sec": 5.0,
+      "visual_function": "establishes",
+      "narrative_function": "hook",
+      "asset_type": "generated_video",
+      "model_tier": "premium",
+      "model": "seedance_2_0",
+      "prompt_class": "descriptive",
+      "visual_brief": "James at desk introducing the topic",
+      "audio_mode": "lipsync",
+      "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 10, "est_usd": 0.50},
+      "fallback": {},
+      "approval": {"status": "pending"},
+      "qa": {"status": "pending"}
+    }
+  ],
+  "shot_mix_summary": {
+    "hero_lipsync_pct": 100,
+    "hero_cutaway_pct": 0,
+    "broll_specific_pct": 0,
+    "broll_metaphorical_pct": 0,
+    "graphics_ui_pct": 0,
+    "kinetic_text_pct": 0,
+    "max_hero_block_sec": 5.0,
+    "distinct_visual_setups": 1,
+    "total_cuts_estimate": 1
+  },
+  "totals": {
+    "est_higgsfield_credits": 10,
+    "est_usd": 0.50,
+    "budget_cap_usd": 10.0,
+    "beats_requiring_generation": 1,
+    "beats_local_or_reused": 0
+  },
+  "approval": {
+    "status": "draft",
+    "approved_by": null,
+    "approved_at": null,
+    "sha256_at_approval": null
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "storyboard_contract_version": "1.0",
+  "approved_script_revision_id": "rev_test",
+  "approved_script_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authoring_model_profile": "storyboard_sonnet5",
+  "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908",
+  "project_id": "test_good_fixture",
+  "video_type": "explainer",
+  "claim_inventory": [
+    {
+      "claim_id": "C001",
+      "claim_text": "AI models demonstrate scaling capabilities.",
+      "claim_type": "narrative_premise",
+      "source_refs": ["src_research/ai_scaling.txt"],
+      "segment_ids": ["S001"],
+      "visual_obligation": "must_show",
+      "strength": "confirmed"
+    }
+  ],
+  "narrative_beats": [
+    {
+      "beat_id": "NB001",
+      "segment_id": "S001",
+      "act": 1,
+      "order": 1,
+      "narration_text": "AI is transforming intelligence.",
+      "narrative_function": "hook",
+      "visual_function": "establishes",
+      "viewer_question": "What does this mean?",
+      "retention_role": "curiosity_open",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001"],
+      "overlay_ids": []
+    }
+  ],
+  "shots": [
+    {
+      "shot_id": "SH001",
+      "segment_id": "S001",
+      "visual_role": "hero_lipsync",
+      "visual_concept": "James at desk introducing the AI scaling topic, warm lamp light on bookshelf behind",
+      "why_this_visual": "Establishes James as the trusted narrator introducing the viewer to the topic of AI scaling.",
+      "narrative_alignment": "Direct address from host builds trust before presenting technical claims.",
+      "claim_refs": ["C001"],
+      "literal_vs_metaphorical": "literal",
+      "must_show": ["James at desk", "warm lighting"],
+      "must_avoid": ["generic office background", "text on screen"],
+      "planned_duration_sec": 8.5,
+      "min_usable_duration_sec": 4.0,
+      "max_usable_duration_sec": 12.0,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Lead shot, can be trimmed",
+      "generation_risk": "low",
+      "fallback_strategy": "hero_cutaway",
+      "qa_requirements": ["lipsync_sync_score >= 0.85"]
+    }
+  ],
+  "overlays": [],
+  "segment_work_orders": [
+    {
+      "segment_id": "S001",
+      "narration_text_exact": "AI is transforming intelligence.",
+      "argument_summary": "Opening claim about AI transformation.",
+      "viewer_question": "How is AI changing intelligence?",
+      "retention_role": "hook_curiosity",
+      "source_claim_refs": ["C001"],
+      "shot_ids": ["SH001"],
+      "overlay_ids": [],
+      "broll_alignment_instruction": "N/A — opening segment.",
+      "graphic_alignment_instruction": "No graphics needed.",
+      "conclusion_alignment_instruction": "N/A — opening segment.",
+      "qa_acceptance_criteria": ["James visually confirmed"],
+      "must_avoid": ["sci-fi imagery"]
+    }
+  ],
+  "feedback_policy": {
+    "repair_authority": "sonnet5_only",
+    "max_repair_rounds": 3,
+    "block_on_unresolved": true,
+    "stale_on_repair": ["storyboard_creative_review", "gate_storyboard"]
+  },
+  "timing_policy": {
+    "planned_is_intent": true,
+    "observed_is_truth": true,
+    "drift_resolution_order": ["trim_ok"],
+    "default_policy": "trim_ok",
+    "max_total_drift_pct": 15
+  },
+  "approval": {
+    "status": "draft",
+    "approved_by": null,
+    "approved_at": null,
+    "creative_author": "kilo/anthropic/claude-sonnet-5-20250908"
+  }
+}

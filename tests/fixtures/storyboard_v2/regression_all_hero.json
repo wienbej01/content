@@ -1,0 +1,121 @@
+{
+  "schema_version": "2.0",
+  "project_id": "regression_all_hero",
+  "video_type": "explainer",
+  "target_runtime_sec": 300.0,
+  "source_script": "test_script.json",
+  "source_script_sha256": null,
+  "created_at": "2025-06-01T00:00:00Z",
+  "router_version": "1.0",
+  "acts": [
+    {"act": 1, "name": "Intro", "beat_ids": ["B001"], "runtime_pct": 12.0},
+    {"act": 2, "name": "Body 1", "beat_ids": ["B002"], "runtime_pct": 12.0},
+    {"act": 3, "name": "Body 2", "beat_ids": ["B003"], "runtime_pct": 12.0},
+    {"act": 4, "name": "Body 3", "beat_ids": ["B004"], "runtime_pct": 12.0},
+    {"act": 5, "name": "Conclusion", "beat_ids": ["B005", "B006"], "runtime_pct": 52.0}
+  ],
+  "beats": [
+    {
+      "beat_id": "B001", "segment_id": "S001", "act": 1, "order": 1,
+      "narration_text": "Welcome to the show.",
+      "est_duration_sec": 10.0,
+      "visual_function": "establishes", "narrative_function": "hook",
+      "shot_type": "hero_lipsync", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "seedance_2_0", "prompt_class": "descriptive",
+      "visual_brief": "James at desk introducing the topic",
+      "audio_mode": "lipsync", "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+      "fallback": {}, "approval": {"status": "pending", "approved_by": null, "approved_at": null}, "qa": {"status": "pending"}
+    },
+    {
+      "beat_id": "B002", "segment_id": "S001", "act": 2, "order": 2,
+      "narration_text": "First point about AI.",
+      "est_duration_sec": 10.0,
+      "visual_function": "explains", "narrative_function": "educate",
+      "shot_type": "hero_lipsync", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "seedance_2_0", "prompt_class": "descriptive",
+      "visual_brief": "James continuing from desk",
+      "audio_mode": "lipsync", "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+      "fallback": {}, "approval": {"status": "pending"}, "qa": {"status": "pending"}
+    },
+    {
+      "beat_id": "B003", "segment_id": "S002", "act": 3, "order": 3,
+      "narration_text": "Second point about scaling.",
+      "est_duration_sec": 10.0,
+      "visual_function": "explains", "narrative_function": "educate",
+      "shot_type": "hero_lipsync", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "seedance_2_0", "prompt_class": "descriptive",
+      "visual_brief": "James explaining scaling laws",
+      "audio_mode": "lipsync", "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+      "fallback": {}, "approval": {"status": "pending"}, "qa": {"status": "pending"}
+    },
+    {
+      "beat_id": "B004", "segment_id": "S002", "act": 4, "order": 4,
+      "narration_text": "Third point with evidence.",
+      "est_duration_sec": 10.0,
+      "visual_function": "explains", "narrative_function": "evidence",
+      "shot_type": "hero_lipsync", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "seedance_2_0", "prompt_class": "descriptive",
+      "visual_brief": "James presenting research",
+      "audio_mode": "lipsync", "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+      "fallback": {}, "approval": {"status": "pending"}, "qa": {"status": "pending"}
+    },
+    {
+      "beat_id": "B005", "segment_id": "S003", "act": 5, "order": 5,
+      "narration_text": "Here is the conclusion.",
+      "est_duration_sec": 6.0,
+      "visual_function": "summarizes", "narrative_function": "conclusion",
+      "shot_type": "hero_cutaway", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "kling3_0", "prompt_class": "descriptive",
+      "visual_brief": "James thinking pose cutaway",
+      "audio_mode": "voiceover", "lipsync_required": false,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 10.0, "est_usd": 0.49},
+      "fallback": {}, "approval": {"status": "pending"}, "qa": {"status": "pending"}
+    },
+    {
+      "beat_id": "B006", "segment_id": "S003", "act": 5, "order": 6,
+      "narration_text": "Final takeaway for the viewer.",
+      "est_duration_sec": 8.0,
+      "visual_function": "closes", "narrative_function": "call_to_action",
+      "shot_type": "hero_lipsync", "asset_type": "generated_video",
+      "model_tier": "premium", "model": "seedance_2_0", "prompt_class": "descriptive",
+      "visual_brief": "James delivering final message",
+      "audio_mode": "lipsync", "lipsync_required": true,
+      "crop_safety": "center_safe",
+      "cost": {"est_clips": 1, "est_credits": 22.5, "est_usd": 1.10},
+      "fallback": {}, "approval": {"status": "pending"}, "qa": {"status": "pending"}
+    }
+  ],
+  "shot_mix_summary": {
+    "hero_lipsync_pct": 83.3,
+    "hero_cutaway_pct": 16.7,
+    "broll_specific_pct": 0,
+    "broll_metaphorical_pct": 0,
+    "graphics_ui_pct": 0,
+    "kinetic_text_pct": 0,
+    "max_hero_block_sec": 40.0,
+    "distinct_visual_setups": 1,
+    "total_cuts_estimate": 6
+  },
+  "totals": {
+    "est_higgsfield_credits": 100,
+    "est_usd": 4.88,
+    "budget_cap_usd": 50.0,
+    "beats_requiring_generation": 6,
+    "beats_local_or_reused": 0
+  },
+  "approval": {
+    "status": "draft",
+    "approved_by": null,
+    "approved_at": null,
+    "sha256_at_approval": null
+  }
+}
