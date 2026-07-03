@@ -266,6 +266,44 @@ def validate_manifest(manifest, base):
                 errors.append(
                     f"{prefix}.overlay: required overlay PNG not found: {overlay_path}")
 
+    # Validate overlay_timeline manifest (S22_T016)
+    overlay_timeline = manifest.get("overlay_timeline")
+    if overlay_timeline:
+        if not isinstance(overlay_timeline, dict):
+            errors.append("'overlay_timeline' must be a JSON object")
+        else:
+            total_dur = overlay_timeline.get("total_duration_sec", 0)
+            if not isinstance(total_dur, (int, float)) or total_dur <= 0:
+                errors.append("overlay_timeline.total_duration_sec must be > 0")
+            ovs = overlay_timeline.get("overlays", [])
+            if not isinstance(ovs, list) or len(ovs) == 0:
+                errors.append("overlay_timeline.overlays must be a non-empty array")
+            else:
+                for oi, ov in enumerate(ovs):
+                    oprefix = f"overlay_timeline.overlays[{oi}]"
+                    if not isinstance(ov, dict):
+                        errors.append(f"{oprefix}: must be an object")
+                        continue
+                    if "overlay_id" not in ov:
+                        errors.append(f"{oprefix}: missing 'overlay_id'")
+                    if "start_time_sec" not in ov:
+                        errors.append(f"{oprefix}: missing 'start_time_sec'")
+                    if "end_time_sec" not in ov:
+                        errors.append(f"{oprefix}: missing 'end_time_sec'")
+                    else:
+                        end = ov["end_time_sec"]
+                        if isinstance(end, (int, float)) and end > total_dur:
+                            errors.append(
+                                f"{oprefix}: end_time_sec={end} exceeds "
+                                f"total_duration_sec={total_dur}")
+                    if "layer" not in ov:
+                        errors.append(f"{oprefix}: missing 'layer'")
+                    if "spec" not in ov:
+                        errors.append(f"{oprefix}: missing 'spec'")
+                    ap = ov.get("artifact_path")
+                    if ap and not Path(ap).exists():
+                        errors.append(f"{oprefix}.artifact_path: file not found: {ap}")
+
         # Whether a segment needs its OWN audio is determined by the authoritative
         # audio_policy from the DB/plan — NOT re-inferred from the media file extension.
         #   hero_lipsync → handled above (baked audio)
@@ -411,6 +449,112 @@ def _composite_overlay(seg, clip, base, tmp, idx):
          "-pix_fmt", "yuv420p", "-c:a", "copy", str(dst)],
         f"overlay_{idx}")
     return dst
+
+
+def _composite_overlay_timeline(video, overlay_events, total_dur, tmp, fmt):
+    """Composite multiple overlays from a timeline plan onto a video.
+
+    Each overlay event has artifact_path, start_time_sec, end_time_sec,
+    and layer. Higher layer values render on top.
+
+    Args:
+        video: Path to input video
+        overlay_events: list of overlay dicts from overlay_timeline
+        total_dur: total video duration in seconds
+        tmp: temp directory for intermediate files
+        fmt: output format ('16x9' or '9x16')
+
+    Returns:
+        Path to composited video
+
+    Raises:
+        RuntimeError: if required overlay artifact is missing
+    """
+    sorted_events = sorted(overlay_events, key=lambda e: (e.get("layer", 0), e.get("overlay_id", "")))
+
+    if not sorted_events:
+        return video
+
+    current = video
+
+    for i, ev in enumerate(sorted_events):
+        overlay_path_str = ev.get("artifact_path")
+        if not overlay_path_str:
+            raise RuntimeError(
+                f"BLOCKED_MISSING_OVERLAY_ARTIFACT: overlay {ev.get('overlay_id', '?')} "
+                f"has no artifact_path. Render overlays before assembly."
+            )
+        overlay_path = Path(overlay_path_str)
+        if not overlay_path.exists():
+            raise RuntimeError(
+                f"BLOCKED_MISSING_OVERLAY_ARTIFACT: overlay {ev.get('overlay_id', '?')} "
+                f"artifact not found: {overlay_path}"
+            )
+
+        start = ev.get("start_time_sec", 0)
+        end = ev.get("end_time_sec", 0)
+
+        if end > total_dur:
+            raise RuntimeError(
+                f"BLOCKED_OVERLAY_OUTSIDE_DURATION: overlay {ev.get('overlay_id', '?')} "
+                f"end_time_sec={end} exceeds video duration={total_dur}"
+            )
+
+        animation = ev.get("animation", {})
+        fade_in = animation.get("fade_in_sec", 0.2)
+        fade_out = animation.get("fade_out_sec", 0.2)
+
+        dst = tmp / f"olt_{fmt}_{i}.mp4"
+
+        fc_parts = [f"[0:v]"]
+
+        if fmt == "9x16":
+            ovr_x, ovr_y = _overlay_position_9x16(ev.get(f"position_{fmt}", {}))
+        else:
+            ovr_x, ovr_y = _overlay_position_16x9(ev.get(f"position_{fmt}", {}))
+
+        fc = (
+            f"[1:v]format=rgba,"
+            f"fade=t=in:st=0:d={fade_in}:alpha=1,"
+            f"fade=t=out:st={max(end-start-fade_out,0)}:d={fade_out}:alpha=1[ov{i}];"
+            f"[0:v][ov{i}]overlay={ovr_x}:{ovr_y}:"
+            f"enable='between(t,{start},{end})'[v{i}]"
+        )
+        run(["ffmpeg", "-y", "-i", str(current), "-i", str(overlay_path),
+             "-filter_complex", fc,
+             "-map", f"[v{i}]", "-map", "0:a?",
+             "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+             "-pix_fmt", "yuv420p", "-c:a", "copy", str(dst)],
+            f"olt_{fmt}_{i}")
+        current = dst
+
+    return current
+
+
+def _overlay_position_16x9(pos):
+    """Compute x:y overlay offset for 16:9 (1920x1080) from a position config.
+
+    If position is empty or no align set, default to bottom-left (lower-third zone).
+    """
+    if not pos:
+        return 70, 1010
+    align = pos.get("align", "bottom_left")
+    x = pos.get("x", 70)
+    y = pos.get("y", 1010)
+    if align == "center":
+        x = 0
+        y = 0
+    return x, y
+
+
+def _overlay_position_9x16(pos):
+    """Compute x:y overlay offset for 9:16 (1080x1920) from a position config."""
+    if not pos:
+        return 40, 1770
+    align = pos.get("align", "bottom_left")
+    x = pos.get("x", 40)
+    y = pos.get("y", 1770)
+    return x, y
 
 
 _HERO_LIPSYNC_POLICIES = frozenset({"HERO_SYNC_LOCKED", "keep_lipsync", "hero_lipsync"})
@@ -1273,6 +1417,13 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         gap_s = brand.get("gap_seconds", 0.4)
         audio_fade = brand.get("audio_fade", 0.3)
         joined = gap_concat(norm_clips, gap_s, audio_fade, w, h, fps, crf, fmt_tmp)
+
+    # S22_T016: Composite overlay timeline if present (applies to both paths)
+    overlay_timeline = manifest.get("overlay_timeline")
+    if overlay_timeline and overlay_timeline.get("overlays"):
+        joined = _composite_overlay_timeline(
+            joined, overlay_timeline["overlays"], probe_dur(joined),
+            fmt_tmp, fmt)
 
     # 4. Music (None if disabled)
     music_cfg = manifest.get("music", {})

@@ -1087,6 +1087,53 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
     return str(output_path)
 
 
+def render_overlay_timeline(timeline_plan, output_dir):
+    """Render all overlay artifacts from an overlay timeline plan.
+
+    Each overlay spec is rendered as a deterministic RGBA PNG.
+    The plan is mutated in-place with artifact_path and artifact_sha256.
+
+    Args:
+        timeline_plan: dict matching overlay_timeline.schema.json
+        output_dir: Path to write overlay PNGs
+
+    Returns:
+        list of overlay event dicts with artifact_path populated
+
+    Raises:
+        RuntimeError: if an overlay spec has an unknown layout
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    overlays = timeline_plan.get("overlays", [])
+    total_dur = timeline_plan.get("total_duration_sec", 0)
+
+    for ov in overlays:
+        start = ov.get("start_time_sec", 0)
+        end = ov.get("end_time_sec", 0)
+
+        if end > total_dur:
+            raise RuntimeError(
+                f"BLOCKED_OVERLAY_OUTSIDE_DURATION: overlay {ov['overlay_id']} "
+                f"end_time_sec={end} exceeds total_duration_sec={total_dur}"
+            )
+
+        spec = ov.get("spec", {})
+        layout = spec.get("layout")
+        if layout not in RENDERERS:
+            raise RuntimeError(
+                f"BLOCKED_UNKNOWN_OVERLAY_LAYOUT: overlay {ov['overlay_id']} "
+                f"has unknown layout '{layout}'"
+            )
+
+        out_path = output_dir / f"overlay_{ov['overlay_id']}.png"
+        render_spec(spec, out_path)
+        ov["artifact_path"] = str(out_path)
+        ov["artifact_sha256"] = hashlib.sha256(out_path.read_bytes()).hexdigest()
+
+    return overlays
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Render graphics overlay PNGs.")
     ap.add_argument("--spec", help="JSON spec string for single render")
