@@ -1,46 +1,147 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://leveragemind/schemas/storyboard_v2.schema.json",
-  "title": "Storyboard v2 (directorial layer)",
-  "description": "Per PRODUCTION_V2_BLUEPRINT.md §4. The directorial artifact between script and media plan.",
+  "title": "Storyboard v2 (canonical LLM-authored SSOT + legacy directorial compatibility)",
+  "description": "Canonical storyboard contract authored by Sonnet 5. In canonical mode (storyboard_contract_version present) requires claims, narrative beats, shots, overlays, segment work orders, timing policy, and feedback policy. Legacy mode preserved for existing consumers.",
   "type": "object",
-  "required": ["schema_version", "project_id", "video_type", "target_runtime_sec",
-               "acts", "beats", "shot_mix_summary", "totals", "approval"],
+
+  "if": {
+    "required": ["storyboard_contract_version"]
+  },
+  "then": {
+    "required": [
+      "storyboard_contract_version",
+      "approved_script_revision_id",
+      "approved_script_sha256",
+      "authoring_model_profile",
+      "authoring_model",
+      "claim_inventory",
+      "narrative_beats",
+      "shots",
+      "overlays",
+      "segment_work_orders",
+      "feedback_policy",
+      "timing_policy",
+      "approval"
+    ]
+  },
+  "else": {
+    "required": [
+      "schema_version", "project_id", "video_type", "target_runtime_sec",
+      "acts", "beats", "shot_mix_summary", "totals", "approval"
+    ]
+  },
+
   "properties": {
-    "schema_version": {"const": "2.0"},
-    "project_id": {"type": "string"},
-    "video_type": {"type": "string", "enum": ["explainer", "teaser", "trailer", "short"]},
-    "source_script": {"type": "string"},
-    "source_script_sha256": {"type": ["string", "null"]},
-    "target_runtime_sec": {"type": "number", "minimum": 0},
-    "created_at": {"type": "string"},
-    "router_version": {"type": "string"},
+    "storyboard_contract_version": {
+      "type": "string",
+      "description": "Canonical SSOT contract version (e.g. '1.0'). Presence indicates canonical mode."
+    },
+    "approved_script_revision_id": {
+      "type": "string",
+      "description": "Authoring service revision id of the approved script."
+    },
+    "approved_script_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "description": "SHA-256 of the approved script JSON content."
+    },
+    "authoring_model_profile": {
+      "type": "string",
+      "description": "Kilo model profile used for storyboard authorship. Must reference Sonnet 5."
+    },
+    "authoring_model": {
+      "type": "string",
+      "description": "Actual resolved model id (e.g. 'kilo/anthropic/claude-sonnet-5-20250908')."
+    },
+
+    "claim_inventory": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Claims extracted from the approved script and source research.",
+      "items": {"$ref": "#/definitions/claim"}
+    },
+
+    "narrative_beats": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Narrative beats mapping script structure to visual storytelling.",
+      "items": {"$ref": "#/definitions/narrative_beat"}
+    },
+
+    "shots": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Visual shots authored by Sonnet 5 with semantic justification and timing policy.",
+      "items": {"$ref": "#/definitions/shot"}
+    },
+
+    "overlays": {
+      "type": "array",
+      "description": "Overlay plans with semantic purpose and timing.",
+      "items": {"$ref": "#/definitions/overlay"}
+    },
+
+    "segment_work_orders": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Per-segment production work orders linking script segments to shots, overlays, and QA criteria.",
+      "items": {"$ref": "#/definitions/segment_work_order"}
+    },
+
+    "feedback_policy": {
+      "$ref": "#/definitions/feedback_policy"
+    },
+
+    "timing_policy": {
+      "$ref": "#/definitions/timing_policy"
+    },
+
+    "approval": {
+      "$ref": "#/definitions/approval"
+    },
+
+    "schema_version": {
+      "type": "string",
+      "description": "Legacy schema version identifier (e.g. '2.0')."
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "video_type": {
+      "type": "string",
+      "enum": ["explainer", "teaser", "trailer", "short"]
+    },
+    "source_script": {
+      "type": "string"
+    },
+    "source_script_sha256": {
+      "type": ["string", "null"]
+    },
+    "target_runtime_sec": {
+      "type": "number",
+      "minimum": 0
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "router_version": {
+      "type": "string"
+    },
 
     "acts": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["act", "name", "beat_ids"],
-        "properties": {
-          "act": {"type": "integer", "minimum": 1, "maximum": 6},
-          "name": {"type": "string"},
-          "beat_ids": {"type": "array", "items": {"type": "string"}},
-          "runtime_pct": {"type": "number"}
-        }
-      }
+      "items": {"$ref": "#/definitions/act"}
     },
 
     "beats": {
       "type": "array",
-      "minItems": 1,
       "items": {"$ref": "#/definitions/beat"}
     },
 
     "shot_mix_summary": {
       "type": "object",
-      "required": ["hero_lipsync_pct", "hero_cutaway_pct", "broll_specific_pct",
-                   "broll_metaphorical_pct", "graphics_ui_pct", "kinetic_text_pct",
-                   "max_hero_block_sec", "distinct_visual_setups"],
       "properties": {
         "hero_lipsync_pct": {"type": "number"},
         "hero_cutaway_pct": {"type": "number"},
@@ -56,7 +157,6 @@
 
     "totals": {
       "type": "object",
-      "required": ["est_higgsfield_credits", "est_usd", "budget_cap_usd"],
       "properties": {
         "est_higgsfield_credits": {"type": "number"},
         "est_usd": {"type": "number"},
@@ -64,21 +164,328 @@
         "beats_requiring_generation": {"type": "integer"},
         "beats_local_or_reused": {"type": "integer"}
       }
+    }
+  },
+
+  "definitions": {
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "claim_text"],
+      "properties": {
+        "claim_id": {"type": "string"},
+        "claim_text": {"type": "string"},
+        "claim_type": {
+          "type": "string",
+          "enum": ["fact", "reference", "source_quote", "statistic", "narrative_premise",
+                   "definition", "comparison", "analogy", "conclusion"]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "References into the source research log."
+        },
+        "segment_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Script segment ids where this claim appears."
+        },
+        "visual_obligation": {
+          "type": "string",
+          "enum": ["must_show", "may_show", "explicitly_avoid"],
+          "description": "Whether visuals must or may show evidence for this claim."
+        },
+        "strength": {
+          "type": "string",
+          "enum": ["confirmed", "well_supported", "anecdotal", "speculative"]
+        }
+      }
+    },
+
+    "narrative_beat": {
+      "type": "object",
+      "required": ["beat_id", "segment_id", "act", "order"],
+      "properties": {
+        "beat_id": {"type": "string"},
+        "segment_id": {"type": "string"},
+        "act": {"type": "integer", "minimum": 1, "maximum": 6},
+        "order": {"type": "integer"},
+        "narration_text": {"type": "string"},
+        "narration_word_span": {"type": "array", "items": {"type": "integer"}},
+        "narrative_function": {"type": "string"},
+        "visual_function": {"type": "string"},
+        "viewer_question": {"type": "string"},
+        "retention_role": {"type": "string"},
+        "source_claim_refs": {"type": "array", "items": {"type": "string"}},
+        "shot_ids": {"type": "array", "items": {"type": "string"}},
+        "overlay_ids": {"type": "array", "items": {"type": "string"}},
+        "must_avoid": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "shot": {
+      "type": "object",
+      "required": [
+        "shot_id",
+        "segment_id",
+        "why_this_visual",
+        "narrative_alignment",
+        "planned_duration_sec",
+        "min_usable_duration_sec",
+        "max_usable_duration_sec",
+        "duration_drift_policy",
+        "assembly_fit_policy"
+      ],
+      "properties": {
+        "shot_id": {"type": "string"},
+        "segment_id": {"type": "string"},
+        "visual_role": {"type": "string"},
+        "visual_concept": {"type": "string"},
+        "why_this_visual": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Sonnet-authored justification for why this visual supports the script argument."
+        },
+        "narrative_alignment": {
+          "type": "string",
+          "minLength": 10,
+          "description": "How this shot aligns with the narrative argument, reference, or conclusion."
+        },
+        "claim_refs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "literal_vs_metaphorical": {
+          "type": "string",
+          "enum": ["literal", "metaphorical", "hybrid"]
+        },
+        "prompt_intent": {"type": "string"},
+        "must_show": {"type": "array", "items": {"type": "string"}},
+        "must_avoid": {"type": "array", "items": {"type": "string"}},
+        "planned_duration_sec": {
+          "type": "number",
+          "minimum": 0.1
+        },
+        "min_usable_duration_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_usable_duration_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_drift_policy": {
+          "type": "string",
+          "enum": ["trim_ok", "pad_ok", "extend_still_ok",
+                   "regenerate_required", "sonnet_repair_required",
+                   "human_review_required"]
+        },
+        "assembly_fit_policy": {
+          "type": "string",
+          "description": "Instructions for how assembly should handle this shot in the timeline."
+        },
+        "generation_risk": {"type": "string"},
+        "fallback_strategy": {"type": "string"},
+        "qa_requirements": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "overlay": {
+      "type": "object",
+      "required": [
+        "overlay_id",
+        "segment_id",
+        "semantic_purpose",
+        "start_time_offset_sec",
+        "end_time_offset_sec",
+        "style_token"
+      ],
+      "properties": {
+        "overlay_id": {"type": "string"},
+        "segment_id": {"type": "string"},
+        "shot_id": {"type": "string"},
+        "overlay_type": {
+          "type": "string",
+          "enum": ["lower_third", "callout", "stat_display", "quote_card",
+                   "title_card", "source_label", "kinetic_text", "progress_bar",
+                   "comparison_split", "diagram_label"]
+        },
+        "text": {"type": "string"},
+        "semantic_purpose": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why this overlay exists and what viewer comprehension it supports."
+        },
+        "source_ref": {"type": "string"},
+        "claim_refs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "trigger_phrase": {"type": "string"},
+        "start_time_offset_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end_time_offset_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "position": {
+          "type": "string",
+          "enum": ["lower_third", "center", "top", "bottom", "side_by_side_left",
+                   "side_by_side_right", "fullscreen", "custom"]
+        },
+        "style_token": {
+          "type": "string",
+          "description": "Style token for consistent overlay rendering."
+        },
+        "animation": {"type": "string"},
+        "safe_for_9x16": {"type": "boolean"},
+        "qa_rules": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "segment_work_order": {
+      "type": "object",
+      "required": [
+        "segment_id",
+        "narration_text_exact",
+        "argument_summary",
+        "viewer_question",
+        "retention_role",
+        "broll_alignment_instruction",
+        "graphic_alignment_instruction",
+        "conclusion_alignment_instruction",
+        "qa_acceptance_criteria"
+      ],
+      "properties": {
+        "segment_id": {"type": "string"},
+        "narration_text_exact": {
+          "type": "string",
+          "description": "Exact approved narration text for this segment. Immutable."
+        },
+        "argument_summary": {"type": "string"},
+        "viewer_question": {"type": "string"},
+        "retention_role": {"type": "string"},
+        "source_claim_refs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "shot_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "overlay_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "broll_alignment_instruction": {
+          "type": "string",
+          "description": "Sonnet-authored instruction for how B-roll should align with narrative."
+        },
+        "graphic_alignment_instruction": {
+          "type": "string",
+          "description": "Sonnet-authored instruction for how graphics should align with narrative."
+        },
+        "conclusion_alignment_instruction": {
+          "type": "string",
+          "description": "Sonnet-authored instruction for how the conclusion visuals should align with the argument."
+        },
+        "qa_acceptance_criteria": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "must_avoid": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+
+    "feedback_policy": {
+      "type": "object",
+      "required": ["repair_authority", "max_repair_rounds", "block_on_unresolved"],
+      "properties": {
+        "repair_authority": {
+          "type": "string",
+          "enum": ["sonnet5_only"],
+          "description": "Only Sonnet 5 may repair the storyboard."
+        },
+        "max_repair_rounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "block_on_unresolved": {
+          "type": "boolean",
+          "description": "Block downstream stages when unresolved BLOCKER or MAJOR findings exist."
+        },
+        "stale_on_repair": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Downstream stages to stale when storyboard is repaired."
+        }
+      }
+    },
+
+    "timing_policy": {
+      "type": "object",
+      "required": ["planned_is_intent", "observed_is_truth", "drift_resolution_order"],
+      "properties": {
+        "planned_is_intent": {
+          "type": "boolean"
+        },
+        "observed_is_truth": {
+          "type": "boolean"
+        },
+        "drift_resolution_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["trim_ok", "pad_ok", "extend_still_ok",
+                     "regenerate_required", "sonnet_repair_required",
+                     "human_review_required"]
+          }
+        },
+        "default_policy": {
+          "type": "string"
+        },
+        "max_total_drift_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
     },
 
     "approval": {
       "type": "object",
       "required": ["status"],
       "properties": {
-        "status": {"type": "string", "enum": ["draft", "pending", "approved", "rejected"]},
+        "status": {
+          "type": "string",
+          "enum": ["draft", "pending", "approved", "rejected"]
+        },
         "approved_by": {"type": ["string", "null"]},
         "approved_at": {"type": ["string", "null"]},
-        "sha256_at_approval": {"type": ["string", "null"]}
+        "sha256_at_approval": {"type": ["string", "null"]},
+        "creative_author": {
+          "type": "string",
+          "description": "Confirmed creative author model. Must be Sonnet 5."
+        }
       }
-    }
-  },
+    },
 
-  "definitions": {
+    "act": {
+      "type": "object",
+      "required": ["act", "name", "beat_ids"],
+      "properties": {
+        "act": {"type": "integer", "minimum": 1, "maximum": 6},
+        "name": {"type": "string"},
+        "beat_ids": {"type": "array", "items": {"type": "string"}},
+        "runtime_pct": {"type": "number"}
+      }
+    },
+
     "beat": {
       "type": "object",
       "required": ["beat_id", "segment_id", "act", "order", "narration_text",
@@ -95,7 +502,6 @@
         "narration_word_span": {"type": "array", "items": {"type": "integer"}},
         "est_duration_sec": {"type": "number"},
         "actual_duration_sec": {"type": ["number", "null"]},
-
         "visual_function": {"type": "string"},
         "narrative_function": {"type": "string"},
         "shot_type": {
@@ -105,17 +511,17 @@
                    "graphic_progressive", "graphic_title_card", "kinetic_text",
                    "ui_insert", "still_kenburns"]
         },
-        "asset_type": {"type": "string",
-          "enum": ["generated_video", "generated_still", "local_graphic", "reused"]},
+        "asset_type": {
+          "type": "string",
+          "enum": ["generated_video", "generated_still", "local_graphic", "reused"]
+        },
         "model_tier": {"type": "string", "enum": ["premium", "standard", "cheap", "local"]},
         "model": {"type": "string"},
         "prompt_class": {"type": "string"},
         "shots_per_beat": {"type": "integer", "minimum": 1},
-
         "visual_brief": {"type": "string"},
         "reference_images": {"type": "array", "items": {"type": "string"}},
         "reference_required": {"type": "boolean"},
-
         "audio_mode": {"type": "string", "enum": ["lipsync", "voiceover", "silent"]},
         "lipsync_required": {"type": "boolean"},
         "music_duck": {"type": "boolean"},
@@ -127,7 +533,6 @@
             "end_sec": {"type": "number"}
           }
         },
-
         "overlay": {
           "type": "object",
           "properties": {
@@ -147,9 +552,7 @@
             "payload": {"type": ["object", "null"]}
           }
         },
-
         "crop_safety": {"type": "string"},
-
         "cost": {
           "type": "object",
           "required": ["est_clips", "est_credits", "est_usd"],
@@ -174,7 +577,6 @@
           }
         },
         "justification": {"type": "string"},
-
         "approval": {
           "type": "object",
           "properties": {
