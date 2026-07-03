@@ -1,0 +1,34 @@
+{
+  "storyboard_contract_version": "1.0",
+  "approved_script_revision_id": "rev_test",
+  "approved_script_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "authoring_model_profile": "storyboard_sonnet5",
+  "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908",
+  "claim_inventory": [
+    {"claim_id": "C001", "claim_text": "Test claim.", "claim_type": "narrative_premise", "source_refs": ["src.txt"], "segment_ids": ["S001"], "visual_obligation": "must_show", "strength": "confirmed"}
+  ],
+  "narrative_beats": [
+    {"beat_id": "NB001", "segment_id": "S001", "act": 1, "order": 1, "narration_text": "Test.", "narrative_function": "hook", "visual_function": "establishes", "viewer_question": "?", "retention_role": "curiosity_open", "source_claim_refs": ["C001"], "shot_ids": ["SH001"], "overlay_ids": []}
+  ],
+  "shots": [
+    {
+      "shot_id": "SH001",
+      "segment_id": "S001",
+      "visual_role": "hero_lipsync",
+      "why_this_visual": "Establishes narrator authority.",
+      "narrative_alignment": "Direct address builds trust.",
+      "planned_duration_sec": 9.0,
+      "min_usable_duration_sec": 3.0,
+      "max_usable_duration_sec": 8.0,
+      "duration_drift_policy": "trim_ok",
+      "assembly_fit_policy": "Can be trimmed."
+    }
+  ],
+  "overlays": [],
+  "segment_work_orders": [
+    {"segment_id": "S001", "narration_text_exact": "Test.", "argument_summary": "A test.", "viewer_question": "?", "retention_role": "hook_curiosity", "source_claim_refs": ["C001"], "shot_ids": ["SH001"], "overlay_ids": [], "broll_alignment_instruction": "Test.", "graphic_alignment_instruction": "Test.", "conclusion_alignment_instruction": "Test.", "qa_acceptance_criteria": ["test pass"]}
+  ],
+  "feedback_policy": {"repair_authority": "sonnet5_only", "max_repair_rounds": 3, "block_on_unresolved": true},
+  "timing_policy": {"planned_is_intent": true, "observed_is_truth": true, "drift_resolution_order": ["trim_ok"]},
+  "approval": {"status": "draft"}
+}
