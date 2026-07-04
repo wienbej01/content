@@ -4,16 +4,16 @@
   "status": "in_progress",
   "current_wave": "Wave 0",
   "active_ticket": null,
-  "next_ticket": "TKT-006",
+  "next_ticket": null,
   "completed_tickets": ["TKT-001"],
-  "ready_for_audit": ["TKT-002", "TKT-003", "TKT-004", "TKT-005"],
+  "ready_for_audit": ["TKT-002", "TKT-003", "TKT-004", "TKT-005", "TKT-006"],
   "blocked_tickets": [],
   "failed_tickets": [],
-  "last_verified_commit": "7783175",
+  "last_verified_commit": "1472321",
   "focused_tests_passing": true,
   "wave_gate_passing": false,
   "final_gate_passing": false,
   "repair_cycles": {},
   "blockers": [],
-  "last_updated": "2026-07-04T20:28:00+08:00"
+  "last_updated": "2026-07-04T21:14:30+08:00"
 }

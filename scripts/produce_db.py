@@ -2475,6 +2475,226 @@ def run_production(production_id: str, from_stage: str = None, db_path=None):
             sys.exit(1)
 
 
+def _sha256_str(s: str) -> str:
+    return hashlib.sha256(s.encode()).hexdigest()[:12]
+
+
+def _build_inspect_report(production_id: str, db_path=None) -> dict:
+    """Build a read-only evidence bundle for a production.
+
+    JSON shape:
+      - production: production record
+      - stages: {stage_name: {status, started_at, finished_at, attempt}}
+      - storyboard: {revision_id, shots: [{id, ordinal, label, role, claim}]}
+      - units: {render_unit_id: {ordinal, label, status, asset_type,
+                 policies: {audio, text, lipsync}, artifact_sha, artifact_uri,
+                 active_artifact_id, qa_verdicts: [{validator, status, method}]}}
+      - validations: {summary: {total, pass, fail, pending}, items: [...]}
+      - provider_jobs: [{id, provider, operation, status, render_unit_id}]
+      - cost_totals: {estimated_usd, actual_usd}
+      - approvals: [{gate_name, status, decided_at, actor}]
+      - change_requests: [{id, status, change_type, subject_type, subject_id, reason, target_stage}]
+      - blockers: [...]
+    """
+    conn = _db.connect(db_path)
+
+    production = dict(conn.execute(
+        "SELECT * FROM productions WHERE id=?", (production_id,)
+    ).fetchone())
+
+    # Stage statuses
+    stages = {}
+    for row in conn.execute(
+        "SELECT stage_name, status, attempt, started_at, finished_at "
+        "FROM stage_runs WHERE production_id=? ORDER BY started_at, id",
+        (production_id,),
+    ):
+        stages[row["stage_name"]] = {
+            "status": row["status"],
+            "attempt": row["attempt"],
+            "started_at": row["started_at"],
+            "finished_at": row["finished_at"],
+        }
+
+    # Storyboard shots
+    storyboard = {"revision_id": None, "shots": []}
+    sb_row = conn.execute(
+        "SELECT id, payload_json FROM document_revisions "
+        "WHERE production_id=? AND kind='storyboard' AND status='active' "
+        "ORDER BY revision DESC LIMIT 1",
+        (production_id,),
+    ).fetchone()
+    if sb_row:
+        storyboard["revision_id"] = sb_row["id"]
+        beats = conn.execute(
+            "SELECT id, ordinal, label, visual_intent_json, visual_role "
+            "FROM creative_beats WHERE storyboard_revision_id=? ORDER BY ordinal",
+            (sb_row["id"],),
+        ).fetchall()
+        for beat in beats:
+            vi = json.loads(beat["visual_intent_json"] or "{}")
+            claim = vi.get("narrative_claim") or vi.get("must_show") or ""
+            if isinstance(claim, str) and len(claim) > 200:
+                claim = claim[:200] + ("...[truncated, sha256:%s]" % _sha256_str(claim))
+            storyboard["shots"].append({
+                "id": beat["id"],
+                "ordinal": beat["ordinal"],
+                "label": beat["label"],
+                "role": beat["visual_role"],
+                "claim": claim,
+            })
+
+    # Render units with QA verdicts
+    units = {}
+    all_ru_rows = conn.execute(
+        "SELECT * FROM render_units WHERE production_id=? ORDER BY ordinal",
+        (production_id,),
+    ).fetchall()
+
+    # Pre-fetch all validations for render_units in this production
+    val_rows = conn.execute(
+        "SELECT * FROM validations WHERE production_id=? AND subject_type='render_unit' ORDER BY created_at",
+        (production_id,),
+    ).fetchall()
+    validations_by_unit = {}
+    for v in val_rows:
+        validations_by_unit.setdefault(v["subject_id"], []).append(dict(v))
+
+    for ru in all_ru_rows:
+        ru_dict = dict(ru)
+        art = None
+        if ru_dict.get("active_artifact_id"):
+            art = conn.execute(
+                "SELECT sha256, uri FROM artifacts WHERE id=?",
+                (ru_dict["active_artifact_id"],),
+            ).fetchone()
+
+        verdicts = []
+        for v in validations_by_unit.get(ru_dict["id"], []):
+            evidence = json.loads(v["evidence_json"] or "{}") if v["evidence_json"] else {}
+            verdicts.append({
+                "validator": v["validator_name"],
+                "status": v["status"],
+                "method": evidence.get("method", ""),
+                "algorithm_version": v["algorithm_version"],
+                "artifact_sha256": v["artifact_sha256"],
+                "created_at": v["created_at"],
+            })
+
+        units[ru_dict["id"]] = {
+            "ordinal": ru_dict["ordinal"],
+            "label": ru_dict["label"],
+            "status": ru_dict["status"],
+            "asset_type": ru_dict["asset_type"],
+            "policies": {
+                "audio": ru_dict["audio_policy"],
+                "text": ru_dict["text_policy"],
+                "lipsync": bool(ru_dict["lipsync_required"]),
+            },
+            "artifact_sha": art["sha256"] if art else None,
+            "artifact_uri": art["uri"] if art else None,
+            "active_artifact_id": ru_dict["active_artifact_id"],
+            "qa_verdicts": verdicts,
+        }
+
+    # Validations summary
+    val_summary = {"total": 0, "pass": 0, "fail": 0, "pending": 0}
+    for v in val_rows:
+        val_summary["total"] += 1
+        status = v["status"]
+        if status == "pass":
+            val_summary["pass"] += 1
+        elif status == "fail":
+            val_summary["fail"] += 1
+        else:
+            val_summary["pending"] += 1
+
+    # Provider jobs
+    provider_jobs = []
+    for row in conn.execute(
+        "SELECT id, provider, operation, status, render_unit_id, submitted_at, completed_at "
+        "FROM provider_jobs WHERE production_id=? ORDER BY submitted_at, id",
+        (production_id,),
+    ):
+        provider_jobs.append({
+            "id": row["id"],
+            "provider": row["provider"],
+            "operation": row["operation"],
+            "status": row["status"],
+            "render_unit_id": row["render_unit_id"],
+            "submitted_at": row["submitted_at"],
+            "completed_at": row["completed_at"],
+        })
+
+    # Cost totals
+    cost_row = conn.execute(
+        "SELECT COALESCE(SUM(estimated_usd), 0) as estimated, "
+        "COALESCE(SUM(actual_usd), 0) as actual FROM cost_events WHERE production_id=?",
+        (production_id,),
+    ).fetchone()
+    cost_totals = {
+        "estimated_usd": round(cost_row["estimated"], 4),
+        "actual_usd": round(cost_row["actual"], 4),
+        "currency": "USD",
+    }
+
+    # Approvals
+    approvals = []
+    for row in conn.execute(
+        "SELECT gate_name, status, requested_at, decided_at, actor, decision_note "
+        "FROM approval_requests WHERE production_id=? ORDER BY requested_at",
+        (production_id,),
+    ):
+        approvals.append({
+            "gate_name": row["gate_name"],
+            "status": row["status"],
+            "requested_at": row["requested_at"],
+            "decided_at": row["decided_at"],
+            "actor": row["actor"],
+            "decision_note": row["decision_note"],
+        })
+
+    # Change requests
+    change_requests = []
+    for row in conn.execute(
+        "SELECT id, status, change_type, subject_type, subject_id, reason, "
+        "requested_by_stage, target_stage, created_at "
+        "FROM change_requests WHERE production_id=? ORDER BY created_at",
+        (production_id,),
+    ):
+        cr = {
+            "id": row["id"],
+            "status": row["status"],
+            "change_type": row["change_type"],
+            "subject_type": row["subject_type"],
+            "subject_id": row["subject_id"],
+            "reason": row["reason"],
+            "requested_by_stage": row["requested_by_stage"],
+            "target_stage": row["target_stage"],
+            "created_at": row["created_at"],
+        }
+        if cr["reason"] and isinstance(cr["reason"], str) and len(cr["reason"]) > 200:
+            cr["reason"] = cr["reason"][:200] + ("...[truncated, sha256:%s]" % _sha256_str(cr["reason"]))
+        change_requests.append(cr)
+
+    conn.close()
+
+    blockers = _db.blockers(production_id, db_path=db_path)
+
+    return {
+        "production": production,
+        "stages": stages,
+        "storyboard": storyboard,
+        "units": units,
+        "validations": {"summary": val_summary, "items": [dict(v) for v in val_rows]},
+        "provider_jobs": provider_jobs,
+        "cost_totals": cost_totals,
+        "approvals": approvals,
+        "change_requests": change_requests,
+        "blockers": blockers,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description="DB-native production orchestrator.")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -2505,6 +2725,11 @@ def main():
     link.add_argument("file_path")
     link.add_argument("--allow-duration-mismatch", action="store_true",
                       help="Proceed even if file duration differs from required_duration_ms")
+    
+    inspect = sub.add_parser("inspect")
+    inspect.add_argument("production_id")
+    inspect.add_argument("--json", dest="json_out", metavar="FILE",
+                          help="Write machine-readable JSON bundle to FILE")
     
     args = ap.parse_args()
     
@@ -2616,6 +2841,18 @@ def main():
             "render_unit_id": args.render_unit_id,
             "status": "generated",
         }, indent=2))
+    
+    elif args.command == "inspect":
+        prod = _db.get_production(args.production_id)
+        if not prod:
+            print(f"Error: Production '{args.production_id}' not found.", file=sys.stderr)
+            sys.exit(1)
+        report = _build_inspect_report(args.production_id)
+        if args.json_out:
+            with open(args.json_out, "w") as f:
+                json.dump(report, f, indent=2, default=str)
+            print(f"Inspection report written to {args.json_out}")
+        print(json.dumps(report, indent=2, default=str))
 
 
 if __name__ == "__main__":
