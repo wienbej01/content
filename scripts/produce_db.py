@@ -1159,6 +1159,8 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
                     slot_data["generation_end_sample"] = slot_data["speech_end_sample"]
                     slot_data["leading_silence_samples"] = 0
                     slot_data["trailing_silence_samples"] = 0
+                    slot_data["visible_start_sample"] = slot_data["speech_start_sample"]
+                    slot_data["visible_end_sample"] = slot_data["speech_end_sample"]
                 slots.append(slot_data)
 
             spec["slots"] = slots
@@ -1182,6 +1184,8 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
                 slot_data["generation_end_sample"] = slot_data["speech_end_sample"]
                 slot_data["leading_silence_samples"] = 0
                 slot_data["trailing_silence_samples"] = 0
+                slot_data["visible_start_sample"] = slot_data["speech_start_sample"]
+                slot_data["visible_end_sample"] = slot_data["speech_end_sample"]
             spec["slots"] = [slot_data]
 
         span_specs.append(spec)
