@@ -2499,6 +2499,13 @@ def main():
     approve.add_argument("--pass", dest="decision", action="store_const", const="pass", default="pass")
     approve.add_argument("--fail", dest="decision", action="store_const", const="fail")
     
+    link = sub.add_parser("link-artifact")
+    link.add_argument("production_id")
+    link.add_argument("render_unit_id")
+    link.add_argument("file_path")
+    link.add_argument("--allow-duration-mismatch", action="store_true",
+                      help="Proceed even if file duration differs from required_duration_ms")
+    
     args = ap.parse_args()
     
     if args.command == "approve":
@@ -2534,6 +2541,81 @@ def main():
             sys.exit(1)
         blockers = _db.blockers(args.production_id)
         print(json.dumps({"production": prod, "blockers": blockers}, indent=2))
+
+    elif args.command == "link-artifact":
+        prod = _db.get_production(args.production_id)
+        if not prod:
+            print(f"Error: Production '{args.production_id}' not found.", file=sys.stderr)
+            sys.exit(1)
+
+        conn = _db.connect()
+        ru = conn.execute(
+            "SELECT * FROM render_units WHERE id=? AND production_id=?",
+            (args.render_unit_id, args.production_id),
+        ).fetchone()
+        conn.close()
+        if not ru:
+            print(f"Error: Render unit '{args.render_unit_id}' not found in production '{args.production_id}'.", file=sys.stderr)
+            sys.exit(1)
+
+        if ru["asset_type"] != "reused":
+            print(f"Error: Render unit '{args.render_unit_id}' has asset_type='{ru['asset_type']}', not 'reused'.", file=sys.stderr)
+            sys.exit(1)
+
+        if ru["active_artifact_id"] is not None:
+            print(f"Error: Render unit '{args.render_unit_id}' already has active_artifact. "
+                  "A qualified replacement change request is required to change it (R6-004).", file=sys.stderr)
+            sys.exit(1)
+
+        file_path = Path(args.file_path).resolve()
+        if not file_path.exists():
+            print(f"Error: File not found: {file_path}", file=sys.stderr)
+            sys.exit(1)
+
+        probe = _repo.probe_media(file_path)
+        if probe is None:
+            print(f"Error: File is not FFprobe-parsable media: {file_path}", file=sys.stderr)
+            sys.exit(1)
+
+        actual_duration_ms = probe.duration_ms or 0
+        required_ms = ru["required_duration_ms"] or 0
+        DURATION_TOLERANCE_PCT = 10.0
+        if required_ms > 0 and actual_duration_ms > 0:
+            delta_pct = abs(actual_duration_ms - required_ms) / required_ms * 100.0
+            if delta_pct > DURATION_TOLERANCE_PCT:
+                if not args.allow_duration_mismatch:
+                    print(
+                        f"Error: Duration mismatch: file is {actual_duration_ms}ms, "
+                        f"required is {required_ms}ms ({delta_pct:.1f}% difference, "
+                        f"tolerance {DURATION_TOLERANCE_PCT}%). "
+                        "Use --allow-duration-mismatch to override.",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                else:
+                    print(
+                        f"Warning: Duration mismatch ({actual_duration_ms}ms vs {required_ms}ms, "
+                        f"{delta_pct:.1f}%), proceeding per --allow-duration-mismatch.",
+                        file=sys.stderr,
+                    )
+
+        art = _repo.register_artifact(
+            production_id=args.production_id,
+            path=file_path,
+            kind="reused_stock",
+        )
+        _repo.link_artifact_to_render_unit(
+            artifact_id=art["id"],
+            render_unit_id=args.render_unit_id,
+        )
+
+        print(json.dumps({
+            "artifact_id": art["id"],
+            "sha256": art["sha256"],
+            "uri": art["uri"],
+            "render_unit_id": args.render_unit_id,
+            "status": "generated",
+        }, indent=2))
 
 
 if __name__ == "__main__":
