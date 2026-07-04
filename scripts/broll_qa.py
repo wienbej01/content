@@ -314,3 +314,104 @@ def check_gibberish_objects(
             pass
 
     return result
+
+
+_FREEZEDETECT_FILTER = "freezedetect=n=0.003:d=0.5"
+
+# thresholds as documented code constants
+_MAX_FREEZE_PCT = 50.0
+_MAX_SCENE_CHANGES = 30
+
+
+def check_broll_technical(video_path: Path) -> Dict[str, Any]:
+    """Model-free technical QA for b-roll clips.
+
+    Runs ffmpeg-only checks (no vision model):
+      - frozen-frame detection via freezedetect
+      - gibberish detection via scene-change count
+
+    Returns dict with status ('pass'|'fail'), issues list, and metrics.
+    """
+    result: Dict[str, Any] = {
+        "status": "pass",
+        "issues": [],
+        "frozen": {"total_freeze_sec": 0.0, "freeze_pct": 0.0},
+        "gibberish": {"scene_changes": 0},
+    }
+
+    if not video_path.exists():
+        result["status"] = "fail"
+        result["issues"].append("Video file missing")
+        return result
+
+    probe = subprocess.run([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1", str(video_path),
+    ], capture_output=True, text=True)
+    try:
+        duration = float(probe.stdout.strip())
+    except ValueError:
+        duration = None
+
+    # frozen-frame detection
+    freeze_issues = _detect_frozen_frames(video_path, duration)
+    result["issues"].extend(freeze_issues)
+    result["frozen"].update({"total_freeze_sec": 0.0, "freeze_pct": 0.0})
+    if freeze_issues and duration:
+        result["status"] = "fail"
+
+    # gibberish detection via scene changes
+    gibberish_result = _detect_excessive_scene_changes(video_path)
+    result["gibberish"]["scene_changes"] = gibberish_result["scene_changes"]
+    if gibberish_result["is_gibberish"]:
+        result["status"] = "fail"
+        result["issues"].append(gibberish_result["issue"])
+
+    return result
+
+
+def _detect_frozen_frames(video_path: Path, duration: Optional[float]) -> list[str]:
+    """Detect frozen/static video using ffmpeg freezedetect filter."""
+    issues: list[str] = []
+    r = subprocess.run([
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-vf", _FREEZEDETECT_FILTER,
+        "-an", "-f", "null", "-",
+    ], capture_output=True, text=True)
+    import re
+    freeze_durs = re.findall(r"freeze_duration:\s*([\d.]+)", r.stderr)
+    freeze_starts = re.findall(r"freeze_start:\s*([\d.]+)", r.stderr)
+    total_freeze = sum(float(d) for d in freeze_durs)
+    if freeze_starts and not freeze_durs and duration:
+        total_freeze = duration - float(freeze_starts[0])
+    if duration and duration > 0 and total_freeze > 0:
+        freeze_pct = (total_freeze / duration) * 100
+        if freeze_pct >= _MAX_FREEZE_PCT:
+            issues.append(
+                f"FROZEN_VIDEO: {freeze_pct:.0f}% frozen "
+                f"({total_freeze:.1f}s of {duration:.1f}s)"
+            )
+    return issues
+
+
+def _detect_excessive_scene_changes(video_path: Path) -> Dict[str, Any]:
+    """Detect likely gibberish via excessive scene-change count."""
+    r = subprocess.run([
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-vf", "select='gt(scene,0.01)',metadata=print",
+        "-an", "-f", "null", "-",
+    ], capture_output=True, text=True)
+    import re
+    scores = [float(m) for m in re.findall(r"scene_score=([\d.]+)", r.stderr)]
+    result = {
+        "scene_changes": len(scores),
+        "is_gibberish": len(scores) > _MAX_SCENE_CHANGES,
+        "issue": "",
+    }
+    if result["is_gibberish"]:
+        result["issue"] = (
+            f"Excessive scene changes ({len(scores)}), likely gibberish"
+        )
+    return result

@@ -21,6 +21,8 @@ import media_contract as _contract
 import production_db as _db
 import production_repo as _repo
 
+from broll_qa import check_broll_technical
+
 
 CONTRACT_VERSION = "1.0"
 
@@ -858,6 +860,15 @@ def _qa_provider_video(
     evidence["duration_ok"] = dur_ok
     evidence["sha_match"] = sha_ok
 
+    # Model-free b-roll technical checks (frozen-frame + gibberish)
+    broll_tech = check_broll_technical(artifact_path)
+    broll_tech_ok = broll_tech.get("status") == "pass"
+    evidence["broll_technical"] = broll_tech
+    if not broll_tech_ok:
+        issues.extend(broll_tech.get("issues", []))
+
+    evidence["broll_technical_ok"] = broll_tech_ok
+
     # Text policy check
     text_policy = (render_unit.get("text_policy") or "").strip().upper()
     text_policy_ok = True
@@ -1207,6 +1218,15 @@ def run_contract_media_qa(
         production_id, "render_unit", render_unit_id,
         "qa_media_contract", passed, evidence, db_path=db,
     )
+
+    if render_method == "generated_video" and "broll_technical" in evidence:
+        broll_tech = evidence["broll_technical"]
+        broll_passed = broll_tech.get("status") == "pass"
+        record_validation_evidence(
+            production_id, "render_unit", render_unit_id,
+            "broll_technical", broll_passed, broll_tech, db_path=db,
+        )
+
     if passed:
         record_test_mode_semantic_role_qa(
             production_id, render_unit_id, db_path=db,
