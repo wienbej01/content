@@ -169,17 +169,26 @@ def _compose_visual_brief(shot: dict) -> str:
 
 def _compose_visual_intent(shot: dict) -> dict:
     """Compose visual_intent dict from canonical semantic fields."""
+    from broll_semantic import derive_concept_key, compute_concept_key
+
     concept = shot.get("visual_concept", "")
     alignment = shot.get("narrative_alignment", "")
     why = shot.get("why_this_visual", "")
+    must_show = shot.get("must_show", [])
+    primary_subject = must_show[0] if must_show else ""
+    action = shot.get("prompt_intent", "") or concept
+
+    derived_key = derive_concept_key(concept, primary_subject, action)
+    derived_hash = compute_concept_key(concept, primary_subject, action)
+
     intent = {
         "visual_function": "demonstrate" if _resolve_shot_type(shot).startswith("graphic") else "illustrate",
-        "concept_key": shot.get("shot_id", ""),
-        "concept_hash": shot.get("shot_id", ""),
+        "concept_key": derived_key,
+        "concept_hash": derived_hash,
         "narrative_claim": alignment or why or concept,
         "information_to_show": concept,
         "viewer_takeaway": why or alignment,
-        "required_action": shot.get("prompt_intent", "") or concept,
+        "required_action": action,
         "distinctness_requirement": "Specific to the canonical shot; no generic stock.",
         "semantic_acceptance_criteria": alignment or why,
         "why_this_visual": shot.get("why_this_visual", ""),

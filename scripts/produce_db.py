@@ -580,17 +580,13 @@ def _graphics_for(shot_type: str, narration: str) -> dict:
 def _visual_intent_for(shot_type: str, narration: str) -> dict:
     """Structured R7 B-roll semantic contract (read by compile_media), seeded
     deterministically from the segment narration. Non-empty for every beat."""
+    from broll_semantic import derive_concept_key, compute_concept_key
+
     clause = _first_clause(narration)
     if not clause:
-        # Fallback for empty-narration beats (review_script may produce segments
-        # with no text). Use a type-appropriate claim so b-roll/graphic beats
-        # always satisfy the R7 semantic contract.
         import re
         label = shot_type.replace("_", " ").title()
         clause = "Visual illustration of " + label
-    concept = _concept_key(narration)
-    if not concept or concept == "concept":
-        concept = shot_type
     is_graphic = _CANONICAL_SHOTS.get(shot_type, {}).get("graphic", False)
     action = {
         "hero_lipsync": "Locked-off medium shot with a subtle push-in.",
@@ -604,10 +600,13 @@ def _visual_intent_for(shot_type: str, narration: str) -> dict:
         "kinetic_text": "Animated post-overlay text.",
         "still_kenburns": "Slow Ken-Burns drift across the still.",
     }.get(shot_type, "Slow controlled camera movement.")
+    visual_brief = _visual_brief_for(shot_type, narration)
+    concept = derive_concept_key(clause, clause, action)
+    concept_hash = compute_concept_key(clause, clause, action)
     return {
         "visual_function": "demonstrate" if is_graphic else "illustrate",
         "concept_key": concept,
-        "concept_hash": concept,
+        "concept_hash": concept_hash,
         "narrative_claim": clause,
         "information_to_show": clause,
         "viewer_takeaway": clause,
@@ -964,7 +963,7 @@ def _select_hero_reference_image(routing: dict, hero_beat_index: int) -> str | N
 
 def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     from tts_service import compile_render_plan, reconcile_storyboard_with_timing
-    from broll_semantic import route_render_mode
+    from broll_semantic import route_render_mode, check_concept_quota, register_concept, is_forbidden_concept
     from slice_continuous_lipsync import materialize_hero_slot_slices
     from timeline_utils import ms_to_samples as _ms_to_samples
     import production_db as _db
@@ -1193,6 +1192,43 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         estimated_cost_usd=round(estimated_cost, 2),
         db_path=None
     )
+
+    # TKT-002: Enforce concept dedup quota during compile.
+    # Every generated_video unit must have a unique concept_key.
+    # FORBIDDEN_CHEAP_CONCEPTS are rejected; duplicate concept_keys raise a
+    # compile error naming both render units.
+    for u in result["render_units"]:
+        if u.get("asset_type") != "generated_video":
+            continue
+        concept_key = (u.get("concept_key") or "").strip()
+        concept_hash = (u.get("concept_hash") or "").strip()
+        if not concept_key or not concept_hash:
+            continue
+
+        if is_forbidden_concept(concept_key):
+            raise RuntimeError(
+                f"FORBIDDEN_CHEAP_CONCEPT: render unit {u['id']} "
+                f"({u.get('label', '?')}) matches forbidden concept in "
+                f"concept_key={concept_key!r}"
+            )
+
+        existing = check_concept_quota(
+            inputs["production_id"], concept_key, concept_hash, db_path=None,
+        )
+        if existing:
+            other_id = existing["render_unit_id"]
+            raise RuntimeError(
+                f"Concept quota exceeded: render unit {u['id']} "
+                f"({u.get('label', '?')}) has concept_key {concept_key!r} "
+                f"already registered by render unit {other_id}. "
+                f"Same concept cannot be generated twice in one production."
+            )
+
+        visual_brief = (u.get("information_to_show") or concept_key).strip()
+        register_concept(
+            inputs["production_id"], concept_key, concept_hash,
+            visual_brief, u["id"], db_path=None,
+        )
 
     # S9-C05: materialize a per-slot master-narration slice for every hero unit so
     # generation (S9-C06) can pass seedance --audio. Hero lipsync audio is non-negotiable

@@ -114,6 +114,38 @@ def compute_concept_key(visual_brief: str, narrative_claim: str, action: str) ->
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
+def derive_concept_key(visual_concept: str, subject: str, action: str) -> str:
+    """Derive a human-readable concept key from normalized semantic fields.
+
+    Normalizes visual_concept + primary subject + action
+    (lowercase, stopword-strip, sorted unique tokens).
+    Returns a stable string suitable for concept_key (stored alongside
+    concept_hash = sha256(concept_key) for dedup lookups).
+    """
+    _STOPWORDS: frozenset[str] = frozenset({
+        "a", "an", "the", "and", "or", "but", "of", "in", "on", "at", "to",
+        "for", "with", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "can", "shall", "this", "that", "it", "its",
+        "from", "by", "as", "so", "if", "no", "not",
+    })
+    raw = " ".join([
+        visual_concept.strip().lower(),
+        subject.strip().lower(),
+        action.strip().lower(),
+    ])
+    tokens = [t for t in raw.replace("-", " ").replace("_", " ").split()
+              if t not in _STOPWORDS and len(t) > 1]
+    deduped = sorted(set(tokens))
+    return "_".join(deduped) if deduped else "concept"
+
+
+def is_forbidden_concept(concept_key: str) -> bool:
+    """Check whether any token in the concept_key matches a forbidden cheap concept."""
+    tokens = set(concept_key.lower().split("_"))
+    return bool(tokens & {t.lower() for t in FORBIDDEN_CHEAP_CONCEPTS})
+
+
 def check_concept_quota(
     production_id: str,
     concept_key: str,
