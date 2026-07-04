@@ -129,4 +129,8 @@ Earlier focused validator/engineer repair loop:
 336 focused tests passed
 ```
 
-See `docs/SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md` for the comprehensive end-to-end handoff and open enhancement targets.
+For frontier-LLM architecture review, use
+`docs/END_TO_END_PRODUCTION_SYSTEM_TECHNICAL_SPEC_20260704.md`. That document is
+the objective full-system specification covering research, scripting, LLM calls,
+DB/ledger, audio, video rendering, graphics, QA, repair, compliance, assembly,
+publish, and analytics.

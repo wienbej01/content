@@ -10,6 +10,7 @@
 | **[CLIP_DB_DESIGN.md](CLIP_DB_DESIGN.md)** | Clip authority database design (implemented) | ✅ Updated |
 | **[HARMONIZED_CLIP_FINGERPRINTS.md](HARMONIZED_CLIP_FINGERPRINTS.md)** | Fingerprint drift elimination system | ✅ New |
 | **[PIPELINE.md](PIPELINE.md)** | Database-integrated pipeline overview | ✅ Updated |
+| **[END_TO_END_PRODUCTION_SYSTEM_TECHNICAL_SPEC_20260704.md](END_TO_END_PRODUCTION_SYSTEM_TECHNICAL_SPEC_20260704.md)** | Objective full-system technical specification for frontier-LLM review | ✅ New |
 | **[SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md](SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md)** | Comprehensive end-to-end production handoff for frontier-LLM review | ✅ New |
 
 ### Code Implementation
@@ -44,9 +45,10 @@
 
 1. **Start with the summary**: Read `README.md` for pipeline overview; Read `ENHANCED_DATABASE_SYSTEM_SUMMARY.md` for architectural overview
 2. **Study the flow**: Review `PRODUCTION_DATA_FLOW_MAP.md` for database-driven pipeline
-3. **Study the current storyboard integration**: Read `SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md`
-4. **Understand fingerprints**: Read `HARMONIZED_CLIP_FINGERPRINTS.md` for drift elimination
-5. **Review implementation**: Check `CLIP_DB_DESIGN.md` for database schema and API
+3. **Study the objective full-system spec**: Read `END_TO_END_PRODUCTION_SYSTEM_TECHNICAL_SPEC_20260704.md`
+4. **Study the current storyboard integration**: Read `SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md`
+5. **Understand fingerprints**: Read `HARMONIZED_CLIP_FINGERPRINTS.md` for drift elimination
+6. **Review implementation**: Check `CLIP_DB_DESIGN.md` for database schema and API
 
 ### Key Concepts to Understand
 

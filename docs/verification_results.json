@@ -254,23 +254,23 @@
           "| **[HARMONIZED_CLIP_FINGERPRINTS.md](HARMONIZED_CLIP_FINGERPRINTS.md)** | Fingerprint drift elimination system | \u2705 New |"
         ],
         [
-          56,
+          58,
           "4. **Harmonized Fingerprints**: Elimination of path drift and stale reuse"
         ],
         [
-          88,
+          90,
           "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
         ],
         [
-          88,
+          90,
           "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
         ],
         [
-          88,
+          90,
           "- Recurring failure patterns: stale reuse, path mismatch, parent/child confusion"
         ],
         [
-          191,
+          193,
           "| Path mismatch error | Use `clip_db.get_path()` not manual path derivation | `HARMONIZED_CLIP_FINGERPRINTS.md` |"
         ]
       ],
