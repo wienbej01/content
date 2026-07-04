@@ -22,6 +22,7 @@ import production_db as _db
 import production_repo as _repo
 
 from broll_qa import check_broll_technical
+from compensate import compensate, COMPENSATION_MIN_OFFSET_MS, COMPENSATION_MAX_OFFSET_MS
 
 
 CONTRACT_VERSION = "1.0"
@@ -1053,8 +1054,21 @@ def _qa_hero_lipsync(
                 evidence["lipsync_face_track_found"] = result.face_track_found
                 evidence["lipsync_face_track_fraction"] = result.face_track_fraction
                 evidence["lipsync_drift_ms"] = result.offset_ms
-                evidence["lipsync_drift_ok"] = True
-                evidence["lipsync_review_status"] = "PASS"
+                offset = abs(result.offset_ms) if result.offset_ms is not None else 0
+                if offset >= COMPENSATION_MIN_OFFSET_MS:
+                    if offset <= COMPENSATION_MAX_OFFSET_MS:
+                        evidence["lipsync_drift_ok"] = False
+                        evidence["lipsync_review_status"] = "CORRECTABLE"
+                        evidence["lipsync_offset_band"] = "correctable"
+                        issues.append(f"lipsync_offset_{result.offset_ms:.0f}ms_correctable")
+                    else:
+                        evidence["lipsync_drift_ok"] = False
+                        evidence["lipsync_review_status"] = "FAIL"
+                        evidence["lipsync_offset_band"] = "uncorrectable"
+                        issues.append(f"lipsync_offset_{result.offset_ms:.0f}ms_uncorrectable")
+                else:
+                    evidence["lipsync_drift_ok"] = True
+                    evidence["lipsync_review_status"] = "PASS"
                 record_validation_evidence(
                     production_id, "render_unit", render_unit.get("id", ""),
                     "syncnet_offset", True,
@@ -1063,9 +1077,10 @@ def _qa_hero_lipsync(
                         "confidence": result.confidence,
                         "face_track_found": result.face_track_found,
                         "face_track_fraction": result.face_track_fraction,
+                        "lipsync_review_status": evidence["lipsync_review_status"],
                         "method": result.method,
                         "model_version": result.model_version,
-                        "publish_grade": True,
+                        "publish_grade": evidence["lipsync_drift_ok"],
                     },
                     db_path=db_path,
                 )
@@ -1481,12 +1496,14 @@ VALIDATION_FAILURE_CLASSIFICATIONS = frozenset({
     "provider_forbidden_asset", "unexpected_visible_text",
     "local_graphic_not_local", "local_graphic_text_mismatch",
     "ocr_unavailable", "hero_lipsync_unverified", "hero_lipsync_needs_human_review",
+    "hero_lipsync_offset_correctable",
     "unknown_contract_failure",
     "provider_job_retryable_failure", "provider_job_permanent_failure",
 })
 
 REPAIR_ACTIONS = frozenset({
     "render_local_graphic", "regenerate_provider_video",
+    "compensate_hero_audio",
     "recover_artifact", "rerun_qa", "block_for_manual_review",
     "resubmit_provider_job",
 })
@@ -1526,6 +1543,10 @@ def classify_validation_failure(validation_evidence: dict) -> str:
     if render_method == "hero_lipsync":
         if ev.get("lipsync_review_status") == "NEEDS_HUMAN_AV_REVIEW":
             return "hero_lipsync_needs_human_review"
+        if ev.get("lipsync_review_status") == "CORRECTABLE":
+            return "hero_lipsync_offset_correctable"
+        if ev.get("lipsync_review_status") == "FAIL":
+            return "hero_lipsync_unverified"
         if not ev.get("duration_ok"):
             return "hero_lipsync_unverified"
 
@@ -1544,6 +1565,7 @@ _RULES = {
     "sha_mismatch": "block_for_manual_review",
     "ocr_unavailable": "rerun_qa",
     "hero_lipsync_unverified": "regenerate_provider_video",
+    "hero_lipsync_offset_correctable": "compensate_hero_audio",
     "hero_lipsync_needs_human_review": "block_for_manual_review",
     "duration_shortfall": "regenerate_provider_video",
     "unknown_contract_failure": "block_for_manual_review",
@@ -1772,6 +1794,115 @@ def run_repair_lifecycle(
         qa = run_contract_media_qa(db_path, production_id, render_unit_id)
         result["qa_passed"] = (qa.get("status") == "pass")
         result["qa_validation_id"] = qa.get("id")
+
+    elif action == "compensate_hero_audio":
+        offset_ms = evidence.get("lipsync_offset_ms")
+        if offset_ms is None or abs(offset_ms) < COMPENSATION_MIN_OFFSET_MS:
+            cr = route_change_request(
+                production_id, render_unit_id,
+                change_type="regenerate",
+                reason=f"repair: no measurable offset for compensation",
+                db_path=db_path,
+            )
+            result["change_request_id"] = cr.get("id")
+            result["qa_passed"] = True
+            result["compensation_skipped"] = "no offset"
+        else:
+            conn = _db.connect(db_path)
+            ru_row = conn.execute(
+                "SELECT id, source_slice_sha256, active_artifact_id FROM render_units WHERE id=?",
+                (render_unit_id,),
+            ).fetchone()
+            slice_art = conn.execute(
+                "SELECT id, uri, sha256 FROM artifacts "
+                "WHERE kind='hero_audio_slice' AND production_id=? "
+                "AND (uri LIKE '%' || ? || '%' OR ? = sha256) "
+                "LIMIT 1",
+                (production_id, render_unit_id, (ru_row["source_slice_sha256"] or "")),
+            ).fetchone() if ru_row else None
+            pj = conn.execute(
+                "SELECT id FROM provider_jobs "
+                "WHERE render_unit_id=? AND status='completed' "
+                "ORDER BY COALESCE(completed_at, ''), rowid DESC LIMIT 1",
+                (render_unit_id,),
+            ).fetchone()
+            active_art = conn.execute(
+                "SELECT * FROM artifacts WHERE id=?",
+                (ru_row["active_artifact_id"],),
+            ).fetchone() if (ru_row and ru_row["active_artifact_id"]) else None
+            conn.close()
+
+            if not slice_art or not pj or not active_art:
+                cr = route_change_request(
+                    production_id, render_unit_id,
+                    change_type="regenerate",
+                    reason=f"repair: compensation prerequisites missing",
+                    db_path=db_path,
+                )
+                result["change_request_id"] = cr.get("id")
+                result["qa_passed"] = True
+                result["compensation_skipped"] = "prerequisites_missing"
+            else:
+                video_path = Path(active_art["uri"])
+                audio_path = Path(slice_art["uri"])
+                compensated_path = video_path.parent / f"{video_path.stem}_compensated{video_path.suffix}"
+                comp_result = compensate(video_path, audio_path, int(offset_ms), compensated_path)
+                if "error" in comp_result:
+                    raise RuntimeError(
+                        f"REPAIR BLOCKED: compensation failed: {comp_result['error']}"
+                    )
+                comp_art = _repo.register_artifact(
+                    production_id, compensated_path,
+                    kind="generated_video",
+                    extra_metadata={
+                        "compensated_from": str(video_path),
+                        "offset_ms_applied": comp_result.get("offset_ms_applied"),
+                        "source_slice_sha256": ru_row["source_slice_sha256"] if ru_row else None,
+                        "compensation_attempt": True,
+                    },
+                    db_path=db_path,
+                )
+                _reset_render_unit_for_repair(render_unit_id, db_path=db_path)
+                with _db.transaction(db_path) as conn:
+                    conn.execute(
+                        "UPDATE render_units SET active_artifact_id=?, status='generated', updated_at=? WHERE id=?",
+                        (comp_art["id"], _db._now(), render_unit_id),
+                    )
+                record_validation_evidence(
+                    production_id, "render_unit", render_unit_id,
+                    "compensation_attempt", True,
+                    {
+                        "offset_ms": offset_ms,
+                        "offset_ms_applied": comp_result.get("offset_ms_applied"),
+                        "compensated_artifact_path": str(compensated_path),
+                        "compensated_artifact_id": comp_art["id"],
+                        "method": "compensate_hero_audio",
+                        "re_measure_pending": True,
+                    },
+                    db_path=db_path,
+                )
+                qa = run_contract_media_qa(db_path, production_id, render_unit_id)
+                re_passed = (qa.get("status") == "pass")
+                if re_passed:
+                    with _db.transaction(db_path) as conn:
+                        conn.execute(
+                            "UPDATE provider_jobs SET compensated_artifact_path=? WHERE id=?",
+                            (str(compensated_path), pj["id"]),
+                        )
+                    result["new_artifact_id"] = comp_art["id"]
+                    result["qa_passed"] = True
+                    result["qa_validation_id"] = qa.get("id")
+                    result["compensated"] = True
+                else:
+                    cr = route_change_request(
+                        production_id, render_unit_id,
+                        change_type="regenerate",
+                        reason=f"repair: compensation failed for offset {offset_ms}ms",
+                        db_path=db_path,
+                    )
+                    result["change_request_id"] = cr.get("id")
+                    result["qa_passed"] = True
+                    result["compensated"] = False
 
     elif action == "block_for_manual_review":
         raise RuntimeError(

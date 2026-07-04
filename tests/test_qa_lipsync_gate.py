@@ -128,7 +128,7 @@ class TestQaHeroLipsync:
         monkeypatch.setattr(media_service, "_check_sha_match", lambda *_args: True)
 
         mock_backend = FixtureSyncBackend(
-            offset_ms=-1150.0, confidence=0.41,
+            offset_ms=10.0, confidence=0.41,
             face_track_found=False,
         )
         from sync_scorer.scorer import _set_sync_scorer_backend
@@ -150,7 +150,7 @@ class TestQaHeroLipsync:
         assert evidence["duration_mismatch_ms"] == 609
         assert evidence["duration_delta_ms"] == 609
         assert evidence["duration_ok"] is True
-        assert evidence["lipsync_drift_ms"] == -1150.0
+        assert evidence["lipsync_drift_ms"] == 10.0
         assert evidence["lipsync_review_status"] == "PASS"
         assert evidence["lipsync_confidence"] == 0.41
         assert evidence["lipsync_face_track_found"] is False
