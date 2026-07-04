@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 from pathlib import Path
 from typing import Optional
 import sys
@@ -195,6 +196,27 @@ def _semantic_role_qa_evidence(evidence_json, field):
     return data.get(field)
 
 
+def is_simulated_evidence(payload: dict) -> bool:
+    """Return True if payload carries simulated / test-mode-only evidence.
+
+    Checks the top-level ``simulated`` flag and the ``method`` field at both
+    the top level and within ``details`` for the ``yt_test_mode`` prefix.
+    Production-mode publish-grade gates reject simulated evidence so that
+    test-mode auto-pass evidence can never satisfy a real production gate.
+    """
+    if payload.get("simulated") is True:
+        return True
+    method = payload.get("method", "")
+    if method and isinstance(method, str) and method.startswith("yt_test_mode"):
+        return True
+    details = payload.get("details")
+    if isinstance(details, dict):
+        details_method = details.get("method", "")
+        if details_method and isinstance(details_method, str) and details_method.startswith("yt_test_mode"):
+            return True
+    return False
+
+
 def validate_semantic_role_qa(conn, units, publish_grade: bool = True) -> None:
     """S15-T003: Require passing post-render semantic-role QA on publish-grade units.
 
@@ -260,6 +282,17 @@ def validate_semantic_role_qa(conn, units, publish_grade: bool = True) -> None:
                 f"'{role}' (found evidence for: {sorted(set(found_roles)) or 'none'}). "
                 f"The QA result must correspond to the unit's current declared "
                 f"visual_role; stale or role-mismatched evidence does not satisfy it."
+            )
+
+        ev_payload = json.loads(governing["evidence_json"] or "{}") if isinstance(governing["evidence_json"], str) else (governing["evidence_json"] or {})
+        if isinstance(ev_payload, str):
+            ev_payload = json.loads(ev_payload) if ev_payload else {}
+        if not os.environ.get("YT_TEST_MODE") and is_simulated_evidence(ev_payload):
+            raise AssemblyError(
+                f"BLOCKED_SIMULATED_EVIDENCE_REJECTED: render unit {uid} ({label}) with "
+                f"visual_role '{role}' has simulated semantic_role_qa evidence "
+                f"(simulated flag or yt_test_mode method). Simulated evidence may "
+                f"only satisfy publish-grade gates under YT_TEST_MODE=1."
             )
 
         if governing["status"] != "pass":
@@ -507,6 +540,16 @@ def validate_assembly_inputs(
                 try:
                     # Parse SyncNet evidence from validation
                     evidence_json = json.loads(syncnet_validation["evidence_json"])
+
+                    # TKT-001: Reject simulated/test-mode evidence in production mode
+                    if not os.environ.get("YT_TEST_MODE") and is_simulated_evidence(evidence_json):
+                        raise AssemblyError(
+                            f"BLOCKED_SIMULATED_EVIDENCE_REJECTED: render unit {u['id']} "
+                            f"({u.get('label', '') or ''}) has simulated syncnet_offset evidence "
+                            f"(simulated flag or yt_test_mode method). Simulated evidence may "
+                            f"only satisfy publish-grade gates under YT_TEST_MODE=1."
+                        )
+
                     offset_ms = evidence_json.get("offset_ms")
                     confidence = evidence_json.get("confidence")
 
