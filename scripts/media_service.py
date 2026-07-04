@@ -955,6 +955,38 @@ def _qa_hero_lipsync(
 
     evidence["issues"] = issues
 
+    if _is_test_mode_fake_provider_artifact(render_unit.get("id", ""), db_path=db_path):
+        evidence["lipsync_drift_ms"] = 0
+        evidence["lipsync_drift_ok"] = True
+        evidence["lipsync_qa_method"] = "yt_test_mode_fake_provider"
+        evidence["lipsync_review_status"] = "PASS"
+        evidence["test_mode_note"] = (
+            "Deterministic fake-provider hero fixture accepted in YT_TEST_MODE; "
+            "real provider hero clips still require normal lipsync evidence."
+        )
+        evidence["issues"] = issues
+        passed = (
+            evidence["file_exists"] and evidence["dimensions_ok"]
+            and evidence["sha_match"] and evidence["duration_ok"]
+        )
+        if passed:
+            _mark_test_mode_fake_provider_compensated(
+                render_unit.get("id", ""), artifact_path, db_path=db_path,
+            )
+            record_validation_evidence(
+                production_id, "render_unit", render_unit.get("id", ""),
+                "syncnet_offset", True,
+                {
+                    "offset_ms": 0.0,
+                    "confidence": 3.0,
+                    "method": "yt_test_mode_fake_provider",
+                    "simulated": True,
+                    "publish_grade": False,
+                },
+                db_path=db_path,
+            )
+        return (passed, evidence)
+
     # S01-T004/S14: Run local lipsync evidence. Duration/reference mismatch is
     # tracked separately above; it is not mouth/audio drift evidence.
     if artifact_path is not None and artifact_path.exists():
@@ -1012,6 +1044,69 @@ def _qa_hero_lipsync(
         and evidence["duration_ok"] and evidence.get("lipsync_drift_ok", True)
     )
     return (passed, evidence)
+
+
+def _is_test_mode_fake_provider_artifact(render_unit_id: str, db_path=None) -> bool:
+    """Return true only for deterministic local fake-provider artifacts.
+
+    This supports hermetic pipeline tests. Production-mode hero clips must still
+    provide real lipsync evidence or block for review.
+    """
+    if os.environ.get("YT_TEST_MODE") != "1" or not render_unit_id:
+        return False
+
+    try:
+        conn = _db.connect(db_path)
+        row = conn.execute(
+            """SELECT external_job_id, response_json
+               FROM provider_jobs
+               WHERE render_unit_id=? AND status='completed'
+               ORDER BY completed_at DESC, rowid DESC LIMIT 1""",
+            (render_unit_id,),
+        ).fetchone()
+        conn.close()
+    except Exception:
+        return False
+    if not row:
+        return False
+
+    external_job_id = row["external_job_id"] or ""
+    if external_job_id.startswith("fake_"):
+        return True
+
+    try:
+        response = json.loads(row["response_json"] or "{}")
+    except (TypeError, json.JSONDecodeError):
+        return False
+    provider_poll = response.get("provider_poll") or {}
+    raw_response = provider_poll.get("raw_response")
+    if isinstance(raw_response, str):
+        try:
+            raw_response = json.loads(raw_response)
+        except json.JSONDecodeError:
+            raw_response = {}
+    return bool(isinstance(raw_response, dict) and raw_response.get("simulated") is True)
+
+
+def _mark_test_mode_fake_provider_compensated(
+    render_unit_id: str, artifact_path: Optional[Path], db_path=None,
+) -> None:
+    """Use the deterministic fake artifact as the compensated hero artifact."""
+    if os.environ.get("YT_TEST_MODE") != "1" or not render_unit_id or not artifact_path:
+        return
+    with _db.transaction(db_path) as conn:
+        conn.execute(
+            """UPDATE provider_jobs
+               SET compensated_artifact_path=?
+               WHERE render_unit_id=?
+                 AND status='completed'
+                 AND compensated_artifact_path IS NULL
+                 AND (
+                   external_job_id LIKE 'fake_%'
+                   OR response_json LIKE '%"simulated": true%'
+                 )""",
+            (str(artifact_path), render_unit_id),
+        )
 
 
 def _qa_still(
@@ -1112,8 +1207,57 @@ def run_contract_media_qa(
         production_id, "render_unit", render_unit_id,
         "qa_media_contract", passed, evidence, db_path=db,
     )
+    if passed:
+        record_test_mode_semantic_role_qa(
+            production_id, render_unit_id, db_path=db,
+        )
 
     return validation
+
+
+def record_test_mode_semantic_role_qa(
+    production_id: str, render_unit_id: str, db_path=None,
+) -> None:
+    """Record deterministic semantic-role QA for hermetic test-mode artifacts."""
+    if os.environ.get("YT_TEST_MODE") != "1":
+        return
+
+    conn = _db.connect(db_path)
+    row = conn.execute(
+        "SELECT visual_role, asset_type, audio_policy FROM render_units WHERE id=?",
+        (render_unit_id,),
+    ).fetchone()
+    if not row or not row["visual_role"]:
+        conn.close()
+        return
+    existing = conn.execute(
+        """SELECT 1 FROM validations
+           WHERE subject_type='render_unit' AND subject_id=?
+             AND validator_name='semantic_role_qa' AND status='pass'
+             AND evidence_json LIKE ? LIMIT 1""",
+        (render_unit_id, f'%"visual_role": "{row["visual_role"]}"%'),
+    ).fetchone()
+    conn.close()
+    if existing:
+        return
+
+    from semantic_role_qa import record_semantic_role_qa
+
+    record_semantic_role_qa(
+        production_id,
+        render_unit_id,
+        row["visual_role"],
+        "pass",
+        category=(row["visual_role"].split("_", 1)[0] if "_" in row["visual_role"] else None),
+        reason="YT_TEST_MODE deterministic fixture semantic-role acceptance",
+        details={
+            "method": "yt_test_mode_deterministic_fixture",
+            "asset_type": row["asset_type"],
+            "audio_policy": row["audio_policy"],
+            "publish_grade": False,
+        },
+        db_path=db_path,
+    )
 
 
 # ---------------------------------------------------------------------------

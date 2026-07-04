@@ -75,6 +75,233 @@ def test_cli_create_and_status():
     assert status_data["blockers"] == []
 
 
+def _canonical_storyboard_for_orchestrator():
+    return {
+        "storyboard_contract_version": "1.0",
+        "approved_script_revision_id": "script_rev_test",
+        "approved_script_sha256": "sha",
+        "authoring_model_profile": "storyboard_sonnet5",
+        "authoring_model": "kilo/anthropic/claude-sonnet-5",
+        "claim_inventory": [],
+        "narrative_beats": [],
+        "shots": [{
+            "shot_id": "SHOT_001",
+            "segment_id": "SEG_001",
+            "visual_role": "host_present_speaking",
+            "visual_concept": "James at his desk explaining the thesis.",
+            "why_this_visual": "Direct address anchors trust.",
+            "narrative_alignment": "The host shot supports the spoken thesis.",
+            "literal_vs_metaphorical": "literal",
+            "prompt_intent": "Use the canonical host studio framing.",
+            "planned_duration_sec": 5.0,
+            "min_usable_duration_sec": 4.0,
+            "max_usable_duration_sec": 7.0,
+            "duration_drift_policy": "trim_ok",
+            "assembly_fit_policy": "Trim only.",
+            "fallback_strategy": "human_review",
+            "qa_requirements": ["Verify James matches reference."],
+        }],
+        "overlays": [],
+        "segment_work_orders": [{
+            "segment_id": "SEG_001",
+            "narration_text_exact": "The unfair advantage is a system.",
+        }],
+        "feedback_policy": {"repair_authority": "sonnet5_only", "max_repair_rounds": 3, "block_on_unresolved": True},
+        "timing_policy": {"planned_is_intent": True, "observed_is_truth": True, "drift_resolution_order": ["trim_ok"]},
+        "approval": {"status": "draft", "creative_author": "sonnet5"},
+    }
+
+
+def test_invoke_storyboard_uses_sonnet_canonical_and_persists_projected_beats(monkeypatch):
+    monkeypatch.delenv("YT_TEST_MODE", raising=False)
+    monkeypatch.setenv("PRODUCTION_DB_PATH", str(TEST_DB))
+    _db._db_path_override = str(TEST_DB)
+    _db.migrate(TEST_DB)
+
+    prod = _db.ensure_production("sonnet_storyboard_proj", seed="storyboard", video_type="short", db_path=TEST_DB)
+    from authoring_service import save_script, get_storyboard
+    save_script(prod["id"], {
+        "segments": [{"id": "SEG_001", "label": "B1", "text": "The unfair advantage is a system."}],
+    }, db_path=TEST_DB)
+
+    canonical = _canonical_storyboard_for_orchestrator()
+    with patch("sonnet_storyboard_wrapper.generate_canonical_storyboard") as mock_gen:
+        mock_gen.return_value = {
+            "status": "SUCCESS",
+            "storyboard": canonical,
+            "authoring_metadata": {"model": "kilo/anthropic/claude-sonnet-5"},
+            "authoring_errors": [],
+            "narration_mutations": [],
+        }
+        result = produce_db.invoke_storyboard(
+            {"production_id": prod["id"], "project_slug": "sonnet_storyboard_proj",
+             "seed": "storyboard", "video_type": "short"},
+            Path("/tmp"),
+        )
+
+    assert result["authoring"] == "sonnet5_canonical"
+    assert result["canonical_shots"] == 1
+    assert result["beats"] == 1
+    mock_gen.assert_called_once()
+
+    saved = get_storyboard(prod["id"], db_path=TEST_DB)
+    assert saved["storyboard_contract_version"] == "1.0"
+    assert saved["projection_mode"] == "canonical_sonnet5_to_db_beats"
+    assert saved["beats"][0]["canonical_shot_id"] == "SHOT_001"
+    assert saved["beats"][0]["shot_type"] == "hero_lipsync"
+    assert saved["beats"][0]["visual_intent"]["narrative_claim"]
+
+    conn = _db.connect(TEST_DB)
+    row = conn.execute(
+        "SELECT shot_type, visual_intent_json FROM creative_beats ORDER BY ordinal LIMIT 1"
+    ).fetchone()
+    conn.close()
+    assert row["shot_type"] == "hero_lipsync"
+    assert json.loads(row["visual_intent_json"])["shot_id"] == "SHOT_001"
+
+
+def test_invoke_review_storyboard_uses_non_mutating_v2_gate(monkeypatch):
+    monkeypatch.delenv("YT_TEST_MODE", raising=False)
+    monkeypatch.setenv("PRODUCTION_DB_PATH", str(TEST_DB))
+    _db._db_path_override = str(TEST_DB)
+    _db.migrate(TEST_DB)
+
+    prod = _db.ensure_production("sonnet_review_proj", seed="review", video_type="short", db_path=TEST_DB)
+    from authoring_service import save_storyboard, _get_active_storyboard_revision_id
+
+    canonical = _canonical_storyboard_for_orchestrator()
+    canonical["beats"] = [{
+        "beat_id": "SHOT_001",
+        "label": "SHOT_001",
+        "canonical_shot_id": "SHOT_001",
+        "shot_type": "hero_lipsync",
+        "visual_intent": {"shot_id": "SHOT_001", "narrative_claim": "claim"},
+        "narration_text": "The unfair advantage is a system.",
+    }]
+    save_storyboard(prod["id"], canonical, db_path=TEST_DB)
+    before_rev = _get_active_storyboard_revision_id(prod["id"], db_path=TEST_DB)
+
+    with patch("review_storyboard_v2.creative_review") as mock_review:
+        mock_review.return_value = (True, {
+            "storyboard_sha256": "review_sha",
+            "overall_score": 4.5,
+        })
+        result = produce_db.invoke_review_storyboard(
+            {"production_id": prod["id"], "project_slug": "sonnet_review_proj",
+             "seed": "review", "video_type": "short"},
+            Path("/tmp"),
+        )
+
+    assert result["status"] == "pass"
+    assert result["review"] == "sonnet5_creative_review"
+    assert _get_active_storyboard_revision_id(prod["id"], db_path=TEST_DB) == before_rev
+    mock_review.assert_called_once()
+
+
+def test_invoke_compile_media_honors_reused_storyboard_intent(monkeypatch):
+    monkeypatch.setenv("PRODUCTION_DB_PATH", str(TEST_DB))
+    _db._db_path_override = str(TEST_DB)
+    _db.migrate(TEST_DB)
+
+    prod = _db.ensure_production("reused_compile_proj", seed="reused", video_type="short", db_path=TEST_DB)
+    from authoring_service import save_storyboard
+    save_storyboard(prod["id"], {
+        "beats": [{
+            "label": "SHOT_001",
+            "shot_type": "hero_lipsync",
+            "visual_intent": {
+                "asset_type": "reused",
+                "audio_policy": "HERO_PROVIDER_AUDIO_ISLAND",
+                "reuse": {"allowed": True, "source": "canonical_existing_footage_intent"},
+                "visual_function": "illustrate",
+                "narrative_claim": "Existing host footage.",
+                "information_to_show": "James at desk.",
+                "viewer_takeaway": "Credibility anchor.",
+                "required_action": "Preserve existing footage.",
+                "distinctness_requirement": "No replacement generation.",
+                "semantic_acceptance_criteria": "Existing clip is used.",
+            },
+            "narration_text": "The unfair advantage is a system.",
+        }]
+    }, db_path=TEST_DB)
+
+    conn = _db.connect(TEST_DB)
+    beat_id = conn.execute("SELECT id FROM creative_beats LIMIT 1").fetchone()["id"]
+    conn.execute(
+        """INSERT INTO timeline_spans
+           (id, production_id, creative_beat_id, label, start_ms, end_ms, duration_ms, status, ordinal)
+           VALUES ('span_reused_1', ?, ?, 'SHOT_001', 0, 5000, 5000, 'active', 0)""",
+        (prod["id"], beat_id),
+    )
+    conn.commit()
+    conn.close()
+
+    captured = {}
+
+    def fake_compile_render_plan(production_id, span_specs, estimated_cost_usd, db_path=None):
+        captured["production_id"] = production_id
+        captured["span_specs"] = span_specs
+        captured["estimated_cost_usd"] = estimated_cost_usd
+        return {"plan_revision_id": "plan_reused", "render_units": []}
+
+    with patch("tts_service.compile_render_plan", side_effect=fake_compile_render_plan):
+        result = produce_db.invoke_compile_media(
+            {"production_id": prod["id"], "project_slug": "reused_compile_proj",
+             "seed": "reused", "video_type": "short"},
+            Path("/tmp"),
+        )
+
+    assert result["estimated_cost_usd"] == 0.0
+    spec = captured["span_specs"][0]
+    assert spec["asset_type"] == "reused"
+    assert spec["model"] == "reused"
+    assert spec["audio_policy"] == "HERO_PROVIDER_AUDIO_ISLAND"
+    assert spec["provider_audio_usage"] == "final_mix"
+    assert spec["slots"] == [{
+        "slot_index": 0,
+        "slot_total": 1,
+        "start_ms": 0,
+        "end_ms": 5000,
+    }]
+
+
+def test_invoke_generate_media_blocks_unlinked_reused_without_provider_submit(monkeypatch):
+    monkeypatch.setenv("PRODUCTION_DB_PATH", str(TEST_DB))
+    _db._db_path_override = str(TEST_DB)
+    _db.migrate(TEST_DB)
+
+    prod = _db.ensure_production("reused_generate_proj", seed="reused", video_type="short", db_path=TEST_DB)
+    from production_repo import commit_timeline_spans, plan_render_units
+
+    spans = commit_timeline_spans(prod["id"], [{
+        "label": "SHOT_001",
+        "start_ms": 0,
+        "end_ms": 5000,
+        "narration_text": "The unfair advantage is a system.",
+    }], db_path=TEST_DB)
+    plan_render_units(prod["id"], [{
+        "span_id": spans[0]["id"],
+        "label": "SHOT_001",
+        "asset_type": "reused",
+        "model": "reused",
+        "audio_policy": "HERO_PROVIDER_AUDIO_ISLAND",
+        "final_audio_source": "provider_audio",
+        "provider_audio_usage": "final_mix",
+        "text_policy": "NO_VISIBLE_TEXT",
+        "lipsync_required": False,
+        "render_mode": "generated_video",
+    }], db_path=TEST_DB)
+
+    with patch("media_service.submit_provider_job") as mock_submit:
+        with pytest.raises(RuntimeError, match="reused_asset_unlinked"):
+            produce_db.invoke_generate_media(
+                {"production_id": prod["id"], "project_slug": "reused_generate_proj",
+                 "seed": "reused", "video_type": "short"},
+                Path("/tmp"),
+            )
+    mock_submit.assert_not_called()
+
+
 @patch("produce_db.invoke_research")
 @patch("produce_db.invoke_write_script")
 def test_run_walks_graph_and_resumes(mock_write, mock_research):

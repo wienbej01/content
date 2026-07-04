@@ -150,6 +150,26 @@ class TestCanonicalShotCompiles:
         shot_ids = [b["canonical_shot_id"] for b in plan["beats"]]
         assert shot_ids == ["SH001", "SH002", "SH003"]
 
+    def test_existing_baked_footage_compiles_zero_cost_reused(self, C, constraints, routing):
+        shot = _minimal_canonical_shot("SH001", "S001", "host_present_speaking")
+        shot["prompt_intent"] = (
+            "Preserve exact existing baked-in-audio footage of James at his desk; "
+            "no new generation required."
+        )
+        shot["assembly_fit_policy"] = "Pre-recorded baked-in-audio footage; trim only."
+        sb = _canonical_storyboard(shots=[shot])
+        plan, errors = C.compile_plan_from_canonical(sb, constraints, routing)
+
+        assert errors == [], f"Unexpected errors: {errors}"
+        beat = plan["beats"][0]
+        assert beat["asset_type"] == "reused"
+        assert beat["model"] == "reused"
+        assert beat["audio_policy"] == "HERO_PROVIDER_AUDIO_ISLAND"
+        assert beat["cost"]["est_usd"] == 0.0
+        assert beat["cost"]["est_clips"] == 0
+        assert plan["totals"]["beats_requiring_generation"] == 0
+        assert plan["totals"]["beats_local_or_reused"] == 1
+
 
 # ---------------------------------------------------------------------------
 # Test 2: Poison script visual_brief does not appear in output

@@ -50,13 +50,15 @@ def build_production(slug: str = "s8_e2e"):
         {"label": "B2", "text": "Here is how a small deposit grows over decades through reinvestment."},
         {"label": "B3", "text": "The key insight is that your earnings start earning their own earnings, year after year."},
         {"label": "B4", "text": "Over thirty years, even a modest monthly contribution becomes a substantial sum."},
-        {"label": "B5", "text": "Start early, stay consistent, and let time do the heavy lifting for you."},
+        {"label": "B5_hold", "text": "Start early, stay consistent, and let time do the heavy lifting for you."},
     ]
     save_script(pid, {"segments": segs})
 
     beats = [
-        {"label": "B1", "shot_type": "talking_head_hero", "narration_text": segs[0]["text"]},
-        {"label": "B2", "shot_type": "broll_environment", "narration_text": segs[1]["text"],
+        {"label": "B1", "shot_type": "talking_head_hero", "visual_role": "hero_hook",
+         "narration_text": segs[0]["text"]},
+        {"label": "B2", "shot_type": "broll_environment", "visual_role": "broll_evidence",
+         "narration_text": segs[1]["text"],
          "visual_intent": {
             "visual_function": "illustrate", "concept_key": "b2_growth_curve",
             "concept_hash": "b2_growth_curve",
@@ -66,8 +68,10 @@ def build_production(slug: str = "s8_e2e"):
             "required_action": "Slow push-in on the rising curve.",
             "distinctness_requirement": "Real chart with grid, not an abstract icon.",
             "semantic_acceptance_criteria": "Curve rises left-to-right; axis labels visible."}},
-        {"label": "B3", "shot_type": "talking_head_hero", "narration_text": segs[2]["text"]},
-        {"label": "B4", "shot_type": "broll_human", "narration_text": segs[3]["text"],
+        {"label": "B3", "shot_type": "talking_head_hero", "visual_role": "hero_trust",
+         "narration_text": segs[2]["text"]},
+        {"label": "B4", "shot_type": "broll_human", "visual_role": "broll_metaphor",
+         "narration_text": segs[3]["text"],
          "visual_intent": {
             "visual_function": "contextualize", "concept_key": "b4_calendar_passing",
             "concept_hash": "b4_calendar_passing",
@@ -77,7 +81,8 @@ def build_production(slug: str = "s8_e2e"):
             "required_action": "Calendar pages flip forward in time-lapse.",
             "distinctness_requirement": "Wall calendar, not a phone or screen UI.",
             "semantic_acceptance_criteria": "Multiple months visible flipping; no laptops."}},
-        {"label": "B5", "shot_type": "local_graphic", "narration_text": segs[4]["text"],
+        {"label": "B5_hold", "shot_type": "local_graphic", "visual_role": "graphic_framework",
+         "narration_text": segs[4]["text"],
          "graphics": {"text": "COMPOUND INTEREST"}},
     ]
     save_storyboard(pid, {"beats": beats})

@@ -239,7 +239,9 @@ def compile_beat(beat, constraints, routing):
 
     # Vagueness lint (§5.2 #4) — evaluated against the composed prompt below.
     # Audio policy from scene type.
-    if shot_type == "hero_lipsync":
+    if asset_type == "reused":
+        audio_policy = beat.get("audio_policy") or "HERO_PROVIDER_AUDIO_ISLAND"
+    elif shot_type == "hero_lipsync":
         audio_policy = "HERO_SYNC_LOCKED"
     elif asset_type in ("generated_video", "generated_still"):
         audio_policy = "BROLL_FLEX"
@@ -335,7 +337,9 @@ def compile_beat(beat, constraints, routing):
         errors.append(f"{bid}: {fail}")
 
     clips = beat.get("cost", {}).get("est_clips", 1) or 0
-    if asset_type in LOCAL_SHOT_TYPES or model == "local_graphic":
+    if asset_type == "reused":
+        usd, cred = 0.0, 0.0
+    elif asset_type in LOCAL_SHOT_TYPES or model == "local_graphic":
         usd, cred = 0.0, 0.0
     else:
         usd, cred = cost_for(model, max(1, clips), routing)
@@ -388,7 +392,7 @@ def compile_beat(beat, constraints, routing):
         "graphics": beat.get("graphics") or (beat.get("graphic") and [beat.get("graphic")]) or [],
         "narrative_function": beat.get("narrative_function"),
         "music_duck": beat.get("music_duck", False),
-        "cost": {"est_clips": max(1, clips) if asset_type not in LOCAL_SHOT_TYPES else 0,
+        "cost": {"est_clips": 0 if asset_type == "reused" else (max(1, clips) if asset_type not in LOCAL_SHOT_TYPES else 0),
                  "est_credits": cred, "est_usd": usd},
         "reuse": beat.get("reuse", {"allowed": False, "reused_asset_id": None}),
         "fallback": beat.get("fallback", {}),

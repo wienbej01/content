@@ -10,6 +10,7 @@
 | **[CLIP_DB_DESIGN.md](CLIP_DB_DESIGN.md)** | Clip authority database design (implemented) | ✅ Updated |
 | **[HARMONIZED_CLIP_FINGERPRINTS.md](HARMONIZED_CLIP_FINGERPRINTS.md)** | Fingerprint drift elimination system | ✅ New |
 | **[PIPELINE.md](PIPELINE.md)** | Database-integrated pipeline overview | ✅ Updated |
+| **[SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md](SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md)** | Comprehensive end-to-end production handoff for frontier-LLM review | ✅ New |
 
 ### Code Implementation
 | Module | Purpose | Location |
@@ -19,6 +20,8 @@
 | `production_repo.py` | Artifact registry + render unit planning | `scripts/production_repo.py` |
 | `media_contract.py` | Provider eligibility + text-risk guardrails | `scripts/media_contract.py` |
 | `media_service.py` | Provider job state machine + contract QA + repair | `scripts/media_service.py` |
+| `sonnet_storyboard_wrapper.py` | Canonical storyboard authoring through Kilo Sonnet 5 | `scripts/sonnet_storyboard_wrapper.py` |
+| `storyboard_projection.py` | Canonical storyboard to DB beat projection | `scripts/storyboard_projection.py` |
 | `assemble_db.py` | DB-native assembly + deliverable registry + Gate B | `scripts/assemble_db.py` |
 | `qa_final.py` | Final-cut QA + DB-contract evidence checks | `scripts/qa_final.py` |
 | `render_graphics.py` | Deterministic local graphic compositing | `scripts/render_graphics.py` |
@@ -41,16 +44,18 @@
 
 1. **Start with the summary**: Read `README.md` for pipeline overview; Read `ENHANCED_DATABASE_SYSTEM_SUMMARY.md` for architectural overview
 2. **Study the flow**: Review `PRODUCTION_DATA_FLOW_MAP.md` for database-driven pipeline
-3. **Understand fingerprints**: Read `HARMONIZED_CLIP_FINGERPRINTS.md` for drift elimination
-4. **Review implementation**: Check `CLIP_DB_DESIGN.md` for database schema and API
+3. **Study the current storyboard integration**: Read `SONNET_STORYBOARD_PRODUCTION_PIPELINE_HANDOFF_20260704.md`
+4. **Understand fingerprints**: Read `HARMONIZED_CLIP_FINGERPRINTS.md` for drift elimination
+5. **Review implementation**: Check `CLIP_DB_DESIGN.md` for database schema and API
 
 ### Key Concepts to Understand
 
 1. **Unified Production Ledger**: Transactional system of record for all state
-2. **Clip Authority Database**: Single source of truth for clip IDs and paths
-3. **Harmonized Fingerprints**: Elimination of path drift and stale reuse
-4. **Golden-Truth Invariant**: `assert_all_valid()` gates progression
-5. **Interactive Change Requests**: Problem→resolution routing with owner assignment
+2. **Sonnet Canonical Storyboard**: Runtime creative storyboard authority through `kilo/anthropic/claude-sonnet-5`
+3. **Clip Authority Database**: Single source of truth for clip IDs and paths
+4. **Harmonized Fingerprints**: Elimination of path drift and stale reuse
+5. **Golden-Truth Invariant**: `assert_all_valid()` gates progression
+6. **Interactive Change Requests**: Problem→resolution routing with owner assignment
 
 ### Working with the System
 

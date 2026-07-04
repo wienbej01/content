@@ -35,6 +35,8 @@ _LEGACY_SHOT_TYPES = frozenset({
 # Fallback: infer from literal_vs_metaphorical + generation signals.
 
 _VISUAL_ROLE_TO_SHOT_TYPE: dict[str, str] = {
+    "host_present_speaking": "hero_lipsync",
+    "host_present_cutaway": "hero_cutaway",
     "hero_lipsync": "hero_lipsync",
     "hero_cutaway": "hero_cutaway",
     "broll_archival": "broll_archival",
@@ -111,6 +113,8 @@ def _resolve_shot_type(shot: dict) -> str:
 
 
 def _resolve_model(shot_type: str, shot: dict) -> str:
+    if _is_reused_footage(shot):
+        return "reused"
     model = _MODEL_BY_SHOT_TYPE.get(shot_type, "kling3_0")
     fallback = (shot.get("fallback_strategy") or "").lower()
     if "still" in fallback and model not in ("local_graphic", "still_kenburns"):
@@ -119,7 +123,23 @@ def _resolve_model(shot_type: str, shot: dict) -> str:
 
 
 def _resolve_asset_type(shot_type: str, shot: dict) -> str:
+    if _is_reused_footage(shot):
+        return "reused"
     return _ASSET_TYPE_BY_SHOT_TYPE.get(shot_type, "generated_video")
+
+
+def _is_reused_footage(shot: dict) -> bool:
+    """Detect canonical intent to preserve existing footage, not generate anew."""
+    text = " ".join(str(shot.get(k, "")) for k in (
+        "prompt_intent", "assembly_fit_policy", "fallback_strategy", "generation_risk",
+    )).lower()
+    return any(marker in text for marker in (
+        "existing baked-in-audio footage",
+        "existing recorded footage",
+        "pre-recorded baked-in-audio footage",
+        "no new generation required",
+        "not a generation task",
+    ))
 
 
 def _resolve_prompt_class(shot: dict) -> str:
@@ -149,11 +169,32 @@ def _compose_visual_brief(shot: dict) -> str:
 
 def _compose_visual_intent(shot: dict) -> dict:
     """Compose visual_intent dict from canonical semantic fields."""
-    return {
+    concept = shot.get("visual_concept", "")
+    alignment = shot.get("narrative_alignment", "")
+    why = shot.get("why_this_visual", "")
+    intent = {
+        "visual_function": "demonstrate" if _resolve_shot_type(shot).startswith("graphic") else "illustrate",
+        "concept_key": shot.get("shot_id", ""),
+        "concept_hash": shot.get("shot_id", ""),
+        "narrative_claim": alignment or why or concept,
+        "information_to_show": concept,
+        "viewer_takeaway": why or alignment,
+        "required_action": shot.get("prompt_intent", "") or concept,
+        "distinctness_requirement": "Specific to the canonical shot; no generic stock.",
+        "semantic_acceptance_criteria": alignment or why,
         "why_this_visual": shot.get("why_this_visual", ""),
         "narrative_alignment": shot.get("narrative_alignment", ""),
         "shot_id": shot.get("shot_id", ""),
     }
+    if _is_reused_footage(shot):
+        intent["asset_type"] = "reused"
+        intent["audio_policy"] = "HERO_PROVIDER_AUDIO_ISLAND"
+        intent["reuse"] = {
+            "allowed": True,
+            "source": "canonical_existing_footage_intent",
+            "reused_asset_id": shot.get("source_artifact_id"),
+        }
+    return intent
 
 
 def _resolve_reference_required(shot: dict, shot_type: str) -> bool:
@@ -198,6 +239,14 @@ def _project_shot_to_beat(shot: dict, shot_overlays: list[dict]) -> dict:
         "reference_required": _resolve_reference_required(shot, shot_type),
         "text_policy": _resolve_text_policy(shot),
     }
+    if beat["asset_type"] == "reused":
+        beat["audio_policy"] = "HERO_PROVIDER_AUDIO_ISLAND"
+        beat["lipsync_required"] = False
+        beat["reuse"] = {
+            "allowed": True,
+            "source": "canonical_existing_footage_intent",
+            "reused_asset_id": shot.get("source_artifact_id"),
+        }
 
     for field in _SHOT_CARRY_FIELDS:
         if field in shot and shot[field] is not None:

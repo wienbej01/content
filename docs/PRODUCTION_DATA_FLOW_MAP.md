@@ -27,31 +27,34 @@ It explains the **transactional ledger model**, **change request routing**, and 
 
 ---
 
-## Enhanced Pipeline Stage Sequence (Database-Driven)
+## Active Pipeline Stage Sequence (DB-Native)
 
 ```
-1. research               → unified ledger (mirrored state)
-2. script_create          → unified ledger (mirrored state)
-3. script_review_loop     → unified ledger (mirrored state)
-4. storyboard_create      → unified ledger (mirrored state)
-5. storyboard_review_loop → unified ledger (mirrored state)
-6. tts                    → unified ledger (artifact registry)
-7. build_timing_map       → unified ledger (document revision)
-8. production_storyboard  → unified ledger (document revision)
-9. compliance_check       → unified ledger (validation evidence)
-10. compile_media_plan    → clip_db.order_clips() (authority ordering)
-11. slice_lipsync         → clip_db + unified ledger (audio artifact registry)
-12. gate_a_budget         → unified ledger (approval request)
-13. generate_media        → clip_db.can_reuse() + record_generated() + unified ledger
-14. qa_media              → clip_db.mark_valid() + unified ledger (validation evidence)
-15. reconcile_duration    → clip_db.coverage_for_beat() + unified ledger
-16. render_graphics       → unified ledger (artifact registry)
-17. build_manifest        → clip_db.assert_all_valid() + unified ledger
-18. assemble              → clip_db.assert_all_valid() + unified ledger
-19. qa_final              → unified ledger (validation evidence)
-20. build_quality_report  → unified ledger (validation evidence)
-21. gate_b_review         → unified ledger (approval request)
+1. research               → document_revisions: research_brief
+2. write_script           → document_revisions: script
+3. review_script          → review evidence and active script revision
+4. gate_a_content         → approval_requests
+5. storyboard             → Sonnet 5 canonical storyboard + projected DB beats
+6. review_storyboard      → non-mutating canonical creative review
+7. gate_storyboard        → approval_requests
+8. tts                    → artifacts: narration master
+9. audio_timing           → document_revisions: timing_map
+10. reconcile_timing      → timeline_spans / timing reconciliation
+11. compile_media         → render_units + render_plan
+12. gate_a_spend          → approval_requests bound to spend/render plan
+13. generate_media        → provider_jobs + artifacts for provider-eligible units
+14. qa_media              → validations + change_requests
+15. repair                → routed remediation from validation failures
+16. graphics_compositing  → local graphic artifacts
+17. assemble              → deliverables
+18. qa_final              → final-cut validation evidence
+19. gate_b_review         → approval_requests
+20. publish               → publish state and external IDs
+21. analytics             → post-publish performance records
 ```
+
+The stage graph is authoritative in `scripts/stage_runner.py`; invokers live in
+`scripts/produce_db.py`.
 
 ---
 
@@ -121,8 +124,9 @@ The beat_id changes form at THREE stages, but lineage is now explicit:
 | Stage | Input beat IDs | Output beat IDs | Unified Ledger Record | Clip DB Record |
 |-------|---------------|-----------------|----------------------|----------------|
 | Timing map (step 7) | — | B001-B011 (parents) | `document_revision` (timing_map) | (parent lineage) |
-| Production storyboard (step 8) | B001-B011 | B001, B005a, B005b, B011a, B011b... | `document_revision` (storyboard) | `source_beat_id=B005`, `split_index=0,1`, `split_total=2` |
-| Media plan compile (step 10) | B005a, B004, B006... | B004_B004-s0, B004_B004-s1... | `render_units` ordered | `slot_id=s0,s1`, `source_beat_id=B004` |
+| Canonical storyboard projection (step 5) | Sonnet `shots[]` | DB creative beats with `canonical_shot_id` | `document_revision` (storyboard) | `source_beat_id` and canonical lineage |
+| Timing reconciliation (steps 9-10) | Storyboard beats | timeline spans | `timeline_spans` / reconciliation output | span lineage |
+| Media plan compile (step 11) | reconciled beats | render units and slots | `render_units` ordered | `slot_id=s0,s1`, `source_beat_id=B004` |
 
 **Critical consequence**: downstream steps no longer guess transformations:
 - `coverage_for_beat()` resolves parent→children→slots via explicit `source_beat_id`
@@ -166,8 +170,36 @@ all change requests are resolved. No silent degradation, no path mismatch.
 | hero_lipsync (split child) | generate_media | `source_beat_id` lineage | `render_units` + `artifacts` |
 | broll (single) | generate_media | `output_path` canonical | `render_units` + `artifacts` |
 | broll (slot-expanded) | generate_media | `slot_id` + `output_path` | `render_units` + `artifacts` |
-| local_graphic | render_graphics | `asset_type=local_graphic` | `artifacts` (PNG) |
+| local_graphic | graphics_compositing | `asset_type=local_graphic` | `artifacts` (PNG) |
 | hero_cutaway (rerouted) | generate_media | `audio_policy=strip` | `render_units` + `artifacts` |
+| reused footage | artifact-linking step before generate_media | `asset_type=reused`, no provider job | existing `artifacts`; blocks as `reused_asset_unlinked` if missing |
+
+## Sonnet Storyboard Data Flow
+
+The live storyboard stage is no longer a deterministic Python visual planner in
+production mode. Python loads the approved script from the ledger, invokes Sonnet
+5 through Kilo, validates the canonical contract, and then projects the canonical
+shots into DB-compatible beats.
+
+```text
+document_revisions(script)
+    ↓
+sonnet_storyboard_wrapper.generate_canonical_storyboard()
+    ↓
+schemas/storyboard_v2.schema.json validation
+    ↓
+storyboard_projection.project_canonical()
+    ↓
+document_revisions(storyboard)
+    ↓
+review_storyboard_v2.creative_review()
+```
+
+The canonical payload preserves source-level creative fields such as
+`claim_inventory`, `narrative_beats`, `shots`, `overlays`,
+`segment_work_orders`, `feedback_policy`, `timing_policy`, `approval`, and
+`_authoring_metadata`. The projected DB beat layer preserves canonical lineage
+for downstream compile, QA, and repair.
 
 ## Change Request Lifecycle (Interactive Bidirectional)
 

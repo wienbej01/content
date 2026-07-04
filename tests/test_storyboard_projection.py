@@ -429,3 +429,44 @@ class TestEdgeCases:
         sb = _canonical_storyboard(shots=[shot])
         beats = project_canonical(sb)
         assert beats[0]["prompt_class"] == "narrative"
+
+    def test_host_present_speaking_maps_to_hero_lipsync(self):
+        shot = _minimal_canonical_shot("SH001", "S001", "host_present_speaking")
+        sb = _canonical_storyboard(shots=[shot])
+        beats = project_canonical(sb)
+        assert beats[0]["shot_type"] == "hero_lipsync"
+        assert beats[0]["model"] == "seedance_2_0"
+
+    def test_visual_intent_contains_db_compile_fields(self):
+        shot = _minimal_canonical_shot("SH001", "S001", "host_present_speaking")
+        shot["visual_concept"] = "James at his desk explaining the system."
+        shot["why_this_visual"] = "The host presence anchors credibility."
+        shot["narrative_alignment"] = "The direct address supports the spoken thesis."
+        sb = _canonical_storyboard(shots=[shot])
+        intent = project_canonical(sb)[0]["visual_intent"]
+        for key in (
+            "visual_function",
+            "concept_key",
+            "narrative_claim",
+            "information_to_show",
+            "viewer_takeaway",
+            "required_action",
+            "distinctness_requirement",
+            "semantic_acceptance_criteria",
+        ):
+            assert intent.get(key), f"missing DB compile intent field: {key}"
+
+    def test_existing_baked_footage_projects_as_reused(self):
+        shot = _minimal_canonical_shot("SH001", "S001", "host_present_speaking")
+        shot["prompt_intent"] = (
+            "Preserve exact existing baked-in-audio footage of James at his desk; "
+            "no new generation required."
+        )
+        shot["assembly_fit_policy"] = "Pre-recorded baked-in-audio footage; trim only."
+        sb = _canonical_storyboard(shots=[shot])
+        beat = project_canonical(sb)[0]
+        assert beat["asset_type"] == "reused"
+        assert beat["model"] == "reused"
+        assert beat["audio_policy"] == "HERO_PROVIDER_AUDIO_ISLAND"
+        assert beat["reuse"]["allowed"] is True
+        assert beat["visual_intent"]["asset_type"] == "reused"

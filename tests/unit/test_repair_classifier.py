@@ -82,7 +82,8 @@ class TestClassifyValidationFailure:
             "missing_artifact", "sha_mismatch", "provider_forbidden_asset",
             "local_graphic_not_local", "local_graphic_text_mismatch",
             "unexpected_visible_text", "ocr_unavailable",
-            "hero_lipsync_unverified", "duration_shortfall",
+            "hero_lipsync_unverified", "hero_lipsync_needs_human_review",
+            "duration_shortfall",
             "unknown_contract_failure",
             # S10-C09: provider job failures are not QA-evidence classifications
             # — they're handled by the provider job repair path

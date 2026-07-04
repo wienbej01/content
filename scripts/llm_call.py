@@ -42,6 +42,19 @@ ABSOLUTE OUTPUT RULE: Your entire response MUST be valid JSON and nothing else.
 Any response that is not raw JSON or the string ERROR is a critical failure."""
 
 
+class AvailabilityResult:
+    """Backward-compatible Sonnet availability result with diagnostics."""
+
+    def __init__(self, available, models, error=None):
+        self.available = available
+        self.models = models
+        self.error = error
+
+    def __iter__(self):
+        yield self.available
+        yield self.models
+
+
 def load_config():
     """Load model routing config. Requires PyYAML."""
     import yaml
@@ -54,21 +67,31 @@ def check_sonnet5_availability(model_id="kilo/anthropic/claude-sonnet-5", dry_ru
     """Check if Sonnet 5 is available via kilo models.
 
     In dry-run mode, skips subprocess call and returns True (assume available
-    for static verification). Returns tuple of (available: bool, model_list: list).
+    for static verification). Returns an iterable result compatible with
+    `(available, model_list)` unpacking and carrying `.error` diagnostics.
     """
     if dry_run:
-        return True, []
+        return AvailabilityResult(True, [])
 
     try:
         r = subprocess.run([KILO_CLI, "models"], capture_output=True, text=True, timeout=30)
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False, []
+    except subprocess.TimeoutExpired:
+        return AvailabilityResult(False, [], "kilo models timed out after 30s")
+    except FileNotFoundError:
+        return AvailabilityResult(False, [], "kilo executable not found on PATH")
 
     if r.returncode != 0:
-        return False, []
+        detail = (r.stderr or r.stdout or "").strip()
+        if detail:
+            detail = detail[:500]
+        else:
+            detail = f"kilo models exited {r.returncode} without stderr"
+        return AvailabilityResult(False, [], detail)
 
     models = [line.strip() for line in r.stdout.splitlines() if line.strip()]
-    return model_id in models, models
+    if model_id not in models:
+        return AvailabilityResult(False, models, f"{model_id} not listed by kilo models")
+    return AvailabilityResult(True, models)
 
 
 def resolve_profile(config, task, profile_name=None):
@@ -298,12 +321,15 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
 
     # Check Sonnet 5 availability for storyboard authority tasks
     if profile_name == "storyboard_director_sonnet5":
-        available, _ = check_sonnet5_availability(dry_run=dry_run)
+        availability = check_sonnet5_availability(dry_run=dry_run)
+        available, _ = availability
         if not available:
+            reason = getattr(availability, "error", None)
+            detail = f" Detail: {reason}" if reason else ""
             raise RuntimeError(
                 "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (kilo/anthropic/claude-sonnet-5) "
                 "is not available through Kilo. Storyboard authoring cannot proceed "
-                "without Sonnet 5. No fallback is permitted.")
+                f"without Sonnet 5. No fallback is permitted.{detail}")
 
     # Append input JSON if provided
     full_prompt = prompt
@@ -359,13 +385,17 @@ def main():
     args = ap.parse_args()
 
     if args.check_availability:
-        available, models = check_sonnet5_availability(dry_run=args.dry_run)
+        availability = check_sonnet5_availability(dry_run=args.dry_run)
+        available, models = availability
         if available:
             print("SONNET5_AVAILABLE: kilo/anthropic/claude-sonnet-5 found in kilo models")
             sys.exit(0)
         else:
+            reason = getattr(availability, "error", None)
             print("BLOCKED_SONNET5_UNAVAILABLE: kilo/anthropic/claude-sonnet-5 not found in kilo models",
                   file=sys.stderr)
+            if reason:
+                print(f"DETAIL: {reason}", file=sys.stderr)
             sys.exit(1)
 
     if not args.task:

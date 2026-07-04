@@ -663,17 +663,71 @@ def _compute_mix_summary(beats: list[dict]) -> dict:
 
 
 def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
-    """DB-native storyboard: assign a canonical, review_storyboard-band-compliant
-    shot mix to the active script segments and persist a schema-v2 storyboard.
+    """DB-native storyboard stage.
 
-    Deterministic structural assignment (Option B): open/close = hero_lipsync,
-    body beats rotate through b-roll (>=1 broll_archival) + graphics (>=1) with
-    hero_cutaway inserts, sized to satisfy the G2 bands for the video_type.
-    Every beat carries a visual_brief (G2) + structured visual_intent (S9-C06
-    generation input) + a graphics contract for graphic beats. No LLM, no paid
-    calls.
+    Production/non-test mode uses Sonnet 5 to author the canonical storyboard,
+    then projects canonical shots into DB-compatible creative beats. Python only
+    handles orchestration, validation, projection, and persistence.
     """
-    from authoring_service import get_script_segments, save_storyboard
+    from authoring_service import get_script, get_script_segments, get_active_script_revision_id, save_storyboard
+
+    if os.environ.get("YT_TEST_MODE") != "1":
+        from sonnet_storyboard_wrapper import generate_canonical_storyboard
+        from storyboard_projection import project_canonical
+
+        script_payload = get_script(inputs["production_id"])
+        if not script_payload:
+            raise RuntimeError("No active script found for Sonnet storyboard authoring")
+
+        script_revision_id = get_active_script_revision_id(inputs["production_id"]) or ""
+        approved_script = dict(script_payload)
+        approved_script.setdefault("approved_script_revision_id", script_revision_id)
+        approved_script.setdefault("project_id", inputs["production_id"])
+        approved_script.setdefault("video_type", inputs.get("video_type", "short"))
+
+        segments = approved_script.get("segments") or []
+        if not segments:
+            raise RuntimeError("Active script has no segments for Sonnet storyboard authoring")
+        for i, seg in enumerate(segments):
+            seg.setdefault("id", seg.get("label") or f"S{i:03d}")
+
+        result = generate_canonical_storyboard(
+            approved_script,
+            dry_run=False,
+            verbose=bool(os.environ.get("YT_STORYBOARD_VERBOSE")),
+            timeout=int(os.environ.get("YT_STORYBOARD_TIMEOUT", "900")),
+        )
+        if result.get("status") != "SUCCESS":
+            raise RuntimeError(
+                "Sonnet storyboard generation blocked: "
+                + json.dumps({k: v for k, v in result.items() if k != "storyboard"}, ensure_ascii=False)
+            )
+
+        canonical = result.get("storyboard") or {}
+        beats = project_canonical(canonical)
+        if not beats:
+            raise RuntimeError("Sonnet storyboard projection produced no creative beats")
+
+        storyboard_payload = dict(canonical)
+        storyboard_payload["schema_version"] = "2.0"
+        storyboard_payload["video_type"] = inputs.get("video_type", storyboard_payload.get("video_type", "short"))
+        storyboard_payload["beats"] = beats
+        storyboard_payload["projection_mode"] = "canonical_sonnet5_to_db_beats"
+
+        doc = save_storyboard(
+            production_id=inputs["production_id"],
+            storyboard_payload=storyboard_payload,
+        )
+        return {
+            "status": "saved",
+            "document_id": doc["id"],
+            "authoring": "sonnet5_canonical",
+            "canonical_shots": len(canonical.get("shots", [])),
+            "beats": len(beats),
+        }
+
+    # Test mode keeps the pipeline deterministic and free of real LLM/provider calls.
+    from authoring_service import save_storyboard
 
     segments = get_script_segments(inputs["production_id"])
     if not segments:
@@ -732,6 +786,27 @@ def invoke_review_storyboard(inputs: dict, tmp_path: Path) -> dict:
     storyboard = get_storyboard(inputs["production_id"])
     if not storyboard:
         return invoke_storyboard(inputs, tmp_path)
+
+    if storyboard.get("storyboard_contract_version") and os.environ.get("YT_TEST_MODE") != "1":
+        from review_storyboard_v2 import creative_review
+
+        passed, report = creative_review(
+            storyboard,
+            dry_run=False,
+            verbose=bool(os.environ.get("YT_STORYBOARD_VERBOSE")),
+        )
+        if not passed:
+            raise RuntimeError(
+                "Storyboarding blocked by Sonnet creative review: "
+                + json.dumps(report, ensure_ascii=False)
+            )
+        return {
+            "status": "pass",
+            "review": "sonnet5_creative_review",
+            "may_proceed": True,
+            "storyboard_sha256": report.get("storyboard_sha256"),
+            "overall_score": report.get("overall_score"),
+        }
     
     segments = get_script_segments(inputs["production_id"])
     
@@ -949,7 +1024,18 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         except (TypeError, ValueError):
             graphics = {}
 
-        if route.get("requires_audio"):
+        reused_intent = (
+            visual_intent.get("asset_type") == "reused"
+            or (isinstance(visual_intent.get("reuse"), dict)
+                and visual_intent["reuse"].get("allowed"))
+        )
+
+        if reused_intent:
+            asset_type = "reused"
+            audio_policy = visual_intent.get("audio_policy") or "HERO_PROVIDER_AUDIO_ISLAND"
+            final_audio_source = "provider_audio"
+            provider_audio_usage = "final_mix"
+        elif route.get("requires_audio"):
             asset_type = "lipsync_video"
             audio_policy = "HERO_SYNC_LOCKED"
             final_audio_source = "master_narration"
@@ -970,9 +1056,9 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # Resolve logical route model (e.g. lipsync_primary) → real provider model
         # (e.g. seedance_2_0) via model_id_map, so render units and cost estimates
         # use a model the provider actually accepts.
-        logical_model = route.get("model", "kling3_0")
+        logical_model = "reused" if reused_intent else route.get("model", "kling3_0")
         model_key = model_id_map.get(logical_model, logical_model)
-        clip_cost = costs.get(model_key, {}).get("cost_per_clip_usd", 0.0)
+        clip_cost = 0.0 if reused_intent else costs.get(model_key, {}).get("cost_per_clip_usd", 0.0)
         estimated_cost += clip_cost
 
         graphic_text_content = ""
@@ -1000,9 +1086,12 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # Prompt reflects visual_intent (not the generic "educational video" default).
         # Hero reference is a deterministic speaking frame from the active set.
         # S3-C03 (ENG-0301/0303): split into provider_visual_prompt + deterministic_text_spec
-        (provider_visual_prompt, dts, asset_override) = _compose_generation_prompt(
-            visual_intent, shot_type, graphic_text_content or None
-        )
+        if reused_intent:
+            provider_visual_prompt, dts, asset_override = None, None, None
+        else:
+            (provider_visual_prompt, dts, asset_override) = _compose_generation_prompt(
+                visual_intent, shot_type, graphic_text_content or None
+            )
         if asset_override:
             spec["asset_type"] = asset_override
         spec["prompt"] = provider_visual_prompt or ""
@@ -1037,7 +1126,14 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # min_clip for the configured [4,15] range, so multi-slot heroes never fall
         # below min. A single-slot hero span shorter than min is rejected (it must be
         # merged/padded per lipsync_render_rules.on_sub_min_beat, not rendered short).
-        if span_duration_ms > clip_max_ms:
+        if reused_intent:
+            spec["slots"] = [{
+                "slot_index": 0,
+                "slot_total": 1,
+                "start_ms": s["start_ms"],
+                "end_ms": s["end_ms"],
+            }]
+        elif span_duration_ms > clip_max_ms:
             num_slots = __import__("math").ceil(span_duration_ms / clip_max_ms)
             slot_duration_ms = span_duration_ms // num_slots
 
@@ -1164,6 +1260,7 @@ def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
     from media_contract import (
         PROVIDER_FORBIDDEN_ASSET_TYPES,
         detect_provider_prompt_text_risks,
+        is_provider_eligible_asset_type,
     )
     import production_db as _db
 
@@ -1202,9 +1299,10 @@ def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
         # 2. Provider job count cap: count render units that would generate provider jobs
         #    vs max_paid_provider_jobs. Provider-eligible units are those with an
         #    asset_type in the eligible set and a model that requires provider generation.
-        provider_units = [ru for ru in render_units
-                          if ru.get("model") and ru.get("asset_type") not in
-                          set(PROVIDER_FORBIDDEN_ASSET_TYPES)]
+        provider_units = [
+            ru for ru in render_units
+            if ru.get("model") and is_provider_eligible_asset_type(ru.get("asset_type"))
+        ]
         if len(provider_units) > cfg.max_paid_provider_jobs:
             raise RuntimeError(
                 f"GATE_A_SPEND_BLOCKED: plan has {len(provider_units)} provider-eligible "
@@ -1253,6 +1351,8 @@ def invoke_gate_a_spend(inputs: dict, tmp_path: Path) -> dict:
         text_risk_units = []
         for u in all_active:
             ru = dict(u)
+            if not is_provider_eligible_asset_type(ru["asset_type"]):
+                continue
             if ru["asset_type"] in set(PROVIDER_FORBIDDEN_ASSET_TYPES):
                 continue  # Skip local graphics -- they have text by design
             meta = json.loads(ru["metadata_json"]) if ru["metadata_json"] else {}
@@ -1463,6 +1563,16 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
                 file=sys.stderr,
             )
             continue
+        if u["asset_type"] == "reused":
+            # Reused footage is registered/linked, not generated. If it has no
+            # active artifact, keep the stage blocked instead of submitting a
+            # replacement provider job.
+            print(
+                f"  - Skipping {u['label'] or u['id']}: reused footage "
+                f"(requires linked source artifact)",
+                file=sys.stderr,
+            )
+            continue
         if submitted_in_wave >= wave_size:
             break
 
@@ -1599,6 +1709,11 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
     for row in remaining:
         u = dict(row)
         if u["status"] in ("generated", "valid") or u["status"] == "failed" or u["asset_type"] == "local_graphic":
+            continue
+        if u["asset_type"] == "reused":
+            if u["active_artifact_id"]:
+                continue
+            blockers.append(f"{u['label'] or u['id']}=reused_asset_unlinked")
             continue
         if u["asset_type"] == "local_graphic":
             blockers.append(f"{u['label'] or u['id']}=local_graphic_unrendered")
@@ -1849,7 +1964,9 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
 
         if u["asset_type"] == "local_graphic":
             from render_graphics import render_local_graphic_render_unit
+            from media_service import record_test_mode_semantic_role_qa
             render_local_graphic_render_unit(None, production_id, u["id"])
+            record_test_mode_semantic_role_qa(production_id, u["id"], db_path=None)
             local_rendered += 1
             rendered += 1
 

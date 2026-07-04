@@ -29,7 +29,8 @@ _CANONICAL_STAGE_ORDER: list[str] = list(stage_runner.STAGE_REGISTRY.keys())
 # registry.
 _SHOT_DOWNSTREAM = [
     "compile_media", "gate_a_spend", "generate_media",
-    "qa_media", "repair", "assemble", "qa_final", "gate_b_review",
+    "qa_media", "repair", "graphics_compositing",
+    "assemble", "qa_final", "gate_b_review",
 ]
 
 _OVERLAY_DOWNSTREAM = [

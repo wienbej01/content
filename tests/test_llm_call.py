@@ -185,6 +185,30 @@ def test_sonnet5_unavailable_blocks_no_fallback():
     print("  ✓ Sonnet 5 unavailable blocks with BLOCKED_SONNET5_UNAVAILABLE")
 
 
+def test_sonnet5_availability_reports_kilo_subprocess_failure():
+    lc = _load()
+    import subprocess
+    from unittest.mock import patch
+
+    with patch.object(subprocess, "run") as mock_run:
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = (
+            "log stream error: EROFS: read-only file system, "
+            "open '/home/jacobw/.local/share/kilo/log/example.log'"
+        )
+        try:
+            lc.llm_call(task="storyboard_generation", prompt="test",
+                        model_profile="storyboard_director_sonnet5", dry_run=False)
+            assert False, "should block when Kilo availability check fails"
+        except RuntimeError as e:
+            msg = str(e)
+            assert "BLOCKED_SONNET5_UNAVAILABLE" in msg
+            assert "EROFS" in msg
+            assert "read-only file system" in msg
+    print("  ✓ Sonnet 5 availability reports Kilo subprocess failure detail")
+
+
 def test_no_deepseek_fallback_for_storyboard_authoring():
     lc = _load()
     import subprocess
