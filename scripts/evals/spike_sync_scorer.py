@@ -49,48 +49,41 @@ missing); 1 argument/IO error.
 import argparse
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from sync_scorer._algorithm import (
+    DEFAULT_MODEL_PATH,
+    _LIP_UPPER_INNER,
+    _LIP_LOWER_INNER,
+    _LIP_LEFT,
+    _LIP_RIGHT,
+    _SEARCH_WINDOW_MS,
+    _AUDIO_HOP_MS,
+    _SHIFT_TOLERANCE_MS,
+    _check_real_deps,
+    _audio_envelope,
+    _mouth_envelope,
+    _resample,
+    _normalize,
+    _cross_correlate,
+)
+
 MODEL_ENV = "TKT101_FACE_LANDMARKER_MODEL"
-DEFAULT_MODEL = "/tmp/kilo/tkt101_venv/models/face_landmarker.task"
+DEFAULT_MODEL = DEFAULT_MODEL_PATH
 
-# Landmark indices for the 478-point MediaPipe FaceLandmarker model.
-_LIP_UPPER_INNER = 13
-_LIP_LOWER_INNER = 14
-_LIP_LEFT = 78
-_LIP_RIGHT = 308
-
-# Correlation window / search bounds (ms). The injected shift in the proof
-# matrix is 200 ms, so a +/- 600 ms search band comfortably brackets it while
-# avoiding spurious large-lag peaks.
-SEARCH_WINDOW_MS = 600
-AUDIO_HOP_MS = 20  # audio envelope hop -> 50 Hz; fine enough for 40 ms tol
-SHIFT_TOLERANCE_MS = 40  # per TKT-101 acceptance gate G2
+# Backward-compatible aliases for spike-specific code references.
+SEARCH_WINDOW_MS = _SEARCH_WINDOW_MS
+AUDIO_HOP_MS = _AUDIO_HOP_MS
+SHIFT_TOLERANCE_MS = _SHIFT_TOLERANCE_MS
 
 
 def _check_deps() -> dict:
-    deps = {}
-    try:
-        import mediapipe
-        from mediapipe.tasks import python as mp_python
-        from mediapipe.tasks.python import vision as mp_vision
-        deps["mediapipe"] = mediapipe.__version__
-        deps["vision_ok"] = hasattr(mp_vision, "FaceLandmarker")
-    except Exception as exc:
-        deps["mediapipe"] = f"err:{exc}"
-        deps["vision_ok"] = False
-    for mod in ("cv2", "numpy"):
-        try:
-            m = __import__(mod)
-            deps[mod] = getattr(m, "__version__", "ok")
-        except Exception as exc:
-            deps[mod] = f"err:{exc}"
-    deps["ffmpeg"] = shutil.which("ffmpeg") is not None
-    deps["ffprobe"] = shutil.which("ffprobe") is not None
+    _, deps = _check_real_deps()
     return deps
 
 
@@ -101,160 +94,6 @@ def _ffprobe_float(path: Path, stream: str, key: str) -> float:
         text=True,
     ).strip()
     return float(out.split("/")[0]) if out else 0.0
-
-
-def _audio_envelope(path: Path, hop_ms: int = AUDIO_HOP_MS) -> tuple[list[float], float]:
-    """Return (envelope_samples, sample_rate_hz) for the file's mono audio.
-
-    Uses ffmpeg to decode to mono f32le; envelopes are RMS per hop window.
-    """
-    audio_rate = 8000  # decode rate; plenty of bandwidth for an envelope
-    hop_samples = int(audio_rate * hop_ms / 1000)
-    with tempfile.NamedTemporaryFile(suffix=".f32", delete=False) as tf:
-        raw = Path(tf.name)
-    try:
-        subprocess.run(
-            ["ffmpeg", "-y", "-v", "error", "-i", str(path),
-             "-ac", "1", "-ar", str(audio_rate), "-f", "f32le", str(raw)],
-            check=True,
-        )
-        import numpy as np
-        data = np.fromfile(raw, dtype="<f4")
-        if data.size == 0:
-            return [], float(audio_rate) / hop_samples
-        n_hops = max(1, data.size // hop_samples)
-        trimmed = data[: n_hops * hop_samples].reshape(n_hops, hop_samples)
-        rms = np.sqrt(np.mean(trimmed ** 2, axis=1)).astype(float)
-        envelope_rate = 1000.0 / hop_ms
-        return rms.tolist(), envelope_rate
-    finally:
-        raw.unlink(missing_ok=True)
-
-
-def _mouth_envelope(path: Path, model_path: Path) -> tuple[list[float], float, float, int, int]:
-    """Return (mouth_open_ratio_per_frame, fps, face_track_fraction, frames, face_hits).
-
-    The per-frame mouth-open ratio is the visual envelope source; it is
-    face-tracked (zero when no face is detected, which also lowers the
-    correlation peak / face_track_fraction).
-    """
-    import cv2
-    import mediapipe
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision as mp_vision
-
-    opts = mp_vision.FaceLandmarkerOptions(
-        base_options=mp_python.BaseOptions(model_asset_path=str(model_path)),
-        running_mode=mp_vision.RunningMode.VIDEO,
-        num_faces=1,
-        output_face_blendshapes=False,
-        output_facial_transformation_matrixes=False,
-        min_face_detection_confidence=0.3,
-        min_face_presence_confidence=0.3,
-        min_tracking_confidence=0.3,
-    )
-    lm = mp_vision.FaceLandmarker.create_from_options(opts)
-    cap = cv2.VideoCapture(str(path))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 24.0
-    mouth = []
-    face_hits = 0
-    n = 0
-    try:
-        while True:
-            ok, fr = cap.read()
-            if not ok:
-                break
-            mp_img = mediapipe.Image(image_format=mediapipe.ImageFormat.SRGB, data=fr)
-            ts_ms = int(round(n / fps * 1000))
-            res = lm.detect_for_video(mp_img, ts_ms)
-            if res.face_landmarks:
-                lms = res.face_landmarks[0]
-                top = lms[_LIP_UPPER_INNER]
-                bot = lms[_LIP_LOWER_INNER]
-                left = lms[_LIP_LEFT]
-                right = lms[_LIP_RIGHT]
-                v = ((top.x - bot.x) ** 2 + (top.y - bot.y) ** 2) ** 0.5
-                h = ((left.x - right.x) ** 2 + (left.y - right.y) ** 2) ** 0.5
-                mouth.append(float(v / max(h, 1e-6)))
-                face_hits += 1
-            else:
-                mouth.append(0.0)
-            n += 1
-    finally:
-        cap.release()
-        lm.close()
-    frac = (face_hits / n) if n else 0.0
-    return mouth, float(fps), frac, n, face_hits
-
-
-def _resample(values: list[float], src_rate: float, dst_rate: float) -> list[float]:
-    import numpy as np
-    if src_rate == dst_rate or len(values) < 2:
-        return list(values)
-    n_out = max(2, int(round(len(values) * dst_rate / src_rate)))
-    idx = np.linspace(0, len(values) - 1, n_out)
-    lo = idx.astype(int)
-    hi = np.clip(lo + 1, 0, len(values) - 1)
-    frac = idx - lo
-    out = np.asarray(values)[lo] * (1 - frac) + np.asarray(values)[hi] * frac
-    return out.tolist()
-
-
-def _normalize(values: list[float]) -> list[float]:
-    import numpy as np
-    arr = np.asarray(values, dtype=float)
-    arr = arr - arr.mean()
-    std = arr.std()
-    if std < 1e-9:
-        return [0.0] * len(arr)
-    return (arr / std).tolist()
-
-
-def _cross_correlate(visual: list[float], audio: list[float], rate: float,
-                     search_ms: int) -> tuple[int, float]:
-    """Return (best_lag_samples, peak_confidence) where lag>0 means audio leads.
-
-    visual[lag] aligns with audio[0] when audio is `lag` hops ahead of the
-    visual; i.e. a positive injected adelay (audio delayed) should produce a
-    positive estimated offset (audio arrives later than the mouth motion).
-    Cross-correlation: r[lag] = sum_k visual[k] * audio[k + lag].
-    """
-    import numpy as np
-    vis = np.asarray(visual, dtype=float)
-    aud = np.asarray(audio, dtype=float)
-    # pad shorter series to equal length
-    m = min(vis.size, aud.size)
-    if m < 4:
-        return 0, 0.0
-    vis = vis[:m]
-    aud = aud[:m]
-    max_lag = int(search_ms / 1000.0 * rate)
-    best_lag = 0
-    best = -1.0
-    for lag in range(-max_lag, max_lag + 1):
-        if lag >= 0:
-            a = aud[lag:]
-            v = vis[: a.size]
-            if v.size < 4:
-                continue
-            a = a[: v.size]
-        else:
-            v = vis[-lag:]
-            a = aud[: v.size]
-        if v.size < 4:
-            continue
-        denom = (np.linalg.norm(v) * np.linalg.norm(a))
-        if denom < 1e-12:
-            continue
-        corr = float(np.dot(v, a) / denom)
-        if corr > best:
-            best = corr
-            best_lag = lag
-    # offset_ms: positive injected audio delay -> positive offset.
-    # If audio is delayed by D, the audio envelope lags the visual envelope,
-    # so the alignment that maximizes correlation is visual[k] vs audio[k+lag]
-    # with lag = D*rate (audio index must advance to catch up). best_lag>0.
-    return best_lag, best
 
 
 def _shift_audio(video: Path, shift_ms: int, out: Path) -> None:

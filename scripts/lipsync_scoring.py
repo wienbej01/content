@@ -107,6 +107,7 @@ class NoModelLoaded(SyncModelAdapter):
 
 
 _registered_model: Optional[SyncModelAdapter] = None
+_sync_scorer_adapter: Optional[SyncModelAdapter] = None
 
 
 def register_sync_model(model: SyncModelAdapter) -> None:
@@ -114,9 +115,63 @@ def register_sync_model(model: SyncModelAdapter) -> None:
     _registered_model = model
 
 
+def _build_sync_scorer_adapter() -> Optional[SyncModelAdapter]:
+    """Build a SyncModelAdapter wrapping the sync_scorer backend, if available."""
+    global _sync_scorer_adapter
+    if _sync_scorer_adapter is not None:
+        return _sync_scorer_adapter
+    try:
+        from sync_scorer import get_sync_scorer_backend
+
+        backend = get_sync_scorer_backend()
+        if backend is None:
+            return None
+
+        class _Adapter(SyncModelAdapter):
+            def __init__(self, be):
+                self._be = be
+
+            def load(self) -> bool:
+                return self._be.availability()
+
+            def score(self, video_path: Path, audio_path: Path) -> Dict[str, Any]:
+                result = self._be.score(video_path, audio_path)
+                return {
+                    "score": result.confidence,
+                    "offset_estimate_ms": result.offset_ms,
+                    "confidence": result.confidence,
+                    "per_window_scores": [],
+                    "progressive_drift_ms": 0,
+                    "visible_face_confidence": result.face_track_fraction,
+                    "multiple_faces_detected": False,
+                    "occlusion_confidence": 0.0,
+                    "face_track_found": result.face_track_found,
+                    "method": result.method,
+                    "model_version": result.model_version,
+                }
+
+            @property
+            def model_info(self) -> Dict[str, Any]:
+                return {
+                    "name": "sync_scorer",
+                    "version": "TKT-102",
+                    "checksum": "",
+                    "environment": {},
+                    "thresholds": {},
+                }
+
+        _sync_scorer_adapter = _Adapter(backend)
+        return _sync_scorer_adapter
+    except Exception:
+        return None
+
+
 def get_sync_model() -> SyncModelAdapter:
     if _registered_model is not None:
         return _registered_model
+    adapter = _build_sync_scorer_adapter()
+    if adapter is not None:
+        return adapter
     return NoModelLoaded()
 
 

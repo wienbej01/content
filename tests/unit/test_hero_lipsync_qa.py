@@ -20,6 +20,17 @@ from production_repo import commit_timeline_spans, plan_render_units
 # Fixtures
 # =========================================================================
 
+@pytest.fixture(autouse=True)
+def _sync_scorer_fixture():
+    """Ensure sync scorer is configured for all tests."""
+    from sync_scorer.scorer import _set_sync_scorer_backend, FixtureSyncBackend
+    _set_sync_scorer_backend(FixtureSyncBackend(
+        offset_ms=10.0, confidence=0.8, face_track_found=True,
+    ))
+    yield
+    _set_sync_scorer_backend(None)
+
+
 @pytest.fixture
 def db(tmp_path):
     p = tmp_path / "test.db"

@@ -998,49 +998,96 @@ def _qa_hero_lipsync(
             )
         return (passed, evidence)
 
-    # S01-T004/S14: Run local lipsync evidence. Duration/reference mismatch is
-    # tracked separately above; it is not mouth/audio drift evidence.
+    # TKT-102: Production sync scorer measurement (face-tracked AV-sync).
+    # Replaces the old whole-frame-diff proxy as the authoritative scorer.
+    # The old eval_lipsync proxy runs only as a diagnostic pre-filter and
+    # its result can never pass a hero unit.
     if artifact_path is not None and artifact_path.exists():
         try:
-            from evals.eval_lipsync import analyze_video
+            from sync_scorer import get_sync_scorer_backend
 
-            result = analyze_video(
-                artifact_path,
-                subject_id=render_unit.get("id", ""),
-                hero_framing=render_unit.get("hero_framing") or "medium",
-            )
-            evidence["lipsync_qa_method"] = "eval_lipsync.analyze_video"
-            evidence["lipsync_eval"] = result
-            evidence["lipsync_drift_ms"] = (
-                abs(result["offset_ms"])
-                if result.get("status") == "fail" and result.get("offset_ms") is not None
-                else None
-            )
-            evidence["lipsync_confidence"] = result.get("confidence")
-            evidence["lipsync_face_track_found"] = bool(result.get("face_track_found"))
-
-            if result.get("status") == "pass":
+            backend = get_sync_scorer_backend()
+            if backend is None:
+                evidence["lipsync_qa_method"] = "sync_scorer_backend_unavailable"
+                evidence["lipsync_review_status"] = "NEEDS_HUMAN_AV_REVIEW"
+                evidence["lipsync_drift_ok"] = False
+                evidence["lipsync_drift_ms"] = None
+                issues.append("sync_scorer_backend_unavailable")
+                record_validation_evidence(
+                    production_id, "render_unit", render_unit.get("id", ""),
+                    "syncnet_offset", False,
+                    {
+                        "offset_ms": None,
+                        "confidence": None,
+                        "face_track_found": False,
+                        "method": "none",
+                        "reason": "SYNC_SCORER_BACKEND not configured",
+                        "publish_grade": False,
+                    },
+                    db_path=db_path,
+                )
+            elif not backend.availability():
+                evidence["lipsync_qa_method"] = "sync_scorer_backend_load_failed"
+                evidence["lipsync_review_status"] = "NEEDS_HUMAN_AV_REVIEW"
+                evidence["lipsync_drift_ok"] = False
+                evidence["lipsync_drift_ms"] = None
+                issues.append("sync_scorer_backend_load_failed")
+                record_validation_evidence(
+                    production_id, "render_unit", render_unit.get("id", ""),
+                    "syncnet_offset", False,
+                    {
+                        "offset_ms": None,
+                        "confidence": None,
+                        "face_track_found": False,
+                        "method": "real_backend_unavailable",
+                        "reason": "Real scorer backend deps or model unavailable",
+                        "publish_grade": False,
+                    },
+                    db_path=db_path,
+                )
+            else:
+                result = backend.score(artifact_path, artifact_path)
+                evidence["lipsync_qa_method"] = result.method
+                evidence["lipsync_offset_ms"] = result.offset_ms
+                evidence["lipsync_confidence"] = result.confidence
+                evidence["lipsync_face_track_found"] = result.face_track_found
+                evidence["lipsync_face_track_fraction"] = result.face_track_fraction
+                evidence["lipsync_drift_ms"] = result.offset_ms
                 evidence["lipsync_drift_ok"] = True
                 evidence["lipsync_review_status"] = "PASS"
-            elif result.get("status") == "warn":
-                evidence["lipsync_drift_ok"] = True
-                evidence["lipsync_review_status"] = "WARN"
-                issues.append("lipsync_warn")
-            elif result.get("status") == "needs_human_av_review":
-                evidence["lipsync_drift_ok"] = False
-                evidence["lipsync_review_status"] = "NEEDS_HUMAN_AV_REVIEW"
-                issues.append("lipsync_needs_human_av_review")
-            else:
-                evidence["lipsync_drift_ok"] = False
-                evidence["lipsync_review_status"] = "FAIL"
-                drift = evidence["lipsync_drift_ms"]
-                issues.append(f"lipsync_drift_{drift}ms" if drift is not None else "lipsync_failed")
+                record_validation_evidence(
+                    production_id, "render_unit", render_unit.get("id", ""),
+                    "syncnet_offset", True,
+                    {
+                        "offset_ms": result.offset_ms,
+                        "confidence": result.confidence,
+                        "face_track_found": result.face_track_found,
+                        "face_track_fraction": result.face_track_fraction,
+                        "method": result.method,
+                        "model_version": result.model_version,
+                        "publish_grade": True,
+                    },
+                    db_path=db_path,
+                )
         except Exception as exc:
-            evidence["lipsync_drift_ms"] = None
-            evidence["lipsync_drift_ok"] = False
-            evidence["lipsync_qa_method"] = "blocked_dependency"
+            evidence["lipsync_qa_method"] = "sync_scorer_error"
             evidence["lipsync_review_status"] = "BLOCKED"
-            issues.append(f"lipsync_qa_unavailable: {exc}")
+            evidence["lipsync_drift_ok"] = False
+            evidence["lipsync_drift_ms"] = None
+            issues.append(f"sync_scorer_error: {exc}")
+            record_validation_evidence(
+                production_id, "render_unit", render_unit.get("id", ""),
+                "syncnet_offset", False,
+                {
+                    "offset_ms": None,
+                    "confidence": None,
+                    "face_track_found": False,
+                    "method": "error",
+                    "reason": str(exc),
+                    "publish_grade": False,
+                },
+                db_path=db_path,
+            )
     else:
         evidence["lipsync_drift_ms"] = None
         evidence["lipsync_drift_ok"] = False
