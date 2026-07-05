@@ -1034,19 +1034,131 @@ def _classify_text_spec_type(text: str) -> str:
     return "title_card"
 
 
+def _resolve_claim_anchors(visual_intent: dict, research_brief: dict | None,
+                            claim_inventory: list | None,
+                            citations: list | None) -> tuple[dict, list[dict]]:
+    """Resolve claim_refs/narrative_claim to research key_claims and citations.
+
+    Returns:
+        (anchor_summary, resolved_anchors): anchor_summary is dict with keys
+        anchor_status, citation_ids, anchor_text. resolved_anchors is list of
+        matched citation dicts for the prompt block.
+
+    anchor_status values:
+        "resolved" — at least one claim matched to a citation
+        "unresolved" — claim_refs exist but no matching citation found
+        "none_applicable" — no claim_refs and no substantive narrative_claim
+    """
+    claim_refs = visual_intent.get("claim_refs") or []
+    narrative_claim = visual_intent.get("narrative_claim") or ""
+
+    if not claim_refs and not narrative_claim:
+        return ({"anchor_status": "none_applicable", "citation_ids": [], "anchor_text": None}, [])
+
+    citations_by_url = {}
+    if citations:
+        for c in citations:
+            citations_by_url[c.get("url", "").strip().rstrip("/")] = c
+
+    claim_by_id = {}
+    if claim_inventory:
+        for c in claim_inventory:
+            claim_by_id[c.get("claim_id")] = c
+
+    key_claims = []
+    if research_brief and research_brief.get("key_claims"):
+        key_claims = research_brief["key_claims"]
+
+    matched_citations = []
+    matched_citation_ids = []
+
+    if claim_refs:
+        for claim_id in claim_refs:
+            claim = claim_by_id.get(claim_id)
+            if not claim:
+                continue
+            source_id = claim.get("source_id") or ""
+            source_id_clean = source_id.strip().rstrip("/")
+            source_url = claim.get("source_url") or source_id
+            if not source_url:
+                source_url = source_id_clean
+            if not source_url:
+                continue
+            source_url_clean = source_url.strip().rstrip("/")
+            cit = citations_by_url.get(source_url_clean) or citations_by_url.get(source_id_clean)
+            if cit:
+                if cit.get("id") not in matched_citation_ids:
+                    matched_citations.append({
+                        "claim_id": claim_id,
+                        "citation": cit.get("title") or cit.get("url"),
+                        "citation_id": cit.get("id"),
+                    })
+                    if cit.get("id"):
+                        matched_citation_ids.append(cit["id"])
+        if matched_citations:
+            return (
+                {"anchor_status": "resolved", "citation_ids": matched_citation_ids, "anchor_text": "; ".join(
+                    f"{m['citation']} (claim {m['claim_id']})" for m in matched_citations
+                )},
+                matched_citations,
+            )
+
+    if narrative_claim:
+        for kc in key_claims:
+            claim_text = kc.get("claim", "")
+            if not claim_text or len(claim_text) < 10:
+                continue
+            overlap = _claim_text_overlap(claim_text, narrative_claim)
+            if overlap >= 0.6:
+                source = kc.get("source", {})
+                url = source.get("url", "").strip().rstrip("/") if isinstance(source, dict) else str(source)
+                cit = citations_by_url.get(url)
+                if cit:
+                    return (
+                        {"anchor_status": "resolved", "citation_ids": [cit.get("id")] if cit.get("id") else [],
+                         "anchor_text": cit.get("title") or cit.get("url")},
+                        [{"claim_id": None, "citation": cit.get("title") or cit.get("url"),
+                          "citation_id": cit.get("id")}],
+                    )
+
+    if claim_refs:
+        return ({"anchor_status": "unresolved", "citation_ids": [], "anchor_text": None}, [])
+    return ({"anchor_status": "unresolved", "citation_ids": [], "anchor_text": None}, [])
+
+
+def _claim_text_overlap(claim_text: str, narrative_claim: str) -> float:
+    """Token-set overlap between a key_claim and narrative_claim."""
+    import re
+    def tokens(s):
+        return set(re.findall(r"\w{3,}", s.lower()))
+    ct = tokens(claim_text)
+    nc = tokens(narrative_claim)
+    if not ct or not nc:
+        return 0.0
+    intersection = ct & nc
+    return len(intersection) / min(len(ct), len(nc))
+
+
 def _compose_generation_prompt(visual_intent: dict, shot_type: str,
-                                graphic_text_content: str | None) -> tuple:
+                                graphic_text_content: str | None,
+                                research_brief_doc: dict | None = None,
+                                citations: list | None = None,
+                                claim_lookup: dict | None = None,
+                                return_anchors_meta: bool = False,
+                                ) -> tuple:
     """S9-C06: Compose a real per-clip prompt from visual_intent + shot_type.
 
-    Returns (provider_visual_prompt, deterministic_text_spec, asset_type_override).
+    TKT-501: resolves claim_refs/narrative_claim to research brief facts and
+    appends a bounded FACTUAL ANCHORS block when research supports the claim.
 
-    Honors constraints.json negative prompts and text/audio policy: graphic beats
-    use deterministic text (graphic_text_content), not a generative prompt. The prompt
-    must NOT delegate graphic text to the model (S5/S7 rule).
+    Returns (provider_visual_prompt, deterministic_text_spec, asset_type_override)
+    unless return_anchors_meta is True, in which case it returns a 4-tuple
+    with (anchors_meta) as the fourth element.
     """
     # Graphic beats: deterministic text, not a generative prompt
     _GRAPHIC_SHOT_TYPES = {"graphic_progressive", "graphic_title_card", "kinetic_text", "local_graphic"}
     _GRAPHIC_SHOT_TYPES = {"graphic_progressive", "graphic_title_card", "kinetic_text", "local_graphic"}
+    _no_anchors = {"anchor_status": "none_applicable", "citation_ids": [], "anchor_text": None}
     if graphic_text_content:
         spec_type = _classify_text_spec_type(graphic_text_content)
         dts = {
@@ -1063,10 +1175,16 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
             dts["quote"] = graphic_text_content
         elif spec_type == "framework_card":
             dts["label"] = graphic_text_content
+        if return_anchors_meta:
+            return (None, dts, "local_graphic", _no_anchors)
         return (None, dts, "local_graphic")
     if shot_type in _GRAPHIC_SHOT_TYPES:
+        if return_anchors_meta:
+            return (None, {"type": "title_card", "text": ""}, "local_graphic", _no_anchors)
         return (None, {"type": "title_card", "text": ""}, "local_graphic")
     if shot_type in _GRAPHIC_SHOT_TYPES:
+        if return_anchors_meta:
+            return (None, {"type": "title_card", "text": ""}, "local_graphic", _no_anchors)
         return (None, {"type": "title_card", "text": ""}, "local_graphic")
 
     # Hero / b-roll: compose from visual_intent
@@ -1074,6 +1192,24 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     narrative_claim = visual_intent.get("narrative_claim", "")
     information_to_show = visual_intent.get("information_to_show", "")
     viewer_takeaway = visual_intent.get("viewer_takeaway", "")
+
+    # TKT-501: Resolve claim anchors from research brief citations
+    anchors_meta = {"anchor_status": "none_applicable", "citation_ids": [], "anchor_text": None}
+    anchor_block = None
+    if research_brief_doc or citations:
+        claim_inventory_data = list(claim_lookup.values()) if claim_lookup else None
+        anchors_meta, matched = _resolve_claim_anchors(
+            visual_intent, research_brief_doc, claim_inventory_data, citations,
+        )
+        if anchors_meta.get("anchor_status") == "resolved" and matched:
+            anchor_parts = []
+            for m in matched:
+                anchor_parts.append(f"{m['citation']}")
+            MAX_ANCHOR_CHARS = 200
+            raw_anchor = "FACTUAL ANCHORS: " + "; ".join(anchor_parts)
+            if len(raw_anchor) > MAX_ANCHOR_CHARS:
+                raw_anchor = raw_anchor[:MAX_ANCHOR_CHARS - 3] + "..."
+            anchor_block = raw_anchor
 
     parts = []
     if shot_type == "hero_lipsync" or shot_type in _HERO_SHOT_TYPE_ALIASES:
@@ -1087,6 +1223,8 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
         parts.append(f"Show: {information_to_show}.")
     if viewer_takeaway:
         parts.append(f"Convey: {viewer_takeaway}.")
+    if anchor_block:
+        parts.append(anchor_block)
 
     composed = " ".join(parts)
 
@@ -1097,8 +1235,12 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     if result is None:
         # The entire prompt was about exact-text display — route to local graphic
         dts = {"type": "title_card", "text": composed}
+        if return_anchors_meta:
+            return (None, dts, "local_graphic", anchors_meta)
         return (None, dts, "local_graphic")
 
+    if return_anchors_meta:
+        return (result, None, None, anchors_meta)
     return (result, None, None)
 
 
@@ -1144,6 +1286,21 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     min_clip_sec = lipsync_rules.get("min_clip_duration_sec", 4.0)
     max_clip_sec = lipsync_rules.get("max_clip_duration_sec", 15.0)
     negative_constraints = constraints.get("default_negative_constraints", "")
+
+    # TKT-501: Load research brief + citations for claim anchor resolution
+    from authoring_service import get_research_brief, get_citations
+    from stage_runner import get_active_document
+    research_brief_doc = get_research_brief(inputs["production_id"], db_path=None)
+    citations = []
+    claim_lookup = {}
+    if research_brief_doc:
+        rev_id = research_brief_doc.get("_id")
+        if rev_id:
+            citations = get_citations(rev_id, db_path=None)
+    storyboard_doc = get_active_document(inputs["production_id"], "storyboard", db_path=None)
+    if storyboard_doc and storyboard_doc.get("claim_inventory"):
+        for claim in storyboard_doc["claim_inventory"]:
+            claim_lookup[claim.get("claim_id")] = claim
 
     # S2-T01: Reconciliation is now a separate stage (reconcile_timing).
     # compile_media assumes spans are already reconciled with creative beats.
@@ -1273,12 +1430,22 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # Prompt reflects visual_intent (not the generic "educational video" default).
         # Hero reference is a deterministic speaking frame from the active set.
         # S3-C03 (ENG-0301/0303): split into provider_visual_prompt + deterministic_text_spec
+        # TKT-501: resolve claim anchors from research brief citations
         if reused_intent:
             provider_visual_prompt, dts, asset_override = None, None, None
+            anchors_meta = {"anchor_status": "none_applicable"}
         else:
-            (provider_visual_prompt, dts, asset_override) = _compose_generation_prompt(
-                visual_intent, shot_type, graphic_text_content or None
+            (provider_visual_prompt, dts, asset_override, anchors_meta) = _compose_generation_prompt(
+                visual_intent, shot_type, graphic_text_content or None,
+                research_brief_doc=research_brief_doc,
+                citations=citations,
+                claim_lookup=claim_lookup,
+                return_anchors_meta=True,
             )
+        spec["metadata"]["claim_anchors"] = {
+            "anchor_status": anchors_meta.get("anchor_status", "none_applicable"),
+            "citation_ids": anchors_meta.get("citation_ids", []),
+        }
         if asset_override:
             spec["asset_type"] = asset_override
         spec["prompt"] = provider_visual_prompt or ""
