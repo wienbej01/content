@@ -106,6 +106,23 @@ def _wrap(text, font, max_width, draw):
     return lines or [""]
 
 
+def fit_text(text, draw, box_width, max_lines, role="body", min_size=12, max_size=72):
+    """Step font size down until text fits within max_lines at box_width.
+
+    Returns (font, lines) at the largest size that fits.
+    Raises RenderError if even min_size cannot contain the text.
+    """
+    for size in range(max_size, min_size - 1, -1):
+        font = _font(size, role=role)
+        lines = _wrap(text, font, box_width, draw)
+        if len(lines) <= max_lines:
+            return font, lines
+    raise RenderError(
+        f"Text does not fit at minimum size {min_size}pt: "
+        f"'{text[:80]}...' ({len(text)} chars, needs >{max_lines} lines at {box_width}px)"
+    )
+
+
 def render_lower_third(spec):
     """Name/citation strip in lower-third zone."""
     from PIL import Image, ImageDraw
@@ -121,8 +138,8 @@ def render_lower_third(spec):
     lines = _wrap(text, f_main, SAFE_W - 40, d)
     d.text((MARGIN_X + 24, y0 + 14), lines[0], font=f_main, fill=(*IVORY, 255))
     if subtitle:
-        f_sub = _font(24, role="body")
-        d.text((MARGIN_X + 24, y0 + 58), subtitle[:80], font=f_sub, fill=(*GOLD, 255))
+        f_sub, sub_lines = fit_text(subtitle, d, SAFE_W - 40, 1, role="body", min_size=14, max_size=24)
+        d.text((MARGIN_X + 24, y0 + 58), sub_lines[0], font=f_sub, fill=(*GOLD, 255))
     return img
 
 
@@ -312,9 +329,9 @@ def render_framework_3_step(spec):
         # Description
         desc = step.get("description", "")
         if desc:
-            lines = _wrap(desc[:120], f_desc, step_width - 40, d)
+            f_desc, desc_lines = fit_text(desc, d, step_width - 40, 3, role="body", min_size=10, max_size=24)
             dy = cy + 110
-            for ln in lines[:3]:
+            for ln in desc_lines:
                 db = d.textbbox((0, 0), ln, font=f_desc)
                 dw = db[2] - db[0]
                 d.text((cx - dw // 2, dy), ln, font=f_desc, fill=(*LIGHT_GRAY, 255))
@@ -351,8 +368,8 @@ def render_decision_tree(spec):
 
     d.rectangle([x0, y0, x0 + box_w, y0 + box_h], fill=(*NAVY, 220), outline=(*GOLD, 255), width=3)
 
-    lines = _wrap(question[:80], f_question, box_w - 40, d)
-    for i, ln in enumerate(lines[:3]):
+    f_question, q_lines = fit_text(question, d, box_w - 40, 3, role="display", min_size=14, max_size=36)
+    for i, ln in enumerate(q_lines):
         d.text((x0 + 20, y0 + 20 + i * 35), ln, font=f_question, fill=(*IVORY, 255))
 
     # Branches
@@ -368,8 +385,8 @@ def render_decision_tree(spec):
         # Outcome
         outcome = branch.get("outcome", "")
         if outcome:
-            lines = _wrap(outcome[:100], f_outcome, branch_w - 40, d)
-            for j, ln in enumerate(lines[:3]):
+            f_outcome, out_lines = fit_text(outcome, d, branch_w - 40, 3, role="body", min_size=10, max_size=24)
+            for j, ln in enumerate(out_lines):
                 d.text((bx + 20, by + 35 + j * 28), ln, font=f_outcome, fill=(*IVORY, 255))
 
         # Recommended indicator
@@ -460,9 +477,9 @@ def render_before_after(spec):
     bdesc = before.get("description", "")
     d.text((MARGIN_X + 20, before_y), blabel, font=f_label, fill=(*IVORY, 255))
     if bdesc:
-        lines = _wrap(bdesc[:150], f_desc, SAFE_W // 2 - 60, d)
-        for i, ln in enumerate(lines[:4]):
-            d.text((MARGIN_X + 20, before_y + 50 + i * 32), ln, font=f_desc, fill=(*LIGHT_GRAY, 255))
+        f_desc2, bdesc_lines = fit_text(bdesc, d, SAFE_W // 2 - 60, 4, role="body", min_size=10, max_size=28)
+        for i, ln in enumerate(bdesc_lines):
+            d.text((MARGIN_X + 20, before_y + 50 + i * 32), ln, font=f_desc2, fill=(*LIGHT_GRAY, 255))
 
     # After section
     after_y = MARGIN_Y + 100
@@ -470,9 +487,9 @@ def render_before_after(spec):
     adesc = after.get("description", "")
     d.text((mid + 40, after_y), alabel, font=f_label, fill=(*IVORY, 255))
     if adesc:
-        lines = _wrap(adesc[:150], f_desc, SAFE_W // 2 - 60, d)
-        for i, ln in enumerate(lines[:4]):
-            d.text((mid + 40, after_y + 50 + i * 32), ln, font=f_desc, fill=(*LIGHT_GRAY, 255))
+        f_desc3, adesc_lines = fit_text(adesc, d, SAFE_W // 2 - 60, 4, role="body", min_size=10, max_size=28)
+        for i, ln in enumerate(adesc_lines):
+            d.text((mid + 40, after_y + 50 + i * 32), ln, font=f_desc3, fill=(*LIGHT_GRAY, 255))
 
     # Change highlight
     if highlight:
@@ -480,11 +497,11 @@ def render_before_after(spec):
         hl_w = SAFE_W - 80
         hl_x = (W - hl_w) // 2
         d.rectangle([hl_x, hl_y, hl_x + hl_w, hl_y + 50], fill=(30, 30, 30, 180))
-        lines = _wrap(highlight[:60], f_high, hl_w - 40, d)
-        for i, ln in enumerate(lines[:2]):
-            lb = d.textbbox((0, 0), ln, font=f_high)
+        f_high2, hl_lines = fit_text(highlight, d, hl_w - 40, 2, role="body", min_size=12, max_size=32)
+        for i, ln in enumerate(hl_lines):
+            lb = d.textbbox((0, 0), ln, font=f_high2)
             lw = lb[2] - lb[0]
-            d.text((hl_x + (hl_w - lw) // 2, hl_y + 10 + i * 32), ln, font=f_high, fill=(*GOLD, 255))
+            d.text((hl_x + (hl_w - lw) // 2, hl_y + 10 + i * 32), ln, font=f_high2, fill=(*GOLD, 255))
 
     return img
 
@@ -529,9 +546,9 @@ def render_timeline(spec):
 
             # Description
             if desc:
-                lines = _wrap(desc[:60], f_desc, 160, d)
-                for j, ln in enumerate(lines[:2]):
-                    d.text((x - 80, base_y + 40 + j * 25), ln, font=f_desc, fill=(*LIGHT_GRAY, 255))
+                f_desc2, tl_desc_lines = fit_text(desc, d, 160, 2, role="body", min_size=10, max_size=24)
+                for j, ln in enumerate(tl_desc_lines):
+                    d.text((x - 80, base_y + 40 + j * 25), ln, font=f_desc2, fill=(*LIGHT_GRAY, 255))
     else:  # vertical
         event_h = SAFE_H // max(len(events), 1)
         for i, event in enumerate(events[:6]):
@@ -572,9 +589,9 @@ def render_annotated_ui_mock(spec):
     # Title and description
     d.text((MARGIN_X, MARGIN_Y + 20), ui_title, font=f_title, fill=(*GOLD, 255))
     if ui_desc:
-        lines = _wrap(ui_desc[:80], f_ui, SAFE_W - 40, d)
-        for i, ln in enumerate(lines[:2]):
-            d.text((MARGIN_X, MARGIN_Y + 65 + i * 28), ln, font=f_ui, fill=(*IVORY, 255))
+        f_ui2, ui_desc_lines = fit_text(ui_desc, d, SAFE_W - 40, 2, role="body", min_size=12, max_size=24)
+        for i, ln in enumerate(ui_desc_lines):
+            d.text((MARGIN_X, MARGIN_Y + 65 + i * 28), ln, font=f_ui2, fill=(*IVORY, 255))
 
     # Annotations
     for i, ann in enumerate(annotations[:6]):
@@ -601,16 +618,18 @@ def render_annotated_ui_mock(spec):
         d.line([px, py, px, callout_y], fill=(*GOLD, 255), width=2)
 
         # Callout box background
-        cb = d.textbbox((0, 0), elem_name[:30], font=f_elem)
+        f_elem2, elem_lines = fit_text(elem_name, d, 200, 1, role="body", min_size=10, max_size=28)
+        cb = d.textbbox((0, 0), elem_lines[0], font=f_elem2)
         cw = cb[2] - cb[0] + 20
         ch = cb[3] - cb[1] + 10
         d.rectangle([px - cw // 2, callout_y - ch - 5, px + cw // 2, callout_y + 5], fill=(30, 30, 30, 230))
-        d.text((px - cw // 2 + 10, callout_y - ch + 2), elem_name[:30], font=f_elem, fill=(*IVORY, 255))
+        d.text((px - cw // 2 + 10, callout_y - ch + 2), elem_lines[0], font=f_elem2, fill=(*IVORY, 255))
 
         if callout:
-            tb = d.textbbox((0, 0), callout[:40], font=f_callout)
+            f_callout2, callout_lines = fit_text(callout, d, 200, 1, role="body", min_size=10, max_size=22)
+            tb = d.textbbox((0, 0), callout_lines[0], font=f_callout2)
             tw = tb[2] - tb[0]
-            d.text((px - tw // 2, callout_y + 10), callout[:40], font=f_callout, fill=(*GOLD, 255))
+            d.text((px - tw // 2, callout_y + 10), callout_lines[0], font=f_callout2, fill=(*GOLD, 255))
 
     return img
 
@@ -636,13 +655,13 @@ def render_quote_card(spec):
     d.text((W - MARGIN_X - 80, H - MARGIN_Y - 60), """, font=_font(80, role="display"), fill=(*GOLD, 255))
 
     # Quote text
-    lines = _wrap(quote[:280], f_quote, SAFE_W - 120, d)
+    f_quote2, quote_lines = fit_text(quote, d, SAFE_W - 120, 5, role="display", min_size=14, max_size=36)
     quote_y = MARGIN_Y + 100
-    for i, ln in enumerate(lines[:5]):
-        d.text((MARGIN_X + 60, quote_y + i * 40), ln, font=f_quote, fill=(*IVORY, 255))
+    for i, ln in enumerate(quote_lines):
+        d.text((MARGIN_X + 60, quote_y + i * 40), ln, font=f_quote2, fill=(*IVORY, 255))
 
     # Attribution section
-    auth_y = quote_y + len(lines) * 40 + 60
+    auth_y = quote_y + len(quote_lines) * 40 + 60
     d.text((MARGIN_X + 60, auth_y), f"— {author}", font=f_author, fill=(*GOLD, 255))
 
     if author_title:
@@ -652,9 +671,9 @@ def render_quote_card(spec):
 
     # Context
     if context:
-        lines = _wrap(context[:80], f_context, SAFE_W - 120, d)
-        for i, ln in enumerate(lines[:2]):
-            d.text((MARGIN_X + 60, auth_y + 80 + i * 28), ln, font=f_context, fill=(*LIGHT_GRAY, 255))
+        f_ctx, ctx_lines = fit_text(context, d, SAFE_W - 120, 2, role="body", min_size=10, max_size=22)
+        for i, ln in enumerate(ctx_lines):
+            d.text((MARGIN_X + 60, auth_y + 80 + i * 28), ln, font=f_ctx, fill=(*LIGHT_GRAY, 255))
 
     return img
 
@@ -1022,12 +1041,12 @@ def render_local_graphic_media(media_plan_path, project_dir):
             spec["layout"] = layout
             if not spec.get("text"):
                 spec["text"] = (beat.get("graphic_text") or beat.get("visual_brief")
-                                or beat.get("narration_text") or beat_id)[:120]
+                                or beat.get("narration_text") or beat_id)
         else:
             # Build a default key_line card from the beat's text content
             text = (beat.get("graphic_text") or beat.get("visual_brief")
                     or beat.get("narration_text") or beat_id)
-            spec = {"layout": "key_line", "text": text[:120]}
+            spec = {"layout": "key_line", "text": text}
         # Render as PNG at the canonical media path (assemble holds it for the duration).
         png_path = abs_out.with_suffix(".png")
         png_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1138,9 +1157,9 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
             f"Unknown deterministic_text_spec type '{spec_type}' for render unit "
             f"{render_unit_id}. Supported: {', '.join(sorted(layout_map.keys()))}")
 
-    render_spec_data = {"layout": layout, "text": text_content[:120]}
+    render_spec_data = {"layout": layout, "text": text_content}
     if spec_type == "source_card":
-        render_spec_data["subtitle"] = (dts.get("text") or "")[:80]
+        render_spec_data["subtitle"] = dts.get("text") or ""
 
     output_dir = ROOT / "assets" / "media" / production_id
     output_dir.mkdir(parents=True, exist_ok=True)
