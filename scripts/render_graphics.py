@@ -807,9 +807,11 @@ def get_reveal_sequence(layout, spec):
 def render_fade_animation(layout, spec, output_path, animation_config):
     """Render fade-in animation for a template.
 
-    Simple opacity fade from 0 to 1 over specified duration.
+    Produces per-frame RGBA PNGs with alpha channel increasing from 0 to
+    max over the fade duration. These frames are composited over a
+    background plate by render_animated_video via FFmpeg overlay.
     """
-    from PIL import Image, ImageEnhance
+    from PIL import Image
 
     frames = []
     output_path = Path(output_path)
@@ -817,29 +819,111 @@ def render_fade_animation(layout, spec, output_path, animation_config):
     output_dir.mkdir(parents=True, exist_ok=True)
     output_stem = output_path.stem
 
-    # Render base frame
-    base_img = RENDERERS[layout](spec)
+    base_img = RENDERERS[layout](spec).convert("RGBA")
 
     fade_duration = animation_config.get("fade_duration", DEFAULT_REVEAL_DURATION)
     total_frames = int(fade_duration * DEFAULT_FRAME_RATE)
 
+    alpha_bands = base_img.split()
+    orig_alpha = alpha_bands[3]
+
     for frame_idx in range(total_frames):
-        alpha = frame_idx / total_frames
-        faded = ImageEnhance.Brightness(base_img).enhance(alpha)
+        factor = frame_idx / total_frames
+        scaled_alpha = orig_alpha.point(lambda p: int(p * factor))
+        faded = Image.merge("RGBA", (*alpha_bands[:3], scaled_alpha))
         frame_path = output_dir / f"{output_stem}_frame{frame_idx:03d}.png"
         faded.save(str(frame_path))
         frames.append(frame_path)
 
-    # Add final frame at full opacity
     final_path = output_dir / f"{output_stem}_frame{total_frames:03d}.png"
     base_img.save(str(final_path))
     frames.append(final_path)
 
     return frames
-    base_img.save(str(final_path))
-    frames.append(final_path)
 
-    return frames
+
+def render_animated_video(spec, output_path, duration_sec):
+    """Render animated graphic as a video artifact via FFmpeg overlay compositing.
+
+    Renders animated frames via render_animated_template, then composites them
+    over a background color plate using a single FFmpeg overlay filter-graph
+    pass with per-element alpha support.
+
+    Layer breakdown:
+      - [bg]  background color plate (solid RGBA, looped for full duration)
+      - [fg]  graphic frames rendered with progressive alpha-channel fade
+
+    The overlay filter composites [fg] over [bg] using the alpha channel of
+    each frame, producing true alpha-composited motion.
+
+    Args:
+        spec: Graphic spec dict with layout and content
+        output_path: Base output path (video written to .mp4)
+        duration_sec: Target duration of the video
+
+    Returns:
+        Path to the rendered .mp4 video artifact
+
+    Raises:
+        RuntimeError: if animation validation fails or FFmpeg fails
+    """
+    import subprocess
+    import tempfile
+    from PIL import Image
+
+    output_path = Path(output_path)
+    output_dir = output_path.parent
+
+    base_dir = Path(tempfile.mkdtemp(dir=output_dir))
+    try:
+        frames = render_animated_template(spec, base_dir / "anim", duration_sec=duration_sec)
+    except Exception:
+        import shutil
+        shutil.rmtree(str(base_dir), ignore_errors=True)
+        raise
+
+    metadata_path = base_dir / "anim_metadata.json"
+    if not metadata_path.exists():
+        raise RuntimeError("Animation metadata missing after frame render")
+
+    metadata = json.loads(metadata_path.read_text())
+    fps = metadata["frame_rate"]
+
+    bg_path = base_dir / "bg_plate.png"
+    bg = Image.new("RGBA", (1920, 1080), (*NAVY, 255))
+    bg.save(str(bg_path))
+
+    frame_pattern = str(base_dir / "anim_frame%03d.png")
+    hold_dur = max(0.0, duration_sec - metadata["duration_sec"])
+
+    vf = f"[0:v][1:v]overlay"
+    if hold_dur > 0:
+        vf += f",tpad=stop_mode=clone:stop_duration={hold_dur:.3f}"
+    vf += f",fps={fps},scale=1920:1080,format=yuv420p"
+
+    video_path = output_path.with_suffix(".mp4")
+
+    r = subprocess.run(
+        ["ffmpeg", "-y",
+         "-loop", "1", "-framerate", str(fps),
+         "-i", str(bg_path),
+         "-framerate", str(fps),
+         "-i", frame_pattern,
+         "-filter_complex", vf,
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+         "-pix_fmt", "yuv420p",
+         "-t", str(duration_sec),
+         "-r", str(fps),
+         str(video_path)],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        raise RuntimeError(f"FFmpeg overlay compositing failed: {r.stderr[:500]}")
+
+    import shutil
+    shutil.rmtree(str(base_dir), ignore_errors=True)
+
+    return video_path
 
 
 def write_animation_metadata(frame_paths, output_path, frame_rate=30):
@@ -1163,6 +1247,50 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
 
     output_dir = ROOT / "assets" / "media" / production_id
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    duration_ms = ru.get("required_duration_ms") or 0
+    duration_sec = duration_ms / 1000.0
+
+    if duration_sec > ANIMATION_THRESHOLD:
+        for key in dts:
+            if key not in ("type",):
+                render_spec_data[key] = dts[key]
+        render_spec_data["animation"] = {"enabled": True, "style": "fade"}
+
+        validate_animation_requirement(render_spec_data, duration_sec)
+
+        output_path = output_dir / f"{render_unit_id}.png"
+        video_path = render_animated_video(render_spec_data, output_path, duration_sec)
+
+        file_sha = hashlib.sha256(video_path.read_bytes()).hexdigest()
+        dts_sha = hashlib.sha256(_db._json(dts).encode()).hexdigest()
+        expected_texts = [v for v in (dts.get("text"), dts.get("headline"), dts.get("quote"), dts.get("label")) if v]
+
+        artifact_meta = {
+            "render_method": "local_graphic_animated",
+            "renderer": "render_graphics.py",
+            "text_spec_sha256": dts_sha,
+            "expected_text": expected_texts,
+            "machine_readable_source_text": expected_texts,
+            "deterministic_renderer": True,
+            "ai_model_output_forbidden": True,
+            "source_render_unit_id": render_unit_id,
+            "animation_style": "fade",
+            "duration_sec": duration_sec,
+        }
+
+        art = _repo.register_artifact(
+            production_id=production_id,
+            path=video_path,
+            kind="generated_media_video",
+            extra_metadata=artifact_meta,
+            db_path=db,
+        )
+
+        _repo.link_artifact_to_render_unit(art["id"], render_unit_id, db_path=db)
+
+        return str(video_path)
+
     output_path = output_dir / f"{render_unit_id}.png"
 
     render_spec(render_spec_data, output_path)

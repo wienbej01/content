@@ -245,8 +245,8 @@ class TestGraphicsCompositing:
         assert len(arts) >= 1
         for art in arts:
             meta = json.loads(art["metadata_json"])
-            assert meta.get("render_method") == "local_graphic"
+            assert meta.get("render_method") in ("local_graphic", "local_graphic_animated")
             assert meta.get("renderer") == "render_graphics.py"
             assert "expected_text" in meta
             uri = art["uri"]
-            assert uri.endswith(".png"), f"Expected PNG artifact, got {uri}"
+            assert uri.endswith(".png") or uri.endswith(".mp4"), f"Expected PNG or MP4 artifact, got {uri}"

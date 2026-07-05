@@ -4,12 +4,42 @@
   "plan_revision_note": "Enhanced execution protocol: explicit auditor and validator agent sessions per ticket; severity-based finding reversion; git commit after each validation.",
   "status": "in_progress",
   "current_wave": "Wave 4",
-  "active_ticket": "TKT-405",
-  "next_ticket": "TKT-406",
-  "completed_tickets": ["TKT-001", "TKT-002", "TKT-003", "TKT-004", "TKT-005", "TKT-006", "TKT-101", "TKT-102", "TKT-103", "TKT-104", "TKT-201", "TKT-202", "TKT-203", "TKT-204", "TKT-301", "TKT-404"],
+  "active_ticket": "TKT-406",
+  "next_ticket": "TKT-407",
+  "completed_tickets": [
+    "TKT-001",
+    "TKT-002",
+    "TKT-003",
+    "TKT-004",
+    "TKT-005",
+    "TKT-006",
+    "TKT-101",
+    "TKT-102",
+    "TKT-103",
+    "TKT-104",
+    "TKT-201",
+    "TKT-202",
+    "TKT-203",
+    "TKT-204",
+    "TKT-301",
+    "TKT-404",
+    "TKT-405"
+  ],
   "ready_for_audit": [],
+  "audit_failed": [
+    "TKT-303"
+  ],
   "ready_for_validation": [],
   "ready_for_validation_with_findings": [],
-  "accepted_tickets": ["TKT-204", "TKT-301", "TKT-302", "TKT-401", "TKT-402", "TKT-403", "TKT-404"],
-  "last_updated": "2026-07-05T21:31:00+08:00"
+  "accepted_tickets": [
+    "TKT-204",
+    "TKT-301",
+    "TKT-302",
+    "TKT-401",
+    "TKT-402",
+    "TKT-403",
+    "TKT-404",
+    "TKT-405"
+  ],
+  "last_updated": "2026-07-05T22:33:00+08:00"
 }
