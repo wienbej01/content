@@ -33,6 +33,7 @@ from product_contract import (
     resolve_product_audio_policy,
     assembly_mode_for_product_policy,
 )
+from storyboard_projection import classify_graphic_kind, overlay_position_for, OVERLAY_SUITED_LAYOUTS
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "Videos" / "Projects"
@@ -982,7 +983,8 @@ def build_assembly_manifest(
     # S9-C07: Query graphic beats for overlay layers
     conn2 = _db.connect(db_path)
     graphic_beats = conn2.execute(
-        """SELECT cb.id, cb.label, cb.graphics_json
+        """SELECT cb.id, cb.label, cb.graphics_json,
+                  ts.start_ms, ts.end_ms
            FROM creative_beats cb
            JOIN timeline_spans ts ON cb.id = ts.creative_beat_id
            WHERE ts.production_id=? AND ts.status='active' AND cb.shot_type='local_graphic'
@@ -992,16 +994,51 @@ def build_assembly_manifest(
     conn2.close()
 
     graphics_layers = []
+    overlay_entries = []
+    total_dur_sec = max((seg.get("timing_out", 0) for seg in segments), default=0)
+
     for gb in graphic_beats:
         gfx = json.loads(gb["graphics_json"]) if gb["graphics_json"] else {}
+        layout = gfx.get("layout", "")
+        kind = classify_graphic_kind(gfx)
         text = gfx.get("text", "")
-        if text:
-            graphics_layers.append({
-                "beat_id": gb["id"],
-                "label": gb["label"],
-                "text": text,
-                "layout": gfx.get("layout", "center"),
+        start_sec = (gb["start_ms"] or 0) / 1000.0
+        end_sec = (gb["end_ms"] or 0) / 1000.0
+
+        if kind == "overlay":
+            if layout not in OVERLAY_SUITED_LAYOUTS:
+                layout = "lower_third"
+            pos_16 = overlay_position_for(layout, "16x9")
+            pos_9x16 = overlay_position_for(layout, "9x16")
+            overlay_entries.append({
+                "overlay_id": f"ov_{gb['id']}",
+                "shot_id": gb["id"],
+                "segment_id": gb["label"],
+                "start_time_sec": start_sec,
+                "end_time_sec": end_sec,
+                "layer": len(overlay_entries),
+                "spec": {"layout": layout, "text": text or gb["label"]},
+                "position_16x9": pos_16,
+                "position_9x16": pos_9x16,
+                "animation": {"fade_in_sec": 0.2, "fade_out_sec": 0.2},
             })
+        else:
+            if text:
+                graphics_layers.append({
+                    "beat_id": gb["id"],
+                    "label": gb["label"],
+                    "text": text,
+                    "layout": layout or "center",
+                })
+
+    overlay_timeline = None
+    if overlay_entries:
+        overlay_timeline = {
+            "schema_version": "1.0",
+            "production_id": production_id,
+            "total_duration_sec": total_dur_sec,
+            "overlays": overlay_entries,
+        }
 
     # S9-C07: Music bed config (deterministic, local synthesis via tools/generate_music)
     music_config = {
@@ -1029,6 +1066,7 @@ def build_assembly_manifest(
         "output": {"directory": str(PROJECTS / project_slug)},
         "segments": segments,
         "graphics": graphics_layers,
+        "overlay_timeline": overlay_timeline,
         "music": music_config,
     }
 

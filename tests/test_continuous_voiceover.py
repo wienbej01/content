@@ -48,7 +48,7 @@ def test_assemble_continuous_path_exists():
     src = (ROOT / "scripts" / "assemble.py").read_text()
     assert 'narration_mode") == "continuous_voiceover"' in src
     assert "cont_overlay" in src
-    assert "cont_concat" in src
+    assert "hero_island" in src
     print("  ✓ assemble.py has continuous_voiceover assembly path")
 
 

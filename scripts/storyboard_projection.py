@@ -84,6 +84,51 @@ _LITERAL_TO_PROMPT_CLASS: dict[str, str] = {
     "hybrid": "narrative",
 }
 
+OVERLAY_SUITED_LAYOUTS = frozenset({
+    "lower_third", "key_line", "stat_callout",
+})
+
+FULL_FRAME_LAYOUTS = frozenset({
+    "side_by_side", "comparison_card", "framework_3_step", "decision_tree",
+    "cost_stack", "before_after", "timeline", "annotated_ui_mock", "quote_card",
+})
+
+_OVERLAY_POSITIONS = {
+    "lower_third": {"position_16x9": {"x": 70, "y": 1010, "align": "bottom_left"},
+                    "position_9x16": {"x": 40, "y": 1770, "align": "bottom_left"}},
+    "key_line": {"position_16x9": {"x": 70, "y": 1010, "align": "bottom_left"},
+                 "position_9x16": {"x": 40, "y": 1770, "align": "bottom_left"}},
+    "stat_callout": {"position_16x9": {"x": 70, "y": 1010, "align": "bottom_left"},
+                     "position_9x16": {"x": 40, "y": 1770, "align": "bottom_left"}},
+}
+
+
+def classify_overlay_intent(layout: str) -> str:
+    """Classify a graphic layout as 'overlay' or 'full_frame'.
+
+    Overlay-suited layouts (lower_third, key_line, stat_callout) are composited
+    on top of footage. Full-frame layouts occupy the entire frame as a standalone
+    segment.
+    """
+    if layout in OVERLAY_SUITED_LAYOUTS:
+        return "overlay"
+    if layout in FULL_FRAME_LAYOUTS:
+        return "full_frame"
+    return "full_frame"
+
+
+def classify_graphic_kind(graphics_json: dict) -> str:
+    """Classify a graphic spec dict as 'overlay' or 'full_frame'."""
+    layout = graphics_json.get("layout", "") if isinstance(graphics_json, dict) else ""
+    return classify_overlay_intent(layout)
+
+
+def overlay_position_for(layout: str, variant: str = "16x9") -> dict:
+    """Return position config for an overlay layout and format variant."""
+    pos_key = f"position_{variant}"
+    defaults = _OVERLAY_POSITIONS.get(layout, _OVERLAY_POSITIONS["lower_third"])
+    return defaults.get(pos_key, {})
+
 _CANONICAL_SEMANTIC_REQUIRED = frozenset({"why_this_visual", "narrative_alignment"})
 
 # Fields from the canonical shot that are carried directly into the legacy beat

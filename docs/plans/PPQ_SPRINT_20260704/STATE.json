@@ -25,7 +25,7 @@
     "TKT-404",
     "TKT-405"
   ],
-  "ready_for_audit": ["TKT-406"],
+  "ready_for_audit": [],
   "audit_failed": [],
   "ready_for_validation": [],
   "ready_for_validation_with_findings": [],
@@ -38,7 +38,8 @@
     "TKT-402",
     "TKT-403",
     "TKT-404",
-    "TKT-405"
+    "TKT-405",
+    "TKT-406"
   ],
   "wave_gates_passed": ["Wave 0", "Wave 2", "Wave 3"],
   "last_updated": "2026-07-05T23:00:00+08:00"

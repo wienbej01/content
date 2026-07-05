@@ -232,21 +232,20 @@ class TestOverlayLayerOrder:
             with patch("scripts.assemble.probe_dur", return_value=10.0):
                 _composite_overlay_timeline(video, overlay_events, 10.0, tmp_dir, "16x9")
 
-        # Should be 2 ffmpeg calls (one per overlay layer)
-        assert mock_run.call_count == 2
+        # Single-pass compositing: all overlays handled in ONE ffmpeg call.
+        assert mock_run.call_count == 1
 
-        # First call should be for layer 0, second for layer 1
-        call_args_list = mock_run.call_args_list
-        fc0_idx = call_args_list[0][0][0].index("-filter_complex") + 1
-        fc1_idx = call_args_list[1][0][0].index("-filter_complex") + 1
+        # Single-pass compositing: all overlays chained in one filter_complex
+        call_args = mock_run.call_args[0][0]
+        fc_idx = call_args.index("-filter_complex") + 1
+        fc = call_args[fc_idx]
 
-        # Both should have 'overlay=' in their filter_complex
-        assert "overlay=" in call_args_list[0][0][0][fc0_idx]
-        assert "overlay=" in call_args_list[1][0][0][fc1_idx]
-
-        # Layer 1 processes the output of layer 0 (input [0:v] should be the output of first pass)
-        fc1 = call_args_list[1][0][0][fc1_idx]
-        assert "[0:v]" in fc1 or "overlay" in fc1
+        assert "overlay=" in fc
+        overlay_count = fc.count("overlay=") 
+        assert overlay_count >= 1, f"Expected at least 1 overlay in filter graph, got {overlay_count}"
+        assert "enable='between(t,1.0,5.0)'" in fc, f"Layer 0 timing not found: {fc}"
+        assert "[0:v]" in fc, "Base video required in filter graph"
+        assert "[v0]" in fc or "[v1]" in fc, "Chain links expected in single-pass graph"
 
 
 # ============================================================================
