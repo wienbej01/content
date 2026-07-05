@@ -2185,6 +2185,7 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
 
     rendered = 0
     local_rendered = 0
+    kenburns_rendered = 0
     for u in graphics_units:
         if u["active_artifact_id"]:
             rendered += 1
@@ -2197,12 +2198,18 @@ def invoke_graphics_compositing(inputs: dict, tmp_path: Path) -> dict:
             record_test_mode_semantic_role_qa(production_id, u["id"], db_path=None)
             local_rendered += 1
             rendered += 1
+        elif u["asset_type"] == "still_kenburns":
+            from render_graphics import render_still_kenburns_render_unit
+            render_still_kenburns_render_unit(None, production_id, u["id"])
+            kenburns_rendered += 1
+            rendered += 1
 
     return {
         "status": "completed",
         "graphics_units": len(graphics_units),
         "rendered": rendered,
         "local_graphic_rendered": local_rendered,
+        "still_kenburns_rendered": kenburns_rendered,
     }
 
 

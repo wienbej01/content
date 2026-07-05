@@ -1323,6 +1323,119 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
     return str(output_path)
 
 
+def render_still_kenburns_render_unit(db, production_id: str, render_unit_id: str) -> str:
+    """DB-native: render a still_kenburns unit as an ffmpeg zoompan motion clip.
+
+    Uses a reference image from the render unit's metadata or linked artifact.
+    Zoompan parameters derive deterministically from the render_unit_id hash
+    (zoom range 1.05–1.12, sine-based drift). Duration == required_duration_ms.
+
+    Returns the output path of the rendered video file.
+    """
+    import subprocess
+    import production_db as _db
+    import production_repo as _repo
+
+    conn = _db.connect(db)
+    ru = conn.execute(
+        "SELECT * FROM render_units WHERE id=?", (render_unit_id,)
+    ).fetchone()
+    conn.close()
+
+    if not ru:
+        raise RuntimeError(f"Render unit {render_unit_id} not found in DB")
+
+    ru = dict(ru)
+    if ru.get("asset_type") != "still_kenburns":
+        raise RuntimeError(
+            f"render_still_kenburns_render_unit requires asset_type='still_kenburns', "
+            f"got '{ru.get('asset_type')}'"
+        )
+
+    meta = json.loads(ru["metadata_json"]) if ru["metadata_json"] else {}
+
+    ref_image_path = meta.get("reference_image_path") or meta.get("image_path")
+
+    if not ref_image_path:
+        raise RuntimeError(
+            f"still_kenburns unit {render_unit_id} has no reference_image_path "
+            f"in metadata -- cannot render ken burns motion"
+        )
+
+    ref_path = ROOT / ref_image_path if not Path(ref_image_path).is_absolute() else Path(ref_image_path)
+    if not ref_path.exists():
+        ref_path = Path(ref_image_path)
+    if not ref_path.exists():
+        raise RuntimeError(
+            f"still_kenburns reference image not found: {ref_image_path} "
+            f"(resolved to {ref_path})"
+        )
+
+    duration_ms = ru.get("required_duration_ms") or 5000
+    duration_sec = max(1.0, duration_ms / 1000.0)
+
+    seed_hash = hashlib.sha256(render_unit_id.encode()).hexdigest()
+    seed_int = int(seed_hash[:8], 16)
+
+    zoom_start = 1.05 + (seed_int % 8) / 100.0
+    drift_freq_x = 10 + (seed_int % 15)
+    drift_amp_x = 30 + (seed_int % 31)
+    drift_freq_y = 8 + (seed_int % 12)
+    drift_amp_y = 15 + (seed_int % 21)
+    zoom_cap = zoom_start + 0.12
+
+    total_frames = max(25, int(duration_sec * 25))
+    zoom_step_per_frame = (zoom_cap - zoom_start) / total_frames
+
+    filter_expr = (
+        f"zoompan="
+        f"z='min(zoom+{zoom_step_per_frame:.6f},{zoom_cap:.3f})':"
+        f"x='iw/2-(iw/zoom/2)+sin(on/{drift_freq_x})*{drift_amp_x}':"
+        f"y='ih/2-(ih/zoom/2)+cos(on/{drift_freq_y})*{drift_amp_y}':"
+        f"d={total_frames}:s=1280x720,"
+        f"format=yuv420p"
+    )
+
+    output_dir = ROOT / "assets" / "media" / production_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{render_unit_id}.mp4"
+
+    subprocess.run(
+        ["ffmpeg", "-y", "-loop", "1", "-i", str(ref_path),
+         "-t", f"{duration_sec:.3f}",
+         "-vf", filter_expr,
+         "-r", "25", "-an", str(output_path)],
+        capture_output=True,
+        check=True,
+    )
+
+    file_sha = hashlib.sha256(output_path.read_bytes()).hexdigest()
+
+    artifact_meta = {
+        "render_method": "still_kenburns",
+        "renderer": "render_graphics.py",
+        "deterministic_renderer": True,
+        "ai_model_output_forbidden": True,
+        "source_render_unit_id": render_unit_id,
+        "reference_image": ref_image_path,
+        "zoom_range": [round(zoom_start, 3), round(zoom_cap, 3)],
+        "seed": seed_hash[:8],
+        "duration_sec": duration_sec,
+    }
+
+    art = _repo.register_artifact(
+        production_id=production_id,
+        path=output_path,
+        kind="generated_media_video",
+        extra_metadata=artifact_meta,
+        db_path=db,
+    )
+
+    _repo.link_artifact_to_render_unit(art["id"], render_unit_id, db_path=db)
+
+    return str(output_path)
+
+
 def render_overlay_timeline(timeline_plan, output_dir):
     """Render all overlay artifacts from an overlay timeline plan.
 
