@@ -4,8 +4,8 @@
   "plan_revision_note": "Enhanced execution protocol: explicit auditor and validator agent sessions per ticket; severity-based finding reversion; git commit after each validation.",
   "status": "in_progress",
   "current_wave": "Wave 4",
-  "active_ticket": "TKT-406",
-  "next_ticket": "TKT-407",
+  "active_ticket": "TKT-407",
+  "next_ticket": null,
   "completed_tickets": [
     "TKT-001",
     "TKT-002",
@@ -42,5 +42,5 @@
     "TKT-406"
   ],
   "wave_gates_passed": ["Wave 0", "Wave 2", "Wave 3"],
-  "last_updated": "2026-07-05T23:00:00+08:00"
+  "last_updated": "2026-07-05T23:21:00+08:00"
 }
