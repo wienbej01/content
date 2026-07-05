@@ -38,7 +38,7 @@ class TestStageRegistry:
     def test_all_critical_stages_present(self):
         required = [
             "research", "write_script", "review_script", "gate_a_content",
-            "storyboard", "review_storyboard", "tts", "audio_timing",
+            "storyboard", "review_storyboard", "tts", "word_alignment", "audio_timing",
             "reconcile_timing", "compile_media", "gate_a_spend",
             "generate_media", "qa_media", "repair", "graphics_compositing",
             "assemble", "qa_final", "gate_b_review", "publish", "analytics",
@@ -77,16 +77,16 @@ class TestStageRegistry:
         assert "audio_timing" not in sb.depends_on, (
             "storyboard must not depend on audio_timing — it only needs the script")
 
-    def test_audio_timing_depends_on_tts(self):
-        """S2-T01: audio_timing needs TTS audio to align."""
+    def test_audio_timing_depends_on_word_alignment(self):
+        """Wave 3: audio_timing depends on word_alignment after forced alignment insertion."""
         at = STAGE_REGISTRY["audio_timing"]
-        assert "tts" in at.depends_on
+        assert "word_alignment" in at.depends_on
 
-    def test_tts_depends_on_review_storyboard(self):
-        """S2-T01: TTS runs after storyboard review (canonical order)."""
+    def test_tts_depends_on_gate_storyboard(self):
+        """S2-T01: TTS runs after storyboard review and gate (canonical order)."""
         tts = STAGE_REGISTRY["tts"]
-        assert "review_storyboard" in tts.depends_on, (
-            "tts must depend on review_storyboard — narration after visual plan is locked")
+        assert "gate_storyboard" in tts.depends_on, (
+            "tts must depend on gate_storyboard — narration after visual plan is locked")
 
     def test_canonical_stage_order(self):
         """S2-T01: verify the canonical order: storyboard before tts before timing."""

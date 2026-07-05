@@ -391,9 +391,11 @@ def invoke_word_alignment(inputs: dict, tmp_path: Path) -> dict:
         db_path=None,
     )
 
-    # Link word_timing -> tts_artifact dependency
+    # Link word_timing -> tts_artifact + script dependencies
     _link_document_dependency(
         inputs["production_id"], "word_timing", "tts_artifact", db_path=None)
+    _link_document_dependency(
+        inputs["production_id"], "word_timing", "script", db_path=None)
 
     return {
         "status": "saved",
