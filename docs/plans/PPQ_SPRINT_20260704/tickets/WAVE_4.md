@@ -78,6 +78,22 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Deps: Wave 0; TKT-406/407 also require 
 
 - Acceptance gates: G1 truncated graphic fails production QA (F3 regression test); G2 hash verification enforced; G3 full suite passes.
 - Audit focus: OCR flakiness on serif fonts — threshold justified with measurements, never loosened ad hoc.
+- Audit steps:
+   1. Confirm `text_policy_ok` is no longer unconditionally True — grep for the old skip-by-design pattern at `scripts/media_service.py`.
+   2. Verify token-recall threshold is documented and backed by measurements on the quote_card template.
+   3. Verify `graphic_text_hash` is recomputed from artifact bytes and checked against stored value.
+   4. Verify the OCR path handles missing pytesseract/tesseract gracefully (evidence recorded, not crash).
+   5. Run focused tests (`test_graphic_ocr.py`) independently; run invariant suite.
+   6. Confirm `NO_VISIBLE_TEXT` provider OCR path is untouched.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_graphic_ocr.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify truncated fixture fails QA with token-recall below threshold.
+   4. Verify correct render passes QA with token-recall above threshold.
+   5. Verify tampered `graphic_text_hash` causes `graphic_text_hash_mismatch` issue.
+   6. Verify stylized serif template exceeds threshold (calibrated measurement recorded).
+   7. Write validation report `evidence/TKT-403-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit.
 
 ---
@@ -103,6 +119,21 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Deps: Wave 0; TKT-406/407 also require 
 
 - Acceptance gates: G1 grep gate — no `[:N]` truncation remains in the renderer; G2 overflow is loud; G3 full suite + TKT-403 OCR tests pass.
 - Audit focus: interaction with 9x16 boxes; deterministic chosen font size.
+- Audit steps:
+   1. Confirm no `[:N]`-style hard truncation remains in any render function.
+   2. Verify `fit_text()` produces deterministic font size output for identical inputs.
+   3. Verify overflow beyond min-size raises loud `RenderError` (never silent truncation).
+   4. Verify 9x16 boxes have correctly recomputed safe margins.
+   5. Run focused tests (`test_autofit.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_autofit.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify long-but-fittable text renders fully at reduced size (OCR-verified).
+   4. Verify text beyond min-size capacity raises `RenderError`.
+   5. Verify short text renders at max role size.
+   6. Verify zero `[:N]` hard truncation in `render_graphics.py` (grep).
+   7. Write validation report `evidence/TKT-404-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit.
 
 ---
@@ -130,7 +161,23 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Deps: Wave 0; TKT-406/407 also require 
 
 - Acceptance gates: G1 frame-diff proves motion in output; G2 animation requirement enforced; G3 OCR verification works on the animated output's settled frame; G4 full suite passes.
 - Audit focus: encode settings and alpha handling; determinism; bounded render time.
-- Rollback: revert commit; static path remains functional.
+- Audit steps:
+   1. Verify dead brightness-fade stub code at `scripts/render_graphics.py:786-789` is removed/replaced.
+   2. Verify FFmpeg filter graph uses alpha-capable pixfmt and documented CRF/preset.
+   3. Confirm `validate_animation_requirement` is enforced (not ignored) in production path.
+   4. Verify static PNG path for ≤2s graphics is preserved.
+   5. Verify deterministic text provenance survives animation (`text_spec_sha256` in artifact metadata).
+   6. Run focused tests (`test_graphic_animation.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_graphic_animation.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify frame-diff between t=0.2s and t=1.5s proves motion (> 0).
+   4. Verify >2s graphic with animation disabled fails via `validate_animation_requirement`.
+   5. Verify ≤2s graphic still uses static PNG path.
+   6. Verify OCR (TKT-403) passes on animated output's settled steady-state frame.
+   7. Write validation report `evidence/TKT-405-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
+- Rollback: revert commit.
 
 ---
 
@@ -157,7 +204,23 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Deps: Wave 0; TKT-406/407 also require 
 
 - Acceptance gates: G1 frame sampling proves overlay presence inside window and absence outside (positive + negative); G2 single-pass property asserted from the command log; G3 9x16 positions honored; G4 full suite passes.
 - Audit focus: filter-graph escaping/quoting; overlay count limits; A/V sync preserved through the single re-encode.
-- Rollback: revert commit; full-frame path remains.
+- Audit steps:
+   1. Verify projection classifies overlay-suited intents (lower third, stat, key line, citation) as overlay entries, not full-frame units.
+   2. Verify emitted manifest validates against `schemas/overlay_timeline.schema.json`.
+   3. Confirm exactly one FFmpeg encode pass composites all overlays (single filter graph invocation in command log).
+   4. Verify audio handling unchanged (stream copy where applicable, no extra re-encodes).
+   5. Verify 9x16 overlay positions are honored.
+   6. Run focused tests (`test_overlay_projection.py`, `test_overlay_singlepass.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_overlay_projection.py tests/test_overlay_singlepass.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify frame sampling proves overlay presence inside window and absence outside.
+   4. Verify single-pass property from command log (exactly one overlay filter-graph invocation).
+   5. Verify 9x16 positions honored.
+   6. Verify production with zero overlays produces unchanged output.
+   7. Write validation report `evidence/TKT-406-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
+- Rollback: revert commit.
 
 ---
 
@@ -177,6 +240,20 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Deps: Wave 0; TKT-406/407 also require 
 
 - Acceptance gates: G1 motion proven; G2 unit reaches `generated` with a linked artifact in a test-mode run; G3 full suite passes.
 - Audit focus: deterministic move from seed; output resolution/pixfmt consistent with assembly expectations.
+- Audit steps:
+   1. Verify `still_kenburns` unit reaches `generated` with a linked artifact in test-mode run.
+   2. Confirm zoompan motion parameters derive deterministically from unit id seed.
+   3. Verify output duration matches span.
+   4. Confirm output resolution/pixfmt is consistent with assembly expectations.
+   5. Run focused tests (`test_kenburns.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_kenburns.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify frame-diff proves motion.
+   4. Verify unit reaches `generated` with a linked artifact.
+   5. Verify non-still units are untouched (regression).
+   6. Write validation report `evidence/TKT-407-validation.md`.
+   7. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit.
 
 ---

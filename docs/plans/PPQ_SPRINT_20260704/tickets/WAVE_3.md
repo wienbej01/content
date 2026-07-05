@@ -27,6 +27,20 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Depends on Wave 0. Goal: forced-alignme
 
 - Acceptance gates: G1 doc committed with monotonic word times in a test-mode run; G2 coverage failure is loud; G3 full suite passes with the stage inserted (dependency/invalidation boundaries updated).
 - Audit focus: stage invalidation semantics (script change → word_timing stale); dependency isolation (torch pinned or MFA containerized — documented in the decision note).
+- Audit steps:
+   1. Verify the decision note `../evidence/TKT-301-alignment-decision.md` exists with measured accuracy, runtime, dependency list, and license.
+   2. Confirm fixture backend emits deterministic, monotonic, non-overlapping word times.
+   3. Confirm coverage < 95% causes loud stage failure naming unaligned spans.
+   4. Verify dependency boundaries: script or narration change invalidates `word_timing`.
+   5. Run focused tests (`test_word_alignment.py`) independently; run orchestrator suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_word_alignment.py -q` — all passing.
+   2. Run `YT_TEST_MODE=1 python3 -m pytest tests/test_produce_db_orchestrator.py -q` — passing.
+   3. Verify `word_timing` doc committed with monotonic word times in test-mode run.
+   4. Verify coverage-failure is loud (negative test).
+   5. Verify stage invalidation semantics (script change → word_timing stale).
+   6. Write validation report `evidence/TKT-301-validation.md`.
+   7. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: stage is additive; revert commit removes it; document kind rows are inert.
 
 ---
@@ -54,6 +68,22 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Depends on Wave 0. Goal: forced-alignme
 
 - Acceptance gates: G1 with fixture alignment, no span boundary lands inside a word (asserted); G2 narration fully covered with zero overlap; G3 full suite passes.
 - Audit focus: cumulative rounding across spans; sample/ms conversion consistency; resume idempotency.
+- Audit steps:
+   1. Verify span boundaries land at measured inter-word gap midpoints, not proportionally allocated.
+   2. Confirm tie-break rule for flush words (no gap) is documented and tested.
+   3. Verify `timing_precision: word` is marked when alignment exists; `sentence` when absent.
+   4. Confirm total-duration coverage invariant holds (spans tile narration exactly, no gaps/overlaps).
+   5. Verify hero speech windows snap to word boundaries with silence padding, sample-exact.
+   6. Run focused tests (`test_word_boundary_spans.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_word_boundary_spans.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify fixture word_timing produces boundary at correct gap midpoints.
+   4. Verify boundary word flush tie-break documented and non-overlapping.
+   5. Verify no word_timing doc → proportional fallback with `timing_precision: sentence`.
+   6. Verify hero slicing tests pass (windows sample-exact).
+   7. Write validation report `evidence/TKT-302-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit; sentence-precision path remains functional.
 
 ---
@@ -79,6 +109,20 @@ Sprint: `PPQ-2026-07`. See `../PLAN.md`. Depends on Wave 0. Goal: forced-alignme
 
 - Acceptance gates: G1 anchored resolution asserted against fixture times; G2 missing anchor is loud; G3 full suite passes.
 - Audit focus: phrase normalization; multiple-occurrence tie-break documented and tested.
+- Audit steps:
+   1. Verify phrase matcher normalizes case/punctuation before matching.
+   2. Confirm first-occurrence-within-beat-span tie-break for multiple phrase matches.
+   3. Verify resolved anchor time flows into unit metadata for assembly consumption.
+   4. Confirm unresolvable anchors fail compile loudly, naming missing phrase and beat.
+   5. Run focused tests (`test_graphic_anchor.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_graphic_anchor.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify anchor phrase present resolves to correct start_ms.
+   4. Verify anchor phrase absent fails compile with named phrase and beat.
+   5. Verify graphics with no anchor produce unchanged behavior.
+   6. Write validation report `evidence/TKT-303-validation.md`.
+   7. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit; additive schema field is inert.
 
 ---

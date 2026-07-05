@@ -42,6 +42,20 @@ npm ls @higgsfield/cli
 
 - Acceptance gates: G1 run completes with all publish-grade gates satisfied by production-produced evidence; G2 evidence audit query returns zero simulated/review-only satisfactions; G3 total cost within the approved cap (cost_events sum); G4 archived bundle exists and is complete.
 - Audit focus: honesty of the evidence audit; any manual intervention documented; restart behavior after any mid-run repair.
+- Audit steps:
+   1. Verify archived `inspect` bundle contains production-written evidence only (zero simulated evidence rows).
+   2. Confirm hero units all have real `syncnet_offset` passes (no review-only exemptions).
+   3. Confirm every publish-grade b-roll unit carries `semantic_role_qa` pass.
+   4. Confirm every graphic OCR-verified; at least one animated + one word-anchored overlay in deliverable.
+   5. Verify total cost is within approved cap.
+   6. Document any manual interventions that occurred during the run.
+- Validation steps:
+   1. Run evidence audit query over the archived bundle — zero rows with `simulated: true` or `yt_test_mode`.
+   2. Confirm Gate B pass with deliverable in `published` state.
+   3. Confirm evidence bundle is complete and archived.
+   4. Verify restart behavior after any mid-run repair is documented.
+   5. Write validation report `evidence/TKT-601-validation.md`.
+   6. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: none needed (run produces artifacts and records only); a failed run leaves the ledger consistent by design.
 
 ---
@@ -70,6 +84,22 @@ npm ls @higgsfield/cli
 
 - Acceptance gates: G1 mocked matrix passes; G2 idempotency proven (double-run creates one video in mocked tests); G3 secrets-hygiene assertion passes; G4 authorized real upload evidence archived (or ticket ends `BLOCKED` at this gate with mocked gates green).
 - Audit focus: OAuth token storage; retry/backoff behavior; partial-upload cleanup; disclosure compliance.
+- Audit steps:
+   1. Confirm OAuth tokens are stored in env/secrets, never in DB payloads or logs.
+   2. Verify idempotency: resuming a production re-attaches to stored upload session (no duplicate video).
+   3. Confirm `--record-only` mode preserves current DB-only publish behavior.
+   4. Verify Gate B is enforced — publish refuses when Gate B has not passed.
+   5. Verify AI disclosure flag is set in the upload request.
+   6. Run focused tests (`test_youtube_publish_adapter.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_youtube_publish_adapter.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify mocked successful upload stores platform ID in `publications`.
+   4. Verify interrupted-then-resume reuses same upload session (no duplicate).
+   5. Verify Gate B not passed → publish refuses.
+   6. Verify no token material in DB rows or logs.
+   7. Write validation report `evidence/TKT-602-validation.md`.
+   8. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: `--record-only` mode preserves prior behavior; revert commit restores it as default.
 
 ---
@@ -97,6 +127,21 @@ npm ls @higgsfield/cli
 
 - Acceptance gates: G1 fixture attribution exact (asserted values); G2 no-publication case is loud; G3 authorized real ingestion evidence archived (or `BLOCKED` at this gate with mocked gates green); G4 full suite passes.
 - Audit focus: timestamp alignment correctness (retention bins vs span ms); API quota handling; no PII beyond platform-provided aggregates.
+- Audit steps:
+   1. Verify retention-curve → span mapping uses correct span start/end ms against video duration.
+   2. Confirm attribution report joins across spans → render_units → creative_beats → claims via existing lineage.
+   3. Verify `metric_snapshots` are append-only with provenance fields (platform ID, fetch time, API version).
+   4. Confirm production with no publication refuses attribution with clear error.
+   5. Verify no PII beyond platform-provided aggregates in stored data.
+   6. Run focused tests (`test_analytics_attribution.py`) independently; run invariant suite.
+- Validation steps:
+   1. Run `python3 -m pytest tests/test_analytics_attribution.py -q` — all passing.
+   2. Run the sprint invariant 5-file suite — passing.
+   3. Verify fixture retention curve produces correct per-span deltas joined to unit/shot/claim.
+   4. Verify no-publication case is loud and clear.
+   5. Verify snapshot provenance fields present.
+   6. Write validation report `evidence/TKT-603-validation.md`.
+   7. If PASS: update `STATE.json` accepted list, `git commit`.
 - Rollback: revert commit; snapshots already written remain valid append-only history.
 
 ---

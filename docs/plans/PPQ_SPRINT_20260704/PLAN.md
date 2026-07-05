@@ -241,9 +241,13 @@ Ticket index (titles):
 
 ## 6. Execution Protocol (applies to every ticket)
 
-Every ticket must be executed with the Karpathy loop:
+Every ticket must pass through three independent agent sessions:
 
-`LOAD → BASELINE → REPRODUCE → IMPLEMENT → FOCUSED TEST → AUDIT → REPAIR → VALIDATE → RECORD`
+`ENGINEER → AUDITOR → VALIDATOR`
+
+### Engineer session
+
+`LOAD → BASELINE → REPRODUCE → IMPLEMENT → FOCUSED TEST → RECORD`
 
 Rules:
 
@@ -252,18 +256,76 @@ Rules:
 3. REPRODUCE: for defect tickets, write the failing test first; for capability tickets, write the behavior-contract test first (it must fail before implementation).
 4. IMPLEMENT the smallest coherent change. No dummy outputs, no permissive fallbacks, no test-only production branches, no weakened assertions.
 5. FOCUSED TEST: run the ticket's test matrix, then the sprint invariant suite: `YT_TEST_MODE=1 python3 -m pytest -q` (full), or at minimum the focused 104-test suite plus the ticket's tests.
-6. AUDIT: an independent auditor session reviews per the ticket's audit focus; the auditor does not repair.
-7. Maximum three engineer→audit→repair cycles; stop earlier on genuine blocker or two repairs with no material improvement; then report `BLOCKED`.
-8. VALIDATE: only an independent validator marks the ticket accepted, based on the ticket's binary acceptance gates.
-9. RECORD: append to `EXECUTION_LOG.jsonl` — files changed, commands + exit codes, tests added, results, limitations, commit hash.
-10. Paid calls, destructive ops, and production deploys require explicit human authorization; otherwise report `BLOCKED`.
+6. RECORD: append an engineer event to `EXECUTION_LOG.jsonl`. Update `STATE.json` to `ready_for_audit`. Stop — do not begin the next ticket.
 
-Ticket status vocabulary: `planned | in_progress | implemented | audited | accepted | blocked | failed`.
+### Auditor agent session
+
+`LOAD → AUDIT → REPORT → UPDATE STATE`
+
+The auditor is an independent agent session. It does not modify production code or tests. It may only modify: evidence audit report, `EXECUTION_LOG.jsonl`, `STATE.json`.
+
+Rules:
+
+7. Load: the ticket, `STATE.json`, actual git diff, changed production files, changed tests, and the ticket's audit focus.
+8. Run the ticket's focused test matrix independently. Run the sprint invariant suite.
+9. Answer the audit questions listed in each ticket's `- Audit steps:` section.
+10. Return exactly one verdict: `PASS`, `PASS_WITH_FINDINGS`, `FAIL`, or `BLOCKED`.
+11. Write findings to `evidence/<TICKET-ID>-audit.md` with structured fields: finding ID, severity (`CRITICAL|HIGH|MEDIUM|LOW`), file/symbol, violated requirement, concrete evidence, required correction, required regression test.
+12. Update `STATE.json`:
+
+    | Verdict | STATE.json status |
+    |---------|-------------------|
+    | `PASS` | `ready_for_validation` |
+    | `PASS_WITH_FINDINGS` (severity ≤ LOW only) | `ready_for_validation_with_findings` |
+    | `PASS_WITH_FINDINGS` (severity ≥ MEDIUM) | `audit_failed` — reverts to engineer for repair |
+    | `FAIL` | `audit_failed` — reverts to engineer |
+    | `BLOCKED` | `blocked` |
+
+13. Append structured auditor event to `EXECUTION_LOG.jsonl`. Stop — do not begin validation.
+
+### Finding reversion rules
+
+14. When audit returns `PASS_WITH_FINDINGS` with ≥ MEDIUM findings, or `FAIL`:
+    - The ticket reverts to the engineer with structured outstanding findings from the audit report.
+    - Engineer corrects only the remaining delta; adds required regression tests.
+    - After repair, re-submit to auditor for re-audit.
+    - Maximum three total engineer→audit cycles per ticket (one initial + up to two repair rounds).
+    - Stop earlier on genuine blocker or two repairs with no material improvement; then report `BLOCKED`.
+15. When `ready_for_validation_with_findings` (LOW-severity only): the validator reviews these findings and may accept with residual risks recorded.
+
+### Validator agent session
+
+`LOAD → VALIDATE → ACCEPT/REJECT → COMMIT`
+
+The validator is an independent agent session. It does not modify production code or tests. It may only modify: validation reports, `EXECUTION_LOG.jsonl`, `STATE.json`, `HANDOFF.md` (Wave/sprint completion only).
+
+Rules:
+
+16. Load: the ticket, `STATE.json`, `evidence/<TICKET-ID>-audit.md`, repository diff, and the ticket's `- Validation steps:`.
+17. Independently run all commands in the ticket's test matrix plus the sprint invariant suite.
+18. Verify: focused tests pass, broader tests pass, original defect irrereproducible, no silent fallbacks, no unintended file changes, audit findings resolved or properly non-blocking.
+19. Write structured validation report to `evidence/<TICKET-ID>-validation.md`.
+20. Return exactly one verdict: `PASS`, `FAIL`, or `BLOCKED`.
+
+    | Verdict | STATE.json status | Action |
+    |---------|-------------------|--------|
+    | `PASS` | `accepted`; add to `accepted_tickets` | Git commit working tree with message `feat(<TICKET-ID>): <title>` |
+    | `FAIL` | `validation_failed`; revert to engineer | Structured findings in validation report; must re-audit after repair |
+    | `BLOCKED` | `blocked` | Record exact missing dependency, permission, or evidence |
+
+21. ONLY the validator may mark a ticket, Wave, or sprint accepted.
+22. After validation PASS: `git add` changed files + evidence reports + STATE.json + EXECUTION_LOG.jsonl; `git commit` with conventional commit message referencing the ticket ID. Stop — the ticket is complete. Update `active_ticket` and `next_ticket` in `STATE.json`.
+
+### Paid calls and safety
+
+23. Paid calls, destructive ops, and production deploys require explicit human authorization; otherwise report `BLOCKED`.
+
+Ticket status vocabulary: `planned | in_progress | ready_for_audit | ready_for_validation | ready_for_validation_with_findings | audit_failed | validation_failed | accepted | blocked`.
 
 `EXECUTION_LOG.jsonl` event shape:
 
 ```json
-{"ts": "", "ticket": "", "phase": "baseline|implement|test|audit|repair|validate", "commands": [], "exit_codes": [], "files_changed": [], "result": "", "limitations": "", "commit": ""}
+{"ts": "", "ticket": "", "phase": "baseline|implement|audit|repair|validate", "role": "engineer|auditor|validator", "verdict": "", "gates_verified": {}, "commands": [], "exit_codes": [], "files_changed": [], "result": "", "residual_risks": [], "commit": ""}
 ```
 
 ---
