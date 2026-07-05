@@ -138,6 +138,7 @@ _SHOT_CARRY_FIELDS = (
     "qa_requirements", "planned_duration_sec",
     "min_usable_duration_sec", "max_usable_duration_sec",
     "duration_drift_policy", "assembly_fit_policy",
+    "library_asset_id",
 )
 
 
@@ -174,7 +175,12 @@ def _resolve_asset_type(shot_type: str, shot: dict) -> str:
 
 
 def _is_reused_footage(shot: dict) -> bool:
-    """Detect canonical intent to preserve existing footage, not generate anew."""
+    """Detect canonical intent to preserve existing footage, not generate anew.
+
+    TKT-503: shots citing a library_asset_id are automatically treated as reused.
+    """
+    if shot.get("library_asset_id"):
+        return True
     text = " ".join(str(shot.get(k, "")) for k in (
         "prompt_intent", "assembly_fit_policy", "fallback_strategy", "generation_risk",
     )).lower()
@@ -243,11 +249,32 @@ def _compose_visual_intent(shot: dict) -> dict:
     if _is_reused_footage(shot):
         intent["asset_type"] = "reused"
         intent["audio_policy"] = "HERO_PROVIDER_AUDIO_ISLAND"
-        intent["reuse"] = {
-            "allowed": True,
-            "source": "canonical_existing_footage_intent",
-            "reused_asset_id": shot.get("source_artifact_id"),
-        }
+        lib_id = shot.get("library_asset_id")
+        if lib_id:
+            import production_db as _db
+            conn = _db.connect(None)
+            lib_row = conn.execute(
+                "SELECT uri, sha256 FROM asset_library WHERE id=?", (lib_id,)
+            ).fetchone()
+            conn.close()
+            if not lib_row:
+                raise RuntimeError(
+                    f"Library asset {lib_id!r} not found in asset_library. "
+                    f"Use 'produce_db.py library add' to index it first."
+                )
+            intent["reuse"] = {
+                "allowed": True,
+                "source": "asset_library",
+                "reused_asset_id": lib_id,
+                "reused_asset_uri": lib_row["uri"],
+                "reused_asset_sha": lib_row["sha256"],
+            }
+        else:
+            intent["reuse"] = {
+                "allowed": True,
+                "source": "canonical_existing_footage_intent",
+                "reused_asset_id": shot.get("source_artifact_id"),
+            }
     return intent
 
 

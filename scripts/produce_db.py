@@ -3158,6 +3158,24 @@ def main():
     inspect.add_argument("production_id")
     inspect.add_argument("--json", dest="json_out", metavar="FILE",
                           help="Write machine-readable JSON bundle to FILE")
+
+    # TKT-503: Curated asset library verbs
+    library = sub.add_parser("library")
+    lib_subs = library.add_subparsers(dest="library_command")
+
+    lib_add = lib_subs.add_parser("add")
+    lib_add.add_argument("file_path")
+    lib_add.add_argument("--license", required=True, help="License identifier (required)")
+    lib_add.add_argument("--tags", default="", help="Comma-separated tags")
+    lib_add.add_argument("--description", default="", help="Human-readable description")
+    lib_add.add_argument("--provenance", default="", help="Origin/attribution")
+    lib_add.add_argument("--kind", dest="media_kind", default="video", choices=["video", "image", "audio"])
+
+    lib_list = lib_subs.add_parser("list")
+    lib_list.add_argument("--tag", default=None, help="Filter by tag")
+
+    lib_search = lib_subs.add_parser("search")
+    lib_search.add_argument("query", help="Tag or description substring to search")
     
     args = ap.parse_args()
     
@@ -3281,6 +3299,122 @@ def main():
                 json.dump(report, f, indent=2, default=str)
             print(f"Inspection report written to {args.json_out}")
         print(json.dumps(report, indent=2, default=str))
+
+    elif args.command == "library":
+        db = _init_db()
+        if args.library_command == "add":
+            library_add(
+                args.file_path, args.license,
+                tags=args.tags, description=args.description,
+                provenance=args.provenance, media_kind=args.media_kind,
+            )
+        elif args.library_command == "list":
+            library_list(args.tag)
+        elif args.library_command == "search":
+            library_search(args.query)
+        else:
+            print("Usage: produce_db.py library {add|list|search} ...", file=sys.stderr)
+            sys.exit(1)
+
+
+def library_add(file_path: str, license: str, tags: str = "",
+                description: str = "", provenance: str = "",
+                media_kind: str = "video"):
+    """Index a media file into the asset library."""
+    import subprocess as _sp
+
+    fp = Path(file_path)
+    if not fp.exists():
+        print(f"Error: file not found: {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if not license.strip():
+        print("Error: --license is required. No license-less assets permitted.", file=sys.stderr)
+        sys.exit(1)
+
+    sha = hashlib.sha256(fp.read_bytes()).hexdigest()
+    file_size = fp.stat().st_size
+    duration_ms = None
+
+    try:
+        result = _sp.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json",
+             "-show_format", str(fp)],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            info = json.loads(result.stdout).get("format", {})
+            dur_s = info.get("duration")
+            if dur_s is not None:
+                duration_ms = int(round(float(dur_s) * 1000))
+    except Exception:
+        pass
+
+    conn = _db.connect(None)
+    existing = conn.execute(
+        "SELECT id FROM asset_library WHERE sha256=?", (sha,)
+    ).fetchone()
+    if existing:
+        print(f"Asset already indexed with id={existing['id']}")
+        conn.close()
+        return
+
+    asset_id = _db._id("lib")
+    tags_clean = ",".join(t.strip().lower() for t in tags.split(",") if t.strip())
+    meta = json.dumps({"indexed_at": _db._now()})
+    conn.execute(
+        """INSERT INTO asset_library
+           (id, uri, sha256, media_kind, tags, description, license, provenance,
+            file_size_bytes, duration_ms, metadata_json, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (asset_id, str(fp), sha, media_kind, tags_clean, description,
+         license.strip(), provenance, file_size, duration_ms, meta, _db._now()),
+    )
+    conn.commit()
+    conn.close()
+    print(json.dumps({"id": asset_id, "sha256": sha, "status": "indexed"}, indent=2))
+
+
+def library_list(tag: str = None):
+    """List assets in the library, optionally filtered by tag."""
+    conn = _db.connect(None)
+    if tag:
+        rows = conn.execute(
+            "SELECT id, uri, sha256, media_kind, tags, license, description "
+            "FROM asset_library WHERE ','||tags||',' LIKE ? ORDER BY created_at DESC",
+            (f"%,{tag.lower().strip()},%",),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, uri, sha256, media_kind, tags, license, description "
+            "FROM asset_library ORDER BY created_at DESC LIMIT 100",
+        ).fetchall()
+    conn.close()
+    for r in rows:
+        print(json.dumps({
+            "id": r["id"], "uri": r["uri"], "sha256": r["sha256"][:12],
+            "kind": r["media_kind"], "tags": r["tags"], "license": r["license"],
+            "description": r["description"],
+        }, indent=2))
+
+
+def library_search(query: str):
+    """Search assets by tag substring or description substring."""
+    conn = _db.connect(None)
+    pattern = f"%{query.lower()}%"
+    rows = conn.execute(
+        "SELECT id, uri, sha256, media_kind, tags, license, description "
+        "FROM asset_library WHERE LOWER(tags) LIKE ? OR LOWER(description) LIKE ? "
+        "ORDER BY created_at DESC LIMIT 50",
+        (pattern, pattern),
+    ).fetchall()
+    conn.close()
+    for r in rows:
+        print(json.dumps({
+            "id": r["id"], "uri": r["uri"], "sha256": r["sha256"][:12],
+            "kind": r["media_kind"], "tags": r["tags"], "license": r["license"],
+            "description": r["description"],
+        }, indent=2))
 
 
 if __name__ == "__main__":
