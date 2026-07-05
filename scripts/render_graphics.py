@@ -30,11 +30,27 @@ GOLD = (200, 151, 62)     # #C8973E
 IVORY = (245, 240, 232)   # #F5F0E8
 LIGHT_GRAY = (200, 200, 200)
 
+# Resolution constants (base 1x values; render_spec scales for supersampling)
 W, H = 1920, 1080
 MARGIN_X = int(W * 0.10)
 MARGIN_Y = int(H * 0.10)
 SAFE_W = W - 2 * MARGIN_X
 SAFE_H = H - 2 * MARGIN_Y
+
+# Brand font directory and role mapping
+FONT_DIR = ROOT / "brand" / "fonts"
+FONT_ROLES = {
+    "body": ("Inter.ttf", "Inter.ttf"),        # (regular, bold)
+    "display": ("PlayfairDisplay.ttf", "PlayfairDisplay.ttf"),  # (regular, bold)
+}
+FONT_FAMILY_FALLBACK = {
+    "Inter.ttf": "Inter",
+    "PlayfairDisplay.ttf": "Playfair Display",
+}
+
+
+class RenderError(RuntimeError):
+    """Raised when rendering fails due to missing resources or invalid state."""
 
 # Animation constants (S16_T003)
 DEFAULT_FRAME_RATE = 30  # fps
@@ -43,16 +59,17 @@ MIN_ANIMATION_DURATION = 2.0  # seconds
 ANIMATION_THRESHOLD = 2.0  # seconds - graphics >2s require animation
 
 
-def _font(size, bold=False):
+def _font(size, bold=False, role="body"):
     from PIL import ImageFont
-    candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold
-        else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for c in candidates:
-        if Path(c).exists():
-            return ImageFont.truetype(c, size)
-    return ImageFont.load_default()
+    font_file = FONT_ROLES[role][1 if bold else 0]
+    font_path = FONT_DIR / font_file
+    if not font_path.exists():
+        raise RenderError(
+            f"Brand font not found: {font_path} (role='{role}', bold={bold}). "
+            f"Expected '{font_file}' in brand/fonts/. "
+            f"Install the font or restore brand/fonts/ to proceed."
+        )
+    return ImageFont.truetype(str(font_path), size)
 
 
 def _wrap(text, font, max_width, draw):
@@ -83,11 +100,11 @@ def render_lower_third(spec):
     y0 = H - MARGIN_Y - band_h
     d.rectangle([MARGIN_X, y0, W - MARGIN_X, y0 + band_h], fill=(*NAVY, 220))
     d.rectangle([MARGIN_X, y0, MARGIN_X + 8, y0 + band_h], fill=(*GOLD, 255))
-    f_main = _font(36, bold=True)
+    f_main = _font(36, bold=True, role="body")
     lines = _wrap(text, f_main, SAFE_W - 40, d)
     d.text((MARGIN_X + 24, y0 + 14), lines[0], font=f_main, fill=(*IVORY, 255))
     if subtitle:
-        f_sub = _font(24)
+        f_sub = _font(24, role="body")
         d.text((MARGIN_X + 24, y0 + 58), subtitle[:80], font=f_sub, fill=(*GOLD, 255))
     return img
 
@@ -98,7 +115,7 @@ def render_key_line(spec):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     text = spec.get("text", "")
-    f = _font(52, bold=True)
+    f = _font(52, bold=True, role="display")
     lines = _wrap(text, f, SAFE_W - 80, d)
     line_h = 68
     block_h = line_h * len(lines)
@@ -124,8 +141,8 @@ def render_stat_callout(spec):
     d = ImageDraw.Draw(img)
     stat = spec.get("stat", spec.get("text", ""))
     label = spec.get("label", "")
-    f_stat = _font(120, bold=True)
-    f_label = _font(32)
+    f_stat = _font(120, bold=True, role="display")
+    f_label = _font(32, role="body")
     bbox = d.textbbox((0, 0), stat, font=f_stat)
     sw = bbox[2] - bbox[0]
     sh = bbox[3] - bbox[1]
@@ -151,8 +168,8 @@ def render_side_by_side(spec):
     left_items = spec.get("left_items", [spec.get("left_text", "")])
     right_items = spec.get("right_items", [spec.get("right_text", "")])
     mid = W // 2
-    f_title = _font(36, bold=True)
-    f_item = _font(28)
+    f_title = _font(36, bold=True, role="display")
+    f_item = _font(28, role="body")
     # Panels
     d.rectangle([MARGIN_X, MARGIN_Y, mid - 20, H - MARGIN_Y], fill=(30, 30, 30, 160))
     d.rectangle([mid + 20, MARGIN_Y, W - MARGIN_X, H - MARGIN_Y], fill=(30, 30, 30, 160))
@@ -194,8 +211,8 @@ def render_comparison_card(spec):
     right_items = right_col.get("items", [])
 
     mid = W // 2
-    f_title = _font(36, bold=True)
-    f_item = _font(28)
+    f_title = _font(36, bold=True, role="display")
+    f_item = _font(28, role="body")
 
     # Comparison panels
     panel_h = H - 2 * MARGIN_Y - 120
@@ -242,10 +259,10 @@ def render_framework_3_step(spec):
     steps = spec.get("steps", [])
     connector = spec.get("connector_style", "arrow")
 
-    f_title = _font(44, bold=True)
-    f_step_num = _font(72, bold=True)
-    f_step_label = _font(32, bold=True)
-    f_desc = _font(24)
+    f_title = _font(44, bold=True, role="display")
+    f_step_num = _font(72, bold=True, role="display")
+    f_step_label = _font(32, bold=True, role="body")
+    f_desc = _font(24, role="body")
 
     # Title
     d.text((MARGIN_X, MARGIN_Y + 20), title, font=f_title, fill=(*GOLD, 255))
@@ -303,9 +320,9 @@ def render_decision_tree(spec):
     root = spec.get("root", {})
     branches = spec.get("branches", [])
 
-    f_question = _font(36, bold=True)
-    f_branch = _font(28, bold=True)
-    f_outcome = _font(24)
+    f_question = _font(36, bold=True, role="display")
+    f_branch = _font(28, bold=True, role="body")
+    f_outcome = _font(24, role="body")
 
     # Root question box
     question = root.get("question", "Which path?")
@@ -340,7 +357,7 @@ def render_decision_tree(spec):
 
         # Recommended indicator
         if branch.get("is_recommended"):
-            d.text((bx + branch_w - 60, by), "★", font=_font(20), fill=(*GOLD, 255))
+            d.text((bx + branch_w - 60, by), "★", font=_font(20, role="body"), fill=(*GOLD, 255))
 
     return img
 
@@ -357,11 +374,11 @@ def render_cost_stack(spec):
     total_label = spec.get("total_label", "Total")
     total_value = spec.get("total_value", "")
 
-    f_title = _font(40, bold=True)
-    f_sub = _font(28)
-    f_seg = _font(32, bold=True)
-    f_val = _font(36, bold=True)
-    f_total = _font(36, bold=True)
+    f_title = _font(40, bold=True, role="display")
+    f_sub = _font(28, role="body")
+    f_seg = _font(32, bold=True, role="body")
+    f_val = _font(36, bold=True, role="body")
+    f_total = _font(36, bold=True, role="body")
 
     # Title section
     d.text((MARGIN_X, MARGIN_Y + 20), title, font=f_title, fill=(*GOLD, 255))
@@ -407,9 +424,9 @@ def render_before_after(spec):
     after = spec.get("after", {})
     highlight = spec.get("change_highlight", "")
 
-    f_label = _font(40, bold=True)
-    f_desc = _font(28)
-    f_high = _font(32, bold=True)
+    f_label = _font(40, bold=True, role="display")
+    f_desc = _font(28, role="body")
+    f_high = _font(32, bold=True, role="body")
 
     mid = W // 2
 
@@ -465,10 +482,10 @@ def render_timeline(spec):
     events = spec.get("events", [])
     orientation = spec.get("orientation", "horizontal")
 
-    f_title = _font(40, bold=True)
-    f_time = _font(28, bold=True)
-    f_label = _font(32)
-    f_desc = _font(24)
+    f_title = _font(40, bold=True, role="display")
+    f_time = _font(28, bold=True, role="body")
+    f_label = _font(32, role="body")
+    f_desc = _font(24, role="body")
 
     # Title
     d.text((MARGIN_X, MARGIN_Y + 20), title, font=f_title, fill=(*GOLD, 255))
@@ -525,10 +542,10 @@ def render_annotated_ui_mock(spec):
     ui_desc = spec.get("ui_description", "")
     annotations = spec.get("annotations", [])
 
-    f_title = _font(36, bold=True)
-    f_ui = _font(24)
-    f_elem = _font(28, bold=True)
-    f_callout = _font(22)
+    f_title = _font(36, bold=True, role="display")
+    f_ui = _font(24, role="body")
+    f_elem = _font(28, bold=True, role="body")
+    f_callout = _font(22, role="body")
 
     # UI placeholder rectangle
     ui_w, ui_h = SAFE_W - 100, H - 250
@@ -592,14 +609,14 @@ def render_quote_card(spec):
     author_title = spec.get("author_title", "")
     context = spec.get("context", "")
 
-    f_quote = _font(36, bold=False)
-    f_author = _font(32, bold=True)
-    f_title = _font(24)
-    f_context = _font(22)
+    f_quote = _font(36, bold=False, role="display")
+    f_author = _font(32, bold=True, role="body")
+    f_title = _font(24, role="body")
+    f_context = _font(22, role="body")
 
     # Quote marks
-    d.text((MARGIN_X + 40, MARGIN_Y + 60), """, font=_font(80), fill=(*GOLD, 255))
-    d.text((W - MARGIN_X - 80, H - MARGIN_Y - 60), """, font=_font(80), fill=(*GOLD, 255))
+    d.text((MARGIN_X + 40, MARGIN_Y + 60), """, font=_font(80, role="display"), fill=(*GOLD, 255))
+    d.text((W - MARGIN_X - 80, H - MARGIN_Y - 60), """, font=_font(80, role="display"), fill=(*GOLD, 255))
 
     # Quote text
     lines = _wrap(quote[:280], f_quote, SAFE_W - 120, d)
@@ -887,13 +904,56 @@ def render_graphic_template(template_spec, output_path):
 
 
 def render_spec(spec, output_path):
-    """Render a single overlay spec to a PNG. Raises RuntimeError on unknown layout."""
+    """Render a single overlay spec to a PNG. Raises RuntimeError on unknown layout.
+
+    Supports:
+    - 2x supersampling (render at 3840x2160, downsample with LANCZOS)
+    - 9x16 aspect via spec['aspect']='9x16' (native vertical layout with
+      recomputed safe margins, not letterboxed 16x9)
+    """
+    from PIL import Image
     layout = spec.get("layout")
     if layout not in RENDERERS:
         raise RuntimeError(
             f"Unknown graphics layout '{layout}'. "
             f"Supported: {', '.join(sorted(RENDERERS.keys()))}")
-    img = RENDERERS[layout](spec)
+
+    aspect = spec.get("aspect", "16x9")
+    scale = 2
+
+    # Determine target dimensions
+    if aspect == "9x16":
+        base_w, base_h = 1080, 1920
+    else:
+        base_w, base_h = W, H
+
+    render_w = base_w * scale
+    render_h = base_h * scale
+    margin_x = int(base_w * 0.10)
+    margin_y = int(base_h * 0.10)
+    safe_w = render_w - 2 * margin_x * scale
+    safe_h = render_h - 2 * margin_y * scale
+
+    # Save originals
+    orig = (globals()["W"], globals()["H"], globals()["MARGIN_X"],
+            globals()["MARGIN_Y"], globals()["SAFE_W"], globals()["SAFE_H"])
+
+    try:
+        globals()["W"] = render_w
+        globals()["H"] = render_h
+        globals()["MARGIN_X"] = margin_x * scale
+        globals()["MARGIN_Y"] = margin_y * scale
+        globals()["SAFE_W"] = safe_w
+        globals()["SAFE_H"] = safe_h
+
+        img = RENDERERS[layout](spec)
+    finally:
+        (globals()["W"], globals()["H"], globals()["MARGIN_X"],
+         globals()["MARGIN_Y"], globals()["SAFE_W"], globals()["SAFE_H"]) = orig
+
+    if scale > 1:
+        img = img.resize((base_w, base_h), Image.LANCZOS)
+
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     img.save(str(output_path))
     return output_path
