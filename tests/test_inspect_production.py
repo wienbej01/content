@@ -229,6 +229,8 @@ class TestInspectProduction:
         assert "production" in data, "missing 'production' key"
         assert "stages" in data, "missing 'stages' key"
         assert "storyboard" in data, "missing 'storyboard' key"
+        assert "word_timing" in data, "missing 'word_timing' key"
+        assert "timing" in data, "missing 'timing' key"
         assert "units" in data, "missing 'units' key"
         assert "validations" in data, "missing 'validations' key"
         assert "provider_jobs" in data, "missing 'provider_jobs' key"

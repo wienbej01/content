@@ -2705,6 +2705,27 @@ def _build_inspect_report(production_id: str, db_path=None) -> dict:
             "finished_at": row["finished_at"],
         }
 
+    # Word-level timing (TKT-301/302/303): word_timing document
+    word_timing = None
+    wt_row = conn.execute(
+        "SELECT id, revision, payload_json FROM document_revisions "
+        "WHERE production_id=? AND kind='word_timing' AND status='active' "
+        "ORDER BY revision DESC LIMIT 1",
+        (production_id,),
+    ).fetchone()
+    if wt_row:
+        wt_payload = json.loads(wt_row["payload_json"])
+        wt_meta = wt_payload.get("metadata", {})
+        word_timing = {
+            "revision_id": wt_row["id"],
+            "revision": wt_row["revision"],
+            "word_count": len(wt_payload.get("words", [])),
+            "coverage": wt_meta.get("coverage"),
+            "backend": wt_meta.get("backend"),
+            "total_duration_ms": wt_meta.get("total_duration_ms"),
+            "aligned_words": wt_meta.get("aligned_words"),
+        }
+
     # Storyboard shots
     storyboard = {"revision_id": None, "shots": []}
     sb_row = conn.execute(
@@ -2770,6 +2791,13 @@ def _build_inspect_report(production_id: str, db_path=None) -> dict:
                 "created_at": v["created_at"],
             })
 
+        unit_meta = {}
+        if ru_dict.get("metadata_json"):
+            try:
+                unit_meta = json.loads(ru_dict["metadata_json"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         units[ru_dict["id"]] = {
             "ordinal": ru_dict["ordinal"],
             "label": ru_dict["label"],
@@ -2783,6 +2811,7 @@ def _build_inspect_report(production_id: str, db_path=None) -> dict:
             "artifact_sha": art["sha256"] if art else None,
             "artifact_uri": art["uri"] if art else None,
             "active_artifact_id": ru_dict["active_artifact_id"],
+            "metadata": unit_meta,
             "qa_verdicts": verdicts,
         }
 
@@ -2797,6 +2826,21 @@ def _build_inspect_report(production_id: str, db_path=None) -> dict:
             val_summary["fail"] += 1
         else:
             val_summary["pending"] += 1
+
+    timing = {"precision": "word" if word_timing else "sentence", "spans": []}
+    for row in conn.execute(
+        "SELECT label, start_ms, end_ms, duration_ms, ordinal, status "
+        "FROM timeline_spans WHERE production_id=? AND status='active' "
+        "ORDER BY ordinal",
+        (production_id,),
+    ):
+        timing["spans"].append({
+            "label": row["label"],
+            "start_ms": row["start_ms"],
+            "end_ms": row["end_ms"],
+            "duration_ms": row["duration_ms"],
+            "ordinal": row["ordinal"],
+        })
 
     # Provider jobs
     provider_jobs = []
@@ -2874,6 +2918,8 @@ def _build_inspect_report(production_id: str, db_path=None) -> dict:
         "production": production,
         "stages": stages,
         "storyboard": storyboard,
+        "word_timing": word_timing,
+        "timing": timing,
         "units": units,
         "validations": {"summary": val_summary, "items": [dict(v) for v in val_rows]},
         "provider_jobs": provider_jobs,
