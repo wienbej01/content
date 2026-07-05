@@ -27,6 +27,12 @@ from compensate import compensate, COMPENSATION_MIN_OFFSET_MS, COMPENSATION_MAX_
 
 CONTRACT_VERSION = "1.0"
 
+# TKT-403: Graphic OCR verification threshold for normalized token recall.
+# Calibrated on the stylized quote_card template (Playfair Display serif at 36px).
+# At threshold=0.70, a correctly rendered multi-sentence quote reliably exceeds
+# this value; a truncated/mangled text (e.g. clipped to 3 words) falls below.
+GRAPHIC_OCR_TOKEN_RECALL_THRESHOLD = 0.70
+
 
 PROVIDER_ACTIVE_STATUSES = ("submitted", "running")
 PROVIDER_TERMINAL_STATUSES = ("completed", "failed")
@@ -734,11 +740,46 @@ def _qa_local_graphic(
     evidence["sha_match"] = sha_ok
     evidence["dimensions_ok"] = dims_ok
     evidence["duration_ok"] = dur_ok
-    evidence["text_policy_ok"] = True  # local graphic renders exact text by design
+
+    # 9. Graphic text OCR verification (TKT-403, R-GFX-3, F3)
+    graphic_text_content = (render_unit.get("graphic_text_content") or "").strip()
+    evidence["graphic_text_content"] = graphic_text_content
+    text_policy_ok = True
+    ocr_result = {}
+    token_recall = None
+
+    if graphic_text_content and artifact_path and artifact_path.suffix.lower() in (".png", ".jpg", ".jpeg"):
+        ocr_passed, ocr_result = _verify_graphic_text_ocr(artifact_path, graphic_text_content)
+        token_recall = ocr_result.get("token_recall")
+        evidence["ocr_token_recall"] = token_recall
+        if ocr_result.get("ocr_available"):
+            text_policy_ok = ocr_passed
+            if not ocr_passed:
+                issues.append(
+                    f"graphic_text_ocr_mismatch: recall={token_recall:.2f} "
+                    f"< threshold={GRAPHIC_OCR_TOKEN_RECALL_THRESHOLD}"
+                )
+        else:
+            issues.append(f"ocr_unavailable:{ocr_result.get('ocr_error', 'unknown')}")
+
+    evidence["text_policy_ok"] = text_policy_ok
+    evidence["ocr_token_recall_threshold"] = GRAPHIC_OCR_TOKEN_RECALL_THRESHOLD
+    evidence.update(ocr_result)
+
+    # 10. Graphic text hash verification (TKT-403)
+    hash_ok = True
+    stored_hash = render_unit.get("graphic_text_hash")
+    if graphic_text_content:
+        computed_hash = hashlib.sha256(graphic_text_content.encode("utf-8")).hexdigest()
+        evidence["graphic_text_hash_computed"] = computed_hash
+        evidence["graphic_text_hash_stored"] = stored_hash
+        if stored_hash and computed_hash != stored_hash:
+            hash_ok = False
+            issues.append("graphic_text_hash_mismatch")
+    evidence["graphic_text_hash_ok"] = hash_ok
 
     evidence["issues"] = issues
-    evidence["ocr_available"] = False
-    evidence["ocr_note"] = "OCR not applicable for local_graphic (PNG overlay)"
+    evidence["ocr_available"] = ocr_result.get("ocr_available", False)
 
     evidence["contract_version"] = CONTRACT_VERSION
     evidence["render_method"] = "local_graphic"
@@ -746,6 +787,7 @@ def _qa_local_graphic(
     passed = (
         evidence["file_exists"] and evidence["provenance_ok"] and evidence["sha_match"]
         and evidence["no_provider_job"] and text_spec_ok and spec_sha_match
+        and text_policy_ok and hash_ok
     )
     return (passed, evidence)
 
@@ -829,6 +871,66 @@ def _check_text_policy_via_ocr(artifact_path: Path) -> tuple[bool, dict]:
         ocr_evidence["text_detected"] = not passed
 
     return (passed, ocr_evidence)
+
+
+def _verify_graphic_text_ocr(artifact_path: Path, expected_text: str) -> tuple[bool, dict]:
+    """TKT-403: OCR a rendered graphic PNG and compare against expected text.
+
+    Returns (passed, evidence) where passed means normalized token recall
+    >= GRAPHIC_OCR_TOKEN_RECALL_THRESHOLD.
+
+    Gracefully handles missing pytesseract/tesseract by recording the error
+    and returning (False, evidence) — the caller decides the fail action.
+    """
+    evidence: dict = {"ocr_available": False}
+
+    try:
+        import pytesseract
+    except ImportError:
+        evidence["ocr_error"] = "pytesseract not installed"
+        return (False, evidence)
+
+    import subprocess as _subprocess
+    try:
+        _subprocess.run(
+            [pytesseract.pytesseract.tesseract_cmd, "--version"],
+            capture_output=True, check=True, timeout=5,
+        )
+    except Exception:
+        evidence["ocr_error"] = "tesseract binary not available"
+        return (False, evidence)
+
+    try:
+        from PIL import Image
+    except ImportError:
+        evidence["ocr_error"] = "PIL not installed"
+        return (False, evidence)
+
+    evidence["ocr_available"] = True
+
+    try:
+        img = Image.open(str(artifact_path))
+        ocr_text = pytesseract.image_to_string(img).strip()
+    except Exception as exc:
+        evidence["ocr_error"] = f"ocr_failed:{exc}"
+        return (False, evidence)
+
+    evidence["ocr_detected_text"] = ocr_text[:200]
+
+    # Normalized token recall: count expected tokens found in OCR output
+    import re as _re
+    expected_tokens = set(_re.findall(r"[a-zA-Z0-9]+", expected_text.lower()))
+    detected_tokens = set(_re.findall(r"[a-zA-Z0-9]+", ocr_text.lower()))
+    if len(expected_tokens) == 0:
+        recall = 1.0
+    else:
+        recall = len(expected_tokens & detected_tokens) / len(expected_tokens)
+    evidence["token_recall"] = recall
+    evidence["expected_token_count"] = len(expected_tokens)
+    evidence["detected_token_count"] = len(detected_tokens)
+
+    passed = recall >= GRAPHIC_OCR_TOKEN_RECALL_THRESHOLD
+    return (passed, evidence)
 
 
 def _qa_provider_video(

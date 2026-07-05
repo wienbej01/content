@@ -5,10 +5,11 @@
   "status": "in_progress",
   "current_wave": "Wave 4",
   "active_ticket": "TKT-403",
-  "next_ticket": "TKT-404",
+  "next_ticket": "TKT-302",
   "completed_tickets": ["TKT-001", "TKT-002", "TKT-003", "TKT-004", "TKT-005", "TKT-006", "TKT-101", "TKT-102", "TKT-103", "TKT-104", "TKT-201", "TKT-202", "TKT-203", "TKT-204", "TKT-301"],
-  "ready_for_audit": [],
+  "ready_for_audit": ["TKT-302"],
   "ready_for_validation": [],
-  "accepted_tickets": ["TKT-204", "TKT-401", "TKT-402", "TKT-301"],
-  "last_updated": "2026-07-05T21:04:00+08:00"
+  "ready_for_validation_with_findings": [],
+  "accepted_tickets": ["TKT-204", "TKT-301", "TKT-401", "TKT-402", "TKT-403"],
+  "last_updated": "2026-07-05T21:19:09+08:00"
 }
