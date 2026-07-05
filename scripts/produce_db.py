@@ -1464,6 +1464,25 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
             if hero_ref:
                 spec["image_path"] = str(ROOT / hero_ref) if not Path(hero_ref).is_absolute() else hero_ref
             hero_beat_index += 1
+        else:
+            # TKT-502: Reference-image conditioning for anchored b-roll.
+            # When a b-roll unit declares a reference_asset, resolve it and
+            # pass --image to the provider for image-to-video conditioning.
+            reference_asset = visual_intent.get("reference_asset")
+            if reference_asset:
+                ref_path_candidate = Path(reference_asset)
+                if not ref_path_candidate.is_absolute():
+                    ref_path_candidate = ROOT / reference_asset
+                if ref_path_candidate.exists():
+                    ref_sha = hashlib.sha256(ref_path_candidate.read_bytes()).hexdigest()
+                    spec["image_path"] = str(ref_path_candidate)
+                    spec["metadata"]["reference_asset_sha"] = ref_sha
+                    spec["metadata"]["reference_asset_path"] = str(ref_path_candidate)
+                else:
+                    raise RuntimeError(
+                        f"Reference asset for b-roll unit {s['label']!r} not found: "
+                        f"{reference_asset} (resolved to {ref_path_candidate})"
+                    )
 
         # S9-C05: Compute slots for long beats (exceeding max_clip_duration).
         # Slots tile the span exactly (contiguous, no gaps/overlaps) so the visual bed
