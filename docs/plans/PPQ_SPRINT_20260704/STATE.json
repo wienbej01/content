@@ -3,8 +3,8 @@
   "plan_revision": 1,
   "status": "in_progress",
   "current_wave": "Wave 4",
-  "active_ticket": "TKT-402",
-  "next_ticket": "TKT-403",
+  "active_ticket": "TKT-403",
+  "next_ticket": "TKT-404",
   "completed_tickets": ["TKT-001", "TKT-002", "TKT-003", "TKT-004", "TKT-005", "TKT-006", "TKT-101", "TKT-102", "TKT-103", "TKT-104", "TKT-201", "TKT-202", "TKT-203", "TKT-204"],
   "ready_for_audit": [],
   "ready_for_validation": [],
@@ -16,7 +16,7 @@
   "wave_gate_passing": true,
   "final_gate_passing": false,
   "completed_wave_gates": ["Wave 0"],
-  "repair_cycles": {"TKT-102": 1, "TKT-103": 1, "TKT-104": 1, "TKT-201": 1, "TKT-203": 1, "TKT-204": 1},
-  "accepted_tickets": ["TKT-204", "TKT-401"],
-  "last_updated": "2026-07-05T19:20:00+08:00"
+  "repair_cycles": {"TKT-102": 1, "TKT-103": 1, "TKT-104": 1, "TKT-201": 1, "TKT-203": 1, "TKT-204": 1, "TKT-401": 1},
+  "accepted_tickets": ["TKT-204", "TKT-401", "TKT-402"],
+  "last_updated": "2026-07-05T19:35:00+08:00"
 }

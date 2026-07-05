@@ -1017,6 +1017,7 @@ def build_assembly_manifest(
         "id": production_id,
         "project_slug": project_slug,
         "variant": variant,
+        "source": "db_native",
         "assembly_mode": "review_only" if review_only else "publish_grade",
         "review_only_label": (
             "REVIEW_ONLY_HUMAN_AV_ACCEPTED_NOT_AUTOMATED_SYNCNET_PASS"

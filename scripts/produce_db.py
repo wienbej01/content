@@ -343,6 +343,67 @@ def invoke_tts(inputs: dict, tmp_path: Path) -> dict:
     return {"status": "saved", "audio_path": str(audio_path), "artifact_id": art["id"] if art else None}
 
 
+def invoke_word_alignment(inputs: dict, tmp_path: Path) -> dict:
+    import word_alignment as walign
+    from stage_runner import save_document_revision
+    from tts_service import _link_document_dependency
+    import hashlib
+
+    project_dir = _get_project_dir(inputs)
+    audio_path = project_dir / "narration" / "continuous.mp3"
+    if not audio_path.exists():
+        raise RuntimeError("No continuous.mp3 found for word alignment")
+
+    conn = _db.connect(None)
+    segs = conn.execute(
+        "SELECT ss.text FROM script_segments ss"
+        " JOIN document_revisions dr ON ss.script_revision_id = dr.id"
+        " WHERE dr.production_id=? AND dr.status='active'",
+        (inputs["production_id"],),
+    ).fetchall()
+    conn.close()
+
+    script_text = " ".join(s["text"] for s in segs if s["text"])
+    if not script_text.strip():
+        raise RuntimeError("No script text available for word alignment")
+
+    script_sha = hashlib.sha256(script_text.encode()).hexdigest()[:12]
+    audio_sha = hashlib.sha256(audio_path.read_bytes()).hexdigest()[:12]
+
+    backend = os.environ.get("ALIGNMENT_BACKEND", "fixture")
+
+    # Real backend absent in production -> block
+    if backend == "real":
+        try:
+            doc = walign.build_word_timing_document(
+                script_text, audio_path, audio_sha, script_sha, backend="real")
+        except Exception as e:
+            raise RuntimeError(
+                f"BLOCKED: real word_alignment backend failed: {e}. "
+                f"Ensure numpy, wave, and ffmpeg are available, or set ALIGNMENT_BACKEND=fixture.")
+    else:
+        doc = walign.build_word_timing_document(
+            script_text, audio_path, audio_sha, script_sha, backend="fixture")
+
+    # Commit word_timing document to DB
+    save_document_revision(
+        inputs["production_id"], "word_timing", doc,
+        db_path=None,
+    )
+
+    # Link word_timing -> tts_artifact dependency
+    _link_document_dependency(
+        inputs["production_id"], "word_timing", "tts_artifact", db_path=None)
+
+    return {
+        "status": "saved",
+        "backend": backend,
+        "coverage": doc["metadata"]["coverage"],
+        "total_words": doc["metadata"]["total_words"],
+        "aligned_words": doc["metadata"]["aligned_words"],
+    }
+
+
 def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     from audio_timing import build_storyboard_timing_map
     from authoring_service import get_storyboard
@@ -866,9 +927,33 @@ def _classify_text_spec_type(text: str) -> str:
     # Quote cards
     if any(k in lower for k in ("quote", "said", "says")):
         return "quote_card"
-    # Frameworks
-    if any(k in lower for k in ("framework", "matrix", "model", "quadrant")):
+    # Frameworks / step patterns
+    if any(k in lower for k in ("framework", "step 1", "step 2", "step 3")):
         return "framework_card"
+    # Statistics with numbers
+    if any(k in lower for k in ("% of", "percent of", "increase", "decrease", "avg")):
+        return "stat_card"
+    # Side-by-side (check before comparison to avoid "vs" ambiguity)
+    if any(k in lower for k in ("side by side", "left column", "right column", "left panel", "right panel")):
+        return "side_by_side_card"
+    # Comparison phrases
+    if any(k in lower for k in (" vs ", "versus", "compared to", "on the other hand")):
+        return "comparison_card"
+    # Before/after
+    if any(k in lower for k in ("before and after", "previously", "now we", "now it", "instead of")):
+        return "before_after_card"
+    # Timeline
+    if any(k in lower for k in ("timeline", "q1 ", "q2 ", "q3 ", "q4 ", "january", "february", "march", "phase 1", "phase 2")):
+        return "timeline_card"
+    # Cost/financial
+    if any(k in lower for k in ("cost of", "budget for", "revenue from", "total cost", "price per")):
+        return "cost_card"
+    # Decision
+    if any(k in lower for k in ("decision tree", "choose between", "which path", "option a", "option b")):
+        return "decision_card"
+    # UI annotation
+    if any(k in lower for k in ("dashboard", "interface", "ui screen", "app screen", "click the")):
+        return "ui_annotation_card"
     # Default to title_card for other graphic text
     return "title_card"
 
@@ -2381,6 +2466,7 @@ STAGE_INVOKERS = {
     "gate_storyboard": ("gate_storyboard_approval", invoke_gate_storyboard),
     # TTS and timing stages are now DB-native via tts_service
     "tts": (None, invoke_tts),
+    "word_alignment": (None, invoke_word_alignment),
     "audio_timing": (None, invoke_audio_timing),
     "reconcile_timing": (None, invoke_reconcile_timing),
     # Compile media is now DB-native via tts_service.compile_render_plan

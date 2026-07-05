@@ -1344,12 +1344,16 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
                      str(mixed)], "cont_mix_music")
                 joined = mixed
 
-        # S9-C07: Composite graphics overlays for graphic beats
-        graphics_layers = manifest.get("graphics", [])
-        if graphics_layers:
-            joined = _composite_graphics_overlays(
-                joined, graphics_layers, segments, total_nar_dur,
-                fmt_tmp, w, h, fps)
+        # Graphics overlays: only for legacy file-based manifests.
+        # DB-native productions (source="db_native") use render_graphics.py
+        # overlays composited via overlay_timeline; the unstyled drawtext
+        # path is gated out so no beat receives both renderers.
+        if manifest.get("source") != "db_native":
+            graphics_layers = manifest.get("graphics", [])
+            if graphics_layers:
+                joined = _composite_graphics_overlays(
+                    joined, graphics_layers, segments, total_nar_dur,
+                    fmt_tmp, w, h, fps)
 
         # Change 3: Post-mux stream integrity check
         joined_vid_dur = probe_dur(joined)

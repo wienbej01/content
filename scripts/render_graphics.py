@@ -43,10 +43,6 @@ FONT_ROLES = {
     "body": ("Inter.ttf", "Inter.ttf"),        # (regular, bold)
     "display": ("PlayfairDisplay.ttf", "PlayfairDisplay.ttf"),  # (regular, bold)
 }
-FONT_FAMILY_FALLBACK = {
-    "Inter.ttf": "Inter",
-    "PlayfairDisplay.ttf": "Playfair Display",
-}
 
 
 class RenderError(RuntimeError):
@@ -69,7 +65,28 @@ def _font(size, bold=False, role="body"):
             f"Expected '{font_file}' in brand/fonts/. "
             f"Install the font or restore brand/fonts/ to proceed."
         )
-    return ImageFont.truetype(str(font_path), size)
+    font = ImageFont.truetype(str(font_path), size)
+    if bold:
+        try:
+            axes = font.get_variation_axes()
+        except Exception:
+            axes = []
+        if axes:
+            wght_axis = None
+            axis_values = []
+            for a in axes:
+                if a.get("name") == b"Weight" and a.get("maximum", 0) >= 700:
+                    wght_axis = a
+                axis_values.append(a.get("default", a.get("minimum", 400)))
+            if wght_axis:
+                for i, a in enumerate(axes):
+                    if a.get("name") == b"Weight":
+                        axis_values[i] = 700
+                try:
+                    font.set_variation_by_axes(axis_values)
+                except Exception:
+                    pass
+    return font
 
 
 def _wrap(text, font, max_width, draw):
@@ -1104,10 +1121,22 @@ def render_local_graphic_render_unit(db, production_id: str, render_unit_id: str
     layout_map = {
         "title_card": "key_line",
         "source_card": "lower_third",
-        "quote_card": "key_line",
-        "framework_card": "stat_callout",
+        "quote_card": "quote_card",
+        "framework_card": "framework_3_step",
+        "stat_card": "stat_callout",
+        "comparison_card": "comparison_card",
+        "before_after_card": "before_after",
+        "timeline_card": "timeline",
+        "cost_card": "cost_stack",
+        "decision_card": "decision_tree",
+        "ui_annotation_card": "annotated_ui_mock",
+        "side_by_side_card": "side_by_side",
     }
-    layout = layout_map.get(spec_type, "key_line")
+    layout = layout_map.get(spec_type)
+    if layout is None:
+        raise RuntimeError(
+            f"Unknown deterministic_text_spec type '{spec_type}' for render unit "
+            f"{render_unit_id}. Supported: {', '.join(sorted(layout_map.keys()))}")
 
     render_spec_data = {"layout": layout, "text": text_content[:120]}
     if spec_type == "source_card":
