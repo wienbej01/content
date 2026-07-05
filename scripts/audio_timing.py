@@ -239,6 +239,88 @@ def build_timing_map(audio_path, beats, noise_db=SILENCE_THRESH_DB, min_dur=SILE
     }
 
 
+def build_word_boundary_timing_map(storyboard_beats, word_timing_words, total_duration_ms, word_timing_doc=None):
+    """Map storyboard beats to [start, end] using measured word boundaries from forced alignment.
+
+    Each beat boundary is placed at the midpoint of the inter-word silence gap
+    between the last word of the preceding beat and the first word of the next beat.
+    When words are flush (no gap), the boundary is placed at the end of the last word
+    in the preceding beat (tie-break rule: earliest boundary that keeps words intact).
+
+    Args:
+        storyboard_beats: list of dicts with {beat_id, narration_text, narration_word_span: [start, end]}.
+        word_timing_words: list of dicts [{word, start_ms, end_ms, ...}] in spoken order.
+        total_duration_ms: total audio duration in milliseconds.
+        word_timing_doc: optional full word_timing document for metadata.
+
+    Returns:
+        dict with 'beats' list [{label, start, end, duration}, ...], timing_precision='word',
+        and metadata.
+    """
+    words = word_timing_words
+    if not words or not storyboard_beats:
+        raise ValueError("word_timing_words and storyboard_beats must not be empty")
+
+    total_dur_sec = total_duration_ms / 1000.0
+    beat_count = len(storyboard_beats)
+
+    def _gap_midpoint(word_idx):
+        """Return the midpoint of the gap between word_idx-1 and word_idx, in ms.
+
+        If the gap is <= 0 (flush words), returns the end of word_idx-1.
+        Boundary is the gap midpoint: (prev_end + next_start) / 2.
+        Tie-break for flush words (gap <= 0): boundary at prev_end, keeping words intact.
+        """
+        if word_idx <= 0:
+            return 0.0
+        if word_idx >= len(words):
+            return total_duration_ms
+        prev_end = words[word_idx - 1]["end_ms"]
+        next_start = words[word_idx]["start_ms"]
+        gap = next_start - prev_end
+        if gap <= 0.001:
+            return prev_end
+        return (prev_end + next_start) / 2.0
+
+    # Compute boundaries at cumulative word indices from narration_word_span
+    boundaries_ms = [0.0]
+    for i in range(1, beat_count):
+        w_idx = storyboard_beats[i].get("narration_word_span", [0, 0])[0]
+        boundaries_ms.append(_gap_midpoint(w_idx))
+    boundaries_ms.append(total_duration_ms)
+
+    # Ensure monotonic
+    for i in range(1, len(boundaries_ms)):
+        if boundaries_ms[i] <= boundaries_ms[i - 1]:
+            boundaries_ms[i] = boundaries_ms[i - 1] + 0.01
+
+    # Build output
+    beat_timings = []
+    for i, b in enumerate(storyboard_beats):
+        start = round(boundaries_ms[i] / 1000.0, 3)
+        end = round(boundaries_ms[i + 1] / 1000.0, 3)
+        beat_timings.append({
+            "label": b.get("label") or b["beat_id"],
+            "start": start,
+            "end": end,
+            "duration": round(end - start, 3),
+        })
+
+    result = {
+        "total_duration": round(total_dur_sec, 3),
+        "beat_count": beat_count,
+        "beats": beat_timings,
+        "timing_precision": "word",
+        "alignment_backend": word_timing_doc["metadata"]["backend"] if word_timing_doc and "metadata" in word_timing_doc else "unknown",
+    }
+    if word_timing_doc and "metadata" in word_timing_doc:
+        result["alignment_coverage"] = word_timing_doc["metadata"].get("coverage")
+        result["aligned_words"] = word_timing_doc["metadata"].get("aligned_words")
+        result["total_words"] = word_timing_doc["metadata"].get("total_words")
+
+    return result
+
+
 def main():
     ap = argparse.ArgumentParser(description="Build a timing map from narration audio + script text.")
     ap.add_argument("audio", help="Path to narration audio file (MP3/WAV)")

@@ -406,10 +406,18 @@ def invoke_word_alignment(inputs: dict, tmp_path: Path) -> dict:
     }
 
 
+def _extract_narration_text_from_beat(storyboard_beats: list, label: str) -> str:
+    for b in storyboard_beats:
+        if b.get("label") == label or b.get("beat_id") == label:
+            return b.get("narration_text") or ""
+    return ""
+
+
 def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
-    from audio_timing import build_storyboard_timing_map
+    from audio_timing import build_storyboard_timing_map, build_word_boundary_timing_map
     from authoring_service import get_storyboard
     from tts_service import commit_timing_spans_from_map
+    from stage_runner import get_active_document
     import production_db as _db
     
     project_dir = _get_project_dir(inputs)
@@ -435,11 +443,26 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     
     tts_artifact_id = art_row["id"]
     canonical_duration_sec = (art_row["duration_ms"] or 0) / 1000.0
-    timing = build_storyboard_timing_map(
-        str(audio_path), storyboard["beats"],
-        canonical_duration_sec=canonical_duration_sec if canonical_duration_sec > 0 else None,
-    )
-    
+    canonical_duration_ms = (art_row["duration_ms"] or 0)
+
+    # 3. Word-boundary path (TKT-302): use word_timing if available
+    word_timing = get_active_document(inputs["production_id"], "word_timing", db_path=None)
+    timing_precision = "sentence"
+
+    if word_timing and word_timing.get("words"):
+        timing = build_word_boundary_timing_map(
+            storyboard["beats"],
+            word_timing["words"],
+            canonical_duration_ms if canonical_duration_ms > 0 else word_timing.get("metadata", {}).get("total_duration_ms", 0),
+            word_timing_doc=word_timing,
+        )
+        timing_precision = "word"
+    else:
+        timing = build_storyboard_timing_map(
+            str(audio_path), storyboard["beats"],
+            canonical_duration_sec=canonical_duration_sec if canonical_duration_sec > 0 else None,
+        )
+        timing["timing_precision"] = "sentence"
     
     # 4. Commit timing spans to DB
     spans = []
@@ -448,7 +471,7 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
             "label": b.get("label"),
             "start_ms": int(b.get("start", 0) * 1000),
             "end_ms": int(b.get("end", 0) * 1000),
-            "narration_text": b.get("text", "")
+            "narration_text": _extract_narration_text_from_beat(storyboard["beats"], b.get("label"))
         })
         
     committed = commit_timing_spans_from_map(
@@ -461,7 +484,8 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     # 5. Legacy export for transition
     (project_dir / "narration" / "beat_timing_map.json").write_text(json.dumps(timing, indent=2))
     
-    return {"status": "saved", "spans_committed": len(committed)}
+    return {"status": "saved", "spans_committed": len(committed),
+            "timing_precision": timing_precision}
 
 
 # === S9-C04: canonical, band-compliant DB-native storyboard derivation =====
