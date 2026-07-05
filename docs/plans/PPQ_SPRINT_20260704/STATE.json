@@ -26,20 +26,19 @@
     "TKT-405"
   ],
   "ready_for_audit": [],
-  "audit_failed": [
-    "TKT-303"
-  ],
+  "audit_failed": [],
   "ready_for_validation": [],
   "ready_for_validation_with_findings": [],
   "accepted_tickets": [
     "TKT-204",
     "TKT-301",
     "TKT-302",
+    "TKT-303",
     "TKT-401",
     "TKT-402",
     "TKT-403",
     "TKT-404",
     "TKT-405"
   ],
-  "last_updated": "2026-07-05T22:33:00+08:00"
+  "last_updated": "2026-07-05T22:45:00+08:00"
 }

@@ -598,6 +598,56 @@ def _act_for(order: int, n: int) -> int:
     return min(5, max(1, (order * 5) // max(1, n - 1) + 1))
 
 
+def _normalize_word(w: str) -> str:
+    return w.strip().lower().strip(".,;:!?\"'()[]{}")
+
+
+def _resolve_graphic_anchor(anchor_text, word_timing_words, beat_word_span=None):
+    """Resolve a graphic anchor phrase against word_timing words.
+
+    Matches the anchor phrase (normalized, case/punctuation-insensitive) as a
+    contiguous subsequence of normalized word_timing words.
+
+    Tie-break for multiple occurrences: first occurrence within beat_word_span
+    (or across all words if beat_word_span is None).
+
+    Args:
+        anchor_text: The phrase to match (e.g. "KEY INSIGHT").
+        word_timing_words: list of {word, start_ms, end_ms, ...} in spoken order.
+        beat_word_span: optional [start_idx, end_idx) to restrict search range.
+
+    Returns:
+        start_ms of the first word in the matching phrase, or None if
+        anchor_text is empty/None.
+
+    Raises:
+        ValueError: if anchor_text is non-empty but not found in words.
+    """
+    if not anchor_text:
+        return None
+    if not word_timing_words:
+        raise ValueError(f"Graphic anchor phrase {anchor_text!r} not found: no word_timing words available")
+
+    normalized_anchor = [_normalize_word(w) for w in anchor_text.split()]
+    normalized_words = [_normalize_word(w["word"]) for w in word_timing_words]
+
+    if beat_word_span:
+        search_start = max(0, beat_word_span[0])
+        search_end = min(len(word_timing_words), beat_word_span[1])
+    else:
+        search_start = 0
+        search_end = len(word_timing_words)
+
+    for i in range(search_start, search_end - len(normalized_anchor) + 1):
+        if normalized_words[i:i + len(normalized_anchor)] == normalized_anchor:
+            return word_timing_words[i]["start_ms"]
+
+    raise ValueError(
+        f"Graphic anchor phrase {anchor_text!r} not found in word_timing words "
+        f"(searched indices {search_start}-{search_end})"
+    )
+
+
 def _visual_brief_for(shot_type: str, narration: str) -> str:
     clause = _first_clause(narration)
     if shot_type == "hero_lipsync":
@@ -1113,6 +1163,11 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     if not spans:
         raise RuntimeError("No active timeline spans found.")
 
+    # TKT-303: Fetch word_timing for graphic anchor resolution
+    from stage_runner import get_active_document
+    word_timing = get_active_document(inputs["production_id"], "word_timing", db_path=None)
+    word_timing_words = word_timing.get("words") if word_timing and word_timing.get("words") else None
+
     estimated_cost = 0.0
     span_specs = []
     hero_beat_index = 0  # S9-C06: round-robin hero reference selection
@@ -1191,6 +1246,28 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         # Merge the storyboard's creative intent (B-roll semantic fields,
         # concept key/hash, render-mode hints) into the spec.
         spec.update(visual_intent)
+        spec["metadata"] = {}
+
+        # TKT-303: Resolve graphic anchor timing when timing: on_spoken_line or anchor_text present.
+        graphic_timing = graphics.get("timing") if isinstance(graphics, dict) else None
+        anchor_text = graphics.get("anchor_text") if isinstance(graphics, dict) else None
+        if graphic_timing == "on_spoken_line" or anchor_text:
+            phrase = anchor_text or graphic_text_content
+            if phrase and word_timing_words:
+                try:
+                    resolved_ms = _resolve_graphic_anchor(phrase, word_timing_words)
+                except ValueError:
+                    raise RuntimeError(
+                        f"Graphic anchor phrase {phrase!r} for beat {s['label']!r} "
+                        f"not found in word_timing words."
+                    )
+                spec["metadata"]["graphic_anchor_start_ms"] = resolved_ms
+            elif phrase and not word_timing_words:
+                raise RuntimeError(
+                    f"Graphic anchor phrase {phrase!r} for beat {s['label']!r} "
+                    f"cannot be resolved: no word_timing document available. "
+                    f"Run word_alignment before compile_media."
+                )
 
         # S9-C06: Compose real per-clip prompt + select hero reference image.
         # Prompt reflects visual_intent (not the generic "educational video" default).
