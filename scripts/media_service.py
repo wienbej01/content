@@ -1399,7 +1399,81 @@ def run_contract_media_qa(
             production_id, render_unit_id, db_path=db,
         )
 
+    _resolve_media_drift(
+        db, production_id, render_unit_id, render_unit, artifact,
+        artifact_path,
+    )
+
     return validation
+
+
+def _resolve_media_drift(
+    db, production_id: str, render_unit_id: str,
+    render_unit: dict, artifact: Optional[dict],
+    artifact_path: Optional[Path],
+) -> None:
+    from duration_drift import DriftInput, resolve_drift, resolution_manifest_entry
+
+    if not artifact_path or not artifact_path.exists():
+        return
+    if not artifact or not artifact.get("duration_ms"):
+        return
+
+    required_duration_ms = render_unit.get("required_duration_ms")
+    if not required_duration_ms:
+        return
+
+    actual_duration_ms = artifact["duration_ms"]
+    metadata_json = {}
+    raw_meta = render_unit.get("metadata_json")
+    if raw_meta:
+        try:
+            metadata_json = json.loads(raw_meta) if isinstance(raw_meta, str) else raw_meta
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    asset_type = render_unit.get("asset_type") or "generated_video"
+    audio_policy = render_unit.get("audio_policy") or ""
+    is_hero = audio_policy.startswith("HERO_") or bool(render_unit.get("lipsync_required"))
+
+    policy = metadata_json.get("duration_drift_policy")
+    if not policy:
+        policy = "regenerate_required" if is_hero else "trim_ok"
+
+    inp = DriftInput(
+        render_unit_id=render_unit_id,
+        production_id=production_id,
+        artifact_id=artifact.get("id"),
+        shot_id=render_unit.get("label"),
+        required_duration_ms=required_duration_ms,
+        actual_duration_ms=actual_duration_ms,
+        min_usable_duration_ms=metadata_json.get("min_usable_duration_ms"),
+        max_usable_duration_ms=metadata_json.get("max_usable_duration_ms"),
+        duration_drift_policy=policy,
+        asset_type=asset_type,
+        audio_policy=audio_policy,
+        is_hero_lipsync=is_hero,
+    )
+
+    resolution = resolve_drift(inp, db_path=db, create_change_requests=True)
+
+    if resolution.resolution == "accepted" and resolution.assembly_action in ("trim", "extend"):
+        manifest_entry = resolution_manifest_entry(resolution, segment_id=render_unit_id)
+        metadata_json["drift"] = manifest_entry
+    elif resolution.resolution == "accepted":
+        metadata_json["drift_resolution"] = "accepted"
+        metadata_json["drift_reason"] = resolution.reason
+    else:
+        metadata_json["drift_resolution"] = resolution.resolution
+        metadata_json["drift_reason"] = resolution.reason
+
+    conn = _db.connect(db)
+    conn.execute(
+        "UPDATE render_units SET metadata_json=?, updated_at=? WHERE id=?",
+        (json.dumps(metadata_json), _db._now(), render_unit_id),
+    )
+    conn.commit()
+    conn.close()
 
 
 def record_test_mode_semantic_role_qa(

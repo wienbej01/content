@@ -885,6 +885,13 @@ def build_assembly_inputs(
     clips = []
     for u in units_dicts:
         cap = compensated.get(u["id"])
+        meta_raw = u.get("metadata_json")
+        meta = {}
+        if meta_raw:
+            try:
+                meta = json.loads(meta_raw) if isinstance(meta_raw, str) else meta_raw
+            except (json.JSONDecodeError, TypeError):
+                pass
         clips.append({
             "clip_id": u["id"],
             "label": u["label"],
@@ -900,6 +907,7 @@ def build_assembly_inputs(
             "sha256": u["artifact_sha256"],
             "has_audio": bool(u["artifact_has_audio"]),
             "hero_framing": u.get("hero_framing"),  # S14_T002: Hero framing metadata
+            "metadata_json": meta,
         })
 
     return {
@@ -974,8 +982,17 @@ def build_assembly_manifest(
                 "parent_mp3_sha256": master["sha256"] or "",
             }
         else:
-            # continuous_voiceover tolerates words=0 for silent visuals.
             seg["words"] = 0
+
+        drift = c.get("metadata_json", {}).get("drift")
+        if isinstance(drift, dict):
+            seg["drift_resolution"] = drift.get("drift_resolution")
+            seg["reason"] = drift.get("reason")
+            if "trim" in drift:
+                seg["trim"] = drift["trim"]
+            if "extend" in drift:
+                seg["extend"] = drift["extend"]
+
         segments.append(seg)
 
     project_slug = inputs.get("project_slug") or "."
