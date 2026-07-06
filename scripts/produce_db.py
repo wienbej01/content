@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -2082,7 +2083,24 @@ def invoke_generate_media(inputs: dict, tmp_path: Path) -> dict:
         if meta.get("image_path"):
             request_payload["image_path"] = meta["image_path"]
         if meta.get("audio_path"):
-            request_payload["audio_path"] = meta["audio_path"]
+            # REPAIR-601B-W3: pad fractional audio slice to exact ceil'd duration
+            # so audio and requested video durations match (7738ms -> 8000ms).
+            # Trailing silence only; content start stays at sample 0.
+            # Preserves source_slice_sha256 provenance — padded hash is derivative.
+            slice_path = Path(meta["audio_path"])
+            ceil_duration_ms = provider_duration_sec * 1000
+            padded_path = slice_path.parent / f"{slice_path.stem}_padded_to_{ceil_duration_ms}ms{slice_path.suffix}"
+            if not padded_path.exists():
+                subprocess.run(
+                    ["ffmpeg", "-y", "-v", "error",
+                     "-i", str(slice_path),
+                     "-af", f"apad=whole_dur={ceil_duration_ms}ms",
+                     str(padded_path)],
+                    check=True, capture_output=True,
+                )
+            request_payload["audio_path"] = str(padded_path)
+            request_payload["audio_path_padded"] = True
+            request_payload["source_slice_sha256"] = meta.get("source_slice_sha256", "")
         if meta.get("negative_prompt"):
             request_payload["negative_prompt"] = meta["negative_prompt"]
 
