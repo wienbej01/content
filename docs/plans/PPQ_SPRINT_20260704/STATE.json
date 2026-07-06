@@ -5,8 +5,8 @@
   "status": "in_progress",
   "current_wave": "Wave 6",
   "active_ticket": null,
-  "next_ticket": null,
-  "blocker": null,
+  "next_ticket": "TKT-603",
+  "blocker": "TKT-603: YouTube Analytics API credentials required; TKT-602: real upload requires YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN env vars",
   "completed_tickets": [
     "TKT-001",
     "TKT-002",
@@ -28,7 +28,8 @@
     "TKT-407",
     "TKT-501",
     "TKT-502",
-    "TKT-503"
+    "TKT-503",
+    "TKT-601"
   ],
   "ready_for_audit": [],
   "audit_failed": [],
@@ -64,11 +65,11 @@
       "plan": "docs/plans/PPQ_SPRINT_20260704/REPAIR-TKT-601A-storyboard-projection-gap.md"
     }
   ],
-  "notes": "TKT-601 E2E run executed. All pipeline stages through generate_media completed (19/19 clips generated, $7.71 paid). QA_media detected 15/19 units with frozen video (GenAI quality) and missing tesseract OCR. KLP-601-W1..W3 rectification implemented: preflight dependency checker, scene-change threshold calibration (0.01→0.3), FROZEN_VIDEO/GIBBERISH failure classifications. Production prod_4e0ce12e remains as-is in the DB for inspection.",
+  "notes": "TKT-601 E2E run executed through QA_media (19/19 clips, $7.71). KLP-601-W1..W3 rectification: preflight checker, scene-change 0.01→0.3 threshold, FROZEN_VIDEO/GIBBERISH classifiers. KLP-601-W4-T1: anti-frozen motion directives. TKT-602: YouTube publish adapter (mocked tests green, real upload blocked on creds). TKT-603 blocked on Analytics API creds + TKT-602 platform ID. prod_4e0ce12e remains as-is for inspection.",
   "wave_gates_passed": [
     "Wave 0",
     "Wave 2",
     "Wave 3"
   ],
-  "last_updated": "2026-07-06T16:55:00+08:00"
+  "last_updated": "2026-07-06T18:15:00+08:00"
 }
