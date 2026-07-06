@@ -49,10 +49,12 @@ CLAIM_STRENGTH_RULE = (
 
 
 def build_writer_prompt(brief, video_type, prior_script=None, fixes=None):
-    from episode_format import format_block
+    from episode_format import format_block, get_format
+    _fmt = get_format(video_type)
     research_text = brief.get("research_text", "")[:RESEARCH_TEXT_CAP]
     claims_json = json.dumps(brief.get("key_claims", []), indent=2)
     sources_json = json.dumps(brief.get("sources", []), indent=2)
+    word_lo, word_hi = _fmt["word_range"]
     base = f"""You are the SCRIPT WRITER for Leverage Mind (host: James Harrington — ~60yo British,
 RP, calm, measured, lightly contrarian; no hype). Write a script that obeys the FORMAT as a
 HARD CONSTRAINT and grounds EVERY factual claim in the SOURCE RESEARCH TEXT or the sourced
@@ -66,6 +68,11 @@ non-negotiable).
 {CLAIM_STRENGTH_RULE}
 
 {format_block(video_type)}
+
+WORD BUDGET (HARD CONSTRAINT): Your script MUST contain {word_lo}-{word_hi} words total.
+Count your words across ALL segments before returning. A script outside this range
+is non-compliant and will be rejected regardless of creative quality.
+Target: ~{_fmt['target_sec']}s of spoken narration at James's measured pace.
 
 CRAFT (retention): open with a 3-second open loop that delivers the title promise; keep a
 reason to stay; make the takeaway save-worthy (concrete) and the piece share-worthy (it must
@@ -98,9 +105,10 @@ BRAND BIBLES (voice + forbidden patterns):
 
 === REVISION TASK (HARD CONSTRAINT) ===
 This is a REVISION. Incorporate EVERY reviewer fix while staying within the FORMAT word budget.
-HARD CONSTRAINT: The FINAL output MUST have [20,40] words total. Count your words and verify
-before returning. Do NOT expand — adapt every fix to fit within the budget.
-If the fix cannot be accommodated within [20,40] words, skip it or summarize it concisely.
+HARD CONSTRAINT: The FINAL output MUST have [{word_lo},{word_hi}] words total. Count your words and verify
+before returning. Do NOT expand beyond {word_hi} — adapt every fix to fit within the budget.
+If you must cut material to stay within [{word_lo},{word_hi}] words, reduce the least essential
+points while preserving the core hook, proof, and takeaway.
 
 PRIOR SCRIPT:
 {json.dumps(prior_script, indent=2)}

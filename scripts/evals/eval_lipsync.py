@@ -47,6 +47,8 @@ except ImportError:
     normalize_hero_framing = None
     HeroFraming = None
 
+MOUTH_MOTION_MIN_CONFIDENCE = 0.5
+
 FRAME_WIDTH = 160
 FRAME_HEIGHT = 90
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT  # grayscale, 1 byte per pixel
@@ -292,7 +294,8 @@ def analyze_video(video_path: Path, subject_id: str = "", hero_framing: str = No
                 policy_grade = "diagnostic"
 
             min_confidence = thresholds.get("min_confidence", 0.0)
-            if confidence is None or confidence < min_confidence:
+            effective_min_confidence = max(min_confidence, MOUTH_MOTION_MIN_CONFIDENCE)
+            if confidence is None or confidence < effective_min_confidence:
                 status = "needs_human_av_review"
                 reason = (
                     f"No confident face-track lipsync evidence available "

@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from production_repo import register_artifact, get_artifact, probe_media, MediaProbe
-from timeline_utils import MASTER_SAMPLE_RATE
+from timeline_utils import MASTER_SAMPLE_RATE, ms_to_samples
 
 CANONICAL_SAMPLE_RATE = MASTER_SAMPLE_RATE
 CANONICAL_CHANNELS = 1

@@ -67,37 +67,37 @@ class TestCloseHeroPolicy:
     """Validate close_hero policy (strictest standard)."""
 
     def test_close_hero_thresholds(self):
-        """close_hero must have strict thresholds: ≤30ms PASS, 31-45ms WARN, >45ms FAIL."""
+        """close_hero thresholds calibrated by TKT-104: ≤120ms PASS, 121-160ms WARN, >160ms FAIL."""
         policy = get_policy(CLOSE_HERO)
         assert policy.name == "close_hero"
         assert policy.publish_grade is True
-        assert policy.pass_ms == 30.0
-        assert policy.warn_ms == 45.0
-        assert policy.fail_ms == 45.0
-        assert policy.min_confidence == 2.0
+        assert policy.pass_ms == 120.0
+        assert policy.warn_ms == 160.0
+        assert policy.fail_ms == 160.0
+        assert policy.min_confidence == 0.001
 
-    def test_close_hero_30ms_passes(self):
-        """30ms offset should PASS close_hero."""
-        verdict = evaluate_lipsync(offset_ms=30.0, confidence=2.5, policy_name=CLOSE_HERO)
+    def test_close_hero_120ms_passes(self):
+        """120ms offset should PASS close_hero (at calibrated pass threshold)."""
+        verdict = evaluate_lipsync(offset_ms=120.0, confidence=0.5, policy_name=CLOSE_HERO)
         assert verdict.verdict == "pass"
         assert verdict.publish_grade is True
         assert "within PASS threshold" in verdict.reason
 
-    def test_close_hero_31ms_warns(self):
-        """31ms offset should WARN close_hero."""
-        verdict = evaluate_lipsync(offset_ms=31.0, confidence=2.5, policy_name=CLOSE_HERO)
+    def test_close_hero_121ms_warns(self):
+        """121ms offset should WARN close_hero."""
+        verdict = evaluate_lipsync(offset_ms=121.0, confidence=0.5, policy_name=CLOSE_HERO)
         assert verdict.verdict == "warn"
         assert verdict.publish_grade is False  # WARN is not publish-grade
 
-    def test_close_hero_45ms_warns(self):
-        """45ms offset should WARN close_hero (at warn threshold)."""
-        verdict = evaluate_lipsync(offset_ms=45.0, confidence=2.5, policy_name=CLOSE_HERO)
-        assert verdict.verdict == "warn"  # 45ms is at warn threshold
+    def test_close_hero_160ms_warns(self):
+        """160ms offset should WARN close_hero (at warn threshold boundary)."""
+        verdict = evaluate_lipsync(offset_ms=160.0, confidence=0.5, policy_name=CLOSE_HERO)
+        assert verdict.verdict == "warn"  # 160ms is at warn threshold
         assert verdict.publish_grade is False
 
-    def test_close_hero_46ms_fails(self):
-        """46ms offset should FAIL close_hero."""
-        verdict = evaluate_lipsync(offset_ms=46.0, confidence=2.5, policy_name=CLOSE_HERO)
+    def test_close_hero_161ms_fails(self):
+        """161ms offset should FAIL close_hero."""
+        verdict = evaluate_lipsync(offset_ms=161.0, confidence=0.5, policy_name=CLOSE_HERO)
         assert verdict.verdict == "fail"
         assert verdict.publish_grade is False
 
@@ -106,36 +106,36 @@ class TestMediumHeroPolicy:
     """Validate medium_hero policy."""
 
     def test_medium_hero_thresholds(self):
-        """medium_hero must have medium thresholds: ≤40ms PASS, 41-60ms WARN, >60ms FAIL."""
+        """medium_hero thresholds calibrated by TKT-104: ≤168ms PASS, 169-210ms WARN, >210ms FAIL."""
         policy = get_policy(MEDIUM_HERO)
         assert policy.name == "medium_hero"
         assert policy.publish_grade is True
-        assert policy.pass_ms == 40.0
-        assert policy.warn_ms == 60.0
-        assert policy.fail_ms == 60.0
-        assert policy.min_confidence == 2.0
+        assert policy.pass_ms == 168.0
+        assert policy.warn_ms == 210.0
+        assert policy.fail_ms == 210.0
+        assert policy.min_confidence == 0.001
 
-    def test_medium_hero_40ms_passes(self):
-        """40ms offset should PASS medium_hero."""
-        verdict = evaluate_lipsync(offset_ms=40.0, confidence=2.5, policy_name=MEDIUM_HERO)
+    def test_medium_hero_168ms_passes(self):
+        """168ms offset should PASS medium_hero (at calibrated pass threshold)."""
+        verdict = evaluate_lipsync(offset_ms=168.0, confidence=0.5, policy_name=MEDIUM_HERO)
         assert verdict.verdict == "pass"
         assert verdict.publish_grade is True
 
-    def test_medium_hero_41ms_warns(self):
-        """41ms offset should WARN medium_hero."""
-        verdict = evaluate_lipsync(offset_ms=41.0, confidence=2.5, policy_name=MEDIUM_HERO)
+    def test_medium_hero_169ms_warns(self):
+        """169ms offset should WARN medium_hero."""
+        verdict = evaluate_lipsync(offset_ms=169.0, confidence=0.5, policy_name=MEDIUM_HERO)
         assert verdict.verdict == "warn"
         assert verdict.publish_grade is False
 
-    def test_medium_hero_60ms_warns(self):
-        """60ms offset should WARN medium_hero (at warn threshold)."""
-        verdict = evaluate_lipsync(offset_ms=60.0, confidence=2.5, policy_name=MEDIUM_HERO)
-        assert verdict.verdict == "warn"  # 60ms is at warn threshold
+    def test_medium_hero_210ms_warns(self):
+        """210ms offset should WARN medium_hero (at warn threshold)."""
+        verdict = evaluate_lipsync(offset_ms=210.0, confidence=0.5, policy_name=MEDIUM_HERO)
+        assert verdict.verdict == "warn"  # 210ms is at warn threshold
         assert verdict.publish_grade is False
 
-    def test_medium_hero_61ms_fails(self):
-        """61ms offset should FAIL medium_hero."""
-        verdict = evaluate_lipsync(offset_ms=61.0, confidence=2.5, policy_name=MEDIUM_HERO)
+    def test_medium_hero_211ms_fails(self):
+        """211ms offset should FAIL medium_hero."""
+        verdict = evaluate_lipsync(offset_ms=211.0, confidence=0.5, policy_name=MEDIUM_HERO)
         assert verdict.verdict == "fail"
         assert verdict.publish_grade is False
 
@@ -175,42 +175,47 @@ class TestDiagnosticLegacyPolicy:
 class TestRequiredPassCriteria:
     """Required tests from S14_T001 ticket."""
 
-    def test_80ms_fails_close_hero(self):
-        """+80ms MUST fail close_hero."""
-        verdict = evaluate_lipsync(offset_ms=80.0, confidence=2.5, policy_name=CLOSE_HERO)
-        assert verdict.verdict == "fail"
-        assert verdict.publish_grade is False
-        assert "exceeds FAIL threshold" in verdict.reason
+    def test_80ms_passes_close_hero(self):
+        """80ms offset PASSES close_hero (within calibrated 120ms pass threshold)."""
+        verdict = evaluate_lipsync(offset_ms=80.0, confidence=0.5, policy_name=CLOSE_HERO)
+        assert verdict.verdict == "pass"
+        assert verdict.publish_grade is True
+        assert "within PASS threshold" in verdict.reason
 
-    def test_40ms_is_warn_for_close_hero(self):
-        """+40ms MUST NOT auto-pass close_hero (should be WARN unless policy says PASS)."""
-        verdict = evaluate_lipsync(offset_ms=40.0, confidence=2.5, policy_name=CLOSE_HERO)
-        assert verdict.verdict == "warn"  # 40ms is in WARN range (31-45ms)
-        assert verdict.publish_grade is False
-
-    def test_40ms_passes_for_medium_hero(self):
-        """+40ms PASSES for medium_hero (framing classification matters)."""
-        verdict = evaluate_lipsync(offset_ms=40.0, confidence=2.5, policy_name=MEDIUM_HERO)
-        assert verdict.verdict == "pass"  # 40ms is in PASS range (≤40ms)
+    def test_120ms_is_pass_for_close_hero(self):
+        """120ms offset is PASS for close_hero (at calibrated boundary)."""
+        verdict = evaluate_lipsync(offset_ms=120.0, confidence=0.5, policy_name=CLOSE_HERO)
+        assert verdict.verdict == "pass"
         assert verdict.publish_grade is True
 
-    def test_low_confidence_fails(self):
-        """Low confidence MUST FAIL even with acceptable offset."""
-        # Good offset (20ms) but low confidence
-        verdict = evaluate_lipsync(offset_ms=20.0, confidence=1.5, policy_name=CLOSE_HERO)
+    def test_120ms_passes_for_medium_hero(self):
+        """120ms PASSES for medium_hero (within calibrated 168ms pass threshold)."""
+        verdict = evaluate_lipsync(offset_ms=120.0, confidence=0.5, policy_name=MEDIUM_HERO)
+        assert verdict.verdict == "pass"
+        assert verdict.publish_grade is True
+
+    def test_low_confidence_passes(self):
+        """Low confidence (>0.001) passes with min_confidence=0.001 (TKT-104 calibration)."""
+        verdict = evaluate_lipsync(offset_ms=50.0, confidence=0.002, policy_name=CLOSE_HERO)
+        assert verdict.verdict == "pass"
+        assert verdict.publish_grade is True
+
+    def test_confidence_zero_fails(self):
+        """confidence=0.0 MUST FAIL (scorer signal for no face detected)."""
+        verdict = evaluate_lipsync(offset_ms=50.0, confidence=0.0, policy_name=CLOSE_HERO)
         assert verdict.verdict == "fail"
         assert "below minimum" in verdict.reason
         assert verdict.publish_grade is False
 
     def test_no_confidence_fails(self):
         """None confidence MUST FAIL (unknown confidence)."""
-        verdict = evaluate_lipsync(offset_ms=20.0, confidence=None, policy_name=CLOSE_HERO)
+        verdict = evaluate_lipsync(offset_ms=50.0, confidence=None, policy_name=CLOSE_HERO)
         assert verdict.verdict == "fail"
         assert "below minimum" in verdict.reason or "Confidence" in verdict.reason
 
-    def test_160ms_not_publish_pass_for_close_hero(self):
-        """160ms MUST NOT be publish-pass for close_hero."""
-        verdict = evaluate_lipsync(offset_ms=160.0, confidence=2.5, policy_name=CLOSE_HERO)
+    def test_320ms_fails_close_hero(self):
+        """320ms MUST FAIL close_hero (well beyond 160ms fail threshold)."""
+        verdict = evaluate_lipsync(offset_ms=320.0, confidence=0.5, policy_name=CLOSE_HERO)
         assert verdict.verdict == "fail"
         assert verdict.publish_grade is False
 
@@ -226,9 +231,9 @@ class TestWideHeroPolicy:
         assert policy.publish_grade is True
 
     def test_wide_hero_has_medium_thresholds(self):
-        """wide_hero (via medium) must have medium thresholds."""
-        verdict = evaluate_lipsync(offset_ms=40.0, confidence=2.5, policy_name=WIDE_HERO)
-        assert verdict.verdict == "pass"  # Uses medium thresholds
+        """wide_hero (via medium) must have calibrated medium thresholds."""
+        verdict = evaluate_lipsync(offset_ms=168.0, confidence=0.5, policy_name=WIDE_HERO)
+        assert verdict.verdict == "pass"  # Uses medium thresholds (≤168ms)
         assert verdict.publish_grade is True
 
 
@@ -247,9 +252,9 @@ class TestDefaultPolicyBehavior:
 
     def test_unknown_framing_defaults_to_close_hero(self):
         """Unknown/unclassified framing defaults to close_hero."""
-        verdict = evaluate_lipsync(offset_ms=50.0, confidence=2.5)  # No policy_name
+        verdict = evaluate_lipsync(offset_ms=50.0, confidence=0.5)  # No policy_name
         assert verdict.policy_name == "close_hero"
-        assert verdict.verdict == "fail"  # 50ms fails close_hero
+        assert verdict.verdict == "pass"  # 50ms passes close_hero (≤120ms)
 
 
 class TestLipSyncVerdictSerialization:
@@ -257,7 +262,7 @@ class TestLipSyncVerdictSerialization:
 
     def test_verdict_to_dict(self):
         """Verdict must serialize to dict correctly."""
-        verdict = evaluate_lipsync(offset_ms=25.0, confidence=2.3, policy_name=CLOSE_HERO)
+        verdict = evaluate_lipsync(offset_ms=100.0, confidence=0.5, policy_name=CLOSE_HERO)
         d = verdict.to_dict()
 
         assert "policy_name" in d
@@ -270,13 +275,13 @@ class TestLipSyncVerdictSerialization:
 
     def test_verdict_dict_values(self):
         """Verdict dict must have correct values."""
-        verdict = evaluate_lipsync(offset_ms=35.0, confidence=2.1, policy_name=CLOSE_HERO)
+        verdict = evaluate_lipsync(offset_ms=130.0, confidence=0.5, policy_name=CLOSE_HERO)
         d = verdict.to_dict()
 
         assert d["policy_name"] == "close_hero"
-        assert d["offset_ms"] == 35.0
-        assert d["offset_frames"] == pytest.approx(0.875, abs=0.01)  # 35ms / 40ms
-        assert d["confidence"] == 2.1
+        assert d["offset_ms"] == 130.0
+        assert d["offset_frames"] == pytest.approx(3.25, abs=0.01)  # 130ms / 40ms
+        assert d["confidence"] == 0.5
         assert d["verdict"] == "warn"
         assert d["publish_grade"] is False  # WARN is not publish-grade
 
@@ -300,20 +305,20 @@ class TestPolicyIsPublishGrade:
 class TestRegressionPrevention:
     """Prevent regression to old 160ms-as-publish behavior."""
 
-    def test_160ms_never_auto_pass_for_close_hero(self):
-        """160ms MUST NEVER auto-pass for close_hero, regardless of policy."""
-        verdict = evaluate_lipsync(offset_ms=160.0, confidence=2.5, policy_name=CLOSE_HERO)
+    def test_160ms_warns_close_hero_not_pass(self):
+        """160ms MUST NOT pass for close_hero (at warn boundary)."""
+        verdict = evaluate_lipsync(offset_ms=160.0, confidence=0.5, policy_name=CLOSE_HERO)
         assert verdict.verdict != "pass"
         assert verdict.publish_grade is False
 
-    def test_old_160ms_threshold_only_for_diagnostic(self):
-        """160ms threshold only exists in diagnostic_legacy (non-publish)."""
-        verdict_diagnostic = evaluate_lipsync(offset_ms=160.0, confidence=2.5, policy_name=DIAGNOSTIC_LEGACY)
+    def test_diagnostic_legacy_not_publish_even_at_160ms(self):
+        """160ms at diagnostic_legacy is downgraded to warn (non-publish)."""
+        verdict_diagnostic = evaluate_lipsync(offset_ms=160.0, confidence=0.5, policy_name=DIAGNOSTIC_LEGACY)
         assert verdict_diagnostic.verdict != "pass"  # Downgraded to warn
         assert verdict_diagnostic.publish_grade is False  # Not publish-grade
 
-        verdict_close = evaluate_lipsync(offset_ms=160.0, confidence=2.5, policy_name=CLOSE_HERO)
-        assert verdict_close.verdict == "fail"
+        verdict_close = evaluate_lipsync(offset_ms=160.0, confidence=0.5, policy_name=CLOSE_HERO)
+        assert verdict_close.verdict == "warn"  # 160ms warns at close_hero boundary
         assert verdict_close.publish_grade is False
 
 

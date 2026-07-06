@@ -140,9 +140,19 @@ def derive_concept_key(visual_concept: str, subject: str, action: str) -> str:
     return "_".join(deduped) if deduped else "concept"
 
 
-def is_forbidden_concept(concept_key: str) -> bool:
-    """Check whether any token in the concept_key matches a forbidden cheap concept."""
-    tokens = set(concept_key.lower().split("_"))
+def is_forbidden_concept(concept_key: str, allowed_terms: set | None = None) -> bool:
+    """Check whether any token in the concept_key matches a forbidden cheap concept.
+
+    Args:
+        concept_key: The concept key to check (underscore-separated tokens).
+        allowed_terms: Optional set of tokens to exclude from the forbidden check
+                       (e.g. per-production overrides for legitimately used concepts).
+
+    Returns:
+        True if any token matches a forbidden concept not in allowed_terms.
+    """
+    allowed = {t.lower().strip() for t in (allowed_terms or set())}
+    tokens = {t.lower() for t in concept_key.split("_")} - allowed
     return bool(tokens & {t.lower() for t in FORBIDDEN_CHEAP_CONCEPTS})
 
 

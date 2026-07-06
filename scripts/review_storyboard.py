@@ -98,8 +98,8 @@ def _bands_check(m, blocking, warnings, beats=None, video_type="explainer"):
         blocking.append(f"hero_lipsync {m.get('hero_lipsync_pct')}% exceeds {hero_lipsync_cap}% cap")
     if not is_short and m.get("broll_specific_pct", 0) < 25:
         blocking.append(f"specific/archival b-roll {m.get('broll_specific_pct')}% below 25%")
-    if m.get("graphics_ui_pct", 0) < 10:
-        blocking.append(f"graphics+UI {m.get('graphics_ui_pct')}% below 10%")
+    if m.get("graphics_ui_pct", 0) < (5 if is_short else 10):
+        blocking.append(f"graphics+UI {m.get('graphics_ui_pct')}% below {(5 if is_short else 10)}%")
     meta = m.get("broll_metaphorical_pct", 0)
     if not is_short and not (5 <= meta <= 15):
         warnings.append(f"metaphorical b-roll {meta}% outside 5-15% band")

@@ -50,11 +50,11 @@ def _stub_llm_call_success(task, prompt, model_profile, timeout, verbose, expect
     return (VALID_CANONICAL_STORYBOARD.copy(),
             json.dumps(VALID_CANONICAL_STORYBOARD),
             REQUIRED_SONNET5_PROFILE,
-            "kilo/anthropic/claude-sonnet-5")
+            "claude-sonnet-5")
 
 
 def _stub_llm_call_none(task, prompt, model_profile, timeout, verbose, expect_json):
-    return (None, "", REQUIRED_SONNET5_PROFILE, "kilo/anthropic/claude-sonnet-5")
+    return (None, "", REQUIRED_SONNET5_PROFILE, "claude-sonnet-5")
 
 
 class Test1StubbedSonnetResponse:
@@ -79,7 +79,7 @@ class Test1StubbedSonnetResponse:
 
         meta = result["authoring_metadata"]
         assert meta["profile"] == REQUIRED_SONNET5_PROFILE
-        assert meta["model"] == "kilo/anthropic/claude-sonnet-5"
+        assert meta["model"] == "claude-sonnet-5"
         assert meta["profile_used"] == REQUIRED_SONNET5_PROFILE
         assert meta["raw_response_chars"] > 0
 
@@ -92,7 +92,7 @@ class Test1StubbedSonnetResponse:
         assert "_authoring_metadata" in sb
         meta = sb["_authoring_metadata"]
         assert meta["profile"] == REQUIRED_SONNET5_PROFILE
-        assert meta["model"] == "kilo/anthropic/claude-sonnet-5"
+        assert meta["model"] == "claude-sonnet-5"
         assert "script_sha256" in meta
         assert "prompt_chars" in meta
         assert "raw_response_chars" in meta
@@ -152,7 +152,7 @@ class Test3NonSonnetResponseFails:
             {"authoring_model_profile": "storyboard_sonnet5",
              "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908"},
             REQUIRED_SONNET5_PROFILE,
-            "kilo/anthropic/claude-sonnet-5",
+            "claude-sonnet-5",
         )
         assert result == []
 
@@ -161,7 +161,7 @@ class Test3NonSonnetResponseFails:
             {"authoring_model_profile": REQUIRED_SONNET5_PROFILE,
              "authoring_model": "kilo/anthropic/claude-sonnet-5-20250908"},
             REQUIRED_SONNET5_PROFILE,
-            "kilo/anthropic/claude-sonnet-5",
+            "claude-sonnet-5",
         )
         assert result == []
 
@@ -230,7 +230,7 @@ class Test6NarrationMutationDetection:
 
         def _stub_mutated(task, prompt, model_profile, timeout, verbose, expect_json):
             return (mutated_sb, json.dumps(mutated_sb),
-                    REQUIRED_SONNET5_PROFILE, "kilo/anthropic/claude-sonnet-5")
+                    REQUIRED_SONNET5_PROFILE, "claude-sonnet-5")
 
         with patch("sonnet_storyboard_wrapper._llm_call", side_effect=_stub_mutated):
             from sonnet_storyboard_wrapper import _llm_call as mock_llm
@@ -408,7 +408,7 @@ class TestSonnet5Unavailable:
     @staticmethod
     def _raise_unavailable(task, prompt, model_profile, timeout, verbose, expect_json):
         raise RuntimeError(
-            "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (kilo/anthropic/claude-sonnet-5) "
+            "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (claude-sonnet-5) "
             "is not available through Kilo.")
 
     def test_sonnet5_unavailable_returns_blocked(self):
@@ -427,7 +427,7 @@ class TestNonDictResponse:
     @staticmethod
     def _stub_array_response(task, prompt, model_profile, timeout, verbose, expect_json):
         return (["beat1", "beat2"], '["beat1", "beat2"]',
-                REQUIRED_SONNET5_PROFILE, "kilo/anthropic/claude-sonnet-5")
+                REQUIRED_SONNET5_PROFILE, "claude-sonnet-5")
 
     def test_array_response_fails_sonnet_authoring_check(self):
         with patch("sonnet_storyboard_wrapper._llm_call",

@@ -46,9 +46,12 @@ class TestLipsyncScoring:
     def reset_model(self):
         """Reset registered model between tests."""
         from lipsync_scoring import _registered_model
+        import lipsync_scoring
         _registered_model = None
+        lipsync_scoring._sync_scorer_adapter = None
         yield
         _registered_model = None
+        lipsync_scoring._sync_scorer_adapter = None
 
     def test_no_model_returns_review_required(self, tmp_path):
         """Without a real model, score returns REVIEW_REQUIRED."""

@@ -8,5 +8,6 @@
     },
     "bash": "allow",
     "read": "allow"
-  }
+  },
+  "snapshot": false
 }

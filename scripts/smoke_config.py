@@ -36,6 +36,8 @@ _DEFAULTS: dict[str, Any] = {
     "allow_ocr_unavailable": False,
     "max_paid_provider_jobs": 20,
     "max_total_usd": 5.00,
+    "max_vision_qa_calls": 0,
+    "max_vision_qa_usd": 0.0,
 }
 
 
@@ -81,6 +83,14 @@ class SmokeConfig:
     @property
     def max_total_usd(self) -> float:
         return float(self._data.get("max_total_usd", 0.25))
+
+    @property
+    def max_vision_qa_calls(self) -> int:
+        return int(self._data.get("max_vision_qa_calls", 0))
+
+    @property
+    def max_vision_qa_usd(self) -> float:
+        return float(self._data.get("max_vision_qa_usd", 0.0))
 
     # --- structured access ---
     @property

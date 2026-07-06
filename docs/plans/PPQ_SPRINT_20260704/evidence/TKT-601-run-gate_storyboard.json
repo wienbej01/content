@@ -1,0 +1,195 @@
+{
+  "production": {
+    "id": "prod_4e0ce12e24314d7798188aff60dca45f",
+    "content_item_id": null,
+    "project_slug": "how_ai_reads_your_handwriting_and_turns",
+    "video_type": "short",
+    "seed": "How AI reads your handwriting and turns it into digital notes",
+    "status": "running",
+    "current_stage": "gate_storyboard",
+    "code_revision": "36a0b4e5702bcbd25a31c931b8ef26f33c61b4a8",
+    "config_snapshot_id": null,
+    "parent_production_id": null,
+    "created_at": "2026-07-06T12:19:16+08:00",
+    "updated_at": "2026-07-06T13:39:30+08:00",
+    "completed_at": null
+  },
+  "stages": {
+    "research": {
+      "status": "succeeded",
+      "attempt": 1,
+      "started_at": "2026-07-06T12:19:21+08:00",
+      "finished_at": "2026-07-06T12:19:55+08:00"
+    },
+    "write_script": {
+      "status": "succeeded",
+      "attempt": 1,
+      "started_at": "2026-07-06T12:19:55+08:00",
+      "finished_at": "2026-07-06T12:20:28+08:00"
+    },
+    "review_script": {
+      "status": "succeeded",
+      "attempt": 1,
+      "started_at": "2026-07-06T12:20:28+08:00",
+      "finished_at": "2026-07-06T12:21:30+08:00"
+    },
+    "gate_a_content": {
+      "status": "succeeded",
+      "attempt": 2,
+      "started_at": "2026-07-06T12:27:06+08:00",
+      "finished_at": "2026-07-06T12:27:06+08:00"
+    },
+    "storyboard": {
+      "status": "succeeded",
+      "attempt": 5,
+      "started_at": "2026-07-06T13:34:34+08:00",
+      "finished_at": "2026-07-06T13:38:35+08:00"
+    },
+    "review_storyboard": {
+      "status": "succeeded",
+      "attempt": 2,
+      "started_at": "2026-07-06T13:38:35+08:00",
+      "finished_at": "2026-07-06T13:39:30+08:00"
+    },
+    "gate_storyboard": {
+      "status": "failed",
+      "attempt": 1,
+      "started_at": "2026-07-06T13:39:30+08:00",
+      "finished_at": "2026-07-06T13:39:30+08:00"
+    }
+  },
+  "storyboard": {
+    "revision_id": "doc_9c243b9e5df245a29182ec3f7fe7d848",
+    "shots": [
+      {
+        "id": "beat_d3524042c6bf415789b6b75fda0ed4e0",
+        "ordinal": 0,
+        "label": "001_hook",
+        "role": null,
+        "claim": "The hook segment establishes a problem every professional recognizes: failed handwriting transcription. James's delivery of this shared frustration creates immediate viewer identification. His presenc...[truncated, sha256:1377e2a46a10]"
+      },
+      {
+        "id": "beat_b1378a227add400e9e4e8a9689bf5fcc",
+        "ordinal": 1,
+        "label": "001_hook",
+        "role": null,
+        "claim": "The narration describes snapping photos of handwritten notes that never get transcribed. This shot shows exactly the kind of handwriting that causes the problem \u2014 rushed, cursive, authentically messy....[truncated, sha256:f4db015e72f4]"
+      },
+      {
+        "id": "beat_e83aceaaa3834c6e91a399a3a9d4ee7a",
+        "ordinal": 2,
+        "label": "001_hook",
+        "role": null,
+        "claim": "The narration promises that the era of OCR failure is ending for a reason more interesting than better scanners. This graphic visually introduces the transformation \u2014 from failed OCR to successful rec...[truncated, sha256:01066307a5cd]"
+      },
+      {
+        "id": "beat_267d1a36a49244788fb25cc742540dd4",
+        "ordinal": 3,
+        "label": "002_mechanism",
+        "role": null,
+        "claim": "The mechanism segment contains the core intellectual payload of the episode. James's visual presence during this explanation signals to the viewer that this is the part that matters \u2014 this is not back...[truncated, sha256:428a70fd728a]"
+      },
+      {
+        "id": "beat_c8dd4d7f18f8483b80779c614c60ea3a",
+        "ordinal": 4,
+        "label": "002_mechanism",
+        "role": null,
+        "claim": "The narration explains that the new AI treats handwriting as a motor skill \u2014 the underlying flow of how a hand moves. This shot literalizes that concept by showing the actual motor action of writing, ...[truncated, sha256:2031b4056679]"
+      },
+      {
+        "id": "beat_8c0a24e2a49749278866706d841ad0f4",
+        "ordinal": 5,
+        "label": "002_mechanism",
+        "role": null,
+        "claim": "The narration explicitly contrasts traditional OCR (visual code, pixel by pixel) with the new approach (motor skill, underlying flow). This graphic renders that comparison visually, reinforcing the ve...[truncated, sha256:e21fd626ee4b]"
+      },
+      {
+        "id": "beat_a1f9427fecfe4f56a775b83d33f6e64e",
+        "ordinal": 6,
+        "label": "003_proof_takeaway",
+        "role": null,
+        "claim": "The narration tells mid-career professionals that their note-taking apps are no longer using 2010s OCR but vision-language models. This shot shows exactly that: a tablet running modern handwriting rec...[truncated, sha256:715457d1a95b]"
+      },
+      {
+        "id": "beat_583c29c90d4f4b6d9861d2954f875208",
+        "ordinal": 7,
+        "label": "003_proof_takeaway",
+        "role": null,
+        "claim": "The takeaway \u2014 that note-taking apps now use the same transformer architecture as ChatGPT \u2014 is a revelation for most viewers. The close-up intensifies this moment, making it feel like James is telling...[truncated, sha256:44d020b6b1d4]"
+      },
+      {
+        "id": "beat_7fade411bd324a4fa4c59dd6cf6f8f2a",
+        "ordinal": 8,
+        "label": "003_proof_takeaway",
+        "role": null,
+        "claim": "The narration concludes that the result is searchable, indexable, AI-assistable handwritten notes. This shot gives the viewer a concrete mental image of what that looks like \u2014 their own notebook, in t...[truncated, sha256:861e9f03b05f]"
+      },
+      {
+        "id": "beat_cfe2e539ddc544b798effe012687c35e",
+        "ordinal": 9,
+        "label": "004_cta",
+        "role": null,
+        "claim": "The CTA asks the viewer to open their note-taking app and try handwriting. James's posture \u2014 pen poised over paper \u2014 models the exact action he is suggesting. The half-smile at the final insight about...[truncated, sha256:77e9d7f16f6f]"
+      },
+      {
+        "id": "beat_7900db1465c347c3a0b3b0428b370c88",
+        "ordinal": 10,
+        "label": "004_cta",
+        "role": null,
+        "claim": "The final line \u2014 'technology that learned to write before it learned to read your writing' \u2014 is both literal and metaphorical. This shot literalizes the act of writing, closing the episode on a visual...[truncated, sha256:1f5d06cc357d]"
+      }
+    ]
+  },
+  "word_timing": null,
+  "timing": {
+    "precision": "sentence",
+    "spans": []
+  },
+  "units": {},
+  "validations": {
+    "summary": {
+      "total": 0,
+      "pass": 0,
+      "fail": 0,
+      "pending": 0
+    },
+    "items": []
+  },
+  "provider_jobs": [],
+  "cost_totals": {
+    "estimated_usd": 0,
+    "actual_usd": 0,
+    "currency": "USD"
+  },
+  "approvals": [
+    {
+      "gate_name": "gate_a_content",
+      "status": "pass",
+      "requested_at": "2026-07-06T12:21:30+08:00",
+      "decided_at": "2026-07-06T12:27:01+08:00",
+      "actor": "cli",
+      "decision_note": "CLI decision: pass"
+    },
+    {
+      "gate_name": "gate_storyboard",
+      "status": "pass",
+      "requested_at": "2026-07-06T13:39:30+08:00",
+      "decided_at": "2026-07-06T13:42:24+08:00",
+      "actor": "cli",
+      "decision_note": "CLI decision: pass"
+    }
+  ],
+  "change_requests": [],
+  "blockers": [
+    {
+      "type": "failed_stage",
+      "owner": "gate_a_content",
+      "detail": "gate_a_content pending approval. Use: python3 scripts/produce_db.py approve prod_4e0ce12e24314d7798188aff60dca45f gate_a_content --pass"
+    },
+    {
+      "type": "failed_stage",
+      "owner": "gate_storyboard",
+      "detail": "gate_storyboard pending approval. Use: python3 scripts/produce_db.py approve prod_4e0ce12e24314d7798188aff60dca45f gate_storyboard --pass"
+    }
+  ]
+}

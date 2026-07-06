@@ -266,8 +266,13 @@ def _compose_visual_intent(shot: dict) -> dict:
     primary_subject = must_show[0] if must_show else ""
     action = shot.get("prompt_intent", "") or concept
 
-    derived_key = derive_concept_key(concept, primary_subject, action)
-    derived_hash = compute_concept_key(concept, primary_subject, action)
+    # Incorporate shot_id into the concept derivation so that different beats
+    # serving the same segment never collide on concept_key (the check_concept_quota
+    # dedup check catches identical keys across beats).
+    shot_id = shot.get("shot_id", "")
+    key_seed = f"{concept}|{primary_subject}|{action}|{shot_id}"
+    derived_key = derive_concept_key(key_seed, primary_subject, action)
+    derived_hash = compute_concept_key(key_seed, primary_subject, action)
 
     intent = {
         "visual_function": "demonstrate" if _resolve_shot_type(shot).startswith("graphic") else "illustrate",

@@ -279,6 +279,67 @@ def test_no_secrets_in_source():
     print("  ✓ no secrets/tokens in llm_call.py source")
 
 
+def test_vision_qa_profile_exists():
+    lc = _load()
+    cfg = lc.load_config()
+    profiles = cfg["profiles"]
+    assert "vision_qa" in profiles
+    vp = profiles["vision_qa"]
+    assert vp.get("supports_vision") is True
+    assert "model" in vp
+    print(f"  ✓ vision_qa profile exists with model {vp['model']}")
+
+
+def test_vision_call_dry_run():
+    lc = _load()
+    from pathlib import Path
+    import io, contextlib
+    # Use a fake image path that exists (the repo itself has files)
+    test_img = ROOT / "configs" / "llm_models.yaml"
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        data, text, profile, model = lc.llm_vision_call(
+            task="semantic_role_qa", prompt="test",
+            image_paths=[test_img], dry_run=True)
+    out = buf.getvalue()
+    assert data is None
+    assert "vision_qa" in out
+    print("  ✓ vision_call dry-run prints plan without calling kilo")
+
+
+def test_vision_call_missing_image_raises():
+    lc = _load()
+    try:
+        lc.llm_vision_call(
+            task="semantic_role_qa", prompt="test",
+            image_paths=[Path("/nonexistent/image.jpg")], dry_run=False)
+        assert False, "should raise"
+    except RuntimeError as e:
+        assert "BLOCKED_VISION_IMAGE_MISSING" in str(e)
+    print("  ✓ vision_call raises on missing image")
+
+
+def test_vision_call_non_vision_profile_raises():
+    lc = _load()
+    try:
+        lc.llm_vision_call(
+            task="semantic_role_qa", prompt="test",
+            image_paths=[], model_profile="auto_utility", dry_run=False)
+        assert False, "should raise"
+    except RuntimeError as e:
+        assert "BLOCKED_VISION_PROFILE" in str(e)
+    print("  ✓ vision_call rejects non-vision profile")
+
+
+def test_resolve_vision_qa_profile():
+    lc = _load()
+    cfg = lc.load_config()
+    name, profile = lc.resolve_profile(cfg, "semantic_role_qa", "vision_qa")
+    assert name == "vision_qa"
+    assert profile.get("supports_vision") is True
+    print("  ✓ resolve_profile returns vision_qa for semantic_role_qa")
+
+
 def main():
     print("LLM Call Tests (P4-07)")
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

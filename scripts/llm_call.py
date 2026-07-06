@@ -63,7 +63,7 @@ def load_config():
     return yaml.safe_load(CONFIGS.read_text())
 
 
-def check_sonnet5_availability(model_id="kilo/anthropic/claude-sonnet-5", dry_run=False):
+def check_sonnet5_availability(model_id="claude-sonnet-5", dry_run=False):
     """Check if Sonnet 5 is available via kilo models.
 
     In dry-run mode, skips subprocess call and returns True (assume available
@@ -89,7 +89,8 @@ def check_sonnet5_availability(model_id="kilo/anthropic/claude-sonnet-5", dry_ru
         return AvailabilityResult(False, [], detail)
 
     models = [line.strip() for line in r.stdout.splitlines() if line.strip()]
-    if model_id not in models:
+    matching = [m for m in models if model_id in m]
+    if not matching:
         return AvailabilityResult(False, models, f"{model_id} not listed by kilo models")
     return AvailabilityResult(True, models)
 
@@ -274,6 +275,41 @@ def call_kiro_archived(model, prompt, timeout=120, verbose=False):
     return r.stdout
 
 
+def call_kilo_vision(model, prompt, image_paths, timeout=120, verbose=False, system_prompt=None):
+    """Run kilo subprocess with image attachments and return raw stdout (NDJSON).
+
+    Uses `kilo run --model <model> --format json -f <image> ...` with prompt
+    piped via stdin. Image files are attached via the -f flag so vision-capable
+    models can inspect them.
+    """
+    if system_prompt:
+        full_prompt = f"SYSTEM:\n{system_prompt}\n\nUSER:\n{prompt}"
+    else:
+        full_prompt = prompt
+
+    cmd = [KILO_CLI, "run", "--model", model, "--format", "json"]
+    for img in image_paths:
+        cmd.extend(["-f", str(img)])
+    cmd.append("--")
+    cmd.append(full_prompt)
+
+    if verbose:
+        print(f"  cmd: {' '.join(c for c in cmd if c != full_prompt)} "
+              f"[prompt: {len(full_prompt)} chars]", file=sys.stderr)
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"kilo vision call did not respond within {timeout}s (model {model}).")
+    elapsed = time.time() - t0
+    if verbose:
+        print(f"  elapsed: {elapsed:.1f}s, exit: {r.returncode}", file=sys.stderr)
+    if r.returncode != 0:
+        raise RuntimeError(f"kilo vision call exited {r.returncode}: {r.stderr[:200]}")
+    return r.stdout
+
+
 def call_kilo(model, prompt, timeout=120, verbose=False, system_prompt=None):
     """Run kilo subprocess and return raw stdout (NDJSON event stream).
 
@@ -327,7 +363,7 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
             reason = getattr(availability, "error", None)
             detail = f" Detail: {reason}" if reason else ""
             raise RuntimeError(
-                "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (kilo/anthropic/claude-sonnet-5) "
+                "BLOCKED_SONNET5_UNAVAILABLE: Sonnet 5 (claude-sonnet-5) "
                 "is not available through Kilo. Storyboard authoring cannot proceed "
                 f"without Sonnet 5. No fallback is permitted.{detail}")
 
@@ -369,6 +405,63 @@ def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
     return data, text, profile_name, model
 
 
+def llm_vision_call(task, prompt, image_paths, model_profile="vision_qa", timeout=120,
+                    dry_run=False, verbose=False):
+    """High-level vision call: resolve profile, attach images, call, parse, validate.
+
+    Args:
+        task: Task name for routing (e.g. 'semantic_role_qa').
+        prompt: Text prompt describing what to analyze in the images.
+        image_paths: List of Path or str to image files to attach.
+        model_profile: Profile name (default 'vision_qa').
+        timeout: Subprocess timeout in seconds.
+        dry_run: Print plan without calling kilo.
+        verbose: Print diagnostic info to stderr.
+
+    Returns:
+        (parsed_data, raw_text, profile_name, model)
+    """
+    config = load_config()
+    profile_name, profile = resolve_profile(config, task, model_profile)
+
+    if not profile.get("supports_vision"):
+        raise RuntimeError(
+            f"BLOCKED_VISION_PROFILE: profile {profile_name!r} does not declare "
+            f"supports_vision: true. Use a vision-capable profile.")
+
+    model = profile["model"]
+
+    # Validate all image paths exist
+    for img in image_paths:
+        p = Path(img)
+        if not p.exists():
+            raise RuntimeError(
+                f"BLOCKED_VISION_IMAGE_MISSING: image file not found: {p}")
+
+    if dry_run:
+        print(f"DRY RUN — would call kilo vision")
+        print(f"  task:        {task}")
+        print(f"  profile:     {profile_name} -> model {model}")
+        print(f"  images:      {len(image_paths)} file(s)")
+        print(f"  prompt:      {prompt[:200]}...")
+        print(f"  timeout:     {timeout}s")
+        return None, None, profile_name, model
+
+    system_prompt = PIPELINE_SYSTEM_PROMPT
+    raw = call_kilo_vision(model, prompt, image_paths, timeout=timeout,
+                           verbose=verbose, system_prompt=system_prompt)
+    text = extract_kilo_response(raw)
+
+    if not text:
+        raise RuntimeError("No response extracted from kilo vision output")
+
+    data = parse_json_response(text)
+    if data is None:
+        raise RuntimeError(f"Failed to parse JSON from vision response:\n{text[:500]}")
+
+    return data, text, profile_name, model
+
+
 def main():
     ap = argparse.ArgumentParser(description="Programmatic LLM calls via kilo.")
     ap.add_argument("--task", default=None, help="Task name (for routing/authority)")
@@ -388,11 +481,11 @@ def main():
         availability = check_sonnet5_availability(dry_run=args.dry_run)
         available, models = availability
         if available:
-            print("SONNET5_AVAILABLE: kilo/anthropic/claude-sonnet-5 found in kilo models")
+            print("SONNET5_AVAILABLE: claude-sonnet-5 found in kilo models")
             sys.exit(0)
         else:
             reason = getattr(availability, "error", None)
-            print("BLOCKED_SONNET5_UNAVAILABLE: kilo/anthropic/claude-sonnet-5 not found in kilo models",
+            print("BLOCKED_SONNET5_UNAVAILABLE: claude-sonnet-5 not found in kilo models",
                   file=sys.stderr)
             if reason:
                 print(f"DETAIL: {reason}", file=sys.stderr)

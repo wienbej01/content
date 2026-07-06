@@ -1,44 +1,41 @@
 # TKT-401 Validation Report
 
-Ticket: TKT-401 — Brand typography, fail-closed fonts, supersampling, 9x16
-Validator: independent validator (Jul 05 2026)
-Result: **PASS** — TKT-401 accepted.
+**Validator:** independent  
+**Date:** 2026-07-05  
+**Ticket:** TKT-401 — Brand typography, fail-closed fonts, supersampling, 9x16
 
-## Gates Verified
+---
 
-| Gate | Requirement | Result |
-|------|-------------|--------|
-| G1 | fail-closed font test passes | **PASS** — `test_missing_font_raises_render_error`: missing brand fonts raise RenderError, no PNG written |
-| G2 | all 12 templates render both aspect variants | **PASS** — `test_render_16x9_*` + `test_render_9x16_*`: 24 parametrized tests, all 1920x1080 and 1080x1920, all have visible content |
-| G3 | full suite passes | **PASS** — 50 brand_render + 36 render_graphics + 109 invariant = 195 total passed |
+## Acceptance Gates
 
-## Commands Executed
+| Gate | Result | Evidence |
+|------|--------|----------|
+| **G1** fail-closed font test | **PASS** | `test_missing_font_raises_render_error` — monkeypatched `FONT_DIR` to empty dir, `RenderError` raised with "Brand font not found" message, no PNG written |
+| **G2** all 12 templates both aspect variants | **PASS** | All 12 parametrized templates render at 1920x1080 (16x9) and 1080x1920 (9x16) with visible content (non-zero alpha pixels). Safe margins recomputed per aspect (10% proportional, not letterboxed) |
+| **G3** full suite passes | **PASS** | 52 brand tests pass, 36 existing render_graphics regression tests pass, 277 comprehensive pipeline + graphics tests pass |
 
-| Command | Exit | Result |
-|---------|------|--------|
-| `pytest tests/test_brand_render.py -q` | 0 | 50 passed in 13.92s |
-| `pytest tests/ -k render_graphics -q` | 0 | 36 passed, 2545 deselected in 24.90s |
-| `pytest <invariant 5-file> -q` | 0 | 109 passed in 17.15s |
-| `grep -i dejavu scripts/render_graphics.py` | 1 | No DejaVu references remain |
-| `grep -i load_default scripts/render_graphics.py` | 1 | No load_default() fallback remains |
+## Audit Findings Resolution
 
-## Verification Items
+| Finding | Severity | Status | Resolution |
+|---------|----------|--------|------------|
+| F1: `FONT_FAMILY_FALLBACK` dead code | LOW | RESOLVED | Unused dict removed from `render_graphics.py` |
+| F2: Bold weight has no visual effect | MEDIUM | RESOLVED | `_font()` calls `set_variation_by_axes()` with weight=700 for variable fonts. Two new regression tests verify bold > regular width for both Inter and Playfair Display |
 
-1. **Focused tests pass** ✅ — 50/50 brand_render tests
-2. **Relevant broader tests pass** ✅ — 36/36 render_graphics regression tests
-3. **Build/lint/schema checks** ✅ — invariant 5-file suite passes (109 tests)
-4. **Real successful path works** ✅ — 12 templates × 2 aspects, all rendered with correct dimensions
-5. **Required negative paths fail correctly** ✅ — missing fonts → RenderError, unknown layout → RuntimeError
-6. **Original defect cannot be reproduced** ✅ — zero DejaVu/load_default references remain in render_graphics.py
-7. **Regression tests represent pre-fix failure** ✅ — glyph-width metrics test proves brand fonts, not DejaVu
-8. **No dummy output or silent fallback** ✅ — _font() has exactly one code path: load from brand/fonts/ or raise
-9. **Modified interfaces exercised through production paths** ✅ — render_spec() called by render_graphic_template(), render_local_graphic_media(), batch/CLI paths
-10. **No unintended files changed** ✅ — only scripts/render_graphics.py (source) and tests/test_brand_render.py (new test)
-11. **Repeat execution idempotent** ✅ — deterministic rendering confirmed (SHA256 identical on repeat render)
-12. **No material performance regression** ✅ — 2x supersampling adds temporary memory but LANCZOS downsample restores target resolution
-13. **Audit findings resolved** ✅ — no findings from audit
-14. **Acceptance gates supported by actual evidence** ✅ — all tests pass with real font loading, real PIL rendering
+## Observable Outcomes Verified
 
-## Verdict
+- **Brand fonts:** `_font()` loads `brand/fonts/Inter.ttf` for `role="body"` and `brand/fonts/PlayfairDisplay.ttf` for `role="display"`. Glyph-width metrics test confirms brand Inter font is used (not DejaVu).
+- **Fail-closed:** Missing font directory raises `RenderError` with path-specific error message. No `ImageFont.load_default()` fallback remains.
+- **Supersampling:** `render_spec()` renders all templates at 2x resolution (3840x2160 for 16x9, 2160x3840 for 9x16) and downsamples with `Image.LANCZOS`. Deterministic (hash-stable) at both aspects.
+- **9x16 layouts:** `spec["aspect"]="9x16"` produces native 1080x1920 output with recomputed safe margins (W/H swapped, margins at 10% of swapped dimensions).
 
-PASS. TKT-401 accepted. Ready for TKT-402.
+## Commands
+
+```
+python3 -m pytest tests/test_brand_render.py -q          → 52 passed
+YT_TEST_MODE=1 python3 -m pytest tests/ -k render_graphics -q → 36 passed
+YT_TEST_MODE=1 python3 -m pytest <comprehensive> -q       → 277 passed
+```
+
+**Validator verdict: PASS**
+
+TKT-401 accepted. All gates pass. Both audit findings resolved. Ready for TKT-402 dependency.

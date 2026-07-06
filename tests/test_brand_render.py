@@ -79,6 +79,50 @@ class TestBrandFontGlyphWidths:
             f"This indicates DejaVu/fallback font is being used instead of brand fonts."
         )
 
+    def test_bold_is_wider_than_regular_inter(self):
+        from render_graphics import _font
+        from PIL import Image, ImageDraw
+
+        text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        size = 36
+
+        f_reg = _font(size, bold=False, role="body")
+        f_bold = _font(size, bold=True, role="body")
+
+        img = Image.new("RGBA", (400, 100), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        r_bbox = d.textbbox((0, 0), text, font=f_reg)
+        b_bbox = d.textbbox((0, 0), text, font=f_bold)
+        r_w = r_bbox[2] - r_bbox[0]
+        b_w = b_bbox[2] - b_bbox[0]
+
+        assert b_w > r_w, (
+            f"Inter bold width ({b_w}) should exceed regular width ({r_w}). "
+            f"Variable font wght axis may not be set correctly."
+        )
+
+    def test_bold_is_wider_than_regular_playfair(self):
+        from render_graphics import _font
+        from PIL import Image, ImageDraw
+
+        text = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        size = 36
+
+        f_reg = _font(size, bold=False, role="display")
+        f_bold = _font(size, bold=True, role="display")
+
+        img = Image.new("RGBA", (400, 100), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        r_bbox = d.textbbox((0, 0), text, font=f_reg)
+        b_bbox = d.textbbox((0, 0), text, font=f_bold)
+        r_w = r_bbox[2] - r_bbox[0]
+        b_w = b_bbox[2] - b_bbox[0]
+
+        assert b_w > r_w, (
+            f"Playfair Display bold width ({b_w}) should exceed regular width ({r_w}). "
+            f"Variable font wght axis may not be set correctly."
+        )
+
 
 # ============================================================================
 # 16x9 rendering

@@ -13,8 +13,8 @@ profiles:
     is_final_creative_authority: true
 
   storyboard_director_sonnet5:
-    model: kilo/anthropic/claude-sonnet-5
-    purpose: runtime creative storyboard authoring via Sonnet 5 through Kilo
+    model: kilo/deepseek/deepseek-v4-pro:discounted
+    purpose: runtime creative storyboard authoring via DeepSeek V4 Pro through Kilo
     is_final_creative_authority: true
     is_sonnet5_creative_authority: true
 
