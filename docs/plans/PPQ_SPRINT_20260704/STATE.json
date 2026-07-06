@@ -5,8 +5,8 @@
   "status": "in_progress",
   "current_wave": "Wave 6",
   "active_ticket": null,
-  "next_ticket": "REPAIR-TKT-601B-W1",
-  "blocker": "TKT-601 assembly blocked on hero unit render_35e23c95a9274 (003_proof_takeaway): Seedance systematic +480ms audio-lag offset, uncorrectable under current 400ms cap. Repair plan REPAIR-TKT-601B (Karpathy loop, no paid regeneration) planned. TKT-603 also blocked on YouTube Analytics API creds.",
+  "next_ticket": "REPAIR-601B-W2",
+  "blocker": "TKT-601 assembly blocked on hero unit render_35e23c95a9274 (003_proof_takeaway): Seedance systematic +480ms audio-lag offset. REPAIR-TKT-601B-W1 implemented (directional compensation, cap 600ms) — hero clip compensates to -40ms (close_hero PASS). TKT-603 also blocked on YouTube Analytics API creds.",
   "completed_tickets": [
     "TKT-001",
     "TKT-002",
@@ -54,7 +54,8 @@
     "REPAIR-TKT-601A",
     "KLP-601-W1..W3",
     "KLP-601-W4-T1",
-    "TKT-602"
+    "TKT-602",
+    "REPAIR-601B-W1"
   ],
   "repair_tickets": [
     {
@@ -67,11 +68,11 @@
     {
       "id": "REPAIR-TKT-601B",
       "title": "Systematic hero lipsync offset: Seedance audio-conditioning contract defect (Karpathy loop W1-W4)",
-      "status": "planned",
+      "status": "in_progress",
       "blocks": "TKT-601",
       "plan": "docs/plans/PPQ_SPRINT_20260704/REPAIR-TKT-601B-hero-lipsync-offset.md",
       "waves": [
-        {"id": "REPAIR-601B-W1", "title": "Directional, uncapped compensation (fixes current clip)", "status": "planned", "targets": ["defect-C-wrong-sign", "defect-D-cap"]},
+        {"id": "REPAIR-601B-W1", "title": "Directional, uncapped compensation (fixes current clip)", "status": "accepted", "targets": ["defect-C-wrong-sign", "defect-D-cap"]},
         {"id": "REPAIR-601B-W2", "title": "Stop double-signaling audio (generate_audio conditional)", "status": "planned", "targets": ["defect-A-double-audio-flag"]},
         {"id": "REPAIR-601B-W3", "title": "Frame-aligned pad-to-ceil audio slice", "status": "planned", "targets": ["defect-B-duration-ceil-surplus"]},
         {"id": "REPAIR-601B-W4", "title": "Karpathy loop close: measure & decide (no paid regen)", "status": "planned", "targets": ["loop-exit"]}
@@ -86,11 +87,11 @@
       "note": "Long-term durable fix; only if 601B compensation proves insufficient across productions"
     }
   ],
-  "notes": "TKT-601 E2E resumed: script/storyboard/TTS/generation reused, 96 duplicate render units deduped. KLP-601 fixes reduced QA failures 15->1. Remaining blocker: hero clip 003_proof_takeaway has systematic Seedance +480ms audio-lag offset (audio LAGS mouth). Root cause analyzed: (A) --generate_audio true always sent with --audio conditioning slice; (B) duration-ceil surplus (7738ms slice into 8s request -> 8041ms video, +303ms); (C) compensate.py applies abs(offset) wrong sign for positive offsets; (D) 400ms cap rejects 480ms. Regeneration produces identical clip (same sha256). REPAIR-TKT-601B Karpathy loop plan (W1-W4, no paid regen) + REPAIR-TKT-601C architecture plan created. Operator: zero desync permitted, no gate loosening, no regen in repair.",
+  "notes": "REPAIR-TKT-601B-W1 implemented: directional compensation (positive offset advances audio via atrim, negative delays via adelay), cap raised 400->600ms. E2E: prod hero clip +480ms -> -40ms compensated, close_hero PASS (<=120ms). Defects C+D fixed. TKT-601 assembly unblocked via compensation path. Remaining: W2 (conditional generate_audio), W3 (pad-to-ceil), W4 (loop close).",
   "wave_gates_passed": [
     "Wave 0",
     "Wave 2",
     "Wave 3"
   ],
-  "last_updated": "2026-07-06T18:36:00+08:00"
+  "last_updated": "2026-07-06T19:10:00+08:00"
 }

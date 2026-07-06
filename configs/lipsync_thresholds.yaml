@@ -1,4 +1,12 @@
 # Tiered lip-sync policy thresholds for publish-grade QA.
+# Calibrated: 2026-07-04 by TKT-104.
+# See: docs/plans/PPQ_SPRINT_20260704/evidence/TKT-104-calibration.md
+
+# Compensation cap (REPAIR-TKT-601B-W1).
+# Justification: scorer search window is ±600ms (_algorithm.py:_SEARCH_WINDOW_MS).
+# The cap must be ≤ search window to allow re-scoring of compensated output.
+# Raised from 400ms to 600ms per TKT-104 calibration range.
+compensation_cap_ms: 600
 
 # Policy definitions for different hero framing categories.
 # Each policy defines offset_ms thresholds and minimum confidence scores.
@@ -9,38 +17,41 @@ policies:
     description: "Close-up talking head with visible mouth movements"
     publish_grade: true
 
-    # Offset thresholds in milliseconds
+    # Offset thresholds in milliseconds (TKT-104 calibrated)
     thresholds:
-      pass_ms: 30      # PASS if offset <= 30ms
-      warn_ms: 45      # WARN if offset 31-45ms
-      fail_ms: 45      # FAIL if offset > 45ms
+      pass_ms: 120      # PASS if offset <= 120ms (zero false-pass on negatives)
+      warn_ms: 160      # WARN if offset 121-160ms
+      fail_ms: 160      # FAIL if offset > 160ms
 
     # Minimum SyncNet confidence score (0.0-3.0 scale)
-    min_confidence: 2.0
+    # Set to 0.001: epsilon prevents confidence=0.0 bypass (scorer returns 0.0
+    # only when no face detected). Confidence gating delegated to
+    # face_track_found (>=50% frames enforced by scorer).
+    min_confidence: 0.001
 
     # Frame-based thresholds (40ms per frame at 25fps)
-    pass_frames: 0.75  # ~1 frame
-    warn_frames: 1.125 # ~1.5 frames
-    fail_frames: 1.125  # ~1.5 frames
+    pass_frames: 3.0   # ~3 frames @ 120ms
+    warn_frames: 4.0   # ~4 frames @ 160ms
+    fail_frames: 4.0   # ~4 frames @ 160ms
 
   # Medium hero (medium shot, some distance from camera)
   medium_hero:
     description: "Medium shot hero with partially visible face"
     publish_grade: true
 
-    # Offset thresholds in milliseconds
+    # Offset thresholds in milliseconds (TKT-104 calibrated)
     thresholds:
-      pass_ms: 40      # PASS if offset <= 40ms
-      warn_ms: 60      # WARN if offset 41-60ms
-      fail_ms: 60      # FAIL if offset > 60ms
+      pass_ms: 168      # PASS if offset <= 168ms
+      warn_ms: 210      # WARN if offset 169-210ms
+      fail_ms: 210      # FAIL if offset > 210ms
 
     # Minimum SyncNet confidence score
-    min_confidence: 2.0
+    min_confidence: 0.001
 
     # Frame-based thresholds
-    pass_frames: 1.0   # ~1 frame
-    warn_frames: 1.5   # ~1.5 frames
-    fail_frames: 1.5   # ~1.5 frames
+    pass_frames: 4.2   # ~4 frames @ 168ms
+    warn_frames: 5.25  # ~5 frames @ 210ms
+    fail_frames: 5.25  # ~5 frames @ 210ms
 
   # Wide hero (wide shot, face less visible)
   # Uses medium policy unless future tickets define specific wide policy

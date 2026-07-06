@@ -1,6 +1,7 @@
 """Tests for TKT-103: Automated measure -> compensate -> re-measure loop.
 
 Tests the compensate_hero_audio repair action with a fixture sync backend.
+Includes REPAIR-TKT-601B-W1: directional compensation for positive offsets.
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ import production_db as _db
 from production_repo import register_artifact, link_artifact_to_render_unit
 from media_service import run_contract_media_qa, run_repair_lifecycle
 from sync_scorer.scorer import _set_sync_scorer_backend, FixtureSyncBackend
-from compensate import COMPENSATION_MIN_OFFSET_MS
+from compensate import compensate, COMPENSATION_MIN_OFFSET_MS, COMPENSATION_MAX_OFFSET_MS
 
 
 def _ffmpeg(*args):
@@ -152,15 +153,15 @@ class TestCompensateHeroAudio:
 
     def test_correctable_offset_compensates_and_passes(self, db_path, prod, tmp_path):
         ru_id, video_path, audio_path = _setup_hero_unit(
-            prod, db_path, tmp_path, offset_ms=120.0,
+            prod, db_path, tmp_path, offset_ms=200.0,
         )
 
-        backend = CountdownFixtureBackend(offsets=[120.0, 5.0])
+        backend = CountdownFixtureBackend(offsets=[200.0, 5.0])
         _set_sync_scorer_backend(backend)
 
         qa = run_contract_media_qa(db_path, prod["id"], ru_id)
         assert qa["status"] == "fail", (
-            f"Expected QA to fail for 120ms offset, got {qa['status']}"
+            f"Expected QA to fail for 200ms offset, got {qa['status']}"
         )
         evidence = json.loads(qa["evidence_json"]) if isinstance(qa["evidence_json"], str) else qa["evidence_json"]
         assert evidence.get("lipsync_review_status") == "CORRECTABLE", (
@@ -190,7 +191,7 @@ class TestCompensateHeroAudio:
             f"Compensated artifact file not found: {pj['compensated_artifact_path']}"
         )
 
-        comp_val = conn = _db.connect(db_path)
+        conn = _db.connect(db_path)
         comp_row = conn.execute(
             "SELECT evidence_json FROM validations "
             "WHERE subject_id=? AND validator_name='compensation_attempt'",
@@ -199,7 +200,7 @@ class TestCompensateHeroAudio:
         conn.close()
         assert comp_row is not None, "Expected compensation_attempt validation row"
         comp_ev = json.loads(comp_row["evidence_json"]) if isinstance(comp_row["evidence_json"], str) else comp_row["evidence_json"]
-        assert comp_ev.get("offset_ms") == 120.0
+        assert comp_ev.get("offset_ms") == 200.0
 
         # Verify re-measure validation was written
         conn = _db.connect(db_path)
@@ -242,10 +243,10 @@ class TestCompensateHeroAudio:
 
     def test_failing_compensation_routes_to_regeneration(self, db_path, prod, tmp_path):
         ru_id, video_path, audio_path = _setup_hero_unit(
-            prod, db_path, tmp_path, offset_ms=120.0,
+            prod, db_path, tmp_path, offset_ms=200.0,
         )
 
-        backend = ConstantFixtureBackend(offset_ms=120.0)
+        backend = ConstantFixtureBackend(offset_ms=200.0)
         _set_sync_scorer_backend(backend)
 
         qa = run_contract_media_qa(db_path, prod["id"], ru_id)
@@ -268,4 +269,99 @@ class TestCompensateHeroAudio:
         conn.close()
         assert pj and not pj["compensated_artifact_path"], (
             "Expected compensated_artifact_path to remain NULL after failed compensation"
+        )
+
+
+class TestDirectionalCompensation601B:
+    """REPAIR-TKT-601B-W1: directional compensation keyed on offset sign."""
+
+    def test_positive_offset_advances_audio(self, tmp_path):
+        video = tmp_path / "input.mp4"
+        make_video(video)
+        audio = tmp_path / "input.wav"
+        make_audio(audio)
+        output = tmp_path / "compensated.mp4"
+
+        result = compensate(video, audio, +480, output)
+        assert "error" not in result, f"Compensation failed: {result.get('error')}"
+        assert result["offset_ms_applied"] == -480, (
+            f"Positive offset must advance audio (negative applied), got {result['offset_ms_applied']}"
+        )
+        assert result["offset_ms_measured"] == 480
+        assert output.exists()
+
+    def test_negative_offset_delays_audio(self, tmp_path):
+        video = tmp_path / "input.mp4"
+        make_video(video)
+        audio = tmp_path / "input.wav"
+        make_audio(audio)
+        output = tmp_path / "compensated.mp4"
+
+        result = compensate(video, audio, -300, output)
+        assert "error" not in result, f"Compensation failed: {result.get('error')}"
+        assert result["offset_ms_applied"] == 300, (
+            f"Negative offset must delay audio (positive applied), got {result['offset_ms_applied']}"
+        )
+        assert result["offset_ms_measured"] == -300
+        assert output.exists()
+
+    def test_positive_offset_reduces_measured_offset(self, tmp_path):
+        video = tmp_path / "input.mp4"
+        make_video(video, duration_sec=5.0)
+        audio = tmp_path / "input.wav"
+        make_audio(audio, duration_sec=5.0)
+        output = tmp_path / "compensated.mp4"
+
+        result = compensate(video, audio, +480, output)
+        assert "error" not in result
+        assert result["offset_ms_applied"] == -480
+        assert output.exists()
+
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "json", str(output)],
+            capture_output=True, text=True,
+        )
+        out_dur = json.loads(probe.stdout)["format"]["duration"]
+        assert float(out_dur) > 0, "Output must have valid duration"
+
+    def test_compensation_cap_raised(self):
+        assert COMPENSATION_MAX_OFFSET_MS == 600, (
+            f"COMPENSATION_MAX_OFFSET_MS must be 600 (was 400), got {COMPENSATION_MAX_OFFSET_MS}"
+        )
+
+    def test_positive_offset_correctable_with_raised_cap(self, db_path, prod, tmp_path):
+        ru_id, video_path, audio_path = _setup_hero_unit(
+            prod, db_path, tmp_path, offset_ms=480.0,
+        )
+
+        backend = CountdownFixtureBackend(offsets=[480.0, 5.0])
+        _set_sync_scorer_backend(backend)
+
+        qa = run_contract_media_qa(db_path, prod["id"], ru_id)
+        assert qa["status"] == "fail"
+        evidence = json.loads(qa["evidence_json"]) if isinstance(qa["evidence_json"], str) else qa["evidence_json"]
+        assert evidence.get("lipsync_review_status") == "CORRECTABLE", (
+            f"480ms must be CORRECTABLE with raised cap (600ms), got {evidence.get('lipsync_review_status')}"
+        )
+
+        result = run_repair_lifecycle(prod["id"], ru_id, db_path=db_path)
+        assert result.get("compensated") is True, (
+            f"Expected 480ms to be compensated successfully, got: {result}"
+        )
+        assert result.get("qa_passed") is True
+
+    def test_offset_above_cap_uncorrectable(self, db_path, prod, tmp_path):
+        ru_id, video_path, audio_path = _setup_hero_unit(
+            prod, db_path, tmp_path, offset_ms=700.0,
+        )
+
+        backend = ConstantFixtureBackend(offset_ms=700.0)
+        _set_sync_scorer_backend(backend)
+
+        qa = run_contract_media_qa(db_path, prod["id"], ru_id)
+        assert qa["status"] == "fail"
+        evidence = json.loads(qa["evidence_json"]) if isinstance(qa["evidence_json"], str) else qa["evidence_json"]
+        assert evidence.get("lipsync_review_status") == "FAIL", (
+            f"700ms must be FAIL (>600ms cap), got {evidence.get('lipsync_review_status')}"
         )

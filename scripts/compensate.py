@@ -10,39 +10,59 @@ import subprocess
 from pathlib import Path
 
 
-COMPENSATION_MIN_OFFSET_MS = 40
-COMPENSATION_MAX_OFFSET_MS = 400
+COMPENSATION_MIN_OFFSET_MS = 160
+COMPENSATION_MAX_OFFSET_MS = 600
 
 
 def compensate(video_path: Path, audio_path: Path, offset_ms: int, output_path: Path) -> dict:
     """Generate compensated remux with ffmpeg.
 
-    The source audio is delayed by ``offset_ms`` using the ``adelay`` filter.
-    Video stream is copied (no re-encode) to avoid generational loss.
+    Directional correction based on offset sign:
+    - Positive offset (audio LAGS video): advance audio by trimming the
+      leading ``offset_ms`` from the audio track, bringing it forward to
+      align with the earlier mouth motion.
+    - Negative offset (audio LEADS video): delay audio by ``|offset_ms|``
+      using the ``adelay`` filter, pushing it back to align with the
+      later mouth motion.
 
-    Sign convention: a negative offset (diagnostic LEADS source) means the
-    source audio needs to be delayed to align with the video.
+    Video stream is copied (no re-encode) to avoid generational loss.
+    Sign convention matches the cross-correlation scorer: positive means
+    audio lags mouth, negative means audio leads mouth.
     """
     if not video_path.exists():
         return {"error": f"Video not found: {video_path}"}
     if not audio_path.exists():
         return {"error": f"Audio not found: {audio_path}"}
 
-    delay_ms = abs(offset_ms)
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", str(video_path),
-        "-i", str(audio_path),
-        "-c:v", "copy",
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-af", f"adelay={delay_ms}|{delay_ms}",
-        "-shortest",
-        str(output_path),
-    ]
+    if offset_ms > 0:
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-i", str(audio_path),
+            "-c:v", "copy",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-af", f"atrim=start={offset_ms}ms,asetpts=PTS-STARTPTS",
+            "-shortest",
+            str(output_path),
+        ]
+        applied_ms = -offset_ms
+    else:
+        delay_ms = abs(offset_ms)
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-i", str(audio_path),
+            "-c:v", "copy",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-af", f"adelay={delay_ms}|{delay_ms}",
+            "-shortest",
+            str(output_path),
+        ]
+        applied_ms = delay_ms
 
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -67,6 +87,7 @@ def compensate(video_path: Path, audio_path: Path, offset_ms: int, output_path: 
         "output_path": str(output_path),
         "size_bytes": output_path.stat().st_size,
         "duration_sec": round(float(probe_data.get("format", {}).get("duration", 0)), 3),
-        "offset_ms_applied": delay_ms if offset_ms < 0 else -delay_ms,
-        "method": "ffmpeg_copy_video_adelay_source",
+        "offset_ms_applied": applied_ms,
+        "offset_ms_measured": offset_ms,
+        "method": "ffmpeg_copy_video_directional",
     }

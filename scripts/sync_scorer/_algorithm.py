@@ -178,7 +178,7 @@ def _normalize(values: list[float]) -> list[float]:
 
 def _cross_correlate(visual: list[float], audio: list[float], rate: float,
                      search_ms: int) -> tuple[int, float]:
-    """Return (best_lag_samples, peak_confidence) where lag>0 means audio leads."""
+    """Return (best_lag_samples, peak_confidence) where lag>0 means audio lags."""
     import numpy as np
 
     vis = np.asarray(visual, dtype=float)
