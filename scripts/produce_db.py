@@ -1223,7 +1223,9 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
             anchor_block = raw_anchor
 
     parts = []
-    if shot_type == "hero_lipsync" or shot_type in _HERO_SHOT_TYPE_ALIASES:
+    is_hero = shot_type == "hero_lipsync" or shot_type in _HERO_SHOT_TYPE_ALIASES
+
+    if is_hero:
         parts.append("Photorealistic cinematic medium close-up of James, the same person as the reference image.")
     else:
         parts.append(f"Cinematic {visual_function} shot.")
@@ -1234,6 +1236,13 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
         parts.append(f"Show: {information_to_show}.")
     if viewer_takeaway:
         parts.append(f"Convey: {viewer_takeaway}.")
+
+    if not is_hero:
+        required_action = visual_intent.get("required_action", "")
+        if required_action:
+            parts.insert(1, f"Motion: {required_action}.")
+        else:
+            parts.insert(1, "Slow continuous camera movement (dolly, pan, or push-in) throughout; no static frames.")
     if anchor_block:
         parts.append(anchor_block)
 
