@@ -5,8 +5,8 @@
   "status": "in_progress",
   "current_wave": "Wave 6",
   "active_ticket": null,
-  "next_ticket": "REPAIR-601B-W4",
-  "blocker": "TKT-601 assembly blocked on hero unit render_35e23c95a9274 (003_proof_takeaway): Seedance systematic +480ms audio-lag offset. REPAIR-TKT-601B-W1 implemented (directional compensation, cap 600ms) — hero clip compensates to -40ms (close_hero PASS). TKT-603 also blocked on YouTube Analytics API creds.",
+  "next_ticket": null,
+  "blocker": "REPAIR-TKT-601B W1-W4 accepted: hero clip compensates to -40ms (close_hero PASS). TKT-601 assembly unblocked via compensation path. TKT-603 still blocked on YouTube Analytics API creds.",
   "completed_tickets": [
     "TKT-001",
     "TKT-002",
@@ -57,7 +57,8 @@
     "TKT-602",
     "REPAIR-601B-W1",
     "REPAIR-601B-W2",
-    "REPAIR-601B-W3"
+    "REPAIR-601B-W3",
+    "REPAIR-601B-W4"
   ],
   "repair_tickets": [
     {
@@ -70,14 +71,14 @@
     {
       "id": "REPAIR-TKT-601B",
       "title": "Systematic hero lipsync offset: Seedance audio-conditioning contract defect (Karpathy loop W1-W4)",
-      "status": "in_progress",
+"status": "accepted",
       "blocks": "TKT-601",
       "plan": "docs/plans/PPQ_SPRINT_20260704/REPAIR-TKT-601B-hero-lipsync-offset.md",
       "waves": [
         {"id": "REPAIR-601B-W1", "title": "Directional, uncapped compensation (fixes current clip)", "status": "accepted", "targets": ["defect-C-wrong-sign", "defect-D-cap"]},
         {"id": "REPAIR-601B-W2", "title": "Stop double-signaling audio (generate_audio conditional)", "status": "accepted", "targets": ["defect-A-double-audio-flag"]},
         {"id": "REPAIR-601B-W3", "title": "Frame-aligned pad-to-ceil audio slice", "status": "accepted", "targets": ["defect-B-duration-ceil-surplus"]},
-        {"id": "REPAIR-601B-W4", "title": "Karpathy loop close: measure & decide (no paid regen)", "status": "planned", "targets": ["loop-exit"]}
+        {"id": "REPAIR-601B-W4", "title": "Karpathy loop close: measure & decide (no paid regen)", "status": "accepted", "targets": ["loop-exit"]}
       ]
     },
     {
