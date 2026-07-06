@@ -170,3 +170,72 @@ class TestAdapterSecondGuard:
             with pytest.raises(ProviderAdapterError) as exc:
                 self.ADAPTER.submit(payload, idempotency_key="test")
             assert "BLOCKED" in str(exc.value)
+
+
+class TestConditionalGenerateAudio:
+    """REPAIR-601B-W2: conditional generate_audio flag based on audio_path presence."""
+
+    ADAPTER = HiggsfieldSeedanceAdapter(config={})
+
+    def test_hero_with_audio_path_uses_generate_audio_false(self):
+        payload = {
+            "asset_type": "lipsync_video",
+            "model": "seedance_2_0",
+            "prompt": "Photorealistic close-up of James",
+            "audio_path": "/fixtures/audio/test.wav",
+            "duration_sec": 10,
+        }
+        result = _dry_run_submit(self.ADAPTER, payload)
+        assert result["dry_run"] is True
+        assert "--generate_audio" in result["args"]
+        idx = result["args"].index("--generate_audio")
+        assert result["args"][idx + 1] == "false", (
+            f"Hero payload with audio_path must send --generate_audio false, "
+            f"got {result['args'][idx + 1]}"
+        )
+
+    def test_broll_without_audio_path_uses_generate_audio_true(self):
+        payload = {
+            "asset_type": "generated_video",
+            "model": "seedance_2_0",
+            "prompt": "Cinematic establishing shot",
+            "duration_sec": 5,
+        }
+        result = _dry_run_submit(self.ADAPTER, payload)
+        assert result["dry_run"] is True
+        assert "--generate_audio" in result["args"]
+        idx = result["args"].index("--generate_audio")
+        assert result["args"][idx + 1] == "true", (
+            f"B-roll payload without audio_path must send --generate_audio true, "
+            f"got {result['args'][idx + 1]}"
+        )
+
+    def test_kling_audio_still_raises_i4(self):
+        payload = {
+            "asset_type": "generated_video",
+            "model": "kling3_0",
+            "prompt": "Cinematic establishing shot",
+            "audio_path": "/fixtures/audio/test.wav",
+            "duration_sec": 5,
+        }
+        with pytest.raises(ProviderAdapterError) as exc:
+            _dry_run_submit(self.ADAPTER, payload)
+        msg = str(exc.value)
+        assert "I4 invariant violation" in msg
+        assert "seedance" in msg
+
+    def test_kling_no_audio_path_uses_sound_on(self):
+        payload = {
+            "asset_type": "generated_video",
+            "model": "kling3_0",
+            "prompt": "Cinematic establishing shot",
+            "duration_sec": 5,
+        }
+        result = _dry_run_submit(self.ADAPTER, payload)
+        assert result["dry_run"] is True
+        assert "--sound" in result["args"]
+        idx = result["args"].index("--sound")
+        assert result["args"][idx + 1] == "on", (
+            f"Kling without audio_path must send --sound on, "
+            f"got {result['args'][idx + 1]}"
+        )

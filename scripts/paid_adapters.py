@@ -208,14 +208,18 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
             else:
                 args.extend(["--resolution", "480p"])
 
-        # Audio: seedance uses generate_audio (bool), kling uses sound (on/off)
-        audio_param, audio_vals = schema["audio_param"]
-        args.extend([f"--{audio_param}", audio_vals[0]])  # default = first (true/on)
-
         # S9-C06: Hero units carry --image (reference frame) + --audio (master slice).
         # --audio only attaches to seedance_2_0 (I4 invariant: only seedance has lipsync).
         image_path = payload.get("image_path")
         audio_path = payload.get("audio_path")
+
+        # REPAIR-601B-W2: when a conditioning audio slice is supplied (hero path),
+        # tell the provider NOT to generate its own audio — the slice is authoritative.
+        audio_param, audio_vals = schema["audio_param"]
+        if audio_path:
+            args.extend([f"--{audio_param}", audio_vals[1]])  # false/off
+        else:
+            args.extend([f"--{audio_param}", audio_vals[0]])  # true/on
 
         if image_path:
             args.extend(["--image", str(image_path)])
