@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+from frame_sampling import FrameSamplingError as _FrameSamplingError
 import production_db as _db
 
 
@@ -320,10 +322,15 @@ _FREEZEDETECT_FILTER = "freezedetect=n=0.003:d=0.5"
 
 # thresholds as documented code constants
 _MAX_FREEZE_PCT = 50.0
-_MAX_SCENE_CHANGES = 30
+_MAX_SCENE_CHANGES = 20
+_SCENE_DETECT_THRESHOLD = "0.3"
+_MAX_SCENE_CHANGES_BY_FORMAT: Dict[str, int] = {
+    "short": 25,
+    "explainer": 15,
+}
 
 
-def check_broll_technical(video_path: Path) -> Dict[str, Any]:
+def check_broll_technical(video_path: Path, video_type: str = None) -> Dict[str, Any]:
     """Model-free technical QA for b-roll clips.
 
     Runs ffmpeg-only checks (no vision model):
@@ -361,8 +368,9 @@ def check_broll_technical(video_path: Path) -> Dict[str, Any]:
         result["status"] = "fail"
 
     # gibberish detection via scene changes
-    gibberish_result = _detect_excessive_scene_changes(video_path)
+    gibberish_result = _detect_excessive_scene_changes(video_path, video_type)
     result["gibberish"]["scene_changes"] = gibberish_result["scene_changes"]
+    result["gibberish"]["threshold"] = gibberish_result.get("threshold", "0.3")
     if gibberish_result["is_gibberish"]:
         result["status"] = "fail"
         result["issues"].append(gibberish_result["issue"])
@@ -395,23 +403,176 @@ def _detect_frozen_frames(video_path: Path, duration: Optional[float]) -> list[s
     return issues
 
 
-def _detect_excessive_scene_changes(video_path: Path) -> Dict[str, Any]:
-    """Detect likely gibberish via excessive scene-change count."""
+def _detect_excessive_scene_changes(video_path: Path, video_type: str = None) -> Dict[str, Any]:
+    """Detect likely gibberish via excessive scene-change count.
+
+    Uses _SCENE_DETECT_THRESHOLD (0.3) for standard scene detection.
+    Legitimate pans/dollies produce <5 scene changes at 0.3 sensitivity;
+    rapid flicker/gibberish produces many.
+    """
     r = subprocess.run([
         "ffmpeg", "-y",
         "-i", str(video_path),
-        "-vf", "select='gt(scene,0.01)',metadata=print",
+        "-vf", f"select='gt(scene,{_SCENE_DETECT_THRESHOLD})',metadata=print",
         "-an", "-f", "null", "-",
     ], capture_output=True, text=True)
     import re
     scores = [float(m) for m in re.findall(r"scene_score=([\d.]+)", r.stderr)]
+    max_changes = _MAX_SCENE_CHANGES_BY_FORMAT.get(video_type or "", _MAX_SCENE_CHANGES)
     result = {
         "scene_changes": len(scores),
-        "is_gibberish": len(scores) > _MAX_SCENE_CHANGES,
+        "is_gibberish": len(scores) > max_changes,
+        "threshold": _SCENE_DETECT_THRESHOLD,
         "issue": "",
     }
     if result["is_gibberish"]:
         result["issue"] = (
-            f"Excessive scene changes ({len(scores)}), likely gibberish"
+            f"Excessive scene changes ({len(scores)}/{max_changes}), likely gibberish"
         )
+    return result
+
+
+DUPLICATE_HAMMING_THRESHOLD: int = 10
+MAX_DUPLICATE_PAIRS: int = 100
+
+
+def compute_dhash(frame_path: Path) -> str:
+    """Compute a 64-bit difference hash (dHash) for an image file.
+
+    Uses PIL to convert to grayscale, resize to 9x8, then compares adjacent
+    horizontal pixels to produce a 64-bit hash. Same-image hashes are identical;
+    visually distinct images produce different hashes.
+
+    Returns a 16-character hex string representing the 64-bit hash.
+    """
+    from PIL import Image
+    img = Image.open(frame_path).convert("L")
+    img = img.resize((9, 8), Image.LANCZOS)
+    bits = []
+    for y in range(8):
+        row_start = y * 9
+        row_pixels = list(img.getdata())[row_start:row_start + 9]
+        for x in range(8):
+            bits.append("1" if row_pixels[x] > row_pixels[x + 1] else "0")
+    hex_str = hex(int("".join(bits), 2))[2:]
+    return hex_str.zfill(16)
+
+
+def _hamming_distance(hash_a: str, hash_b: str) -> int:
+    """Compute Hamming distance (number of differing bits) between two hex hashes."""
+    val_a = int(hash_a, 16)
+    val_b = int(hash_b, 16)
+    xor_val = val_a ^ val_b
+    return xor_val.bit_count()
+
+
+def _frame_hashes_from_bundle(artifact_path: Path) -> List[str]:
+    """Extract perceptual hashes for all frames in the TKT-201 frame bundle.
+
+    Uses the existing frame_bundle.build_frame_bundle to get deterministic
+    frame paths, then computes a dHash for each frame.
+    """
+    from frame_bundle import build_frame_bundle
+    frame_paths = build_frame_bundle(artifact_path)
+    return [compute_dhash(fp) for fp in frame_paths]
+
+
+def check_broll_duplicate(
+    production_id: str,
+    render_unit_id: str,
+    artifact_path: Path,
+    db_path=None,
+) -> Dict[str, Any]:
+    """Cross-clip near-duplicate detection via perceptual hashing.
+
+    Computes dHash values for sampled frames of the current render unit,
+    then compares against all other generated-video render units in the
+    same production. If the mean Hamming distance across frame pairs is
+    at or below DUPLICATE_HAMMING_THRESHOLD (default 10), the unit is
+    flagged as a near-duplicate.
+
+    Pair count is bounded by MAX_DUPLICATE_PAIRS to cap O(n) cost.
+
+    Returns:
+        Dict with status ('pass'|'fail'), duplicates list, threshold, and issues.
+    """
+    result: Dict[str, Any] = {
+        "status": "pass",
+        "duplicates": [],
+        "threshold": DUPLICATE_HAMMING_THRESHOLD,
+        "max_pairs": MAX_DUPLICATE_PAIRS,
+        "issues": [],
+        "pairs_checked": 0,
+    }
+
+    if not artifact_path or not artifact_path.exists():
+        result["issues"].append("artifact_path missing or does not exist")
+        return result
+
+    current_hashes = _frame_hashes_from_bundle(artifact_path)
+    if not current_hashes:
+        result["issues"].append("no frames could be extracted for hash comparison")
+        return result
+
+    _db.migrate(db_path)
+    conn = _db.connect(db_path)
+    other_units = conn.execute(
+        "SELECT ru.id AS ru_id, art.uri AS artifact_uri "
+        "FROM render_units ru "
+        "JOIN artifacts art ON ru.active_artifact_id = art.id "
+        "WHERE ru.production_id=? AND ru.id!=? AND ru.asset_type='broll' "
+        "AND ru.status='generated' AND art.uri IS NOT NULL",
+        (production_id, render_unit_id),
+    ).fetchall()
+    conn.close()
+
+    pairs_checked = 0
+    for row in other_units:
+        other_path = Path(row["artifact_uri"])
+        if not other_path.exists():
+            continue
+        if pairs_checked >= MAX_DUPLICATE_PAIRS:
+            result["issues"].append(
+                f"pairwise cap ({MAX_DUPLICATE_PAIRS}) reached; remaining units skipped"
+            )
+            break
+        try:
+            other_hashes = _frame_hashes_from_bundle(other_path)
+        except (_FrameSamplingError, OSError, ValueError) as e:
+            msg = f"skipped unit {row['ru_id']} hash extraction: {e}"
+            result["issues"].append(msg)
+            logging.getLogger(__name__).warning(msg)
+            continue
+        if not other_hashes:
+            continue
+
+        distances = []
+        for ch in current_hashes:
+            for oh in other_hashes:
+                distances.append(_hamming_distance(ch, oh))
+                pairs_checked += 1
+                if pairs_checked >= MAX_DUPLICATE_PAIRS:
+                    break
+            if pairs_checked >= MAX_DUPLICATE_PAIRS:
+                break
+
+        if not distances:
+            continue
+
+        mean_distance = sum(distances) / len(distances)
+        if mean_distance <= DUPLICATE_HAMMING_THRESHOLD:
+            result["duplicates"].append({
+                "conflicting_unit": row["ru_id"],
+                "mean_hamming_distance": round(mean_distance, 2),
+                "pairs_compared": len(distances),
+            })
+            result["issues"].append(
+                f"NEAR_DUPLICATE: unit {row['ru_id']} "
+                f"(mean hamming distance {mean_distance:.1f} <= {DUPLICATE_HAMMING_THRESHOLD})"
+            )
+
+    result["pairs_checked"] = pairs_checked
+    if result["duplicates"]:
+        result["status"] = "fail"
+
     return result

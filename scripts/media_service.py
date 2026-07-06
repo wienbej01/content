@@ -633,7 +633,7 @@ def _check_sha_match(artifact_path: Path, expected_sha: Optional[str]) -> bool:
 
 def _qa_local_graphic(
     production_id: str, render_unit: dict, artifact: Optional[dict],
-    artifact_path: Optional[Path], db_path=None,
+    artifact_path: Optional[Path], db_path=None, video_type: str = None,
 ) -> tuple[bool, dict]:
     """ENG-0502: QA for local_graphic render units.
 
@@ -935,7 +935,7 @@ def _verify_graphic_text_ocr(artifact_path: Path, expected_text: str) -> tuple[b
 
 def _qa_provider_video(
     production_id: str, render_unit: dict, artifact: Optional[dict],
-    artifact_path: Optional[Path], db_path=None,
+    artifact_path: Optional[Path], db_path=None, video_type: str = None,
 ) -> tuple[bool, dict]:
     """ENG-0503: QA for provider-generated video (text_policy enforcement).
 
@@ -964,7 +964,7 @@ def _qa_provider_video(
     evidence["sha_match"] = sha_ok
 
     # Model-free b-roll technical checks (frozen-frame + gibberish)
-    broll_tech = check_broll_technical(artifact_path)
+    broll_tech = check_broll_technical(artifact_path, video_type)
     broll_tech_ok = broll_tech.get("status") == "pass"
     evidence["broll_technical"] = broll_tech
     if not broll_tech_ok:
@@ -1008,7 +1008,7 @@ def _qa_provider_video(
 
 def _qa_hero_lipsync(
     production_id: str, render_unit: dict, artifact: Optional[dict],
-    artifact_path: Optional[Path], db_path=None,
+    artifact_path: Optional[Path], db_path=None, video_type: str = None,
 ) -> tuple[bool, dict]:
     """ENG-0505: QA for hero lipsync render units.
 
@@ -1286,7 +1286,7 @@ def _mark_test_mode_fake_provider_compensated(
 
 def _qa_still(
     production_id: str, render_unit: dict, artifact: Optional[dict],
-    artifact_path: Optional[Path], db_path=None,
+    artifact_path: Optional[Path], db_path=None, video_type: str = None,
 ) -> tuple[bool, dict]:
     """QA for still/asset reuse render units (minimal mechanical checks)."""
     evidence: dict = {
@@ -1343,6 +1343,7 @@ def run_contract_media_qa(
 
     conn = _db.connect(db)
     ru = conn.execute("SELECT * FROM render_units WHERE id=?", (render_unit_id,)).fetchone()
+    prod = conn.execute("SELECT * FROM productions WHERE id=?", (production_id,)).fetchone()
     art = None
     if ru and ru["active_artifact_id"]:
         art = conn.execute(
@@ -1356,6 +1357,8 @@ def run_contract_media_qa(
     render_unit = dict(ru)
     artifact = dict(art) if art else None
     artifact_path = Path(artifact["uri"]) if (artifact and artifact.get("uri")) else None
+    prod_dict = dict(prod) if prod else {}
+    video_type = prod_dict.get("video_type", "short")
 
     render_method = _contract.classify_render_method(
         render_unit.get("asset_type", ""),
@@ -1372,7 +1375,7 @@ def run_contract_media_qa(
     qa_fn = dispatch.get(render_method, _qa_provider_video)
 
     passed, evidence = qa_fn(
-        production_id, render_unit, artifact, artifact_path, db_path=db,
+        production_id, render_unit, artifact, artifact_path, db_path=db, video_type=video_type,
     )
 
     evidence["render_method"] = render_method
@@ -1601,6 +1604,8 @@ VALIDATION_FAILURE_CLASSIFICATIONS = frozenset({
     "hero_lipsync_offset_correctable",
     "unknown_contract_failure",
     "provider_job_retryable_failure", "provider_job_permanent_failure",
+    "semantic_mismatch",
+    "frozen_video", "gibberish_excessive_scene_changes",
 })
 
 REPAIR_ACTIONS = frozenset({
@@ -1611,12 +1616,51 @@ REPAIR_ACTIONS = frozenset({
 })
 
 
+def revise_prompt(original_prompt: str, verdict: dict) -> str:
+    """ENG-0602: Revise a generation prompt from a semantic QA verdict.
+
+    Appends corrective instructions based on the QA verdict's described content
+    and must_avoid violations. The original prompt is preserved as the base.
+
+    Args:
+        original_prompt: The original generation prompt.
+        verdict: Semantic QA verdict dict with keys:
+            described_content, must_avoid_violations, must_show_present, etc.
+
+    Returns:
+        Revised prompt string with corrective instructions appended.
+    """
+    if not verdict:
+        return original_prompt
+
+    described = (verdict.get("described_content") or "").strip()
+    violations = verdict.get("must_avoid_violations") or []
+
+    parts = [original_prompt] if original_prompt else []
+    if described:
+        parts.append(f"Previous render showed: {described}. CORRECTIVE: fix these issues.")
+    if violations:
+        avoid_phrases = "; ".join(violations)
+        parts.append(f"Must avoid: {avoid_phrases}")
+    if not original_prompt and not described and not violations:
+        return original_prompt
+
+    result = " ".join(parts)
+    return result if result else original_prompt
+
+
 def classify_validation_failure(validation_evidence: dict) -> str:
     """ENG-0601: Classify a contract QA failure from its evidence dict.
 
     Returns one of VALIDATION_FAILURE_CLASSIFICATIONS.
     """
     ev = validation_evidence
+
+    if ev.get("validator_name") == "semantic_role_qa" or ev.get("result") == "fail":
+        return "semantic_mismatch"
+
+    if ev.get("semantic_qa_failure") is True:
+        return "semantic_mismatch"
 
     if not ev.get("file_exists"):
         return "missing_artifact"
@@ -1655,6 +1699,15 @@ def classify_validation_failure(validation_evidence: dict) -> str:
     if not ev.get("duration_ok"):
         return "duration_shortfall"
 
+    broll_tech = ev.get("broll_technical") or {}
+    if broll_tech:
+        broll_issues = broll_tech.get("issues") or []
+        for issue in broll_issues:
+            if "FROZEN_VIDEO" in str(issue):
+                return "frozen_video"
+            if "Excessive scene changes" in str(issue) or "likely gibberish" in str(issue):
+                return "gibberish_excessive_scene_changes"
+
     return "unknown_contract_failure"
 
 
@@ -1673,6 +1726,9 @@ _RULES = {
     "unknown_contract_failure": "block_for_manual_review",
     "provider_job_retryable_failure": "resubmit_provider_job",
     "provider_job_permanent_failure": "block_for_manual_review",
+    "semantic_mismatch": "regenerate_provider_video",
+    "frozen_video": "regenerate_provider_video",
+    "gibberish_excessive_scene_changes": "regenerate_provider_video",
 }
 
 
@@ -1813,8 +1869,69 @@ def run_repair_lifecycle(
         raise ValueError(f"No repair path found for render_unit {render_unit_id}")
 
     # ENG-0603 idempotency: if the latest validation already passes, the render
-    # unit is already repaired — return success without modifying state.
+    # unit is already repaired — return success without modifying state,
+    # UNLESS there is a failing semantic_role_qa validation.
     if failure["status"] == "pass":
+        # Check for semantic_role_qa failure that needs prompt revision
+        _sem = _db.connect(db_path)
+        _sem_failure = _sem.execute(
+            """SELECT evidence_json FROM validations
+               WHERE subject_id=? AND validator_name='semantic_role_qa' AND status='fail'
+               ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            (render_unit_id,),
+        ).fetchone()
+        _sem.close()
+        if _sem_failure:
+            sem_evidence = json.loads(_sem_failure["evidence_json"]) if isinstance(_sem_failure["evidence_json"], str) else _sem_failure["evidence_json"]
+            sem_verdict = sem_evidence.get("details", {}).get("verdict") or sem_evidence
+            metadata = json.loads(render_unit.get("metadata_json") or "{}") if isinstance(render_unit.get("metadata_json"), str) else (render_unit.get("metadata_json") or {})
+            attempts = metadata.get("semantic_repair_attempts", 0)
+            if attempts >= 2:
+                raise RuntimeError(
+                    f"REPAIR BLOCKED: render_unit {render_unit_id} semantic QA "
+                    f"attempts exhausted ({attempts} prior attempts)"
+                )
+            current_prompt = metadata.get("provider_visual_prompt") or render_unit.get("prompt") or ""
+            revised = revise_prompt(current_prompt, sem_verdict) if isinstance(sem_verdict, dict) else current_prompt
+            new_attempt = attempts + 1
+            lineage = metadata.get("prompt_revision_lineage", [])
+            lineage.append({
+                "attempt": new_attempt,
+                "original_prompt": current_prompt,
+                "revised_prompt": revised,
+                "verdict": sem_verdict,
+                "validator": "semantic_role_qa",
+            })
+            metadata["semantic_repair_attempts"] = new_attempt
+            metadata["prompt_revision_lineage"] = lineage
+            metadata["provider_visual_prompt"] = revised
+            # Create change request
+            _cr_id = _db._id("change")
+            with _db.transaction(db_path) as sem_conn:
+                sem_conn.execute(
+                    "UPDATE render_units SET metadata_json=?, status='needs_repair' WHERE id=?",
+                    (json.dumps(metadata), render_unit_id),
+                )
+                sem_conn.execute(
+                    "INSERT INTO change_requests "
+                    "(id, production_id, subject_type, subject_id, change_type, "
+                    " requested_by_stage, target_stage, reason, status, created_at, "
+                    " failure_evidence_json, repair_routing_stage) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (_cr_id, production_id, "render_unit", render_unit_id,
+                     "regenerate_provider_video", "qa_media", "compile_media",
+                     "repair: semantic_mismatch", "open", _db._now(),
+                     json.dumps(sem_evidence), "compile_media"),
+                )
+            return {
+                "failure_class": "semantic_mismatch",
+                "action": "regenerate_provider_video",
+                "prompt_revised": True,
+                "attempt": new_attempt,
+                "change_request_id": _cr_id,
+                "render_unit_id": render_unit_id,
+            }
+
         evidence = json.loads(failure["evidence_json"]) if isinstance(failure["evidence_json"], str) else failure["evidence_json"]
         return {
             "render_unit_id": render_unit_id,

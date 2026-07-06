@@ -4,16 +4,9 @@
   "plan_revision_note": "Enhanced execution protocol: explicit auditor and validator agent sessions per ticket; severity-based finding reversion; git commit after each validation.",
   "status": "in_progress",
   "current_wave": "Wave 6",
-  "active_ticket": "TKT-601",
+  "active_ticket": null,
   "next_ticket": null,
-  "blocker": {
-    "ticket": "TKT-601",
-    "status": "resolved",
-    "resolved_by": "REPAIR-TKT-601A",
-    "reason": "Systematic storyboard projection defect: storyboard_projection._VISUAL_ROLE_TO_SHOT_TYPE does not map the LLM prompt's visual_role vocabulary; unmapped roles silently fall through to hero_cutaway producing all-hero storyboards that fail review_storyboard structural validation. Additionally _project_shot_to_beat does not populate narrative_function, order, act, est_duration_sec, narration_text, label; and invoke_storyboard production branch does not compute shot_mix_summary. The LLM output is high quality; the projection layer is the gap.",
-    "resumed_production": "prod_4e0ce12e24314d7798188aff60dca45f",
-    "resume_command": "python3 scripts/produce_db.py run prod_4e0ce12e24314d7798188aff60dca45f --from-stage storyboard"
-  },
+  "blocker": null,
   "completed_tickets": [
     "TKT-001",
     "TKT-002",
@@ -57,7 +50,8 @@
     "TKT-501",
     "TKT-502",
     "TKT-503",
-    "REPAIR-TKT-601A"
+    "REPAIR-TKT-601A",
+    "KLP-601-W1..W3"
   ],
   "repair_tickets": [
     {
@@ -68,10 +62,11 @@
       "plan": "docs/plans/PPQ_SPRINT_20260704/REPAIR-TKT-601A-storyboard-projection-gap.md"
     }
   ],
+  "notes": "TKT-601 E2E run executed. All pipeline stages through generate_media completed (19/19 clips generated, $7.71 paid). QA_media detected 15/19 units with frozen video (GenAI quality) and missing tesseract OCR. KLP-601-W1..W3 rectification implemented: preflight dependency checker, scene-change threshold calibration (0.01→0.3), FROZEN_VIDEO/GIBBERISH failure classifications. Production prod_4e0ce12e remains as-is in the DB for inspection.",
   "wave_gates_passed": [
     "Wave 0",
     "Wave 2",
     "Wave 3"
   ],
-  "last_updated": "2026-07-06T13:34:00+08:00"
+  "last_updated": "2026-07-06T16:55:00+08:00"
 }

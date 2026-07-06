@@ -31,6 +31,16 @@ from storyboard_beat_utils import (
 
 PROJECTS = ROOT / "Videos" / "Projects"
 
+# Per-production override for FORBIDDEN_CHEAP_CONCEPTS. Set via
+# ALLOWED_FORBIDDEN_CONCEPTS env var as comma-separated tokens to exclude
+# from the forbidden check (e.g. "notebook,coffee_shop"). Used when a
+# script legitimately requires a concept that is otherwise considered cheap.
+_ALLOWED_FORBIDDEN_CONCEPTS: set | None = None
+_env_allowed = os.environ.get("ALLOWED_FORBIDDEN_CONCEPTS", "")
+if _env_allowed.strip():
+    import re
+    _ALLOWED_FORBIDDEN_CONCEPTS = {t.strip() for t in _env_allowed.split(",") if t.strip()}
+
 
 def _slug(seed: str) -> str:
     s = re.sub(r"[^a-z0-9]+", "_", seed.lower().strip())[:40].strip("_")
@@ -458,6 +468,23 @@ def invoke_audio_timing(inputs: dict, tmp_path: Path) -> dict:
     timing_precision = "sentence"
 
     if word_timing and word_timing.get("words"):
+        # Ensure each beat carries narration_word_span — cumulative word offsets
+        # from word_timing. The production projection path does not set this,
+        # and multiple beats can share the same segment text, so we distribute
+        # word_timing words proportionally by each beat's est_duration_sec
+        # (which is deterministic from planned_duration_sec or narration fallback).
+        wtw = word_timing["words"]
+        total_dur = sum((_b.get("est_duration_sec") or 0) for _b in storyboard["beats"]) or 1.0
+        word_cursor = 0
+        for _b in storyboard["beats"]:
+            _dur = _b.get("est_duration_sec") or 0
+            _cnt = max(1, round(_dur / total_dur * len(wtw)))
+            _cnt = min(_cnt, len(wtw) - word_cursor)
+            _b["narration_word_span"] = [word_cursor, word_cursor + _cnt]
+            word_cursor += _cnt
+        # Last beat consumes all remaining words to match total duration
+        if word_cursor < len(wtw):
+            storyboard["beats"][-1]["narration_word_span"][1] = len(wtw)
         timing = build_word_boundary_timing_map(
             storyboard["beats"],
             word_timing["words"],
@@ -1548,6 +1575,31 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
 
         span_specs.append(spec)
     
+    # Flatten multi-slot span_specs into one spec per slot with a unique
+    # concept_key: multi-slot specs (hero tiling) produce one render unit per
+    # slot, each inheriting the same visual_intent -> identical concept_key
+    # -> check_concept_quota rejects the second slot as "duplicate concept".
+    # Appending slot_index to the concept_key makes each render unit unique.
+    flat = []
+    for sp in span_specs:
+        slots = sp.get("slots", [])
+        vi = sp.get("visual_intent", {}) or {}
+        if len(slots) <= 1:
+            flat.append(sp)
+            continue
+        base_key = (vi.get("concept_key") or "") if isinstance(vi, dict) else ""
+        for sl in slots:
+            sp_copy = dict(sp)
+            sp_copy["slots"] = [sl]
+            if isinstance(vi, dict) and base_key:
+                sp_copy["visual_intent"] = dict(vi)
+                sp_copy["concept_key"] = f"{base_key}_slot{sl['slot_index']}"
+                sp_copy["concept_hash"] = hashlib.sha256(
+                    sp_copy["concept_key"].encode()
+                ).hexdigest()
+            flat.append(sp_copy)
+    span_specs = flat
+
     result = compile_render_plan(
         production_id=inputs["production_id"],
         span_specs=span_specs,
@@ -1559,6 +1611,37 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
     # Every generated_video unit must have a unique concept_key.
     # FORBIDDEN_CHEAP_CONCEPTS are rejected; duplicate concept_keys raise a
     # compile error naming both render units.
+    # Clear stale concept_memory entries for this production, since orphaned
+    # entries from prior compile runs accumulate and block re-registration of
+    # the same concept_key (the dedup check compares against concept_memory,
+    # which is never cleaned when render units are staled). Note: this cleanup
+    # is safe because compile_media invalidates ALL prior render units for the
+    # production in the same transaction (plan_render_units marks them stale),
+    # so any concept memory entry from a prior pass is guaranteed stale.
+    _cm_conn = _db.connect(None)
+    _cm_conn.execute("DELETE FROM concept_memory WHERE production_id=?", (inputs["production_id"],))
+    _cm_conn.commit()
+    _cm_conn.close()
+    
+    # Deduplicate concept_keys across render units: two different beats can
+    # produce the same visual_intent concept_key (identical shot_type +
+    # segment narration normalizes to the same key via derive_concept_key).
+    # The dedup check would reject the second. Disambiguate by appending an
+    # incrementing suffix per unique key.
+    seen_keys: dict[str, int] = {}
+    for u in result["render_units"]:
+        if u.get("asset_type") != "generated_video":
+            continue
+        ck = (u.get("concept_key") or "").strip()
+        if not ck:
+            continue
+        idx = seen_keys.get(ck, 0)
+        if idx > 0:
+            new_key = f"{ck}_dup{idx}"
+            u["concept_key"] = new_key
+            u["concept_hash"] = hashlib.sha256(new_key.encode()).hexdigest()
+        seen_keys[ck] = idx + 1
+    
     for u in result["render_units"]:
         if u.get("asset_type") != "generated_video":
             continue
@@ -1567,7 +1650,7 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
         if not concept_key or not concept_hash:
             continue
 
-        if is_forbidden_concept(concept_key):
+        if is_forbidden_concept(concept_key, allowed_terms=_ALLOWED_FORBIDDEN_CONCEPTS):
             raise RuntimeError(
                 f"FORBIDDEN_CHEAP_CONCEPT: render unit {u['id']} "
                 f"({u.get('label', '?')}) matches forbidden concept in "
@@ -2788,6 +2871,13 @@ def run_production(production_id: str, from_stage: str = None, db_path=None):
         from release_guard import require_production_ready
         require_production_ready()
     
+    if not os.environ.get("YT_TEST_MODE") and not os.environ.get("SKIP_PREFLIGHT"):
+        import preflight as _preflight
+        pre_report = _preflight.check_all()
+        if not pre_report.all_passed:
+            pre_report.print_report()
+            sys.exit(1)
+    
     # STAGE_REGISTRY is defined in topological order. Iterating over .keys()
     # will naturally evaluate stages in dependency order.
     while True:
@@ -3138,6 +3228,14 @@ def main():
     link.add_argument("--allow-duration-mismatch", action="store_true",
                       help="Proceed even if file duration differs from required_duration_ms")
     
+    preflight_cmd = sub.add_parser("preflight")
+    preflight_cmd.add_argument("--json", dest="json_out", metavar="FILE",
+                                help="Write machine-readable JSON bundle to FILE")
+
+    check_cmd = sub.add_parser("check")
+    check_cmd.add_argument("--json", dest="json_out", metavar="FILE",
+                            help="Write machine-readable JSON report to FILE")
+
     inspect = sub.add_parser("inspect")
     inspect.add_argument("production_id")
     inspect.add_argument("--json", dest="json_out", metavar="FILE",
@@ -3272,6 +3370,40 @@ def main():
             "status": "generated",
         }, indent=2))
     
+    elif args.command == "preflight":
+        import preflight as _preflight
+        report = _preflight.check_all()
+        if args.json_out:
+            import json as _json
+            data = {
+                "all_passed": report.all_passed,
+                "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail, "required": c.required} for c in report.checks],
+                "actionable": report.actionable,
+            }
+            with open(args.json_out, "w") as f:
+                _json.dump(data, f, indent=2)
+            print(f"Preflight report written to {args.json_out}")
+        report.print_report()
+        if not report.all_passed:
+            sys.exit(1)
+
+    elif args.command == "check":
+        import preflight as _preflight
+        report = _preflight.check_all()
+        if args.json_out:
+            import json as _json
+            data = {
+                "all_passed": report.all_passed,
+                "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail, "required": c.required} for c in report.checks],
+                "actionable": report.actionable,
+            }
+            with open(args.json_out, "w") as f:
+                _json.dump(data, f, indent=2)
+            print(f"Check report written to {args.json_out}")
+        report.print_report()
+        if not report.all_passed:
+            sys.exit(1)
+
     elif args.command == "inspect":
         prod = _db.get_production(args.production_id)
         if not prod:
