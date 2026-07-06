@@ -2,7 +2,7 @@
 
 API keys loaded from env vars or ~/.config/ytchannel/runtime.env.
 """
-import hashlib, json, math, os, re, subprocess, tempfile, time
+import hashlib, json, os, re, subprocess, tempfile, time
 from pathlib import Path
 from typing import Any, Optional
 from provider_adapter import ProviderAdapter, ProviderAdapterError
@@ -179,7 +179,7 @@ class HiggsfieldSeedanceAdapter(ProviderAdapter):
 
         prompt = payload.get("prompt", "educational video")
         duration = payload.get("duration_sec", payload.get("duration", 5))
-        duration_cli = max(1, int(math.ceil(float(duration))))
+        duration_cli = max(1, int(float(duration)))
         aspect = payload.get("aspect_ratio", "16:9")
         model = payload.get("model", "seedance_2_0")
 
