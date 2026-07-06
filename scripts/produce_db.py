@@ -2693,6 +2693,11 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
     import production_db as _db
 
     production_id = inputs["production_id"]
+
+    # Check for YouTube upload mode. Default is record-only (DB state change).
+    # Set YOUTUBE_UPLOAD=1 env var to trigger actual YouTube upload.
+    use_youtube = os.environ.get("YOUTUBE_UPLOAD", "") == "1"
+
     conn = _db.connect(None)
 
     # ENG-0802: Require gate_b_review to have passed (already enforced by stage order,
@@ -2752,7 +2757,49 @@ def invoke_publish(inputs: dict, tmp_path: Path) -> dict:
     if published:
         _db.append_event(production_id, "published",
                          payload={"deliverables": [p["deliverable_id"] for p in published]})
-        return {"status": "published", "deliverables": published}
+        result = {"status": "published", "deliverables": published}
+
+        # YouTube upload path (opt-in via YOUTUBE_UPLOAD=1)
+        if use_youtube:
+            try:
+                from youtube_adapter import YouTubeUploadAdapter, YouTubeVideoMetadata
+                adapter = YouTubeUploadAdapter(db_path=None)
+                if not adapter.availability():
+                    result["youtube_upload"] = "skipped: credentials not configured"
+                    _db.append_event(production_id, "youtube_upload_skipped",
+                                     payload={"reason": "no credentials"})
+                    return result
+
+                yt_results = []
+                for d in deliverables:
+                    if not d.get("uri"):
+                        continue
+                    vid_path = Path(d["uri"])
+                    if not vid_path.exists():
+                        continue
+                    prod = _db.get_production(production_id)
+                    title = (prod.get("seed") or production_id)[:100]
+                    meta = YouTubeVideoMetadata(
+                        title=title,
+                        description=(prod.get("description") or ""),
+                        ai_disclosure=True,
+                    )
+                    yt_result = adapter.upload_video(
+                        video_path=vid_path, metadata=meta,
+                        production_id=production_id, deliverable_id=d["id"],
+                    )
+                    yt_results.append({
+                        "deliverable_id": d["id"],
+                        "platform_id": yt_result.platform_id,
+                        "video_url": yt_result.video_url,
+                        "status": yt_result.status,
+                    })
+                result["youtube_upload"] = yt_results
+            except Exception as exc:
+                result["youtube_upload"] = f"error: {exc}"
+                _db.append_event(production_id, "youtube_upload_error",
+                                 payload={"error": str(exc)})
+        return result
     return {"status": "no_deliverables", "deliverables": []}
 
 
