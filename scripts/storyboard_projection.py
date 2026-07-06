@@ -13,7 +13,13 @@ Raises ProjectionError on missing semantic source fields.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
+
+from storyboard_beat_utils import (
+    act_for as _act_for,
+    beat_duration_sec as _beat_duration_sec,
+    narrative_function_for as _narrative_function_for,
+)
 
 
 class ProjectionError(ValueError):
@@ -30,23 +36,42 @@ _LEGACY_SHOT_TYPES = frozenset({
     "ui_insert", "still_kenburns",
 })
 
-# Mapping from canonical visual_role value to legacy shot_type when the role
-# already uses a legacy-compatible value.
-# Fallback: infer from literal_vs_metaphorical + generation signals.
-
+# Mapping from canonical visual_role value to legacy shot_type.
+#
+# This must cover the FULL vocabulary that docs/prompts/STORYBOARD_SONNET5_DIRECTOR.md
+# instructs the LLM to emit (host_present_speaking, host_present_silent,
+# broll_argument_support, broll_emotional_reset, graphic_explanation,
+# overlay_frame, transition, establishing) PLUS the legacy-compatible values
+# the LLM sometimes emits directly. REPAIR-TKT-601A: the prior table only
+# mapped legacy shot_types, so every prompt-vocabulary role silently fell
+# through to hero_cutaway, producing all-hero storyboards that failed
+# review_storyboard structural validation.
 _VISUAL_ROLE_TO_SHOT_TYPE: dict[str, str] = {
+    # Hero family
     "host_present_speaking": "hero_lipsync",
-    "host_present_cutaway": "hero_cutaway",
+    "host_present_silent": "hero_cutaway",
     "hero_lipsync": "hero_lipsync",
     "hero_cutaway": "hero_cutaway",
+    # B-roll family — argument_support maps to archival so the validator's
+    # "no archival beat" check is satisfied (the LLM uses broll_argument_support
+    # for evidence-grounded b-roll, which is exactly the archival intent).
+    "broll_argument_support": "broll_archival",
+    "broll_emotional_reset": "broll_environment",
     "broll_archival": "broll_archival",
     "broll_metaphorical": "broll_metaphorical",
     "broll_environment": "broll_environment",
     "broll_tactical": "broll_tactical",
+    # Graphic family — graphic_explanation maps to graphic_progressive so the
+    # validator's "no graphic beat" check is satisfied.
+    "graphic_explanation": "graphic_progressive",
+    "overlay_frame": "kinetic_text",
     "graphic_progressive": "graphic_progressive",
     "graphic_title_card": "graphic_title_card",
     "kinetic_text": "kinetic_text",
     "ui_insert": "ui_insert",
+    # Transition/establishing
+    "transition": "broll_tactical",
+    "establishing": "broll_environment",
     "still_kenburns": "still_kenburns",
 }
 
@@ -143,19 +168,31 @@ _SHOT_CARRY_FIELDS = (
 
 
 def _resolve_shot_type(shot: dict) -> str:
-    """Maps canonical visual_role to a legacy shot_type."""
+    """Maps canonical visual_role to a legacy shot_type.
+
+    REPAIR-TKT-601A: the prior implementation silently returned 'hero_cutaway'
+    for any unknown role, which corrupted well-balanced LLM storyboards into
+    all-hero shapes that failed structural validation. Unknown roles now raise
+    ProjectionError (fail-loud per INV-3) so the operator sees the gap and the
+    mapping table is extended, rather than silently demoting graphics/b-roll.
+    """
     role = shot.get("visual_role", "")
     if role in _VISUAL_ROLE_TO_SHOT_TYPE:
         return _VISUAL_ROLE_TO_SHOT_TYPE[role]
+    # Secondary signals for roles not in the prompt vocabulary but present in
+    # some LLM outputs (e.g. legacy shot_type echoed back).
     lit = shot.get("literal_vs_metaphorical", "literal")
-    if lit == "metaphorical":
+    if lit == "metaphorical" and not role:
         return "broll_metaphorical"
     fallback = (shot.get("fallback_strategy") or "").lower()
-    if "still" in fallback:
+    if "still" in fallback and not role:
         return "still_kenburns"
-    if role and role.startswith("broll"):
-        return "broll_environment"
-    return "hero_cutaway"
+    # Unknown visual_role: fail loud. Do NOT silently demote to hero_cutaway.
+    raise ProjectionError(
+        f"Unknown visual_role {role!r} on shot {shot.get('shot_id', '')!r} "
+        f"cannot be projected to a legacy shot_type. Extend "
+        f"_VISUAL_ROLE_TO_SHOT_TYPE in storyboard_projection.py to cover it."
+    )
 
 
 def _resolve_model(shot_type: str, shot: dict) -> str:
@@ -295,8 +332,22 @@ def _resolve_text_policy(shot: dict) -> str:
     return "none"
 
 
-def _project_shot_to_beat(shot: dict, shot_overlays: list[dict]) -> dict:
-    """Project one canonical shot into a legacy beat dict."""
+def _project_shot_to_beat(
+    shot: dict,
+    shot_overlays: list[dict],
+    order: int = 0,
+    n: int = 1,
+    segment_text_map: Optional[dict] = None,
+) -> dict:
+    """Project one canonical shot into a legacy beat dict.
+
+    REPAIR-TKT-601A: populate the legacy fields the structural validator
+    (review_storyboard.review) requires — order, act, est_duration_sec,
+    narration_text, label, narrative_function — which the prior implementation
+    omitted entirely, causing every production storyboard to fail validation.
+    The test-mode path (produce_db.invoke_storyboard) already populated these;
+    this closes the divergence.
+    """
     shot_id = shot.get("shot_id", "")
     missing = [_f for _f in _CANONICAL_SEMANTIC_REQUIRED if not shot.get(_f)]
     if missing:
@@ -306,12 +357,30 @@ def _project_shot_to_beat(shot: dict, shot_overlays: list[dict]) -> dict:
         )
 
     shot_type = _resolve_shot_type(shot)
+    segment_id = shot.get("segment_id", "")
+    segment_text_map = segment_text_map or {}
+    narration_text = segment_text_map.get(segment_id, "") if segment_id else ""
+
+    # Duration: prefer the canonical planned_duration_sec (LLM-authored); fall
+    # back to a narration-derived estimate when absent (matches test-mode).
+    planned = shot.get("planned_duration_sec")
+    if planned and float(planned) > 0:
+        est_duration_sec = round(float(planned), 2)
+    else:
+        est_duration_sec = _beat_duration_sec(narration_text)
+
     beat: dict[str, Any] = {
         "beat_id": shot_id,
         "source_beat_id": shot_id,
         "canonical_shot_id": shot_id,
-        "segment_id": shot.get("segment_id", ""),
+        "order": order,
+        "act": _act_for(order, n),
+        "segment_id": segment_id,
+        "label": segment_id or shot_id,
+        "narration_text": narration_text,
         "shot_type": shot_type,
+        "est_duration_sec": est_duration_sec,
+        "narrative_function": _narrative_function_for(shot_type),
         "asset_type": _resolve_asset_type(shot_type, shot),
         "model": _resolve_model(shot_type, shot),
         "prompt_class": _resolve_prompt_class(shot),
@@ -383,18 +452,26 @@ def _overlay_to_graphic(overlay: dict) -> dict:
     }
 
 
-def project_canonical(canonical: dict) -> list[dict]:
+def project_canonical(
+    canonical: dict,
+    segment_text_map: Optional[dict] = None,
+) -> list[dict]:
     """Project a canonical Sonnet-authored storyboard into legacy beats.
 
     Args:
         canonical: A storyboard dict with storyboard_contract_version, shots,
                    and overlays (canonical mode).
+        segment_text_map: Optional mapping {segment_id: narration_text} from the
+                   approved script, used to populate beat.narration_text (which
+                   review_storyboard._trigger_coverage needs for year/study/
+                   ordinal trigger coverage). When None, narration_text is "".
 
     Returns:
         A list of legacy beat dicts, one per canonical shot.
 
     Raises:
-        ProjectionError: If any shot is missing required semantic source fields.
+        ProjectionError: If any shot is missing required semantic source fields,
+                        or has an unmappable visual_role (fail-loud per INV-3).
         ValueError: If canonical is not in canonical mode.
     """
     if not canonical.get("storyboard_contract_version"):
@@ -410,11 +487,16 @@ def project_canonical(canonical: dict) -> list[dict]:
         sid = ov.get("shot_id", "")
         overlays_by_shot.setdefault(sid, []).append(ov)
 
+    n = len(shots)
     beats: list[dict] = []
-    for shot in shots:
+    for order, shot in enumerate(shots):
         shot_id = shot.get("shot_id", "")
         shot_overlays = overlays_by_shot.get(shot_id, [])
-        beat = _project_shot_to_beat(shot, shot_overlays)
+        beat = _project_shot_to_beat(
+            shot, shot_overlays,
+            order=order, n=n,
+            segment_text_map=segment_text_map,
+        )
         beats.append(beat)
 
     return beats

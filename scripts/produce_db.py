@@ -20,6 +20,14 @@ import production_db as _db
 import production_repo as _repo
 import stage_runner
 from stage_runner import STAGE_REGISTRY, LegacyAdapter
+from storyboard_beat_utils import (
+    act_for as _act_for_shared,
+    beat_duration_sec as _beat_duration_sec_shared,
+    narrative_function_for as _narrative_function_for_shared,
+    compute_mix_summary as _compute_mix_summary_shared,
+    is_hero as _is_hero_shared,
+    is_graphic as _is_graphic_shared,
+)
 
 PROJECTS = ROOT / "Videos" / "Projects"
 
@@ -568,10 +576,8 @@ def _assign_shot_mix(n: int, video_type: str) -> list[str]:
 
 
 def _beat_duration_sec(narration_text: str) -> float:
-    words = len((narration_text or "").split())
-    if not words:
-        return 3.0  # minimum 3s for beats with no narration (b-roll, graphic)
-    return round(words / _NARRATION_WPS, 2)
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _beat_duration_sec_shared(narration_text)
 
 
 def _first_clause(text: str, words: int = 8) -> str:
@@ -591,11 +597,8 @@ def _concept_key(narration: str) -> str:
 
 
 def _act_for(order: int, n: int) -> int:
-    if n <= 1:
-        return 6
-    if order == n - 1:
-        return 6  # closing beat
-    return min(5, max(1, (order * 5) // max(1, n - 1) + 1))
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _act_for_shared(order, n)
 
 
 def _normalize_word(w: str) -> str:
@@ -682,18 +685,8 @@ def _visual_brief_for(shot_type: str, narration: str) -> str:
 
 
 def _narrative_function_for(shot_type: str) -> str:
-    return {
-        "hero_lipsync": "James addresses the viewer directly on camera.",
-        "hero_cutaway": "Reinforce James's presence with a non-speaking reaction under voiceover.",
-        "broll_archival": "Anchor the named evidence or date with a concrete archival visual.",
-        "broll_environment": "Establish the real-world setting behind the spoken claim.",
-        "broll_tactical": "Insert a concrete object that embodies the mechanism described.",
-        "broll_metaphorical": "Externalize the abstract idea as an observational metaphor.",
-        "graphic_progressive": "Render the framework or list as an on-screen progressive graphic.",
-        "graphic_title_card": "Mark the section with a branded title card.",
-        "kinetic_text": "Emphasize the key phrase as kinetic on-screen text.",
-        "still_kenburns": "Hold a representative still with gentle motion.",
-    }[shot_type]
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _narrative_function_for_shared(shot_type)
 
 
 def _graphics_for(shot_type: str, narration: str) -> dict:
@@ -754,11 +747,13 @@ def _visual_intent_for(shot_type: str, narration: str) -> dict:
 
 
 def _is_hero(shot_type: str) -> bool:
-    return bool(_CANONICAL_SHOTS.get(shot_type, {}).get("hero", False))
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _is_hero_shared(shot_type)
 
 
 def _is_graphic(shot_type: str) -> bool:
-    return bool(_CANONICAL_SHOTS.get(shot_type, {}).get("graphic", False))
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _is_graphic_shared(shot_type)
 
 
 def _max_hero_chain_sec(beats: list[dict]) -> float:
@@ -777,25 +772,8 @@ def _max_hero_chain_sec(beats: list[dict]) -> float:
 
 
 def _compute_mix_summary(beats: list[dict]) -> dict:
-    """shot_mix_summary consumed by review_storyboard._bands_check. Percentages
-    are duration-weighted (matching direct_storyboard.hydrate_beats)."""
-    total = sum((b.get("est_duration_sec", 0) or 0) for b in beats) or 1.0
-
-    def pct(pred) -> float:
-        s = sum((b.get("est_duration_sec", 0) or 0) for b in beats if pred(b))
-        return round(100.0 * s / total, 1)
-
-    return {
-        "hero_lipsync_pct": pct(lambda b: b.get("shot_type") == "hero_lipsync"),
-        "hero_cutaway_pct": pct(lambda b: b.get("shot_type") == "hero_cutaway"),
-        "broll_specific_pct": pct(lambda b: (b.get("shot_type") or "").startswith("broll")),
-        "broll_metaphorical_pct": pct(lambda b: b.get("shot_type") == "broll_metaphorical"),
-        "graphics_ui_pct": pct(lambda b: _is_graphic(b.get("shot_type") or "")),
-        "kinetic_text_pct": pct(lambda b: b.get("shot_type") == "kinetic_text"),
-        "max_hero_block_sec": _max_hero_chain_sec(beats),
-        "distinct_visual_setups": len(beats),
-        "total_cuts_estimate": len(beats),
-    }
+    # Delegates to storyboard_beat_utils (REPAIR-TKT-601A shared util).
+    return _compute_mix_summary_shared(beats)
 
 
 def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
@@ -840,7 +818,12 @@ def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
             )
 
         canonical = result.get("storyboard") or {}
-        beats = project_canonical(canonical)
+        # REPAIR-TKT-601A: thread segment narration text into the projection so
+        # beats carry narration_text (review_storyboard._trigger_coverage needs
+        # it for year/study/ordinal trigger coverage).
+        segment_text_map = {seg.get("id", ""): (seg.get("text", "") or "")
+                            for seg in segments if seg.get("id")}
+        beats = project_canonical(canonical, segment_text_map=segment_text_map)
         if not beats:
             raise RuntimeError("Sonnet storyboard projection produced no creative beats")
 
@@ -848,6 +831,7 @@ def invoke_storyboard(inputs: dict, tmp_path: Path) -> dict:
         storyboard_payload["schema_version"] = "2.0"
         storyboard_payload["video_type"] = inputs.get("video_type", storyboard_payload.get("video_type", "short"))
         storyboard_payload["beats"] = beats
+        storyboard_payload["shot_mix_summary"] = _compute_mix_summary(beats)
         storyboard_payload["projection_mode"] = "canonical_sonnet5_to_db_beats"
 
         doc = save_storyboard(

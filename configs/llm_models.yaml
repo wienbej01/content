@@ -24,6 +24,13 @@ profiles:
     is_final_creative_authority: false
     default_for: utility
 
+  vision_qa:
+    model: kilo/google/gemini-3.5-flash
+    purpose: semantic QA of rendered b-roll frames against unit contracts
+    is_final_creative_authority: false
+    supports_vision: true
+    max_tokens: 1024
+
 default_creative: sonnet_creative
 default_utility: auto_utility
 
