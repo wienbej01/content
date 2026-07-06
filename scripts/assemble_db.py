@@ -354,16 +354,17 @@ def validate_assembly_inputs(
     """Validate all assembly inputs before building the clip manifest.
 
     Checks:
-    1. Active timeline spans exist.
-    2. No gaps/overlaps beyond tolerance.
-    3. Each span maps to exactly one active render unit.
-    4. Each selected render unit has active artifact.
-    5. Each selected render unit has latest passing contract QA.
-    6. No stale render units selected.
-    7. No provider-generated local graphic selected.
-    8. Files exist on disk.
-    9. Artifact set hash can be computed.
-    10. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
+    1. Storyboard duration ownership (sum(required) == sum(spans) within 1/FPS).
+    2. Active timeline spans exist.
+    3. No gaps/overlaps beyond tolerance.
+    4. Each span maps to exactly one active render unit.
+    5. Each selected render unit has active artifact.
+    6. Each selected render unit has latest passing contract QA.
+    7. No stale render units selected.
+    8. No provider-generated local graphic selected.
+    9. Files exist on disk.
+    10. Artifact set hash can be computed.
+    11. Timeline heuristics (identical consecutive local_graphics, long holds, micro-cuts).
 
     ``review_only`` is an explicit non-publish mode for product evaluation. It
     may accept human A/V review evidence for hero lipsync segments, but it must
@@ -395,6 +396,33 @@ def validate_assembly_inputs(
             )
         evidence["span_count"] = len(spans)
         spans = [dict(s) for s in spans]
+
+        # DDL-W5: Storyboard duration ownership guard.
+        # sum(required_duration_ms) across non-stale render units must match
+        # sum(timeline_spans.duration_ms) within 1/FPS. If they diverge,
+        # someone patched durations outside plan_render_units — reject early.
+        span_dur_sum = sum(s["duration_ms"] or 0 for s in spans)
+        ru_dur = conn.execute(
+            """SELECT COALESCE(SUM(required_duration_ms), 0) AS total_ms
+               FROM render_units
+               WHERE production_id=?
+               AND status != 'stale'
+               AND (status IN ('valid', 'generated') OR active_artifact_id IS NOT NULL)""",
+            (production_id,),
+        ).fetchone()
+        ru_dur_sum = ru_dur["total_ms"] or 0
+        fps = 30
+        frame_dur_ms = 1000.0 / fps
+        if abs(ru_dur_sum - span_dur_sum) > frame_dur_ms + 1e-6:
+            raise AssemblyError(
+                f"BLOCKED_STORYBOARD_DURATION_DIVERGENCE: "
+                f"sum(render_units.required_duration_ms)={ru_dur_sum}ms vs "
+                f"sum(timeline_spans.duration_ms)={span_dur_sum}ms. "
+                f"Delta={abs(ru_dur_sum - span_dur_sum):.1f}ms exceeds "
+                f"frame-precision tolerance ({frame_dur_ms:.1f}ms at {fps}fps). "
+                f"Trigger a storyboard re-plan change request to resolve."
+            )
+        evidence["duration_divergence_ms"] = abs(ru_dur_sum - span_dur_sum)
 
         # 2. No gaps/overlaps beyond tolerance
         for i in range(1, len(spans)):

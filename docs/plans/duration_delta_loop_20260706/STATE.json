@@ -2,7 +2,7 @@
   "sprint_id": "DDL-2026-07-06",
   "plan_revision": 1,
   "plan_revision_note": "Duration Delta Feedback Loop closure. Karpathy-style 5-ticket loop: wire resolve_drift -> single rounding -> frame-precision tolerance -> consume trim/extend -> duration ownership guard. 6-agent protocol (Forensic, Eval Engineer, Engineer, Auditor, Validator, Loop Controller).",
-  "status": "in_progress",
+  "status": "completed",
   "current_wave": "all_tickets_parallel_ok",
   "active_ticket": null,
   "next_ticket": "DDL-W2",
@@ -12,14 +12,14 @@
     {"ticket": "DDL-W2", "deps": [], "status": "accepted", "note": "Single rounding point, trailing-pad to ceil"},
     {"ticket": "DDL-W3", "deps": ["DDL-W1"], "status": "accepted", "note": "Frame-precision aggregate tolerance"},
     {"ticket": "DDL-W4", "deps": ["DDL-W1"], "status": "accepted", "note": "Consume trim/extend in assembler"},
-    {"ticket": "DDL-W5", "deps": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4"], "status": "pending", "note": "Duration ownership guard + loop close"}
+    {"ticket": "DDL-W5", "deps": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4"], "status": "accepted", "note": "Duration ownership guard + loop close"}
   ],
-  "completed_tickets": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4"],
+  "completed_tickets": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4", "DDL-W5"],
   "ready_for_audit": [],
   "ready_for_validation": [],
-  "accepted_tickets": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4"],
+  "accepted_tickets": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4", "DDL-W5"],
   "loop_level_gates": {
-    "G-LOOP-1": {"description": "prod_4e0ce12e assemblable without DB-side duration patching", "status": "pending"},
+    "G-LOOP-1": {"description": "prod_4e0ce12e assemblable without DB-side duration patching", "status": "pass"},
     "G-LOOP-2": {"description": "Frame-precision aggregate quality gate active", "status": "pass"},
     "G-LOOP-3": {"description": "Legacy 3.0s check is named consistency guard only", "status": "pass"}
   },
@@ -35,7 +35,7 @@
     "DDL-F2": {"title": "Edit instruction never consumed by assembly manifest", "status": "resolved", "ticket": "DDL-W1+W4"},
     "DDL-F3": {"title": "Double ceil on provider duration", "status": "resolved", "ticket": "DDL-W2"},
     "DDL-F4": {"title": "Aggregate tolerance is a consistency check not a quality gate", "status": "resolved", "ticket": "DDL-W3"},
-    "DDL-F5": {"title": "DB-side duration patching is possible", "status": "open", "ticket": "DDL-W5"}
+    "DDL-F5": {"title": "DB-side duration patching is possible", "status": "resolved", "ticket": "DDL-W5"}
   },
   "invariants_inherited": ["INV-1", "INV-2", "INV-3", "INV-4", "INV-5"],
   "invariants_local": ["DDL-INV-1", "DDL-INV-2", "DDL-INV-3", "DDL-INV-4", "DDL-INV-5", "DDL-INV-6", "DDL-INV-7"],
