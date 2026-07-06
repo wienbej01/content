@@ -1231,6 +1231,26 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
             dst = fmt_tmp / f"cont_seg_{i}.mp4"
             scale_crop = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps={fps}"
 
+            trim = seg.get("trim")
+            extend = seg.get("extend")
+            if trim and extend:
+                raise ValueError(
+                    f"Segment {seg.get('id', i)} has both trim AND extend instructions. "
+                    f"Only one drift edit action is allowed per segment.")
+            if isinstance(trim, dict):
+                planned = trim.get("planned_duration_sec")
+                actual = trim.get("actual_duration_sec")
+                if planned is not None and actual is not None and planned > actual:
+                    raise ValueError(
+                        f"Segment {seg.get('id', i)} trim planned_duration_sec={planned:.3f}s "
+                        f"exceeds actual_duration_sec={actual:.3f}s. "
+                        f"Trim logic error: cannot trim to a longer duration than the clip.")
+                if planned is not None:
+                    target_dur = float(planned)
+            extend_pad = 0.0
+            if isinstance(extend, dict):
+                extend_pad = float(extend.get("extend_duration_sec", 0.0))
+
             # S13-T003: Check if this is a hero_island segment
             is_hero_island = False
             if get_audio_assembly_mode:
@@ -1283,19 +1303,30 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
                         f"the {MAX_FREEZE}s freeze-pad limit). "
                         f"Regenerate a longer clip or split into multiple shots.")
                 pad = max(0.0, shortfall)
-                vf = (f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={pad:.3f}"
-                      if pad > 0.0 else f"{scale_crop},{grade}")
+                vf_parts = [scale_crop, grade]
+                if extend_pad > 0.0:
+                    vf_parts.append(f"tpad=stop_mode=clone:stop_duration={extend_pad:.3f}")
+                if pad > 0.0:
+                    vf_parts.append(f"tpad=stop_mode=clone:stop_duration={pad:.3f}")
+                vf = ",".join(vf_parts)
+                final_dur = target_dur + extend_pad
                 run(["ffmpeg", "-y", "-i", str(media), "-an",
                      "-vf", vf,
-                     "-t", f"{target_dur:.3f}",
+                     "-t", f"{final_dur:.3f}",
                      "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                      "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
             else:
                 # A still has no intrinsic duration. Its timeline duration comes
                 # exclusively from the clip contract above.
+                vf_parts = [scale_crop, grade]
+                if extend_pad > 0.0:
+                    vf_parts.append(f"tpad=stop_mode=clone:stop_duration={extend_pad:.3f}")
+                vf_parts.append(f"tpad=stop_mode=clone:stop_duration={target_dur:.3f}")
+                vf = ",".join(vf_parts)
+                final_dur = target_dur + extend_pad
                 run(["ffmpeg", "-y", "-i", str(media), "-an",
-                     "-vf", f"{scale_crop},{grade},tpad=stop_mode=clone:stop_duration={target_dur:.3f}",
-                     "-t", f"{target_dur:.3f}",
+                     "-vf", vf,
+                     "-t", f"{final_dur:.3f}",
                      "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
                      "-pix_fmt", "yuv420p", "-r", str(fps), str(dst)], f"cont_seg_{i}")
             broll_clips.append(dst)
