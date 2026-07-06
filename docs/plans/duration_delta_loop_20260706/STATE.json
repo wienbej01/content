@@ -10,18 +10,18 @@
   "ticket_order": [
     {"ticket": "DDL-W1", "deps": [], "status": "accepted", "note": "Wire resolve_drift into QA + manifest emit"},
     {"ticket": "DDL-W2", "deps": [], "status": "accepted", "note": "Single rounding point, trailing-pad to ceil"},
-    {"ticket": "DDL-W3", "deps": ["DDL-W1"], "status": "pending", "note": "Frame-precision aggregate tolerance"},
+    {"ticket": "DDL-W3", "deps": ["DDL-W1"], "status": "accepted", "note": "Frame-precision aggregate tolerance"},
     {"ticket": "DDL-W4", "deps": ["DDL-W1"], "status": "pending", "note": "Consume trim/extend in assembler"},
     {"ticket": "DDL-W5", "deps": ["DDL-W1", "DDL-W2", "DDL-W3", "DDL-W4"], "status": "pending", "note": "Duration ownership guard + loop close"}
   ],
-  "completed_tickets": ["DDL-W1", "DDL-W2"],
+  "completed_tickets": ["DDL-W1", "DDL-W2", "DDL-W3"],
   "ready_for_audit": [],
   "ready_for_validation": [],
-  "accepted_tickets": ["DDL-W1", "DDL-W2"],
+  "accepted_tickets": ["DDL-W1", "DDL-W2", "DDL-W3"],
   "loop_level_gates": {
     "G-LOOP-1": {"description": "prod_4e0ce12e assemblable without DB-side duration patching", "status": "pending"},
-    "G-LOOP-2": {"description": "Frame-precision aggregate quality gate active", "status": "pending"},
-    "G-LOOP-3": {"description": "Legacy 3.0s check is named consistency guard only", "status": "pending"}
+    "G-LOOP-2": {"description": "Frame-precision aggregate quality gate active", "status": "pass"},
+    "G-LOOP-3": {"description": "Legacy 3.0s check is named consistency guard only", "status": "pass"}
   },
   "residual_risks": [],
   "spend_authorization": {
@@ -34,7 +34,7 @@
     "DDL-F1": {"title": "Unwired duration drift resolver", "status": "resolved", "ticket": "DDL-W1"},
     "DDL-F2": {"title": "Edit instruction never consumed by assembly manifest", "status": "open", "ticket": "DDL-W1+W4"},
     "DDL-F3": {"title": "Double ceil on provider duration", "status": "resolved", "ticket": "DDL-W2"},
-    "DDL-F4": {"title": "Aggregate tolerance is a consistency check not a quality gate", "status": "open", "ticket": "DDL-W3"},
+    "DDL-F4": {"title": "Aggregate tolerance is a consistency check not a quality gate", "status": "resolved", "ticket": "DDL-W3"},
     "DDL-F5": {"title": "DB-side duration patching is possible", "status": "open", "ticket": "DDL-W5"}
   },
   "invariants_inherited": ["INV-1", "INV-2", "INV-3", "INV-4", "INV-5"],

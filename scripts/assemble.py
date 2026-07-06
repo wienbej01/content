@@ -1139,10 +1139,35 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
         seg_durations = _contract_segment_durations(segments)
         if seg_durations is not None:
             contract_total = sum(seg_durations)
-            if abs(contract_total - total_nar_dur) > 3.0:
+            delta = contract_total - total_nar_dur
+            abs_delta = abs(delta)
+            frame_dur = 1.0 / fps
+            evidence = {
+                "check": "aggregate_timeline_duration_gate",
+                "contract_total_sec": round(contract_total, 3),
+                "total_nar_dur_sec": round(total_nar_dur, 3),
+                "delta_sec": round(delta, 3),
+                "fps": fps,
+                "frame_duration_sec": round(frame_dur, 4),
+            }
+            if abs_delta > 3.0:
+                evidence["check"] = "CONSISTENCY_ASSEMBLY_MANIFEST_DB_MISMATCH"
+                evidence["severity"] = "BLOCKED"
                 raise RuntimeError(
-                    f"Clip timeline duration mismatch: clips={contract_total:.3f}s vs "
-                    f"audio={total_nar_dur:.3f}s (delta={contract_total - total_nar_dur:.3f}s).")
+                    f"CONSISTENCY_ASSEMBLY_MANIFEST_DB_MISMATCH: "
+                    f"clip timeline duration vs audio mismatch "
+                    f"clips={contract_total:.3f}s vs audio={total_nar_dur:.3f}s "
+                    f"(delta={delta:.3f}s, threshold=3.0s). "
+                    f"BLOCKED: manifest-to-DB inconsistency exceeds maximum tolerance. "
+                    f"evidence={json.dumps(evidence)}")
+            if abs_delta > frame_dur:
+                evidence["severity"] = "FAIL"
+                raise RuntimeError(
+                    f"AGGREGATE_TIMELINE_QUALITY_GATE_FAILED: "
+                    f"clip timeline duration vs audio mismatch "
+                    f"clips={contract_total:.3f}s vs audio={total_nar_dur:.3f}s "
+                    f"(delta={delta:.3f}s > {frame_dur:.3f}s frame precision). "
+                    f"evidence={json.dumps(evidence)}")
         elif beat_timing and beat_timing.get("beats"):
             # Group beat durations by segment
             from collections import OrderedDict
