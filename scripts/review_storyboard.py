@@ -144,7 +144,74 @@ def _bands_check(m, blocking, warnings, beats=None, video_type="explainer"):
         blocking.append(f"only {m.get('distinct_visual_setups')} distinct visual setups (<{min_setups})")
 
 
-def _anti_patterns(beats, blocking, warnings):
+def _visual_variation_check(beats, blocking, warnings):
+    """Frame-gap and visual-fatigue constraints for hero reference frames.
+
+    Frame-gap: no two hero beats using the same reference frame can have a
+    gap (in beat count) less than MIN_HERO_FRAME_GAP (default 3).
+
+    Visual fatigue: composite score from (a) concentration of same-angle
+    hero blocks and (b) act-level diversity of reference-frame sets.
+    Exceeds MAX_VISUAL_FATIGUE_SCORE (default 0.75) → blocking.
+    """
+    MIN_HERO_FRAME_GAP = 3
+    MAX_VISUAL_FATIGUE_SCORE = 0.75
+
+    # Frame-gap check
+    last_frame_index: dict[str, int] = {}
+    hero_beats = [b for b in beats if b.get("shot_type") in HERO_SHOT_TYPES]
+
+    for i, b in enumerate(hero_beats):
+        frame = b.get("canonical_ref_frame") or b.get("image_path") or b.get("reference_frame")
+        if not frame:
+            continue
+        if frame in last_frame_index:
+            gap = i - last_frame_index[frame]
+            if gap < MIN_HERO_FRAME_GAP:
+                blocking.append(
+                    f"frame_gap_violation: {b.get('beat_id', f'#{i}')} uses frame "
+                    f"{frame!r} after only {gap} beats (min {MIN_HERO_FRAME_GAP})"
+                )
+        last_frame_index[frame] = i
+
+    # Visual fatigue score
+    if hero_beats:
+        # (a) concentration: fraction of hero beats using the most common frame
+        from collections import Counter
+        frame_counts = Counter(
+            (b.get("canonical_ref_frame") or b.get("image_path") or b.get("reference_frame"))
+            for b in hero_beats
+            if (b.get("canonical_ref_frame") or b.get("image_path") or b.get("reference_frame"))
+        )
+        if frame_counts:
+            most_common_count = frame_counts.most_common(1)[0][1]
+            concentration = most_common_count / len(hero_beats)
+        else:
+            concentration = 0.0
+
+        # (b) act-level diversity: fraction of acts that use >1 distinct frame
+        act_frames: dict[int, set] = {}
+        for b in hero_beats:
+            act = b.get("act", 0)
+            frame = b.get("canonical_ref_frame") or b.get("image_path") or b.get("reference_frame")
+            if frame:
+                act_frames.setdefault(act, set()).add(frame)
+        if act_frames:
+            diverse_acts = sum(1 for frames in act_frames.values() if len(frames) > 1)
+            act_diversity = diverse_acts / len(act_frames)
+        else:
+            act_diversity = 0.0
+
+        # Weighted score: higher = more fatiguing
+        w1, w2 = 0.6, 0.4
+        fatigue_score = w1 * concentration + w2 * (1 - act_diversity)
+
+        if fatigue_score > MAX_VISUAL_FATIGUE_SCORE:
+            blocking.append(
+                f"visual_fatigue_violation: score {fatigue_score:.2f} exceeds "
+                f"max {MAX_VISUAL_FATIGUE_SCORE} (concentration={concentration:.2f}, "
+                f"act_diversity={act_diversity:.2f})"
+            )
     """§3.14 anti-patterns the router must never emit; validator double-checks."""
     prev = None
     for i, b in enumerate(beats):
@@ -251,6 +318,7 @@ def review(storyboard, constraints):
     _anti_patterns(beats, blocking, warnings)
     _trigger_coverage(beats, blocking, warnings)
     _coverage_min(beats, blocking, warnings)
+    _visual_variation_check(beats, blocking, warnings)
 
     if blocking:
         fixes.append("Re-route via storyboard.py; ensure archival/graphic/kinetic beats and shot-mix bands.")
