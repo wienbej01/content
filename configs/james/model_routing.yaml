@@ -70,8 +70,10 @@ higgsfield:
   require_cost_estimate: true
 
 budget_caps:
-  explainer: 60
+  teaser: 15
   short: 25
+  explainer: 60
+  flagship: 120
 
 costs:
   seedance_2_0:
