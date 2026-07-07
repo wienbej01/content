@@ -213,6 +213,9 @@ def _visual_variation_check(beats, blocking, warnings):
                 f"max {MAX_VISUAL_FATIGUE_SCORE} (concentration={concentration:.2f}, "
                 f"act_diversity={act_diversity:.2f})"
             )
+
+
+def _anti_patterns(beats, blocking, warnings):
     """§3.14 anti-patterns the router must never emit; validator double-checks."""
     prev = None
     for i, b in enumerate(beats):
@@ -321,6 +324,8 @@ def review(storyboard, constraints):
     _coverage_min(beats, blocking, warnings)
     _visual_variation_check(beats, blocking, warnings)
     _location_transition_check(beats, warnings)
+
+    return blocking, warnings, fixes
 
 
 def _location_transition_check(beats, warnings):
