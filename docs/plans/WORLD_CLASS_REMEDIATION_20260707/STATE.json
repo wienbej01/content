@@ -2,24 +2,27 @@
   "sprint_id": "WCR-2026-07",
   "plan_revision": 1,
   "status": "executing",
-  "current_wave": "Wave 2",
-  "active_ticket": "TKT-201",
-  "next_ticket": "TKT-201",
-  "completed_tickets": ["TKT-001","TKT-002","TKT-003","TKT-004","TKT-005","TKT-006",
-                       "TKT-101","TKT-102","TKT-103","TKT-104","TKT-105"],
-  "accepted_tickets": ["TKT-001","TKT-002","TKT-003","TKT-004","TKT-005","TKT-006",
-                       "TKT-101","TKT-102","TKT-103","TKT-104","TKT-105"],
+  "current_wave": "Wave 3",
+  "active_ticket": "TKT-301",
+  "next_ticket": "TKT-301",
+  "completed_tickets": [
+    "TKT-001","TKT-002","TKT-003","TKT-004","TKT-005","TKT-006",
+    "TKT-101","TKT-102","TKT-103","TKT-104","TKT-105",
+    "TKT-201","TKT-202","TKT-203","TKT-204",
+    "TKT-401","TKT-402","TKT-403","TKT-404",
+    "TKT-501","TKT-502","TKT-503","TKT-504","TKT-505"
+  ],
+  "wave_gates_passed": [
+    "W0-G1","W0-G2","W0-G3",
+    "W1-G1","W1-G2","W1-G3","W1-G4",
+    "W2-G1","W2-G2","W2-G3",
+    "W4-G1","W4-G2","W4-G3",
+    "W5-G1","W5-G2","W5-G3"
+  ],
   "blocked_tickets": [],
   "failed_tickets": [],
-  "ready_for_audit": [],
-  "audit_failed": [],
-  "ready_for_validation": [],
-  "ready_for_validation_with_findings": [],
-  "repair_cycles": {},
-  "blockers": [],
-  "last_verified_commit": "3cda1b2",
+  "last_verified_commit": "478246b",
   "focused_tests_passing": true,
-  "wave_gates_passed": ["W0-G1","W0-G2","W0-G3","W1-G1","W1-G2","W1-G3","W1-G4"],
   "final_gate_passing": false,
-  "last_updated": "2026-07-07T18:30:00+08:00"
+  "last_updated": "2026-07-08T02:30:00+08:00"
 }
