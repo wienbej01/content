@@ -41,6 +41,22 @@ lipsync_references:
         - {angle: three_quarter,  path: assets/reference/james/canonical/JAMES_THREE_QUARTER_NAVY_SWEATER_002.png}
         - {angle: side_profile,   path: assets/reference/james/canonical/JAMES_SIDE_PROFILE_NAVY_SWEATER_002.png}
 
+# Visual chapter mapping for act-based reference-frame rotation.
+# Used when VISUAL_VARIATION_MODE=chapter. Each act maps to a reference-frame
+# set + allowed_angles. Acts not listed fall back to active_set.
+# Default VISUAL_VARIATION_MODE=flat preserves existing behavior.
+visual_variation:
+  mode: flat  # flat|chapter
+  min_hero_frame_gap: 3
+  max_visual_fatigue_score: 0.75
+  chapters:
+    1: {set: navy_sweater_library, allowed_angles: [front, front_speaking]}
+    2: {set: navy_sweater_library, allowed_angles: [three_quarter, side_profile]}
+    3: {set: dark_jacket_library,  allowed_angles: [front, three_quarter]}
+    4: {set: dark_jacket_library,  allowed_angles: [medium_wide, side_profile]}
+    5: {set: navy_sweater_library, allowed_angles: [front_speaking, three_quarter]}
+    6: {set: dark_jacket_library,  allowed_angles: [front, side_profile]}
+
 higgsfield:
   require_cost_estimate: true
 

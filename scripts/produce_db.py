@@ -1265,23 +1265,42 @@ def _compose_generation_prompt(visual_intent: dict, shot_type: str,
     return (result, None, None)
 
 
-def _select_hero_reference_image(routing: dict, hero_beat_index: int) -> str | None:
-    """S9-C06: Select a deterministic speaking-frame reference for hero_lipsync.
+def _select_hero_reference_image(routing: dict, hero_beat_index: int,
+                                  act: int | None = None) -> str | None:
+    """Select a deterministic speaking-frame reference for hero_lipsync.
 
-    Reads the active_set from model_routing.yaml lipsync_references and rotates
-    across ALL frames in the set (round-robin, no two consecutive hero beats reuse
-    the same frame). Honors a beat's explicit camera_angle_id when it matches a
-    frame's ``angle`` (handled by the caller via the beat's visual_intent).
+    In VISUAL_VARIATION_MODE=flat (default), reads the active_set from
+    model_routing.yaml lipsync_references and rotates across all frames.
+
+    In VISUAL_VARIATION_MODE=chapter, uses visual_variation.chapters to pick
+    a frame set + allowed_angles based on the beat's act. Round-robins within
+    the chapter's allowed angles, no consecutive repeat.
     """
     refs = routing.get("lipsync_references", {})
+    vv = routing.get("visual_variation", {})
+    mode = vv.get("mode", "flat")
+
+    if mode == "chapter" and act is not None:
+        chapters = vv.get("chapters", {})
+        chapter = chapters.get(act)
+        if chapter:
+            set_name = chapter.get("set", refs.get("active_set", "navy_sweater_library"))
+            allowed = chapter.get("allowed_angles", [])
+            sets = refs.get("sets", {})
+            frame_set = sets.get(set_name, {})
+            frames = frame_set.get("frames", [])
+            if allowed:
+                frames = [f for f in frames if f.get("angle") in allowed]
+            if frames:
+                return frames[hero_beat_index % len(frames)].get("path")
+
+    # Default: flat mode (existing behavior)
     active_set_name = refs.get("active_set", "navy_sweater_library")
     sets = refs.get("sets", {})
     active_set = sets.get(active_set_name, {})
     frames = active_set.get("frames", [])
-
     if not frames:
         return None
-
     return frames[hero_beat_index % len(frames)].get("path")
 
 
@@ -1481,7 +1500,13 @@ def invoke_compile_media(inputs: dict, tmp_path: Path) -> dict:
             spec["negative_prompt"] = negative_constraints
 
         if audio_policy == "HERO_SYNC_LOCKED":
-            hero_ref = _select_hero_reference_image(routing, hero_beat_index)
+            beat_act = None
+            if spec.get("act"):
+                beat_act = spec.get("act")
+            elif span.get("act"):
+                beat_act = span.get("act")
+            hero_ref = _select_hero_reference_image(routing, hero_beat_index,
+                                                   act=beat_act)
             if hero_ref:
                 spec["image_path"] = str(ROOT / hero_ref) if not Path(hero_ref).is_absolute() else hero_ref
             hero_beat_index += 1
