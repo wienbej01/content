@@ -1,98 +1,223 @@
-"""Deterministic, hermetic EDL override fixtures.
+#!/usr/bin/env python3
+"""Deterministic EDL override fixtures for TKT-005.
 
-Three fixtures for the edit-decision-list (EDL) override feature (TKT-601):
-  1. valid_edl       — trim ±0.5s on non-hero beats, no constraint violation.
-  2. invalid_edl     — trim below BEAT_MIN_SEC or shot-mix band violation.
-  3. reorder_edl     — swap two adjacent non-hero beats.
+Generates three fixture types for testing edit-decision-list override validation:
+1. Valid EDL override — trim ±0.5s on non-hero beats, no constraint violation.
+2. Invalid EDL override — trim that pushes a beat below BEAT_MIN_SEC or violates shot-mix bands.
+3. Valid reorder override — swap two adjacent non-hero beats.
 
-Each fixture is a JSON file with a deterministic shape. No production code changes.
+All outputs are JSON configs; no external dependencies.
 """
-from __future__ import annotations
-
+import hashlib
 import json
-import math
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any
 
+import pytest
 
-class EDLFixture(NamedTuple):
-    path: Path
-    label: str  # 'valid' | 'invalid' | 'reorder'
+# ---------------------------------------------------------------------------
+# Fixture data
+# ---------------------------------------------------------------------------
 
-
-def _base_beats() -> list[dict]:
-    return [
-        {"beat_id": "b_hook_001", "order": 0, "act": 1, "shot_type": "hero_lipsync",
-         "narrative_function": "hook", "est_duration_sec": 8.0, "audio_policy": "keep_lipsync"},
-        {"beat_id": "b_archival_002", "order": 1, "act": 1, "shot_type": "broll_archival",
-         "narrative_function": "evidence_anchor", "est_duration_sec": 6.0},
-        {"beat_id": "b_background_003", "order": 2, "act": 2, "shot_type": "talking_head_standard",
-         "narrative_function": "thesis_statement", "est_duration_sec": 12.0,
-         "audio_policy": "keep_lipsync"},
-        {"beat_id": "b_metaphorical_004", "order": 3, "act": 2, "shot_type": "broll_metaphorical",
-         "narrative_function": "visual_pause", "est_duration_sec": 4.0},
-        {"beat_id": "b_pattern_005", "order": 4, "act": 3, "shot_type": "talking_head_standard",
-         "narrative_function": "pattern_definition", "est_duration_sec": 10.0,
-         "audio_policy": "keep_lipsync"},
-        {"beat_id": "b_graphic_006", "order": 5, "act": 3, "shot_type": "graphic_progressive",
-         "narrative_function": "framework_render", "est_duration_sec": 7.0},
-        {"beat_id": "b_system_007", "order": 6, "act": 4, "shot_type": "talking_head_standard",
-         "narrative_function": "system_walkthrough", "est_duration_sec": 9.0,
-         "audio_policy": "keep_lipsync"},
-        {"beat_id": "b_environment_008", "order": 7, "act": 5, "shot_type": "broll_environment",
-         "narrative_function": "tonal_reset", "est_duration_sec": 5.0},
-        {"beat_id": "b_giveback_009", "order": 8, "act": 6, "shot_type": "talking_head_standard",
-         "narrative_function": "thesis_close", "est_duration_sec": 11.0,
-         "audio_policy": "keep_lipsync"},
-        {"beat_id": "b_cta_010", "order": 9, "act": 6, "shot_type": "talking_head_hero",
-         "narrative_function": "call_to_action", "est_duration_sec": 6.0,
-         "audio_policy": "keep_lipsync"},
-    ]
-
-
-def make_valid_edl(tmp_path: Path) -> EDLFixture:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    out = tmp_path / "valid_edl.json"
-    doc = {"edl_version": "1.0", "overrides": [
-        {"beat_id": "b_archival_002", "trim_start_sec": 0.0, "trim_end_sec": 0.5},
-        {"beat_id": "b_system_007", "trim_start_sec": 0.5, "trim_end_sec": 0.0},
-        {"beat_id": "b_environment_008", "trim_start_sec": 0.4, "trim_end_sec": 0.4},
-        {"beat_id": "b_pattern_005", "music_duck_db": -12.0}
-    ], "beats": _base_beats()}
-    out.write_text(json.dumps(doc, indent=2))
-    return EDLFixture(out, "valid")
-
-
-def make_invalid_edl(tmp_path: Path) -> EDLFixture:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    out = tmp_path / "invalid_edl.json"
-    doc = {"edl_version": "1.0", "overrides": [
-        # trim 5.6s off a 6.0s beat → new length 0.4s < BEAT_MIN_SEC (0.1s is floor; documented impl will floor at 0.5s here)
-        {"beat_id": "b_metaphorical_004", "trim_start_sec": 2.8, "trim_end_sec": 2.8},
-        # exceeds hero chain cap by attempting to fully hero-lengthen via reorder
-        {"beat_id": "b_hook_001", "reorder_after": "b_cta_010"}
-    ], "beats": _base_beats()}
-    out.write_text(json.dumps(doc, indent=2))
-    return EDLFixture(out, "invalid")
-
-
-def make_reorder_edl(tmp_path: Path) -> EDLFixture:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    out = tmp_path / "reorder_edl.json"
-    doc = {"edl_version": "1.0", "overrides": [
-        {"beat_id": "b_archival_002", "reorder_after": "b_background_003"},
-        {"beat_id": "b_metaphorical_004", "reorder_after": "b_pattern_005"}
-    ], "beats": _base_beats()}
-    out.write_text(json.dumps(doc, indent=2))
-    return EDLFixture(out, "reorder")
-
-
-_ALL_BUILDERS = {
-    "valid": make_valid_edl,
-    "invalid": make_invalid_edl,
-    "reorder": make_reorder_edl,
+SAMPLE_STORYBOARD = {
+    "project_id": "test_edl_fixtures",
+    "video_type": "explainer",
+    "schema_version": "2.0",
+    "beats": [
+        {"beat_id": "B001", "order": 1, "act": 1, "shot_type": "hero_lipsync", "est_duration_sec": 5.0,
+         "narrative_function": "hook", "visual_brief": "James to camera"},
+        {"beat_id": "B002", "order": 2, "act": 1, "shot_type": "broll_environment", "est_duration_sec": 5.0,
+         "narrative_function": "metaphorical_b_roll", "visual_brief": "City skyline at dawn"},
+        {"beat_id": "B003", "order": 3, "act": 2, "shot_type": "hero_lipsync", "est_duration_sec": 6.0,
+         "narrative_function": "thesis", "visual_brief": "James delivers framework"},
+        {"beat_id": "B004", "order": 4, "act": 2, "shot_type": "graphic_progressive", "est_duration_sec": 4.0,
+         "narrative_function": "framework_reveal", "visual_brief": "Progressive framework graphic"},
+        {"beat_id": "B005", "order": 5, "act": 3, "shot_type": "broll_archival", "est_duration_sec": 5.0,
+         "narrative_function": "evidence", "visual_brief": "Archival footage of researcher"},
+        {"beat_id": "B006", "order": 6, "act": 4, "shot_type": "hero_lipsync", "est_duration_sec": 5.0,
+         "narrative_function": "thesis_close", "visual_brief": "James closing argument"},
+    ],
 }
 
 
-def build_all_fixtures(tmp_path: Path) -> dict[str, EDLFixture]:
-    return {name: builder(tmp_path) for name, builder in _ALL_BUILDERS.items()}
+# ---------------------------------------------------------------------------
+# Fixture 1: Valid EDL override
+# ---------------------------------------------------------------------------
+
+def generate_valid_edl_override(tmp_path: Path) -> dict[str, Any]:
+    """Generate a valid EDL override that trims non-hero beats within acceptable bounds."""
+    override = {
+        "fixture_type": "valid_edl",
+        "description": "Valid EDL: trim ±0.5s on non-hero beats, no reorder, no violation",
+        "is_valid": True,
+        "overrides": [
+            {
+                "beat_id": "B002",
+                "trim_start_sec": 0.0,
+                "trim_end_sec": 0.5,
+                "reorder_after": None,
+                "music_duck_db": -12.0,
+            },
+            {
+                "beat_id": "B005",
+                "trim_start_sec": 0.3,
+                "trim_end_sec": 0.0,
+                "reorder_after": None,
+                "music_duck_db": -10.0,
+            },
+        ],
+    }
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    out = tmp_path / "edl_valid.json"
+    out.write_text(json.dumps(override, indent=2, sort_keys=True))
+    return {
+        "path": str(out),
+        "override": override,
+        "is_valid": True,
+        "fixture_type": "valid_edl",
+        "storyboard": SAMPLE_STORYBOARD,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture 2: Invalid EDL override
+# ---------------------------------------------------------------------------
+
+def generate_invalid_edl_override(tmp_path: Path) -> dict[str, Any]:
+    """Generate an EDL override that pushes a beat below BEAT_MIN_SEC."""
+    override = {
+        "fixture_type": "invalid_edl",
+        "description": "Invalid EDL: B004 trim exceeds beat minimum (would push 4.0s beat below 2.0s)",
+        "is_valid": False,
+        "violation": "BEAT_MIN_SEC",
+        "overrides": [
+            {
+                "beat_id": "B004",
+                "trim_start_sec": 3.0,  # Would leave only 1.0s (below BEAT_MIN_SEC)
+                "trim_end_sec": 0.0,
+                "reorder_after": None,
+                "music_duck_db": 0.0,
+            },
+        ],
+    }
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    out = tmp_path / "edl_invalid.json"
+    out.write_text(json.dumps(override, indent=2, sort_keys=True))
+    return {
+        "path": str(out),
+        "override": override,
+        "is_valid": False,
+        "fixture_type": "invalid_edl",
+        "storyboard": SAMPLE_STORYBOARD,
+        "expected_error": "BEAT_MIN_SEC violation",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture 3: Valid reorder EDL override
+# ---------------------------------------------------------------------------
+
+def generate_reorder_edl_override(tmp_path: Path) -> dict[str, Any]:
+    """Generate a valid EDL override that reorders two adjacent non-hero beats."""
+    override = {
+        "fixture_type": "reorder_edl",
+        "description": "Valid EDL: swap two adjacent non-hero beats (B004, B005)",
+        "is_valid": True,
+        "overrides": [
+            {
+                "beat_id": "B004",
+                "trim_start_sec": 0.0,
+                "trim_end_sec": 0.0,
+                "reorder_after": "B005",  # Move B004 after B005
+                "music_duck_db": 0.0,
+            },
+        ],
+    }
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    out = tmp_path / "edl_reorder.json"
+    out.write_text(json.dumps(override, indent=2, sort_keys=True))
+    return {
+        "path": str(out),
+        "override": override,
+        "is_valid": True,
+        "fixture_type": "reorder_edl",
+        "storyboard": SAMPLE_STORYBOARD,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pytest fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def valid_edl(tmp_path):
+    yield generate_valid_edl_override(tmp_path)
+
+
+@pytest.fixture
+def invalid_edl(tmp_path):
+    yield generate_invalid_edl_override(tmp_path)
+
+
+@pytest.fixture
+def reorder_edl(tmp_path):
+    yield generate_reorder_edl_override(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+def test_valid_edl(valid_edl):
+    """Valid EDL fixture: JSON parses, metadata label is valid."""
+    p = Path(valid_edl["path"])
+    assert p.exists(), "valid EDL JSON not created"
+    data = json.loads(p.read_text())
+    assert data["is_valid"] is True
+    assert data["fixture_type"] == "valid_edl"
+    assert len(data["overrides"]) == 2
+    # All trims within ±0.5s on non-hero beats
+    for ov in data["overrides"]:
+        assert abs(ov["trim_start_sec"]) <= 0.5, f"trim_start {ov['trim_start_sec']} exceeds 0.5s"
+        assert abs(ov["trim_end_sec"]) <= 0.5, f"trim_end {ov['trim_end_sec']} exceeds 0.5s"
+
+
+def test_invalid_edl(invalid_edl):
+    """Invalid EDL fixture: JSON parses, metadata label is invalid."""
+    p = Path(invalid_edl["path"])
+    assert p.exists()
+    data = json.loads(p.read_text())
+    assert data["is_valid"] is False
+    assert data["fixture_type"] == "invalid_edl"
+    assert data["violation"] == "BEAT_MIN_SEC"
+    assert "expected_error" in invalid_edl
+
+
+def test_reorder_edl(reorder_edl):
+    """Reorder EDL fixture: JSON parses, reorder_after field present."""
+    p = Path(reorder_edl["path"])
+    assert p.exists()
+    data = json.loads(p.read_text())
+    assert data["is_valid"] is True
+    assert data["fixture_type"] == "reorder_edl"
+    assert data["overrides"][0]["reorder_after"] == "B005"
+
+
+def test_fixture_determinism(tmp_path):
+    """Same inputs produce same JSON output (hash match across runs)."""
+    m1 = generate_valid_edl_override(tmp_path / "run1")
+    m2 = generate_valid_edl_override(tmp_path / "run2")
+    assert Path(m1["path"]).read_bytes() == Path(m2["path"]).read_bytes(), \
+        "valid EDL fixture generation is not deterministic"
+
+
+def test_storyboard_reference(valid_edl):
+    """EDL fixture references a valid storyboard."""
+    sb = valid_edl["storyboard"]
+    assert sb["project_id"] == "test_edl_fixtures"
+    assert len(sb["beats"]) == 6
+    # All beats have required fields
+    for b in sb["beats"]:
+        assert "beat_id" in b
+        assert "shot_type" in b
+        assert "est_duration_sec" in b
