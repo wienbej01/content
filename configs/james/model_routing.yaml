@@ -23,6 +23,15 @@ lipsync_references:
   # Brand-default wardrobe (navy sweater / white Oxford, BRAND_SPEC §3). 4 angles:
   # front + front_speaking + three_quarter + side_profile, all in the library setting.
   active_set: navy_sweater_library
+  visual_chapters:
+    mode: chapter
+    chapters:
+      1: { set: navy_sweater_library, allowed_angles: [front, front_speaking] }
+      2: { set: navy_sweater_library, allowed_angles: [three_quarter, side_profile] }
+      3: { set: dark_jacket_library, allowed_angles: [front, three_quarter] }
+      4: { set: dark_jacket_library, allowed_angles: [side_profile, medium_wide] }
+      5: { set: navy_sweater_library, allowed_angles: [front_speaking, three_quarter] }
+      6: { set: navy_sweater_library, allowed_angles: [front] }
   sets:
     dark_jacket_library:
       wardrobe: "navy blazer over white open-collar shirt"

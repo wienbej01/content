@@ -1251,6 +1251,16 @@ def assemble_format(manifest, fmt, speeds, base, tmp, allow_looping=False):
             if isinstance(extend, dict):
                 extend_pad = float(extend.get("extend_duration_sec", 0.0))
 
+            # TKT-602: Auto-extend emotional-beat holds (thesis close, philosophical close, etc.)
+            if extend_pad == 0.0 and configs.get("EMOTIONAL_HOLDS_ENABLED", True):
+                narrative_fn = (seg.get("narrative_function") or "").strip().lower()
+                if narrative_fn in EMOTIONAL_HOLD_FUNCTIONS:
+                    # Deterministic: use beat_id hash to pick hold duration in [0.5, 1.5]
+                    beat_id = seg.get("beat_id", seg.get("id", ""))
+                    hold_hash = int(hashlib.md5(beat_id.encode()).hexdigest()[:8], 16)
+                    hold_frac = (hold_hash % 100) / 100.0  # 0.0 - 0.99
+                    extend_pad = round(0.5 + hold_frac * 1.0, 3)  # 0.5s - 1.5s
+
             # S13-T003: Check if this is a hero_island segment
             is_hero_island = False
             if get_audio_assembly_mode:

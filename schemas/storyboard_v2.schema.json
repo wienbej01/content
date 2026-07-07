@@ -240,6 +240,12 @@
         "segment_id": {"type": "string"},
         "visual_role": {"type": "string"},
         "visual_concept": {"type": "string"},
+        "visual_chapter": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6,
+          "description": "MITmonk act (1-6) this shot belongs to. Used for reference-frame variation: each act maps to approved camera angles in model_routing.yaml → visual_chapters."
+        },
         "why_this_visual": {
           "type": "string",
           "minLength": 10,

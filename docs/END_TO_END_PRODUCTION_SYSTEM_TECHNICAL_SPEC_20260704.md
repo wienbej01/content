@@ -476,6 +476,8 @@ Technical details:
 - Default TTS model in `scripts/tts.py`: `eleven_v3`.
 - ElevenLabs REST/API integration is represented by `ElevenLabsAdapter`.
 - `ELEVENLABS_API_KEY` is required for paid production TTS.
+  Configured via `~/.config/ytchannel/runtime.env` (sourced before running the pipeline).
+  The runtime.env also sets `ELEVENLABS_VOICE_ID` for the James Harrington voice.
 - Test mode forbids paid ElevenLabs calls unless a fixture audio path is supplied.
 - Registered narration artifacts store SHA-256, duration, stream metadata, and stage provenance.
 
@@ -897,7 +899,7 @@ Runtime dependencies visible in the repo:
 - FFmpeg and FFprobe for media probing, slicing, and assembly.
 - Kilo CLI for LLM invocation.
 - Sonnet 5 access through Kilo for runtime storyboard authority.
-- ElevenLabs API key for production TTS.
+- ElevenLabs API key for production TTS (configured in `~/.config/ytchannel/runtime.env`).
 - Higgsfield CLI package `@higgsfield/cli` for paid video generation.
 
 Common setup:
@@ -1000,7 +1002,7 @@ npm ls @higgsfield/cli
 
 Operational checks:
 
-- `ELEVENLABS_API_KEY` is present for production TTS.
+- `ELEVENLABS_API_KEY` is present for production TTS (`source ~/.config/ytchannel/runtime.env`).
 - Higgsfield CLI is authenticated and has provider capacity.
 - Sonnet 5 is available through Kilo.
 - `PRODUCTION_DB_PATH` points to the intended DB.
