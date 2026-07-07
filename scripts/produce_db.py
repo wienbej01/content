@@ -3355,9 +3355,13 @@ def main():
     lib_list = lib_subs.add_parser("list")
     lib_list.add_argument("--tag", default=None, help="Filter by tag")
 
-    lib_search = lib_subs.add_parser("search")
+    lib_search = sub_subs.add_parser("search")
     lib_search.add_argument("query", help="Tag or description substring to search")
-    
+
+    # TKT-705: Pre-publish checklist
+    pre_pub = sub.add_parser("pre-publish-checklist", help="Print pre-publish checklist for a production")
+    pre_pub.add_argument("production_id")
+
     args = ap.parse_args()
     
     if args.command == "approve":
@@ -3530,6 +3534,82 @@ def main():
         else:
             print("Usage: produce_db.py library {add|list|search} ...", file=sys.stderr)
             sys.exit(1)
+
+    elif args.command == "pre-publish-checklist":
+        _cmd_pre_publish_checklist(args.production_id)
+
+
+def _cmd_pre_publish_checklist(production_id: str) -> None:
+    """TKT-705: Print pre-publish checklist for a production.
+
+    Information surface only — does NOT publish.
+    Prints gate statuses, AI flags, thumbnail variants, title candidates,
+    and a READY/BLOCKED recommendation.
+    """
+    prod = _db.get_production(production_id)
+    if not prod:
+        print(f"Error: Production '{production_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"=== Pre-Publish Checklist: {production_id} ===")
+    print(f"  Title: {prod.get('title', 'N/A')}")
+    print(f"  Type: {prod.get('video_type', 'N/A')}")
+    print()
+
+    # Gate statuses
+    print("--- Gate Statuses ---")
+    gates = ["gate_a_content", "gate_storyboard", "gate_a_spend", "gate_b_review"]
+    all_passed = True
+    for gate in gates:
+        status = _db.get_gate_status(production_id, gate)
+        passed = status == "pass"
+        if not passed:
+            all_passed = False
+        print(f"  {gate}: {status} {'✓' if passed else '✗'}")
+    print()
+
+    # AI reviewer flags (from last review round)
+    print("--- AI Reviewer Flags ---")
+    last_review = _db.get_last_review(production_id)
+    if last_review and "ai_reviewer_flags" in last_review:
+        for persona, flags in last_review["ai_reviewer_flags"].items():
+            issues = flags.get("blocking_issues", [])
+            if issues:
+                print(f"  {persona}: {len(issues)} blocking issue(s)")
+                for issue in issues[:3]:
+                    print(f"    - {issue}")
+    else:
+        print("  (no review data)")
+    print()
+
+    # Thumbnail variants
+    print("--- Thumbnail Variants ---")
+    thumbs = _db.get_thumbnails(production_id)
+    if thumbs:
+        for t in thumbs:
+            print(f"  {t.get('layout', 'unknown')}: {t.get('path', 'N/A')}")
+    else:
+        print("  (none generated)")
+    print()
+
+    # Title candidates
+    print("--- Title Candidates ---")
+    titles = _db.get_title_candidates(production_id)
+    if titles:
+        for i, t in enumerate(titles, 1):
+            selected = " [SELECTED]" if t.get("is_selected") else ""
+            print(f"  {i}. {t.get('title', 'N/A')}{selected}")
+    else:
+        print("  (none generated)")
+    print()
+
+    # Recommendation
+    print("--- Recommendation ---")
+    if all_passed:
+        print("  READY — all gates passed")
+    else:
+        print("  BLOCKED — not all gates passed")
+    print()
 
 
 def library_add(file_path: str, license: str, tags: str = "",

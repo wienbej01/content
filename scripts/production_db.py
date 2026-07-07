@@ -891,5 +891,68 @@ def main(argv=None):
     return 0
 
 
+def get_gate_status(production_id: str, gate_name: str, db_path=None) -> str:
+    """Get the status of a gate for a production."""
+    try:
+        migrate(db_path)
+        conn = connect(db_path)
+        row = conn.execute(
+            "SELECT decision FROM approvals WHERE production_id=? AND gate_name=? ORDER BY created_at DESC LIMIT 1",
+            (production_id, gate_name)
+        ).fetchone()
+        conn.close()
+        return row["decision"] if row else "pending"
+    except Exception:
+        return "pending"
+
+
+def get_last_review(production_id: str, db_path=None) -> dict:
+    """Get the last review report for a production."""
+    try:
+        migrate(db_path)
+        conn = connect(db_path)
+        row = conn.execute(
+            "SELECT * FROM review_rounds WHERE production_id=? ORDER BY created_at DESC LIMIT 1",
+            (production_id,)
+        ).fetchone()
+        conn.close()
+        if row and row.get("report_json"):
+            import json
+            return json.loads(row["report_json"])
+        return {}
+    except Exception:
+        return {}
+
+
+def get_thumbnails(production_id: str, db_path=None) -> list:
+    """Get thumbnail variants for a production."""
+    try:
+        migrate(db_path)
+        conn = connect(db_path)
+        rows = conn.execute(
+            "SELECT * FROM thumbnails WHERE production_id=? ORDER BY variant_num",
+            (production_id,)
+        ).fetchall()
+        conn.close()
+        return [_row(r) for r in rows]
+    except Exception:
+        return []
+
+
+def get_title_candidates(production_id: str, db_path=None) -> list:
+    """Get title candidates for a production."""
+    try:
+        migrate(db_path)
+        conn = connect(db_path)
+        rows = conn.execute(
+            "SELECT * FROM title_candidates WHERE production_id=? ORDER BY rank",
+            (production_id,)
+        ).fetchall()
+        conn.close()
+        return [_row(r) for r in rows]
+    except Exception:
+        return []
+
+
 if __name__ == "__main__":
     raise SystemExit(main())
