@@ -6,6 +6,7 @@ as a hard constraint (a 3-min short is written as a short). The AUTHOR in the sc
 feedback loop: write → review → revise(fixes) → re-review. Returns (script_dict, prompt).
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -220,6 +221,21 @@ def detect_overclaim_language(script_text, brief):
     return list(dict.fromkeys(warnings))
 
 
+def check_unsourced_named_claims(script_text, brief, mode="warn"):
+    """Check for unsourced named claims. In 'warn' mode, returns warnings.
+    In 'block' mode, returns a dict with 'blocked' flag and details."""
+    flagged = detect_unsourced_named_claims(script_text, brief)
+    if not flagged:
+        return {"blocked": False, "claims": []}
+    if mode == "block":
+        return {
+            "blocked": True,
+            "claims": flagged,
+            "error": f"BLOCKED_UNSOURCED_NAMED_CLAIM: {', '.join(flagged)}"
+        }
+    return {"blocked": False, "claims": flagged}
+
+
 def write_script(brief, video_type, prior_script=None, fixes=None, dry_run=False):
     prompt = build_writer_prompt(brief, video_type, prior_script, fixes)
     if dry_run:
@@ -233,13 +249,16 @@ def write_script(brief, video_type, prior_script=None, fixes=None, dry_run=False
         data.setdefault("video_type", video_type)
         data.setdefault("narration_mode", "continuous_voiceover")
 
-    # Diagnostic heuristic — WARNING only, not a hard gate
     script_text = " ".join(
         seg.get("text", "") for seg in (data or {}).get("segments", [])
     )
-    warnings = detect_unsourced_named_claims(script_text, brief)
-    if warnings:
-        print(f"  WARNING [fabrication heuristic]: possibly unsourced claims: {warnings}",
+    unsourced_mode = os.environ.get("UNSOURCED_CLAIM_MODE", "warn")
+    unsourced = check_unsourced_named_claims(script_text, brief, mode=unsourced_mode)
+    if unsourced["blocked"]:
+        print(f"  BLOCKED [unsourced named claim]: {unsourced['error']}", file=sys.stderr)
+        return None, prompt
+    if unsourced["claims"]:
+        print(f"  WARNING [fabrication heuristic]: possibly unsourced claims: {unsourced['claims']}",
               file=sys.stderr)
 
     overclaim_warnings = detect_overclaim_language(script_text, brief)
