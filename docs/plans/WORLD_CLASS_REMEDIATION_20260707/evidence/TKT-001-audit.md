@@ -1,40 +1,24 @@
-# TKT-001 — Auditor Report
+# TKT-001 Audit Report
 
+**Auditor:** aud
+**Date:** 2026-07-07
 **Ticket:** TKT-001
-**Auditor:** Independent session
-**Verdict:** PASS
+**Evidence reviewed:** evidence/TKT-001-reference-frame-baseline.md
 
-## Audit questions and findings
+## Findings
 
-**Q1: Did the inspector read all three target files?**
-- YES. Evidence record covers `configs/james/model_routing.yaml` (190 lines), `scripts/review_storyboard.py` (318 lines), `scripts/storyboard_projection.py` (507 lines), and `docs/channel_universe/constraints.json` (379 lines).
+| ID | Severity | File/Symbol | Issue | Required correction |
+|----|----------|-------------|-------|---------------------|
+| F-A1 | LOW | evidence §1.3 | Angle count claims 6 distinct, actual is 5 (front, front_speaking, medium_wide, three_quarter, side_profile) | Fix count in evidence record (or acknowledge as cosmetic) |
 
-**Q2: Are the validator function names textually present in the source?**
-- YES. Confirmed symbols in `scripts/review_storyboard.py`:
-  - `_bands_check` — L88
-  - `_anti_patterns` — L147
-  - `_trigger_coverage` — L198
-  - `_coverage_min` — L214
-  - `review` — L227
-  - `_max_hero_chain` — L55
-- Confirmed symbols in `scripts/storyboard_projection.py`:
-  - `project_canonical` — L460
-  - `_project_shot_to_beat` — L340
-  - `_resolve_shot_type` — L170
-  - `_VISUAL_ROLE_TO_SHOT_TYPE` — L49
+## Audit answers
 
-**Q3: Does the record accurately identify the gap?**
-- YES. Direct code inspection confirms: `_anti_patterns` only checks `if prev is not None and st == prev` (L171) for identical shot_type — no reference-frame comparison occurs anywhere in the validator. `_bands_check` only validates percentages and hero-chain duration, not frame distribution.
-
-**Q4: Does the record specify whether `visual_chapter` exists?**
-- YES. Record states: `storyboard_projection._project_shot_to_beat` does NOT emit `visual_chapter` today; beat carry fields (`_SHOT_CARRY_FIELDS`, L161) do not include it. Recommends adding to the projection output.
-
-## Severity of findings
-
-| Finding | Severity | Resolution |
-| --- | --- | --- |
-| None — inspection accurate | — | No correction required |
+- Q1 (all files read): YES
+- Q2 (function names accurate): YES — all 6 function names confirmed at claimed lines
+- Q3 (frame count): 5 distinct angles, evidence says 6 — LOW inaccuracy
+- Q4 (visual_chapter gap): CONFIRMED — grep returns 0 matches
+- Q5 (recommendations): Sound, consistent with sprint plan
 
 ## Verdict
 
-**PASS.** Baseline record is accurate against the current source state. All validator functions referenced by name are present. The gap analysis is supported by direct code evidence.
+PASS_WITH_FINDINGS (severity LOW)
