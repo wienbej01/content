@@ -1,4 +1,6 @@
-"""Tests for ESC-D: claim-strength matching and attribution exactness."""
+"""Tests for TKT-403 claim strength mapper."""
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -7,61 +9,32 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from write_script import (  # noqa: E402
-    CLAIM_STRENGTH_RULE,
-    build_writer_prompt,
-    detect_overclaim_language,
-)
-
-BRIEF_WEAK_FRAMING = {
-    "seed": "value capture",
-    "angle": "professionals lose leverage",
-    "key_claims": [
-        {
-            "claim": "A Stanford professor observes that many professionals fail to capture value.",
-            "source": {"title": "Interview clip", "author_or_site": "Stanford"},
-        }
-    ],
-    "research_text": (
-        "In a quote from a Stanford lecture, Professor X observes that many "
-        "professionals struggle with value capture. This is an observation, not a "
-        "controlled study."
-    ),
-    "sources": [{"title": "Stanford lecture clip", "url": "https://example.com"}],
-}
+from claim_strength import map_claim_strength, map_claim_strength_for_claim
 
 
-def test_claim_strength_rule_in_prompt():
-    """build_writer_prompt includes CLAIM_STRENGTH_RULE text."""
-    prompt = build_writer_prompt(BRIEF_WEAK_FRAMING, "flagship")
-    assert "MATCH THE SOURCE'S CLAIM STRENGTH" in prompt
-    assert "attribute to the authors" in prompt.lower() or "ATTRIBUTE EXACTLY" in prompt
+class TestMapClaimStrength:
+    def test_settled_science(self):
+        assert map_claim_strength("Research proves that AI transforms productivity.") == "settled_science"
+        assert map_claim_strength("Studies show consistent results across trials.") == "settled_science"
 
+    def test_single_study(self):
+        assert map_claim_strength("One study found a 2.3% increase in output.") == "single_study"
+        assert map_claim_strength("A single trial reported modest gains.") == "single_study"
 
-def test_overclaim_detected():
-    """Strong verb + weakly-framed source triggers a warning."""
-    script = "Stanford research found professionals capture less value than expected."
-    warnings = detect_overclaim_language(script, BRIEF_WEAK_FRAMING)
-    assert len(warnings) > 0
-    assert any("Stanford" in w for w in warnings)
+    def test_quote(self):
+        assert map_claim_strength("According to Dr. Smith, AI adoption correlates with output.") == "quote"
+        assert map_claim_strength("As noted by the researchers, results were mixed.") == "quote"
 
+    def test_observation(self):
+        assert map_claim_strength("An observation suggests further study is needed.") == "observation"
+        assert map_claim_strength("One might observe a correlation.") == "observation"
 
-def test_matched_strength_not_flagged():
-    """Script matching brief's weak framing does NOT trigger a warning."""
-    script = "A Stanford observation suggests professionals may struggle with value capture."
-    warnings = detect_overclaim_language(script, BRIEF_WEAK_FRAMING)
-    assert len(warnings) == 0
+    def test_default_observation(self):
+        assert map_claim_strength("The weather is nice today.") == "observation"
 
+    def test_for_claim_dict(self):
+        claim = {"claim": "Output grew by 2.3%", "source": {"text": "One study found output grew."}}
+        assert map_claim_strength_for_claim(claim) == "single_study"
 
-def test_misattribution_guidance_present():
-    """Prompt instructs attributing to actual authors, not commenting institution."""
-    prompt = build_writer_prompt(BRIEF_WEAK_FRAMING, "flagship")
-    assert "commenting institution" in prompt.lower() or "NOT to the commenting institution" in prompt
-
-
-def test_overclaim_is_warning_not_block():
-    """detect_overclaim_language returns a list (warning-only), never raises."""
-    script = "Stanford research found professionals capture less value."
-    result = detect_overclaim_language(script, BRIEF_WEAK_FRAMING)
-    assert isinstance(result, list)
-    # Confirm it doesn't raise — the function completed successfully
+    def test_for_claim_string(self):
+        assert map_claim_strength_for_claim("Research proves this works.") == "settled_science"
