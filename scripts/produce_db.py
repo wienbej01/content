@@ -3355,7 +3355,7 @@ def main():
     lib_list = lib_subs.add_parser("list")
     lib_list.add_argument("--tag", default=None, help="Filter by tag")
 
-    lib_search = sub_subs.add_parser("search")
+    lib_search = lib_subs.add_parser("search")
     lib_search.add_argument("query", help="Tag or description substring to search")
 
     # TKT-705: Pre-publish checklist

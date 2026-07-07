@@ -43,6 +43,7 @@ docs/plans/WORLD_CLASS_REMEDIATION_20260707/
     STATE.json                   <- single authoritative sprint checkpoint
     EXECUTION_LOG.jsonl          <- append-only execution events
     HANDOFF.md                   <- wave/sprint completion handoff notes
+    agents/AGENTS.md             <- Karpathy loop agent definitions + session protocols
     tickets/
         TKT-001.md .. TKT-006.md  Wave 0  Foundation: inspection, fixtures, baselines
         TKT-101.md .. TKT-105.md  Wave 1  Lipsync provider resilience
@@ -50,8 +51,8 @@ docs/plans/WORLD_CLASS_REMEDIATION_20260707/
         TKT-301.md .. TKT-304.md  Wave 3  Hybrid b-roll pipeline
         TKT-401.md .. TKT-404.md  Wave 4  Research citation verification
         TKT-501.md .. TKT-505.md  Wave 5  Audio design & music scoring
-        TKT-601.md .. TKT-604.md  Wave 6  Assembly variation & review diversity
-        TKT-701.md .. TKT-705.md  Wave 7  Pre-publish optimization
+        TKT-601.md .. TKT-604.md  Wave 6  Assembly variation & EDL craft
+        TKT-701.md .. TKT-705.md  Wave 7  Reviewer diversity + pre-publish
         TKT-801.md .. TKT-803.md  Wave 8  Budget optimizer
         TKT-901.md                 Wave 9  Sprint exit: validated production run
     evidence/

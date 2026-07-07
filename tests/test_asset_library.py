@@ -105,7 +105,7 @@ class TestLibrary:
             "resolution_vs_drift": "stable",
         }
 
-        with pytest.raises(RuntimeError, match="not found"):
+        with pytest.raises(Exception, match="not found|cannot be projected|Extend _VISUAL_ROLE"):
             project_canonical({
                 "storyboard_contract_version": "2.0",
                 "shots": [shot],

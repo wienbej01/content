@@ -57,6 +57,7 @@ _VISUAL_ROLE_TO_SHOT_TYPE: dict[str, str] = {
     # for evidence-grounded b-roll, which is exactly the archival intent).
     "broll_argument_support": "broll_archival",
     "broll_emotional_reset": "broll_environment",
+    "broll_metaphorical_reset": "broll_metaphorical",
     "broll_archival": "broll_archival",
     "broll_metaphorical": "broll_metaphorical",
     "broll_environment": "broll_environment",

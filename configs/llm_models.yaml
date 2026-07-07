@@ -42,7 +42,7 @@ reviewer_cast:
   audience: { model_profile: sonnet_creative, weight: 2.0, supports_vision: false }
   filmmaker: { model_profile: sonnet_creative, weight: 1.5, supports_vision: true }
   visual_director: { model_profile: sonnet_creative, weight: 1.5, supports_vision: true }
-  brand_voice: { model_profile: auto_utility, weight: 1.2, supports_vision: false }
+  brand_voice: { model_profile: sonnet_creative, weight: 1.2, supports_vision: false }
   technical: { model_profile: auto_utility, weight: 0.8, supports_vision: false }
 
 # Tasks that require creative authority (cannot use auto_utility)

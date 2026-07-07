@@ -346,13 +346,15 @@ def call_kilo(model, prompt, timeout=120, verbose=False, system_prompt=None):
 
 
 def llm_call(task, prompt, model_profile=None, input_json=None, timeout=120,
-             dry_run=False, verbose=False, expect_json=True):
+             dry_run=False, verbose=False, expect_json=True, persona_model=None):
     """High-level: resolve profile, build prompt, call, parse, validate.
 
     Returns (parsed_data, raw_text, profile_name, model).
     """
     config = load_config()
-    profile_name, profile = resolve_profile(config, task, model_profile)
+    # TKT-701: use persona_model as model_profile override when provided
+    effective_profile = persona_model if persona_model else model_profile
+    profile_name, profile = resolve_profile(config, task, effective_profile)
     model = profile["model"]
 
     # Check Sonnet 5 availability for storyboard authority tasks

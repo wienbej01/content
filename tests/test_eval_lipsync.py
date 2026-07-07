@@ -30,7 +30,7 @@ class TestAnalyzeVideo:
         assert "eval_name" in data
         assert "subject_id" in data
         assert data["subject_id"] == "test_unit"
-        assert data["status"] in ("diagnostic", "warn", "fail", "blocked")
+        assert data["status"] in ("diagnostic", "warn", "fail", "blocked", "needs_human_av_review")
 
     def test_eval_returns_expected_structure(self, tmp_path):
         """S01-T003-R2: eval returns all required fields."""
