@@ -1,0 +1,40 @@
+# Audio scoring rules for act-specific music.
+# Used by the assembler to select stems per narrative act.
+# Test mode uses fixtures from TKT-004.
+
+silence_functions:
+  - myth_bust_reveal
+  - paradigm_shift
+  - philosophical_close
+
+acts:
+  1:
+    tempo_bpm: 90
+    instrumentation: "solo piano, soft pads"
+    energy_level: 0.3
+    reference_style: "contemplative opening"
+  2:
+    tempo_bpm: 100
+    instrumentation: "piano, light strings, subtle percussion"
+    energy_level: 0.5
+    reference_style: "building tension"
+  3:
+    tempo_bpm: 110
+    instrumentation: "full ensemble, strings, percussion, bass"
+    energy_level: 0.8
+    reference_style: "peak energy, thesis delivery"
+  4:
+    tempo_bpm: 100
+    instrumentation: "strings, piano, ambient pads"
+    energy_level: 0.6
+    reference_style: "resolution, analysis"
+  5:
+    tempo_bpm: 95
+    instrumentation: "piano, soft pads, light percussion"
+    energy_level: 0.4
+    reference_style: "calm reflection"
+  6:
+    tempo_bpm: 85
+    instrumentation: "solo piano, ambient reverb"
+    energy_level: 0.2
+    reference_style: "philosophical close"
