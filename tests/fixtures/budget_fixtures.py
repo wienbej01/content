@@ -1,127 +1,252 @@
-"""Deterministic, hermetic budget allocation fixtures.
+#!/usr/bin/env python3
+"""Deterministic budget allocation fixtures for TKT-006.
 
-Two fixture generators for budget optimization tests (TKT-801/802):
-  1. flat_allocation      — storyboard with 10 beats; flat $60 budget → $6/beat.
-  2. weighted_allocation  — same storyboard; beat-attention classifier marks some
-                            beats at 3× weight; others at 0.5×; budget is redistributed
-                            to maximize weighted quality within the cap.
+Generates two allocation strategies for testing budget optimization:
+1. Flat allocation — total / beat_count per beat.
+2. Weighted allocation — distribute proportionally by beat-attention-weight,
+   clamped to per-beat floor and ceiling.
 
-Plus a small allocator embedded in the fixture so the test can validate both the flat
-and weighted formulas without requiring the production allocation module.
-
-No paid calls, no network.
+Both sum exactly to the configured cap (within floating-point tolerance).
 """
-from __future__ import annotations
-
+import hashlib
 import json
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any
 
+import pytest
 
-BEAT_MIN = 0.25
-BEAT_MAX = 30.0
-BEAT_CAP = 60.0
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
+MIN_BEAT_BUDGET_USD = 0.25
+MAX_BEAT_BUDGET_USD = 8.0
 
-class BudgetFixture(NamedTuple):
-    path: Path
-    label: str  # 'flat' | 'weighted'
+# ---------------------------------------------------------------------------
+# Sample storyboard
+# ---------------------------------------------------------------------------
 
+SAMPLE_BEATS = [
+    {"beat_id": "B001", "narrative_function": "hook", "shot_type": "hero_lipsync", "act": 1, "est_duration_sec": 5.0},
+    {"beat_id": "B002", "narrative_function": "metaphorical_b_roll", "shot_type": "broll_environment", "act": 1, "est_duration_sec": 5.0},
+    {"beat_id": "B003", "narrative_function": "thesis", "shot_type": "hero_lipsync", "act": 2, "est_duration_sec": 6.0},
+    {"beat_id": "B004", "narrative_function": "framework_reveal", "shot_type": "graphic_progressive", "act": 2, "est_duration_sec": 4.0},
+    {"beat_id": "B005", "narrative_function": "evidence", "shot_type": "broll_archival", "act": 3, "est_duration_sec": 5.0},
+    {"beat_id": "B006", "narrative_function": "thesis_close", "shot_type": "hero_lipsync", "act": 4, "est_duration_sec": 5.0},
+    {"beat_id": "B007", "narrative_function": "factual_data", "shot_type": "broll_tactical", "act": 4, "est_duration_sec": 4.0},
+    {"beat_id": "B008", "narrative_function": "philosophical_close", "shot_type": "hero_lipsync", "act": 6, "est_duration_sec": 5.0},
+    {"beat_id": "B009", "narrative_function": "transition", "shot_type": "broll_environment", "act": 6, "est_duration_sec": 3.0},
+    {"beat_id": "B010", "narrative_function": "final_motivation", "shot_type": "hero_lipsync", "act": 6, "est_duration_sec": 5.0},
+]
 
-def _build_storyboard() -> list[dict]:
-    return [
-        {"beat_id": "b_hook_001",    "order": 0, "narrative_function": "hook",
-         "shot_type": "hero_lipsync", "est_duration_sec": 8.0, "viewer_attention_weight": 3.0},
-        {"beat_id": "b_archival_002", "order": 1, "narrative_function": "evidence_anchor",
-         "shot_type": "broll_archival", "est_duration_sec": 6.0, "viewer_attention_weight": 1.0},
-        {"beat_id": "b_background_003","order": 2, "narrative_function": "thesis_statement",
-         "shot_type": "talking_head_standard", "est_duration_sec": 12.0, "viewer_attention_weight": 2.5},
-        {"beat_id": "b_metaphorical_004","order": 3, "narrative_function": "visual_pause",
-         "shot_type": "broll_metaphorical", "est_duration_sec": 4.0, "viewer_attention_weight": 0.5},
-        {"beat_id": "b_pattern_005",  "order": 4, "narrative_function": "pattern_definition",
-         "shot_type": "talking_head_standard", "est_duration_sec": 10.0, "viewer_attention_weight": 1.5},
-        {"beat_id": "b_graphic_006",  "order": 5, "narrative_function": "framework_render",
-         "shot_type": "graphic_progressive", "est_duration_sec": 7.0, "viewer_attention_weight": 0.75},
-        {"beat_id": "b_system_007",   "order": 6, "narrative_function": "system_walkthrough",
-         "shot_type": "talking_head_standard", "est_duration_sec": 9.0, "viewer_attention_weight": 1.0},
-        {"beat_id": "b_environment_008","order": 7, "narrative_function": "tonal_reset",
-         "shot_type": "broll_environment", "est_duration_sec": 5.0, "viewer_attention_weight": 0.5},
-        {"beat_id": "b_giveback_009", "order": 8, "narrative_function": "thesis_close",
-         "shot_type": "talking_head_standard", "est_duration_sec": 11.0, "viewer_attention_weight": 3.0},
-        {"beat_id": "b_cta_010",      "order": 9, "narrative_function": "call_to_action",
-         "shot_type": "talking_head_hero", "est_duration_sec": 6.0, "viewer_attention_weight": 1.5},
-    ]
+# ---------------------------------------------------------------------------
+# Allocators
+# ---------------------------------------------------------------------------
 
-
-def _flat_allocate(beats: list[dict], cap: float) -> list[float]:
+def flat_allocator(beats: list[dict], total_cap_usd: float) -> list[dict]:
+    """Distribute budget equally across all beats."""
     n = len(beats)
-    per = cap / n
-    return [round(per, 4)] * n
+    if n == 0:
+        return []
+    per_beat = total_cap_usd / n
+    allocations = []
+    for b in beats:
+        allocations.append({
+            "beat_id": b["beat_id"],
+            "allocation_usd": round(per_beat, 4),
+            "weight": 1.0,
+        })
+    return allocations
 
 
-def _weighted_allocate(beats: list[dict], cap: float, floor: float = BEAT_MIN, ceil: float = BEAT_MAX) -> list[float]:
-    weights = [max(0.5, min(3.0, b.get("viewer_attention_weight", 1.0))) for b in beats]
-    wsum = sum(weights)
-    allocated = [cap * (w / wsum) for w in weights]
-    # iterative clamp-and-redistribute (two-pass approach)
-    for _ in range(5):
-        clamped = [max(floor, min(ceil, a)) for a in allocated]
-        total = sum(clamped)
-        if abs(total - cap) < 0.001:
-            break
-        # redistribute slack to unclamped beats
-        slack = cap - total
-        unclamped_indexes = [i for i, a in enumerate(allocated)
-                            if floor < a < ceil]
-        if not unclamped_indexes:
-            break
-        per = slack / len(unclamped_indexes)
-        for i in unclamped_indexes:
-            allocated[i] += per
-    return [round(max(floor, min(ceil, a)), 4) for a in allocated]
+def weighted_allocator(
+    beats: list[dict],
+    total_cap_usd: float,
+    weights: dict[str, float] | None = None,
+    min_budget: float = MIN_BEAT_BUDGET_USD,
+    max_budget: float = MAX_BEAT_BUDGET_USD,
+) -> list[dict]:
+    """Distribute budget proportionally by weight, clamped to floor/ceiling."""
+    if weights is None:
+        weights = {}
+
+    n = len(beats)
+    if n == 0:
+        return []
+
+    # Compute raw weights
+    raw_weights = []
+    for b in beats:
+        w = weights.get(b["beat_id"], 1.0)
+        raw_weights.append(w)
+
+    total_weight = sum(raw_weights)
+    if total_weight == 0:
+        total_weight = 1.0
+
+    # Initial proportional allocation
+    allocations = []
+    for i, b in enumerate(beats):
+        share = (raw_weights[i] / total_weight) * total_cap_usd
+        clamped = max(min_budget, min(max_budget, share))
+        allocations.append({
+            "beat_id": b["beat_id"],
+            "allocation_usd": round(clamped, 4),
+            "weight": raw_weights[i],
+        })
+
+    # Adjust for any clamping drift to ensure total == cap
+    current_total = sum(a["allocation_usd"] for a in allocations)
+    drift = total_cap_usd - current_total
+    if abs(drift) > 0.001 and n > 0:
+        # Distribute drift across unclamped beats
+        adjustable = [a for a in allocations if min_budget < a["allocation_usd"] < max_budget]
+        if adjustable:
+            per_adjust = drift / len(adjustable)
+            for a in adjustable:
+                a["allocation_usd"] = round(a["allocation_usd"] + per_adjust, 4)
+
+    return allocations
 
 
-def make_flat_budget_fixture(tmp_path: Path, cap: float = BEAT_CAP) -> BudgetFixture:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    out = tmp_path / "flat_budget.json"
-    beats = _build_storyboard()
-    amounts = _flat_allocate(beats, cap)
-    doc = {
-        "cap": cap,
-        "allocation_mode": "flat",
-        "sum": round(sum(amounts), 2),
-        "beats": [
-            {"beat_id": b["beat_id"], "amount_usd": a}
-            for b, a in zip(beats, amounts)
-        ],
+# ---------------------------------------------------------------------------
+# Fixture generators
+# ---------------------------------------------------------------------------
+
+def generate_flat_allocation(tmp_path: Path, total_cap_usd: float = 60.0) -> dict[str, Any]:
+    """Generate a flat allocation fixture."""
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    allocations = flat_allocator(SAMPLE_BEATS, total_cap_usd)
+    result = {
+        "fixture_type": "flat_allocation",
+        "strategy": "flat",
+        "total_cap_usd": total_cap_usd,
+        "beat_count": len(SAMPLE_BEATS),
+        "allocations": allocations,
     }
-    out.write_text(json.dumps(doc, indent=2))
-    return BudgetFixture(out, "flat")
-
-
-def make_weighted_budget_fixture(tmp_path: Path, cap: float = BEAT_CAP) -> BudgetFixture:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    out = tmp_path / "weighted_budget.json"
-    beats = _build_storyboard()
-    amounts = _weighted_allocate(beats, cap)
-    doc = {
-        "cap": cap,
-        "allocation_mode": "weighted",
-        "sum": round(sum(amounts), 2),
-        "beats": [
-            {"beat_id": b["beat_id"], "amount_usd": a, "weight": b["viewer_attention_weight"]}
-            for b, a in zip(beats, amounts)
-        ],
+    out = tmp_path / "budget_flat.json"
+    out.write_text(json.dumps(result, indent=2, sort_keys=True))
+    return {
+        "path": str(out),
+        "result": result,
+        "total_cap_usd": total_cap_usd,
+        "fixture_type": "flat_allocation",
     }
-    out.write_text(json.dumps(doc, indent=2))
-    return BudgetFixture(out, "weighted")
 
 
-_ALL_BUILDERS = {
-    "flat": make_flat_budget_fixture,
-    "weighted": make_weighted_budget_fixture,
-}
+def generate_weighted_allocation(tmp_path: Path, total_cap_usd: float = 60.0) -> dict[str, Any]:
+    """Generate a weighted allocation fixture with hero beats at 3x weight."""
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    # Mark hero thesis_close beats as 3x weight, transitions as 0.5x
+    weights = {}
+    for b in SAMPLE_BEATS:
+        if b["narrative_function"] in ("thesis_close", "hook", "final_motivation"):
+            weights[b["beat_id"]] = 3.0
+        elif b["narrative_function"] == "transition":
+            weights[b["beat_id"]] = 0.5
+        else:
+            weights[b["beat_id"]] = 1.0
+
+    allocations = weighted_allocator(SAMPLE_BEATS, total_cap_usd, weights)
+    result = {
+        "fixture_type": "weighted_allocation",
+        "strategy": "weighted",
+        "total_cap_usd": total_cap_usd,
+        "beat_count": len(SAMPLE_BEATS),
+        "weights": weights,
+        "allocations": allocations,
+    }
+    out = tmp_path / "budget_weighted.json"
+    out.write_text(json.dumps(result, indent=2, sort_keys=True))
+    return {
+        "path": str(out),
+        "result": result,
+        "total_cap_usd": total_cap_usd,
+        "fixture_type": "weighted_allocation",
+    }
 
 
-def build_all_fixtures(tmp_path: Path) -> dict[str, BudgetFixture]:
-    return {name: builder(tmp_path) for name, builder in _ALL_BUILDERS.items()}
+# ---------------------------------------------------------------------------
+# Pytest fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def flat_allocation(tmp_path):
+    yield generate_flat_allocation(tmp_path)
+
+
+@pytest.fixture
+def weighted_allocation(tmp_path):
+    yield generate_weighted_allocation(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+def test_flat_allocation(flat_allocation):
+    """Flat allocation: each beat gets equal share, sum equals cap."""
+    result = flat_allocation["result"]
+    cap = flat_allocation["total_cap_usd"]
+    allocs = result["allocations"]
+    assert len(allocs) == 10
+    # All beats get same allocation
+    amounts = [a["allocation_usd"] for a in allocs]
+    assert all(abs(a - amounts[0]) < 0.01 for a in amounts), "flat allocation not equal"
+    # Sum equals cap
+    total = sum(amounts)
+    assert abs(total - cap) < 0.01, f"flat total {total} != cap {cap}"
+
+
+def test_weighted_allocation(weighted_allocation):
+    """Weighted allocation: hero beats get more, sum equals cap."""
+    result = weighted_allocation["result"]
+    cap = weighted_allocation["total_cap_usd"]
+    allocs = result["allocations"]
+    assert len(allocs) == 10
+
+    # Hero beats (thesis_close, hook, final_motivation) should get more than transitions
+    hero_beats = {"B001", "B006", "B010"}  # hook, thesis_close, final_motivation
+    transition_beats = {"B009"}
+
+    hero_amounts = [a["allocation_usd"] for a in allocs if a["beat_id"] in hero_beats]
+    transition_amounts = [a["allocation_usd"] for a in allocs if a["beat_id"] in transition_beats]
+
+    assert hero_amounts, "no hero beats found"
+    assert transition_amounts, "no transition beats found"
+    assert min(hero_amounts) > max(transition_amounts), \
+        f"hero min {min(hero_amounts)} should be > transition max {max(transition_amounts)}"
+
+    # Sum equals cap
+    total = sum(a["allocation_usd"] for a in allocs)
+    assert abs(total - cap) < 0.01, f"weighted total {total} != cap {cap}"
+
+
+def test_cap_invariant(flat_allocation, weighted_allocation):
+    """Neither allocator exceeds the cap."""
+    for fix in [flat_allocation, weighted_allocation]:
+        cap = fix["total_cap_usd"]
+        total = sum(a["allocation_usd"] for a in fix["result"]["allocations"])
+        assert total <= cap + 0.01, f"total {total} exceeds cap {cap}"
+
+
+def test_fixture_determinism(tmp_path):
+    """Same inputs produce same output."""
+    m1 = generate_flat_allocation(tmp_path / "run1")
+    m2 = generate_flat_allocation(tmp_path / "run2")
+    assert Path(m1["path"]).read_bytes() == Path(m2["path"]).read_bytes(), \
+        "flat allocation generation is not deterministic"
+
+
+def test_budget_json_schema(flat_allocation):
+    """Budget JSON has expected schema."""
+    result = flat_allocation["result"]
+    assert "fixture_type" in result
+    assert "strategy" in result
+    assert "total_cap_usd" in result
+    assert "beat_count" in result
+    assert "allocations" in result
+    for a in result["allocations"]:
+        assert "beat_id" in a
+        assert "allocation_usd" in a
+        assert "weight" in a
