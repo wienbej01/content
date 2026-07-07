@@ -239,3 +239,39 @@ class TestConditionalGenerateAudio:
             f"Kling without audio_path must send --sound on, "
             f"got {result['args'][idx + 1]}"
         )
+
+    def test_hero_with_audio_path_does_not_double_signal(self):
+        """Negative regression: --audio and --generate_audio false must both be present.
+
+        The double-signaling defect (PPQ W2) was that --generate_audio true was sent
+        alongside --audio, causing the provider to ignore the conditioning audio slice.
+        """
+        payload = {
+            "asset_type": "lipsync_video",
+            "model": "seedance_2_0",
+            "prompt": "Photorealistic close-up of James",
+            "audio_path": "/fixtures/audio/test.wav",
+            "duration_sec": 10,
+        }
+        result = _dry_run_submit(self.ADAPTER, payload)
+        args = result["args"]
+        ga_idx = args.index("--generate_audio")
+        assert args[ga_idx + 1] == "false", (
+            f"Double-signaling regression: --generate_audio must be false when "
+            f"audio_path is supplied, got {args[ga_idx + 1]}"
+        )
+        assert "--audio" in args, "--audio must still be present for the conditioning slice"
+
+    def test_broll_without_audio_path_does_not_include_audio_arg(self):
+        """Negative regression: b-roll without audio_path must not include --audio."""
+        payload = {
+            "asset_type": "generated_video",
+            "model": "seedance_2_0",
+            "prompt": "Cinematic establishing shot",
+            "duration_sec": 5,
+        }
+        result = _dry_run_submit(self.ADAPTER, payload)
+        args = result["args"]
+        assert "--audio" not in args, (
+            f"B-roll without audio_path must not include --audio, got {args}"
+        )
