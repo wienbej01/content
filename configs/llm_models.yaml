@@ -34,6 +34,17 @@ profiles:
 default_creative: sonnet_creative
 default_utility: auto_utility
 
+# TKT-701: Reviewer multi-model cast configuration.
+# Each reviewer persona routes through its configured model_profile.
+# Default config retains existing behavior (all DeepSeek flash).
+# Additional model profiles require human authorization for spending.
+reviewer_cast:
+  audience: { model_profile: sonnet_creative, weight: 2.0, supports_vision: false }
+  filmmaker: { model_profile: sonnet_creative, weight: 1.5, supports_vision: true }
+  visual_director: { model_profile: sonnet_creative, weight: 1.5, supports_vision: true }
+  brand_voice: { model_profile: auto_utility, weight: 1.2, supports_vision: false }
+  technical: { model_profile: auto_utility, weight: 0.8, supports_vision: false }
+
 # Tasks that require creative authority (cannot use auto_utility)
 creative_authority_tasks:
   - script_review

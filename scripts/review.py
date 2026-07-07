@@ -11,22 +11,41 @@ Reviewer cast (per CREATIVE_CHAIN_SPRINT.md):
   script-stage:     audience(2.0, veto), brand_voice(1.2)
   storyboard-stage: audience(2.0, veto), filmmaker(1.5), visual_director(1.5), technical(0.8)
 
-Python owns compliance; the LLM owns the creative judgment + revision.
+TKT-701: reviewer_cast config in llm_models.yaml routes each persona through its
+configured model_profile. Default config preserves existing behavior.
 """
 import json
 import sys
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 PROMPTS = ROOT / "docs" / "reviewer_prompts"
 CU = ROOT / "docs" / "channel_universe"
 
-SCRIPT_CAST = {"audience": 2.0, "brand_voice": 1.2}
-STORYBOARD_CAST = {"audience": 2.0, "filmmaker": 1.5, "visual_director": 1.5, "technical": 0.8}
-WEIGHTED_THRESHOLD = 3.2
-VETO_PERSONA = "audience"
-MAX_REVISION_ROUNDS = 2
+def _load_reviewer_cast() -> dict:
+    """Load reviewer_cast config from llm_models.yaml. Returns empty dict if unavailable."""
+    try:
+        cfg_path = ROOT / "configs" / "llm_models.yaml"
+        if not cfg_path.exists():
+            return {}
+        with open(cfg_path) as f:
+            cfg = yaml.safe_load(f)
+        return cfg.get("reviewer_cast", {}) if cfg else {}
+    except Exception:
+        return {}
+
+
+REVIEWER_CAST = _load_reviewer_cast()
+
+
+def _get_persona_model_profile(name: str) -> str:
+    """Get the model profile for a reviewer persona. Falls back to 'auto_utility'."""
+    if name in REVIEWER_CAST:
+        return REVIEWER_CAST[name].get("model_profile", "auto_utility")
+    return "auto_utility"
 
 # Which bibles each persona needs (don't flood every reviewer with everything).
 PERSONA_BIBLES = {
@@ -38,6 +57,12 @@ PERSONA_BIBLES = {
     "filmmaker": ["TECHNICAL_BIBLE.md"],
     "technical": ["TECHNICAL_BIBLE.md", "constraints.json"],
 }
+
+# TKT-701: Cast weights for aggregation (audience has veto)
+SCRIPT_CAST = {"audience": 2.0, "brand_voice": 1.2}
+STORYBOARD_CAST = {"audience": 2.0, "filmmaker": 1.5, "visual_director": 1.5, "technical": 0.8}
+WEIGHTED_THRESHOLD = 3.2
+VETO_PERSONA = "audience"
 
 
 def _load_persona(name):
@@ -87,9 +112,16 @@ def run_persona(name, artifact, kind, source_text="", video_type="explainer",
             capture[name] = {"prompt": prompt, "output": "(dry-run)"}
         return {"persona": name, "status": "dry_run", "overall_score": 0,
                 "recommended_fixes": [], "blocking_issues": [], "prompt_chars": len(prompt)}
-    data, raw, _, _ = llm_call(task="storyboard_review", prompt=prompt, expect_json=True, timeout=180)
+    data, raw, _, _ = llm_call(
+        task=f"{kind}_review", prompt=prompt, expect_json=True, timeout=180,
+        persona_model=_get_persona_model_profile(name)
+    )
     if capture is not None:
-        capture[name] = {"prompt": prompt, "output": raw}
+        capture[name] = {
+            "prompt": prompt,
+            "output": raw,
+            "model_profile": _get_persona_model_profile(name),
+        }
     if not isinstance(data, dict):
         return {"persona": name, "status": "error", "overall_score": 0,
                 "recommended_fixes": [], "blocking_issues": ["non-dict reviewer output"]}
@@ -144,8 +176,34 @@ def aggregate(verdicts, cast):
         "blocking_issues": blocking_issues,
         "recommendations": recommendations,
         "verdicts": verdicts,
+        "ai_reviewer_flags": _build_ai_reviewer_flags(verdicts),
     }
     return passed, report
+
+
+def _build_ai_reviewer_flags(verdicts: list[dict]) -> dict:
+    """Build ai_reviewer_flags section for human gate report.
+
+    Each persona's blocking issues and predicted metrics are surfaced
+    explicitly for the human approval gate.
+    """
+    flags = {}
+    for v in verdicts:
+        persona = v.get("persona", "unknown")
+        blocking = v.get("blocking_issues", [])
+        fixes = v.get("recommended_fixes", [])
+        score = v.get("overall_score", 0)
+        flags[persona] = {
+            "blocking_issues": blocking,
+            "recommended_fixes": fixes,
+            "overall_score": score,
+            "predicts": {
+                "watch_through": score >= 3.5,
+                "save": score >= 4.0 and len(blocking) == 0,
+                "share": score >= 4.5 and len(blocking) == 0,
+            },
+        }
+    return flags
 
 
 def review(artifact, kind, source_text="", video_type="explainer", dry_run=False,
