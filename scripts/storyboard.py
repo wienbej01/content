@@ -89,6 +89,22 @@ SHOT_TO_SCENE = {
     "kinetic_text": "TEXT_OVERLAY_POST_ONLY",
     "ui_insert": "TEXT_OVERLAY_POST_ONLY",
     "still_kenburns": "B_ROLL_SUPPORTING_VISUAL",
+    "location_transition": "TRANSITION",
+}
+
+SHOT_ROUTING = {
+    "hero_lipsync": ("seedance_2_0", "premium", "generated_video"),
+    "hero_cutaway": ("kling3_0", "standard", "generated_video"),
+    "broll_archival": ("kling3_0", "standard", "generated_video"),
+    "broll_metaphorical": ("still_kenburns", "cheap", "generated_still"),
+    "broll_environment": ("kling3_0", "standard", "generated_video"),
+    "broll_tactical": ("kling3_0", "standard", "generated_video"),
+    "graphic_progressive": ("local_graphic", "local", "local_graphic"),
+    "graphic_title_card": ("local_graphic", "local", "local_graphic"),
+    "kinetic_text": ("local_graphic", "local", "local_graphic"),
+    "ui_insert": ("local_graphic", "local", "local_graphic"),
+    "still_kenburns": ("still_kenburns", "cheap", "generated_still"),
+    "location_transition": ("still_kenburns", "cheap", "generated_still"),
 }
 
 # shot_type -> (model, model_tier, asset_type)

@@ -31,6 +31,7 @@ VALID_SHOT_TYPES = {
     "hero_lipsync", "hero_cutaway", "broll_archival", "broll_metaphorical",
     "broll_environment", "broll_tactical", "graphic_progressive",
     "graphic_title_card", "kinetic_text", "ui_insert", "still_kenburns",
+    "location_transition",
 }
 
 # Front-facing close-up phrasing that, on a hero_cutaway, recreates the
@@ -319,10 +320,27 @@ def review(storyboard, constraints):
     _trigger_coverage(beats, blocking, warnings)
     _coverage_min(beats, blocking, warnings)
     _visual_variation_check(beats, blocking, warnings)
+    _location_transition_check(beats, warnings)
 
-    if blocking:
-        fixes.append("Re-route via storyboard.py; ensure archival/graphic/kinetic beats and shot-mix bands.")
-    return blocking, warnings, fixes
+
+def _location_transition_check(beats, warnings):
+    """Warn if cumulative video exceeds 60s without a location_transition beat."""
+    LOCATION_TRANSITION_INTERVAL_SEC = 60
+    total_sec = 0
+    last_location_transition_sec = 0
+    warned = False
+    for b in beats:
+        dur = b.get("est_duration_sec", 0)
+        total_sec += dur
+        if b.get("shot_type") == "location_transition":
+            last_location_transition_sec = total_sec
+            warned = False
+        elif not warned and total_sec - last_location_transition_sec > LOCATION_TRANSITION_INTERVAL_SEC:
+            warnings.append(
+                f"location_transition_gap: {total_sec - last_location_transition_sec:.0f}s "
+                f"elapsed since last location_transition (max {LOCATION_TRANSITION_INTERVAL_SEC}s)"
+            )
+            warned = True
 
 
 def main():
